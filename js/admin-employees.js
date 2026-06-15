@@ -112,7 +112,7 @@ const adminEmployees = {
         return this.employees.filter(emp => {
             const matchesSearch = !this.filters.search ||
                 emp.name.toLowerCase().includes(this.filters.search) ||
-                emp.email.toLowerCase().includes(this.filters.search) ||
+                (emp.username || '').toLowerCase().includes(this.filters.search) ||
                 emp.position.toLowerCase().includes(this.filters.search);
 
             const matchesDept = !this.filters.department || emp.department === this.filters.department;
@@ -150,7 +150,7 @@ const adminEmployees = {
                         </div>
                         <div class="employee-details">
                             <span class="employee-name">${emp.name}</span>
-                            <span class="employee-email">${emp.email}</span>
+                            <span class="employee-email">${emp.username || '-'}</span>
                         </div>
                     </div>
                 </td>
@@ -197,7 +197,7 @@ const adminEmployees = {
                         </div>
                         <div class="employee-details">
                             <span class="employee-name">${emp.name}</span>
-                            <span class="employee-email">${emp.email}</span>
+                            <span class="employee-email">${emp.username || '-'}</span>
                         </div>
                     </div>
                     <span class="status-badge ${emp.status}">${this.getStatusLabel(emp.status)}</span>
@@ -317,7 +317,7 @@ const adminEmployees = {
         e.preventDefault();
 
         const name = document.getElementById('emp-name').value;
-        const email = document.getElementById('emp-email').value;
+        const username = document.getElementById('emp-email').value;
         const department = document.getElementById('emp-department').value;
         const position = document.getElementById('emp-position').value;
         const shift = document.getElementById('emp-shift').value;
@@ -326,7 +326,7 @@ const adminEmployees = {
 
         const employeeData = {
             name,
-            email,
+            username,
             department,
             position,
             shift,
@@ -389,15 +389,81 @@ const adminEmployees = {
     },
 
     viewEmployee(id) {
-        const emp = this.employees.find(e => e.id === id);
-        if (emp) {
-            alert(`Detail Karyawan:\n\nNama: ${emp.name}\nEmail: ${emp.email}\nDepartemen: ${emp.department}\nJabatan: ${emp.position}\nShift: ${emp.shift}\nStatus: ${this.getStatusLabel(emp.status)}\nBergabung: ${emp.joinDate}`);
-        }
-    },
+    const emp = this.employees.find(e => String(e.id) === String(id));
+    if (!emp) return;
 
-    editEmployee(id) {
-        toast.info('Fitur edit karyawan akan segera hadir');
-    },
+    document.getElementById('view-emp-avatar').src = getAvatarUrl(emp);
+    document.getElementById('view-emp-name').value = emp.name || '-';
+    document.getElementById('view-emp-username').value = emp.username || '-';
+    document.getElementById('view-emp-department').value = emp.department || '-';
+    document.getElementById('view-emp-position').value = emp.position || '-';
+    document.getElementById('view-emp-shift').value = emp.shift || '-';
+    document.getElementById('view-emp-status').value = this.getStatusLabel(emp.status);
+    document.getElementById('view-emp-joindate').value = emp.joinDate || '-';
+
+    document.getElementById('modal-view-employee').style.display = 'flex';
+},
+
+editEmployee(id) {
+    const emp = this.employees.find(e => String(e.id) === String(id));
+    if (!emp) return;
+
+    document.getElementById('edit-emp-id').value = emp.id;
+    document.getElementById('edit-emp-name').value = emp.name || '';
+    document.getElementById('edit-emp-username').value = emp.username || '';
+    document.getElementById('edit-emp-department').value = emp.department || '';
+    document.getElementById('edit-emp-position').value = emp.position || '';
+    document.getElementById('edit-emp-shift').value = emp.shift || 'Reguler (Sen-Kam)';
+    document.getElementById('edit-emp-status').value = emp.status || 'active';
+    document.getElementById('edit-emp-joindate').value = emp.joinDate || '';
+
+    const modal = document.getElementById('modal-edit-employee');
+    if (modal) modal.style.display = 'flex';
+
+    // Bind submit form edit (sekali saja)
+    const form = document.getElementById('form-edit-employee');
+    form.onsubmit = (e) => this.handleEditEmployee(e);
+},
+
+hideEditModal() {
+    const modal = document.getElementById('modal-edit-employee');
+    if (modal) modal.style.display = 'none';
+},
+
+async handleEditEmployee(e) {
+    e.preventDefault();
+
+    const id = document.getElementById('edit-emp-id').value;
+    const updatedData = {
+        name:       document.getElementById('edit-emp-name').value,
+        username:   document.getElementById('edit-emp-username').value,
+        department: document.getElementById('edit-emp-department').value,
+        position:   document.getElementById('edit-emp-position').value,
+        shift:      document.getElementById('edit-emp-shift').value,
+        status:     document.getElementById('edit-emp-status').value,
+        joinDate:   document.getElementById('edit-emp-joindate').value,
+    };
+
+    try {
+        const result = await api.updateEmployee(id, updatedData);
+        if (result.success) {
+            // Update data lokal
+            const idx = this.employees.findIndex(e => String(e.id) === String(id));
+            if (idx !== -1) {
+                this.employees[idx] = { ...this.employees[idx], ...updatedData };
+            }
+            this.hideEditModal();
+            this.renderTable();
+            this.renderMobileCards();
+            toast.success('Data karyawan berhasil diperbarui!');
+        } else {
+            toast.error(result.error || 'Gagal memperbarui data karyawan');
+        }
+    } catch (error) {
+        console.error('Error updating employee:', error);
+        toast.error('Terjadi kesalahan saat menyimpan');
+    }
+},
 
     async deleteEmployee(id) {
         if (confirm('Apakah Anda yakin ingin menghapus karyawan ini?')) {
