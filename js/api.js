@@ -66,6 +66,10 @@ const api = {
 
     // ========== ATTENDANCE ==========
 
+    async checkAttendanceAccess(userId) {
+        return this.request('checkAttendanceAccess', { userId });
+    },
+
     async getAttendance(userId) {
         if (!API_BASE_URL) {
             const all = storage.get('attendance', []);
