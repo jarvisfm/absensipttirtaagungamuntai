@@ -52,15 +52,14 @@ const auth = {
     async handleLogin(e) {
         e.preventDefault();
 
-        const email = document.getElementById('login-email').value;
+        const username = document.getElementById('login-email').value;
         const password = document.getElementById('login-password').value;
-        const role = document.querySelector('input[name="role"]:checked').value;
 
         // Validate
-        if (!email || !password) {
-            toast.error('Email dan password harus diisi!');
+        if (!username || !password) {
+            toast.error('Username dan password harus diisi!');
             return;
-        }
+        }    
 
         // Show loading
         const submitBtn = e.target.querySelector('.btn-login');
@@ -68,33 +67,23 @@ const auth = {
         submitBtn.disabled = true;
 
         try {
-            const result = await api.login(email, password);
+            const result = await api.login(username, password);
 
             let user;
             if (result.success && result.data) {
                 // Backend mode - user from API (Employees or Users sheet)
                 user = {
                     id: result.data.id,
-                    email: result.data.email,
+                    username: result.data.username,
                     name: result.data.name,
-                    role: result.data.role || role,
+                    role: result.data.role,
                     department: result.data.department || '',
                     position: result.data.position || '',
                     shift: result.data.shift || '',
                     avatar: result.data.avatar || '',
                     loginTime: new Date().toISOString()
                 };
-            } else if (result.success && !result.data && !API_BASE_URL) {
-                // Local-only fallback (no backend configured) - for testing only
-                const displayName = email.split('@')[0] || 'User';
-                user = {
-                    id: 'user_' + Date.now(),
-                    email: email,
-                    name: role === 'admin' ? 'Admin (Local)' : displayName,
-                    role: role,
-                    avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=F59E0B&color=fff`,
-                    loginTime: new Date().toISOString()
-                };
+    
             } else {
                 toast.error(result.error || 'Email atau password salah!');
                 submitBtn.classList.remove('loading');
