@@ -43,12 +43,12 @@ const api = {
 
     // ========== AUTH ==========
 
-    async login(email, password) {
-        if (!API_BASE_URL) {
-            return this._localLogin(email, password);
-        }
-        return this.request('login', { email, password });
-    },
+    async login(username, password) {
+    if (!API_BASE_URL) {
+        return this._localLogin(username, password);
+    }
+    return this.request('login', { username, password });
+},
 
     async changePassword(userId, oldPassword, newPassword) {
         if (!API_BASE_URL) {
