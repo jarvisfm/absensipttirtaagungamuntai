@@ -1485,7 +1485,7 @@
                     </div>
                     <div class="form-group">
                         <label for="emp-email">Username</label>
-                        <input type="text" id="login-email" placeholder="Username" autocomplete="username">
+                        <input type="text" id="emp-email" placeholder="Username untuk login" required>
                     </div>
                 </div>
                 <div class="form-row two-col">
@@ -1516,9 +1516,9 @@
                         <label for="emp-shift">Shift</label>
                         <select id="emp-shift" required>
                             <option value="">Pilih Shift</option>
-                            <option value="Pagi">Pagi (08:00-17:00)</option>
-                            <option value="Siang">Siang (14:00-23:00)</option>
-                            <option value="Malam">Malam (23:00-08:00)</option>
+                            <option value="Reguler (Sen-Kam)">Reguler Sen-Kam (08:00-16:30)</option>
+                            <option value="Reguler (Jumat)">Reguler Jumat (07:30-11:00)</option>
+                            <option value="Jaga Malam">Jaga Malam (21:00-05:00)</option>
                         </select>
                     </div>
                     <div class="form-group">
@@ -1541,6 +1541,123 @@
             </form>
         </div>
     </div>
+<!-- Modal Lihat Karyawan -->
+<div class="modal-overlay" id="modal-view-employee" style="display: none;">
+    <div class="modal-container">
+        <div class="modal-header">
+            <h3>Detail Karyawan</h3>
+            <button class="btn-close-modal" onclick="document.getElementById('modal-view-employee').style.display='none'">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="modal-form">
+            <div style="text-align:center; margin-bottom: 1rem;">
+                <img id="view-emp-avatar" src="" alt="Avatar"
+                    style="width:80px;height:80px;border-radius:50%;object-fit:cover;">
+            </div>
+            <div class="form-row two-col">
+                <div class="form-group">
+                    <label>Nama Lengkap</label>
+                    <input type="text" id="view-emp-name" disabled>
+                </div>
+                <div class="form-group">
+                    <label>Username</label>
+                    <input type="text" id="view-emp-username" disabled>
+                </div>
+            </div>
+            <div class="form-row two-col">
+                <div class="form-group">
+                    <label>Departemen</label>
+                    <input type="text" id="view-emp-department" disabled>
+                </div>
+                <div class="form-group">
+                    <label>Jabatan</label>
+                    <input type="text" id="view-emp-position" disabled>
+                </div>
+            </div>
+            <div class="form-row two-col">
+                <div class="form-group">
+                    <label>Shift</label>
+                    <input type="text" id="view-emp-shift" disabled>
+                </div>
+                <div class="form-group">
+                    <label>Status</label>
+                    <input type="text" id="view-emp-status" disabled>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Tanggal Bergabung</label>
+                <input type="text" id="view-emp-joindate" disabled>
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="btn-secondary"
+                    onclick="document.getElementById('modal-view-employee').style.display='none'">Tutup</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Edit Karyawan -->
+<div class="modal-overlay" id="modal-edit-employee" style="display: none;">
+    <div class="modal-container">
+        <div class="modal-header">
+            <h3>Edit Karyawan</h3>
+            <button class="btn-close-modal" onclick="adminEmployees.hideEditModal()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <form id="form-edit-employee" class="modal-form">
+            <input type="hidden" id="edit-emp-id">
+            <div class="form-row two-col">
+                <div class="form-group">
+                    <label for="edit-emp-name">Nama Lengkap</label>
+                    <input type="text" id="edit-emp-name" placeholder="Nama karyawan" required>
+                </div>
+                <div class="form-group">
+                    <label for="edit-emp-username">Username</label>
+                    <input type="text" id="edit-emp-username" placeholder="Username login" required>
+                </div>
+            </div>
+            <div class="form-row two-col">
+                <div class="form-group">
+                    <label for="edit-emp-department">Departemen</label>
+                    <input type="text" id="edit-emp-department" placeholder="Departemen" required>
+                </div>
+                <div class="form-group">
+                    <label for="edit-emp-position">Jabatan</label>
+                    <input type="text" id="edit-emp-position" placeholder="Jabatan" required>
+                </div>
+            </div>
+            <div class="form-row two-col">
+                <div class="form-group">
+                    <label for="edit-emp-shift">Shift</label>
+                    <select id="edit-emp-shift" required>
+                        <option value="Reguler (Sen-Kam)">Reguler Sen-Kam (08:00-16:30)</option>
+                        <option value="Reguler (Jumat)">Reguler Jumat (07:30-11:00)</option>
+                        <option value="Jaga Malam">Jaga Malam (21:00-05:00)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="edit-emp-status">Status</label>
+                    <select id="edit-emp-status" required>
+                        <option value="active">Aktif</option>
+                        <option value="on-leave">Cuti</option>
+                        <option value="inactive">Non-Aktif</option>
+                    </select>
+                </div>
+            </div>
+            <div class="form-group">
+                <label for="edit-emp-joindate">Tanggal Bergabung</label>
+                <input type="date" id="edit-emp-joindate" required>
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="btn-secondary" onclick="adminEmployees.hideEditModal()">Batal</button>
+                <button type="submit" class="btn-primary">Simpan Perubahan</button>
+            </div>
+        </form>
+    </div>
+</div>
+    
     <!-- Profile Modal -->
     <div class="modal-overlay" id="modal-profile" style="display: none;">
         <div class="modal-container modal-profile">
