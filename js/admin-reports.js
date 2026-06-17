@@ -188,10 +188,17 @@ const adminReports = {
         }
 
         // Month filter
-        const monthFilter = document.getElementById('attendance-month');
-        if (monthFilter) {
-            monthFilter.addEventListener('change', (e) => {
-                this.filters.attendance.month = e.target.value;
+        const dateFrom = document.getElementById('attendance-date-from');
+        const dateTo   = document.getElementById('attendance-date-to');
+        if (dateFrom) {
+            dateFrom.addEventListener('change', (e) => {
+                this.filters.attendance.dateFrom = e.target.value;
+                this.renderAttendanceReports();
+            });
+        }
+        if (dateTo) {
+            dateTo.addEventListener('change', (e) => {
+                this.filters.attendance.dateTo = e.target.value;
                 this.renderAttendanceReports();
             });
         }
@@ -296,15 +303,25 @@ const adminReports = {
     },
 
     getFilteredAttendance() {
-        return this.attendanceData.filter(row => {
-            const matchesDept = !this.filters.attendance.dept || row.department === this.filters.attendance.dept;
-            const matchesStatus = !this.filters.attendance.status ||
-                (this.filters.attendance.status === 'present' && row.present > 0) ||
-                (this.filters.attendance.status === 'absent' && row.absent > 0) ||
-                (this.filters.attendance.status === 'late' && row.late > 0);
-            return matchesDept && matchesStatus;
-        });
-    },
+    const { dateFrom, dateTo, dept, status } = this.filters.attendance;
+
+    return this.rawAttendance.filter(row => {
+        const emp = this.rawEmployees.find(e => String(e.id) === String(row.userId));
+        if (!emp) return false;
+
+        const matchesDept   = !dept   || emp.department === dept;
+        const matchesStatus = !status || String(row.status || '').toLowerCase() === status.toLowerCase();
+
+        let matchesDate = true;
+        if (dateFrom) matchesDate = matchesDate && row.date >= dateFrom;
+        if (dateTo)   matchesDate = matchesDate && row.date <= dateTo;
+
+        return matchesDept && matchesStatus && matchesDate;
+    }).map(row => {
+        const emp = this.rawEmployees.find(e => String(e.id) === String(row.userId));
+        return { ...row, empName: emp?.name || '-', empDept: emp?.department || '-' };
+    });
+},
 
     getFilteredJurnal() {
         return this.jurnalData.filter(row => {
@@ -326,63 +343,95 @@ const adminReports = {
     },
 
     renderAttendanceReports() {
-        const tbody = document.getElementById('attendance-reports-body');
-        if (!tbody) return;
+    const tbody = document.getElementById('attendance-reports-body');
+    if (!tbody) return;
 
-        const data = this.getFilteredAttendance();
+    const data = this.getFilteredAttendance();
 
-        tbody.innerHTML = data.map(row => `
+    if (data.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="12" style="text-align:center;padding:2rem;">Tidak ada data absensi</td></tr>';
+        return;
+    }
+
+    const months = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Ags','Sep','Okt','Nov','Des'];
+
+    tbody.innerHTML = data.map(row => {
+        const [y, m, d] = (row.date || '').split('-');
+        const dateStr = (y && m && d) ? `${d} ${months[parseInt(m)-1]} ${y}` : '-';
+
+        const statusLower = String(row.status || '').toLowerCase();
+        let statusBadge = '<span class="badge-status">-</span>';
+        if (statusLower === 'hadir' || statusLower === 'ontime') {
+            statusBadge = '<span class="badge-status success">Hadir</span>';
+        } else if (statusLower === 'terlambat' || statusLower === 'late') {
+            statusBadge = '<span class="badge-status warning">Terlambat</span>';
+        } else if (statusLower === 'pending' || statusLower === 'waiting') {
+            statusBadge = '<span class="badge-status">Pending</span>';
+        }
+
+        const fotoHtml = row.verificationPhoto
+            ? `<img src="${row.verificationPhoto}" style="width:36px;height:36px;border-radius:50%;object-fit:cover;cursor:pointer;" onclick="adminReports.viewPhoto('${row.verificationPhoto}')">`
+            : '<span style="color:var(--text-muted)">–</span>';
+
+        const lokasiHtml = row.verificationLocation
+            ? `<span style="font-size:0.75rem">${row.verificationLocation}<br><small style="color:var(--text-muted)">${row.verificationTimestamp || ''}</small></span>`
+            : '<span style="color:var(--text-muted)">–</span>';
+
+        const gpsHtml = row.verificationLocation
+            ? `<button class="btn-action" style="background:#10b981;color:#fff;font-size:0.7rem;padding:2px 8px;border-radius:4px;" onclick="adminReports.openMaps('${row.verificationLocation}')"><i class="fas fa-map-marker-alt"></i> GPS</button>`
+            : '<span style="color:var(--text-muted)">–</span>';
+
+        // Inisial avatar
+        const initials = (row.empName || 'K').split(' ').map(w => w[0]).join('').substring(0,2).toUpperCase();
+        const colors = ['#F59E0B','#3B82F6','#10B981','#EF4444','#8B5CF6'];
+        const color = colors[row.empName.charCodeAt(0) % colors.length];
+
+        return `
             <tr>
+                <td>${dateStr}</td>
                 <td>
-                    <div class="employee-info">
-                        <div class="employee-details">
-                            <span class="employee-name">${row.name}</span>
+                    <div style="display:flex;align-items:center;gap:8px;">
+                        <div style="width:32px;height:32px;border-radius:50%;background:${color};color:#fff;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:0.75rem;flex-shrink:0;">${initials}</div>
+                        <div>
+                            <div style="font-weight:500;font-size:0.85rem;">${row.empName}</div>
+                            <div style="font-size:0.75rem;color:var(--text-muted);">${row.empDept}</div>
                         </div>
                     </div>
                 </td>
-                <td>${row.department}</td>
-                <td class="text-center" style="color: var(--color-success); font-weight: 600;">${row.present}</td>
-                <td class="text-center" style="color: var(--color-warning); font-weight: 600;">${row.late}</td>
-                <td class="text-center" style="color: var(--color-danger); font-weight: 600;">${row.absent}</td>
-                <td class="text-center">${row.total}</td>
+                <td style="font-size:0.85rem;">${row.shift || '-'}</td>
+                <td style="font-weight:600;color:#10b981;">${row.clockIn || '–'}</td>
+                <td style="color:var(--text-muted);">${row.breakStart || '–'}</td>
+                <td style="color:var(--text-muted);">${row.breakEnd || '–'}</td>
+                <td style="font-weight:600;color:#EF4444;">${row.clockOut || '–'}</td>
+                <td style="font-size:0.75rem;max-width:180px;">${lokasiHtml}</td>
+                <td>${statusBadge}</td>
+                <td>${fotoHtml}</td>
+                <td>${gpsHtml}</td>
                 <td>
-                    <button class="btn-action view" onclick="adminReports.viewDetail('${row.name}')">
+                    <button class="btn-action view" onclick="adminReports.viewAttendanceDetail('${row.id}')">
                         <i class="fas fa-eye"></i>
                     </button>
                 </td>
             </tr>
-        `).join('');
+        `;
+    }).join('');
+},
 
-        // Render mobile cards
-        const mobileContainer = document.getElementById('attendance-mobile-cards');
-        if (mobileContainer) {
-            mobileContainer.innerHTML = data.map(row => `
-                <div class="mobile-card">
-                    <div class="mobile-card-header">
-                        <span class="mobile-card-title">${row.name}</span>
-                        <span style="font-size: var(--font-size-xs); color: var(--text-muted);">${row.department}</span>
-                    </div>
-                    <div class="mobile-card-row">
-                        <span class="mobile-card-label">Hadir</span>
-                        <span class="mobile-card-value" style="color: var(--color-success);">${row.present}</span>
-                    </div>
-                    <div class="mobile-card-row">
-                        <span class="mobile-card-label">Terlambat</span>
-                        <span class="mobile-card-value" style="color: var(--color-warning);">${row.late}</span>
-                    </div>
-                    <div class="mobile-card-row">
-                        <span class="mobile-card-label">Absen</span>
-                        <span class="mobile-card-value" style="color: var(--color-danger);">${row.absent}</span>
-                    </div>
-                    <div class="mobile-card-row">
-                        <span class="mobile-card-label">Total</span>
-                        <span class="mobile-card-value">${row.total}</span>
-                    </div>
-                </div>
-            `).join('');
-        }
-    },
+    openMaps(location) {
+    if (!location) return;
+    const coords = location.match(/-?\d+\.\d+/g);
+    if (coords && coords.length >= 2) {
+        window.open(`https://www.google.com/maps?q=${coords[0]},${coords[1]}`, '_blank');
+    }
+},
 
+viewAttendanceDetail(id) {
+    const row = this.rawAttendance.find(r => String(r.id) === String(id));
+    if (!row) return;
+    const emp = this.rawEmployees.find(e => String(e.id) === String(row.userId));
+    alert(`Detail Absensi\n\nKaryawan: ${emp?.name || '-'}\nTanggal: ${row.date}\nShift: ${row.shift || '-'}\nMasuk: ${row.clockIn || '-'}\nIstirahat: ${row.breakStart || '-'}\nKembali: ${row.breakEnd || '-'}\nPulang: ${row.clockOut || '-'}\nStatus: ${row.status || '-'}`);
+},
+    
     renderJurnalReports() {
         const tbody = document.getElementById('jurnal-reports-body');
         if (!tbody) return;
@@ -501,8 +550,54 @@ const adminReports = {
     },
 
     printReport(type) {
-        window.print();
-    },
+    const titles = {
+        attendance: 'Rekap Absensi Karyawan',
+        jurnal: 'Rekap Jurnal Kerja',
+        leave: 'Rekap Cuti & Izin'
+    };
+
+    const tableId = {
+        attendance: 'attendance-reports-table',
+        jurnal: 'jurnal-reports-table',
+        leave: 'leave-reports-table'
+    };
+
+    const table = document.getElementById(tableId[type]);
+    if (!table) return;
+
+    const printWindow = window.open('', '_blank');
+    printWindow.document.write(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>${titles[type]}</title>
+            <style>
+                body { font-family: Arial, sans-serif; font-size: 12px; margin: 20px; }
+                h2 { text-align: center; margin-bottom: 4px; }
+                p { text-align: center; color: #666; margin-bottom: 16px; }
+                table { width: 100%; border-collapse: collapse; }
+                th, td { border: 1px solid #ddd; padding: 6px 8px; text-align: left; vertical-align: middle; }
+                th { background: #f59e0b; color: white; font-weight: 600; }
+                tr:nth-child(even) { background: #f9f9f9; }
+                .badge-status { padding: 2px 8px; border-radius: 4px; font-size: 11px; }
+                .badge-status.success { background: #d1fae5; color: #065f46; }
+                .badge-status.warning { background: #fef3c7; color: #92400e; }
+                img { display: none; }
+                button { display: none; }
+                @media print { button { display: none !important; } }
+            </style>
+        </head>
+        <body>
+            <h2>PT. Tirta Agung Amuntai</h2>
+            <p>${titles[type]} — Dicetak: ${new Date().toLocaleDateString('id-ID', {day:'numeric',month:'long',year:'numeric'})}</p>
+            ${table.outerHTML}
+        </body>
+        </html>
+    `);
+    printWindow.document.close();
+    printWindow.focus();
+    setTimeout(() => { printWindow.print(); }, 500);
+},
 
     viewDetail(name) {
         toast.info(`Detail untuk ${name} akan ditampilkan`);
