@@ -80,50 +80,47 @@ const absensi = {
     },
 
     renderHistory(historyData) {
-        const tbody = document.getElementById('attendance-history');
-        if (!tbody) return;
+    const tbody = document.getElementById('attendance-history');
+    if (!tbody) return;
 
-        if (historyData.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="6" style="text-align:center">Belum ada riwayat absensi.</td></tr>';
-            return;
+    if (historyData.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:1.5rem;">Belum ada riwayat absensi.</td></tr>';
+        return;
+    }
+
+    const months = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Ags','Sep','Okt','Nov','Des'];
+
+    tbody.innerHTML = historyData.slice(0, 30).map(record => {
+        // Format tanggal
+        const [y, m, d] = (record.date || '').split('-');
+        const dateStr = (y && m && d) ? `${d} ${months[parseInt(m)-1]} ${y}` : '-';
+
+        // Status badge
+        const statusLower = String(record.status || '').toLowerCase();
+        let badge = '<span class="badge-status">Menunggu</span>';
+        if (statusLower === 'hadir' || statusLower === 'ontime') {
+            badge = '<span class="badge-status success">Hadir</span>';
+        } else if (statusLower === 'terlambat' || statusLower === 'late') {
+            badge = '<span class="badge-status warning">Terlambat</span>';
+        } else if (statusLower === 'pulang awal') {
+            badge = '<span class="badge-status danger">Pulang Awal</span>';
+        } else if (statusLower === 'pending' || statusLower === 'waiting') {
+            badge = '<span class="badge-status">Pending</span>';
         }
 
-        tbody.innerHTML = historyData.slice(0, 10).map(record => {
-            let duration = '--';
-            if (record.clockIn && record.clockOut) {
-                let diffMin = this._toMinutes(record.clockOut) - this._toMinutes(record.clockIn);
-                if (record.breakStart && record.breakEnd) {
-                    diffMin -= (this._toMinutes(record.breakEnd) - this._toMinutes(record.breakStart));
-                }
-                if (diffMin > 0) {
-                    duration = `${Math.floor(diffMin / 60)}j ${diffMin % 60}m`;
-                }
-            }
-
-            const statusLower = String(record.status).toLowerCase();
-            let badge = '<span class="badge-status">Menunggu</span>';
-            if (statusLower === 'hadir' || statusLower === 'ontime') {
-                badge = '<span class="badge-status success">Hadir</span>';
-            } else if (statusLower === 'terlambat' || statusLower === 'late') {
-                badge = '<span class="badge-status warning">Terlambat</span>';
-            }
-
-            const [y, m, d] = record.date.split('-');
-            const months = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Ags','Sep','Okt','Nov','Des'];
-            const dateStr = `${d} ${months[parseInt(m)-1]} ${y}`;
-
-            return `
-                <tr>
-                    <td>${dateStr}</td>
-                    <td>${record.shift || '-'}</td>
-                    <td>${record.clockIn || '--:--'}</td>
-                    <td>${record.clockOut || '--:--'}</td>
-                    <td>${duration}</td>
-                    <td>${badge}</td>
-                </tr>
-            `;
-        }).join('');
-    },
+        return `
+            <tr>
+                <td>${dateStr}</td>
+                <td style="font-size:0.82rem;">${record.shift || '-'}</td>
+                <td style="font-weight:600;color:#10b981;">${record.clockIn || '–'}</td>
+                <td style="color:var(--text-muted);">${record.breakStart || '–'}</td>
+                <td style="color:var(--text-muted);">${record.breakEnd || '–'}</td>
+                <td style="font-weight:600;color:#EF4444;">${record.clockOut || '–'}</td>
+                <td>${badge}</td>
+            </tr>
+        `;
+    }).join('');
+},
 
     _toMinutes(timeStr) {
         if (!timeStr) return 0;
