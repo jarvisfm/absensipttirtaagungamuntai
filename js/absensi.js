@@ -21,17 +21,22 @@ const absensi = {
 
     // Cek jadwal & sesi absensi hari ini dari backend
     async loadAccessInfo() {
-        const user = auth.getCurrentUser();
-        if (!user) return;
-        try {
-            const result = await api.checkAttendanceAccess(user.id);
-            if (result && result.success) {
-                this.accessInfo = result.data;
-            }
-        } catch (e) {
-            console.error('Error checkAttendanceAccess:', e);
+    const user = auth.getCurrentUser();
+    console.log('loadAccessInfo - user:', user);
+    if (!user) return;
+    try {
+        const result = await api.checkAttendanceAccess(user.id);
+        console.log('ACCESS INFO result:', JSON.stringify(result));
+        if (result && result.success) {
+            this.accessInfo = result.data;
+            console.log('accessInfo set:', JSON.stringify(this.accessInfo));
+        } else {
+            console.warn('checkAttendanceAccess gagal:', result);
         }
-    },
+    } catch (e) {
+        console.error('Error checkAttendanceAccess:', e);
+    }
+},
 
     async loadTodayAttendance() {
         const user = auth.getCurrentUser();
