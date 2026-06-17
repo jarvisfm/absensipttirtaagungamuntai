@@ -373,11 +373,19 @@ const adminReports = {
             ? `<img src="${row.verificationPhoto}" style="width:36px;height:36px;border-radius:50%;object-fit:cover;cursor:pointer;" onclick="adminReports.viewPhoto('${row.verificationPhoto}')">`
             : '<span style="color:var(--text-muted)">–</span>';
 
-        const lokasiHtml = row.verificationLocation
-            ? `<span style="font-size:0.75rem">${row.verificationLocation}<br><small style="color:var(--text-muted)">${row.verificationTimestamp || ''}</small></span>`
-            : '<span style="color:var(--text-muted)">–</span>';
+        const coords = this._parseLatLng(row.verificationLocation);
+        const coordLabel = coords
+            ? `${coords.lat.toFixed(5)}, ${coords.lng.toFixed(5)}`
+            : (row.verificationLocation || '');
 
-        const gpsHtml = row.verificationLocation
+        const lokasiHtml = coords
+            ? `<span style="font-size:0.75rem" id="loc-${row.id}">
+                    <i class="fas fa-spinner fa-spin" style="color:var(--text-muted);font-size:0.7rem;"></i>
+                    <small style="color:var(--text-muted);">${coordLabel}</small>
+               </span>`
+            : '<span style="color:var(--text-muted)">–</span>';
+        
+        const gpsHtml = coords
             ? `<button class="btn-action" style="background:#10b981;color:#fff;font-size:0.7rem;padding:2px 8px;border-radius:4px;" onclick="adminReports.openMaps('${row.verificationLocation}')"><i class="fas fa-map-marker-alt"></i> GPS</button>`
             : '<span style="color:var(--text-muted)">–</span>';
 
@@ -415,8 +423,60 @@ const adminReports = {
             </tr>
         `;
     }).join('');
+        // Isi nama lokasi secara async setelah render
+    data.forEach(async (row) => {
+        const coords = this._parseLatLng(row.verificationLocation);
+        if (!coords) return;
+        const el = document.getElementById(`loc-${row.id}`);
+        if (!el) return;
+        const address = await this._getAddressFromCoords(coords.lat, coords.lng);
+        if (address && el) {
+            el.innerHTML = `<span style="font-size:0.75rem">${address}</span><br>
+                <small style="color:var(--text-muted);font-size:0.7rem;">${coords.lat.toFixed(5)}, ${coords.lng.toFixed(5)}</small>`;
+        } else if (el) {
+            el.innerHTML = `<small style="color:var(--text-muted);">${coords.lat.toFixed(5)}, ${coords.lng.toFixed(5)}</small>`;
+        }
+    });
 },
 
+    async _getAddressFromCoords(lat, lng) {
+    try {
+        const res = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&accept-language=id`,
+            { headers: { 'User-Agent': 'AbsensiPTTAA/1.0' } }
+        );
+        const data = await res.json();
+        if (data && data.address) {
+            const a = data.address;
+            return [
+                a.road || a.pedestrian || a.footway || '',
+                a.village || a.suburb || a.neighbourhood || '',
+                a.city || a.town || a.county || ''
+            ].filter(Boolean).join(', ');
+        }
+        return null;
+    } catch (e) {
+        return null;
+    }
+},
+
+_parseLatLng(locationStr) {
+    if (!locationStr) return null;
+    const latMatch = locationStr.match(/latitude=(-?\d+\.?\d*)/);
+    const lngMatch = locationStr.match(/longitude=(-?\d+\.?\d*)/);
+    if (latMatch && lngMatch) {
+        return { lat: parseFloat(latMatch[1]), lng: parseFloat(lngMatch[1]) };
+    }
+    // Coba format "lat,lng" biasa
+    const parts = locationStr.split(',');
+    if (parts.length >= 2) {
+        const lat = parseFloat(parts[0]);
+        const lng = parseFloat(parts[1]);
+        if (!isNaN(lat) && !isNaN(lng)) return { lat, lng };
+    }
+    return null;
+},
+    
     openMaps(location) {
     if (!location) return;
     const coords = location.match(/-?\d+\.\d+/g);
