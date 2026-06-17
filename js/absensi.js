@@ -22,7 +22,7 @@ const absensi = {
     // Cek jadwal & sesi absensi hari ini dari backend
     async loadAccessInfo() {
     const user = auth.getCurrentUser();
-    console.log('loadAccessInfo - user:', user);
+    console.log('loadAccessInfo - user:', user, 'userId:', user?.id, 'tipe:', typeof user?.id);
     if (!user) return;
     try {
         const result = await api.checkAttendanceAccess(user.id);
