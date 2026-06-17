@@ -1104,8 +1104,8 @@
                         </div>
                         <div class="reports-filters-card">
                             <div class="reports-filters">
-                                <div class="filter-group"><label>Periode</label><input type="month"
-                                        id="attendance-month" value="2026-03"></div>
+                                <div class="filter-group"><label>Tanggal Dari</label><input type="date" id="attendance-date-from"></div>
+                                <div class="filter-group"><label>Tanggal Sampai</label><input type="date" id="attendance-date-to"></div>
                                 <div class="filter-group"><label>Departemen</label><select id="report-dept-filter">
                                         <option value="">Semua Departemen</option>
                                         <option value="IT">IT</option>
@@ -1126,16 +1126,18 @@
                                 <table class="reports-table" id="attendance-reports-table">
                                     <thead>
                                         <tr>
-                                            <th rowspan="2">Nama</th>
-                                            <th rowspan="2">Departemen</th>
-                                            <th colspan="4" class="text-center">Ringkasan</th>
-                                            <th rowspan="2">Aksi</th>
-                                        </tr>
-                                        <tr>
-                                            <th class="success">Hadir</th>
-                                            <th class="warning">Telat</th>
-                                            <th class="danger">Absen</th>
-                                            <th>Total</th>
+                                            <th>Tanggal</th>
+                                            <th>Karyawan</th>
+                                            <th>Shift</th>
+                                            <th>Clock In</th>
+                                            <th>Istirahat</th>
+                                            <th>Kembali</th>
+                                            <th>Pulang</th>
+                                            <th>Lokasi</th>
+                                            <th>Status</th>
+                                            <th>Foto</th>
+                                            <th>Verifikasi</th>
+                                            <th>Aksi</th>
                                         </tr>
                                     </thead>
                                     <tbody id="attendance-reports-body"></tbody>
