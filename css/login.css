@@ -165,18 +165,18 @@
     }
 }
 
-.company-name {
-    font-size: var(--font-size-2xl);
-    font-weight: 700;
-    color: var(--color-white);
-    margin-bottom: var(--spacing-sm);
-    animation: fadeInUp 0.8s ease;
+.tagline {
+    font-size: 42px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: #fff;
 }
 
-.tagline {
-    font-size: var(--font-size);
-    color: rgba(255, 255, 255, 0.7);
-    animation: fadeInUp 0.8s ease 0.2s backwards;
+.company-name {
+    font-size: 18px;
+    font-weight: 500;
+    color: rgba(255,255,255,0.8);
 }
 
 /* Login Right Side */
