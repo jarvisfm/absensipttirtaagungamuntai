@@ -7,12 +7,16 @@ const auth = {
     currentUser: null,
 
     init() {
-        // Check for existing session
-        const session = storage.get('session');
-        if (session) {
-            this.currentUser = session;
-            this.showApp();
-        }
+    // Check for existing session
+    const session = storage.get('session');
+    if (session && session.id && session.role) {
+        this.currentUser = session;
+        this.showApp();
+    } else {
+        // Hapus session tidak valid
+        storage.remove('session');
+        this.showLogin();
+    }
 
         // Login form handler
         const loginForm = document.getElementById('login-form');
