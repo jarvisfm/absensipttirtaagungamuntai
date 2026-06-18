@@ -161,19 +161,22 @@ const absensi = {
     },
 
     initButtons() {
-        const map = {
-            'btn-clock-in':    () => this.handleClockIn(),
-            'btn-break':       () => this.handleBreak(),
-            'btn-after-break': () => this.handleAfterBreak(),
-            'btn-clock-out':   () => this.handleClockOut(),
-        };
-        Object.entries(map).forEach(([id, fn]) => {
-            const btn = document.getElementById(id);
-            if (btn) {
-                btn.addEventListener('click', (e) => { e.preventDefault(); fn(); });
-            }
-        });
-    },
+    const map = {
+        'btn-clock-in':    () => this.handleClockIn(),
+        'btn-break':       () => this.handleBreak(),
+        'btn-after-break': () => this.handleAfterBreak(),
+        'btn-clock-out':   () => this.handleClockOut(),
+    };
+    Object.entries(map).forEach(([id, fn]) => {
+        const btn = document.getElementById(id);
+        if (btn) {
+            // Hapus event listener lama sebelum tambah baru
+            const newBtn = btn.cloneNode(true);
+            btn.parentNode.replaceChild(newBtn, btn);
+            newBtn.addEventListener('click', (e) => { e.preventDefault(); fn(); });
+        }
+    });
+},
 
     handleClockIn() {
         if (this.attendanceData.clockIn) return;
