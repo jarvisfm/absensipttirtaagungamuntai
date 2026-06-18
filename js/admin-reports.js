@@ -343,99 +343,171 @@ const adminReports = {
     },
 
     renderAttendanceReports() {
-    const tbody = document.getElementById('attendance-reports-body');
-    if (!tbody) return;
+    const container = document.getElementById('attendance-reports-body');
+    if (!container) return;
 
-    const data = this.getFilteredAttendance();
+    const { dateFrom, dateTo, dept, status } = this.filters.attendance;
+    const months = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Ags','Sep','Okt','Nov','Des'];
 
-    if (data.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="12" style="text-align:center;padding:2rem;">Tidak ada data absensi</td></tr>';
+    // Filter & kelompokkan attendance per karyawan
+    let employees = [...(this.rawEmployees || [])];
+
+    // Filter departemen
+    if (dept) employees = employees.filter(e => e.department === dept);
+
+    // Urutkan berdasarkan departemen lalu nama
+    employees.sort((a, b) => {
+        const deptCompare = String(a.department || '').localeCompare(String(b.department || ''));
+        if (deptCompare !== 0) return deptCompare;
+        return String(a.name || '').localeCompare(String(b.name || ''));
+    });
+
+    if (employees.length === 0) {
+        container.innerHTML = '<tr><td colspan="10" style="text-align:center;padding:2rem;">Tidak ada data karyawan</td></tr>';
         return;
     }
 
-    const months = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Ags','Sep','Okt','Nov','Des'];
+    // Render per karyawan
+    let html = '';
 
-    tbody.innerHTML = data.map(row => {
-        const [y, m, d] = (row.date || '').split('-');
-        const dateStr = (y && m && d) ? `${d} ${months[parseInt(m)-1]} ${y}` : '-';
+    employees.forEach(emp => {
+        // Filter absensi karyawan ini
+        let rows = (this.rawAttendance || []).filter(r => String(r.userId) === String(emp.id));
 
-        const statusLower = String(row.status || '').toLowerCase();
-        let statusBadge = '<span class="badge-status">-</span>';
-        if (statusLower === 'hadir' || statusLower === 'ontime') {
-            statusBadge = '<span class="badge-status success">Hadir</span>';
-        } else if (statusLower === 'terlambat' || statusLower === 'late') {
-            statusBadge = '<span class="badge-status warning">Terlambat</span>';
-        } else if (statusLower === 'pending' || statusLower === 'waiting') {
-            statusBadge = '<span class="badge-status">Pending</span>';
-        }
+        if (dateFrom) rows = rows.filter(r => r.date >= dateFrom);
+        if (dateTo)   rows = rows.filter(r => r.date <= dateTo);
+        if (status)   rows = rows.filter(r => String(r.status || '').toLowerCase() === status.toLowerCase());
 
-        const fotoHtml = row.verificationPhoto
-            ? `<img src="${row.verificationPhoto}" style="width:36px;height:36px;border-radius:50%;object-fit:cover;cursor:pointer;" onclick="adminReports.viewPhoto('${row.verificationPhoto}')">`
-            : '<span style="color:var(--text-muted)">–</span>';
+        // Urutkan tanggal terbaru dulu
+        rows.sort((a, b) => String(b.date).localeCompare(String(a.date)));
 
-        const coords = this._parseLatLng(row.verificationLocation);
-        const coordLabel = coords
-            ? `${coords.lat.toFixed(5)}, ${coords.lng.toFixed(5)}`
-            : (row.verificationLocation || '');
+        // Inisial & warna avatar
+        const initials = (emp.name || 'K').split(' ').map(w => w[0]).join('').substring(0, 2).toUpperCase();
+        const colors   = ['#F59E0B','#3B82F6','#10B981','#EF4444','#8B5CF6'];
+        const color    = colors[(emp.name || '').charCodeAt(0) % colors.length];
 
-        const lokasiHtml = coords
-            ? `<span style="font-size:0.75rem" id="loc-${row.id}">
-                    <i class="fas fa-spinner fa-spin" style="color:var(--text-muted);font-size:0.7rem;"></i>
-                    <small style="color:var(--text-muted);">${coordLabel}</small>
-               </span>`
-            : '<span style="color:var(--text-muted)">–</span>';
-        
-        const gpsHtml = coords
-            ? `<button class="btn-action" style="background:#10b981;color:#fff;font-size:0.7rem;padding:2px 8px;border-radius:4px;" onclick="adminReports.openMaps('${row.verificationLocation}')"><i class="fas fa-map-marker-alt"></i> GPS</button>`
-            : '<span style="color:var(--text-muted)">–</span>';
+        // Statistik ringkas
+        const totalHadir    = rows.filter(r => ['hadir','ontime'].includes(String(r.status||'').toLowerCase())).length;
+        const totalTerlambat = rows.filter(r => ['terlambat','late'].includes(String(r.status||'').toLowerCase())).length;
+        const totalHari     = rows.length;
 
-        // Inisial avatar
-        const initials = (row.empName || 'K').split(' ').map(w => w[0]).join('').substring(0,2).toUpperCase();
-        const colors = ['#F59E0B','#3B82F6','#10B981','#EF4444','#8B5CF6'];
-        const color = colors[row.empName.charCodeAt(0) % colors.length];
-
-        return `
-            <tr>
-                <td>${dateStr}</td>
-                <td>
-                    <div style="display:flex;align-items:center;gap:8px;">
-                        <div style="width:32px;height:32px;border-radius:50%;background:${color};color:#fff;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:0.75rem;flex-shrink:0;">${initials}</div>
-                        <div>
-                            <div style="font-weight:500;font-size:0.85rem;">${row.empName}</div>
-                            <div style="font-size:0.75rem;color:var(--text-muted);">${row.empDept}</div>
+        html += `
+            <tr class="employee-group-header" style="background:var(--bg-secondary,#f8f9fa);">
+                <td colspan="10" style="padding:12px 16px;">
+                    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
+                        <div style="display:flex;align-items:center;gap:10px;">
+                            <div style="width:38px;height:38px;border-radius:50%;background:${color};color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:0.85rem;flex-shrink:0;">${initials}</div>
+                            <div>
+                                <div style="font-weight:600;font-size:0.95rem;">${emp.name || '-'}</div>
+                                <div style="font-size:0.78rem;color:var(--text-muted);">${emp.department || '-'} — ${emp.position || '-'} — ${emp.shift || '-'}</div>
+                            </div>
+                        </div>
+                        <div style="display:flex;gap:12px;font-size:0.8rem;">
+                            <span style="background:#d1fae5;color:#065f46;padding:3px 10px;border-radius:20px;font-weight:500;">Hadir: ${totalHadir}</span>
+                            <span style="background:#fef3c7;color:#92400e;padding:3px 10px;border-radius:20px;font-weight:500;">Terlambat: ${totalTerlambat}</span>
+                            <span style="background:#e0e7ff;color:#3730a3;padding:3px 10px;border-radius:20px;font-weight:500;">Total: ${totalHari} hari</span>
                         </div>
                     </div>
                 </td>
-                <td style="font-size:0.85rem;">${row.shift || '-'}</td>
-                <td style="font-weight:600;color:#10b981;">${row.clockIn || '–'}</td>
-                <td style="color:var(--text-muted);">${row.breakStart || '–'}</td>
-                <td style="color:var(--text-muted);">${row.breakEnd || '–'}</td>
-                <td style="font-weight:600;color:#EF4444;">${row.clockOut || '–'}</td>
-                <td style="font-size:0.75rem;max-width:180px;">${lokasiHtml}</td>
-                <td>${statusBadge}</td>
-                <td>${fotoHtml}</td>
-                <td>${gpsHtml}</td>
-                <td>
-                    <button class="btn-action view" onclick="adminReports.viewAttendanceDetail('${row.id}')">
-                        <i class="fas fa-eye"></i>
-                    </button>
-                </td>
+            </tr>
+            <tr style="background:#f1f5f9;font-size:0.78rem;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;">
+                <td style="padding:8px 12px;">Tanggal</td>
+                <td style="padding:8px 12px;">Shift</td>
+                <td style="padding:8px 12px;">Masuk</td>
+                <td style="padding:8px 12px;">Istirahat</td>
+                <td style="padding:8px 12px;">Kembali</td>
+                <td style="padding:8px 12px;">Pulang</td>
+                <td style="padding:8px 12px;">Lokasi</td>
+                <td style="padding:8px 12px;">Status</td>
+                <td style="padding:8px 12px;">Foto</td>
+                <td style="padding:8px 12px;">GPS</td>
             </tr>
         `;
-    }).join('');
-        // Isi nama lokasi secara async setelah render
-    data.forEach(async (row) => {
-        const coords = this._parseLatLng(row.verificationLocation);
-        if (!coords) return;
-        const el = document.getElementById(`loc-${row.id}`);
-        if (!el) return;
-        const address = await this._getAddressFromCoords(coords.lat, coords.lng);
-        if (address && el) {
-            el.innerHTML = `<span style="font-size:0.75rem">${address}</span><br>
-                <small style="color:var(--text-muted);font-size:0.7rem;">${coords.lat.toFixed(5)}, ${coords.lng.toFixed(5)}</small>`;
-        } else if (el) {
-            el.innerHTML = `<small style="color:var(--text-muted);">${coords.lat.toFixed(5)}, ${coords.lng.toFixed(5)}</small>`;
+
+        if (rows.length === 0) {
+            html += `
+                <tr>
+                    <td colspan="10" style="text-align:center;padding:1.5rem;color:var(--text-muted);font-size:0.85rem;">
+                        <i class="fas fa-calendar-times" style="margin-right:6px;"></i>
+                        Tidak ada data absensi pada periode ini
+                    </td>
+                </tr>
+            `;
+        } else {
+            rows.forEach(row => {
+                const [y, m, d] = (row.date || '').split('-');
+                const dateStr = (y && m && d) ? `${d} ${months[parseInt(m)-1]} ${y}` : '-';
+
+                const statusLower = String(row.status || '').toLowerCase();
+                let statusBadge = '<span class="badge-status">–</span>';
+                if (statusLower === 'hadir' || statusLower === 'ontime') {
+                    statusBadge = '<span class="badge-status success">Hadir</span>';
+                } else if (statusLower === 'terlambat' || statusLower === 'late') {
+                    statusBadge = '<span class="badge-status warning">Terlambat</span>';
+                } else if (statusLower === 'pending' || statusLower === 'waiting') {
+                    statusBadge = '<span class="badge-status">Pending</span>';
+                }
+
+                const coords = this._parseLatLng(row.verificationLocation);
+                const coordLabel = coords ? `${coords.lat.toFixed(5)}, ${coords.lng.toFixed(5)}` : '';
+
+                const lokasiHtml = coords
+                    ? `<span id="loc-${row.id}" style="font-size:0.75rem;">
+                            <i class="fas fa-spinner fa-spin" style="color:var(--text-muted);font-size:0.7rem;"></i>
+                            <small style="color:var(--text-muted);">${coordLabel}</small>
+                       </span>`
+                    : '<span style="color:var(--text-muted)">–</span>';
+
+                const fotoHtml = row.verificationPhoto
+                    ? `<img src="${row.verificationPhoto}" style="width:32px;height:32px;border-radius:50%;object-fit:cover;cursor:pointer;" onclick="adminReports.viewPhoto('${row.verificationPhoto}')">`
+                    : '<span style="color:var(--text-muted)">–</span>';
+
+                const gpsHtml = coords
+                    ? `<button style="background:#10b981;color:#fff;font-size:0.7rem;padding:2px 8px;border-radius:4px;border:none;cursor:pointer;" onclick="adminReports.openMaps('${row.verificationLocation}')"><i class="fas fa-map-marker-alt"></i> GPS</button>`
+                    : '<span style="color:var(--text-muted)">–</span>';
+
+                html += `
+                    <tr style="border-bottom:1px solid var(--border-color,#e5e7eb);">
+                        <td style="padding:10px 12px;font-size:0.85rem;">${dateStr}</td>
+                        <td style="padding:10px 12px;font-size:0.82rem;">${row.shift || '-'}</td>
+                        <td style="padding:10px 12px;font-weight:600;color:#10b981;">${row.clockIn || '–'}</td>
+                        <td style="padding:10px 12px;color:var(--text-muted);">${row.breakStart || '–'}</td>
+                        <td style="padding:10px 12px;color:var(--text-muted);">${row.breakEnd || '–'}</td>
+                        <td style="padding:10px 12px;font-weight:600;color:#EF4444;">${row.clockOut || '–'}</td>
+                        <td style="padding:10px 12px;font-size:0.75rem;max-width:160px;">${lokasiHtml}</td>
+                        <td style="padding:10px 12px;">${statusBadge}</td>
+                        <td style="padding:10px 12px;">${fotoHtml}</td>
+                        <td style="padding:10px 12px;">${gpsHtml}</td>
+                    </tr>
+                `;
+            });
         }
+
+        // Garis pemisah antar karyawan
+        html += `<tr><td colspan="10" style="padding:8px;background:transparent;border:none;"></td></tr>`;
+    });
+
+    container.innerHTML = html;
+
+    // Isi nama lokasi secara async
+    employees.forEach(emp => {
+        let rows = (this.rawAttendance || []).filter(r => String(r.userId) === String(emp.id));
+        if (dateFrom) rows = rows.filter(r => r.date >= dateFrom);
+        if (dateTo)   rows = rows.filter(r => r.date <= dateTo);
+
+        rows.forEach(async (row) => {
+            const coords = this._parseLatLng(row.verificationLocation);
+            if (!coords) return;
+            const el = document.getElementById(`loc-${row.id}`);
+            if (!el) return;
+            const address = await this._getAddressFromCoords(coords.lat, coords.lng);
+            if (address && el) {
+                el.innerHTML = `<span style="font-size:0.75rem;">${address}</span><br>
+                    <small style="color:var(--text-muted);font-size:0.7rem;">${coords.lat.toFixed(5)}, ${coords.lng.toFixed(5)}</small>`;
+            } else if (el) {
+                el.innerHTML = `<small style="color:var(--text-muted);">${coords.lat.toFixed(5)}, ${coords.lng.toFixed(5)}</small>`;
+            }
+        });
     });
 },
 
