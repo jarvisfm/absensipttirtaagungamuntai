@@ -112,19 +112,24 @@ const mobile = {
     },
     
     toggleSidebar() {
-        const sidebar = document.getElementById('sidebar');
-        const overlay = document.getElementById('sidebar-overlay');
-        
-        this.sidebarOpen = !this.sidebarOpen;
-        
-        if (this.sidebarOpen) {
-            sidebar?.classList.add('open');
-            overlay?.classList.add('show');
-            document.body.style.overflow = 'hidden';
-        } else {
-            this.closeSidebar();
+    const sidebar = document.getElementById('sidebar');
+    const overlay = document.getElementById('sidebar-overlay');
+    
+    this.sidebarOpen = !this.sidebarOpen;
+    
+    if (this.sidebarOpen) {
+        sidebar?.classList.add('open');
+        if (overlay) {
+            overlay.classList.add('show');
+            overlay.style.display = 'block';
+            overlay.style.background = 'rgba(0,0,0,0.4)';
+            overlay.style.zIndex = '99';
         }
-    },
+        document.body.style.overflow = 'hidden';
+    } else {
+        this.closeSidebar();
+    }
+},
     
     closeSidebar() {
         const sidebar = document.getElementById('sidebar');
