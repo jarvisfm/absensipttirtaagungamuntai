@@ -1,10 +1,10 @@
 /**
- * Portal Karyawan - Data Pegawai
+ * Portal Karyawan - Data Karyawan
  * PT. Tirta Agung Amuntai
  */
 
-const pegawaiManager = {
-    pegawaiList: [],
+const karyawanManager = {
+    karyawanList: [],
     editingId: null,
     anakCount: 0,
 
@@ -13,35 +13,35 @@ const pegawaiManager = {
             router.navigate('admin-dashboard');
             return;
         }
-        await this.loadPegawai();
+        await this.loadKaryawan();
         this.bindEvents();
     },
 
-    async loadPegawai() {
+    async loadKaryawan() {
         try {
-            const result = await api.getPegawaiList();
-            this.pegawaiList = result.data || [];
+            const result = await api.getKaryawanList();
+            this.karyawanList = result.data || [];
             this.renderTable();
         } catch (e) {
-            console.error('Error loading pegawai:', e);
-            toast.error('Gagal memuat data pegawai');
+            console.error('Error loading karyawan:', e);
+            toast.error('Gagal memuat data karyawan');
         }
     },
 
     bindEvents() {
-        document.getElementById('btn-add-pegawai')?.addEventListener('click', () => this.openModal());
+        document.getElementById('btn-add-karyawan')?.addEventListener('click', () => this.openModal());
 
-        document.getElementById('pegawai-search')?.addEventListener('input', () => this.renderTable());
-        document.getElementById('pegawai-status-filter')?.addEventListener('change', () => this.renderTable());
-        document.getElementById('pegawai-jenis-filter')?.addEventListener('change', () => this.renderTable());
+        document.getElementById('karyawan-search')?.addEventListener('input', () => this.renderTable());
+        document.getElementById('karyawan-status-filter')?.addEventListener('change', () => this.renderTable());
+        document.getElementById('karyawan-jenis-filter')?.addEventListener('change', () => this.renderTable());
     },
 
     getFiltered() {
-        const search = (document.getElementById('pegawai-search')?.value || '').toLowerCase();
-        const status = document.getElementById('pegawai-status-filter')?.value || '';
-        const jenis  = document.getElementById('pegawai-jenis-filter')?.value || '';
+        const search = (document.getElementById('karyawan-search')?.value || '').toLowerCase();
+        const status = document.getElementById('karyawan-status-filter')?.value || '';
+        const jenis  = document.getElementById('karyawan-jenis-filter')?.value || '';
 
-        return this.pegawaiList.filter(p => {
+        return this.karyawanList.filter(p => {
             const matchSearch = !search ||
                 (p.nama || '').toLowerCase().includes(search) ||
                 (p.nik  || '').toLowerCase().includes(search);
@@ -52,13 +52,13 @@ const pegawaiManager = {
     },
 
     renderTable() {
-        const tbody = document.getElementById('pegawai-table-body');
+        const tbody = document.getElementById('karyawan-table-body');
         if (!tbody) return;
 
         const data = this.getFiltered();
 
         if (data.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:2rem;">Belum ada data pegawai</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:2rem;">Belum ada data karyawan</td></tr>';
             return;
         }
 
@@ -86,9 +86,9 @@ const pegawaiManager = {
                         <span class="badge-status ${statusColor}">${p.statusKaryawan || '-'}</span>
                     </td>
                     <td style="padding:10px 12px;">
-                        <button onclick="pegawaiManager.viewDetail('${p.id}')" style="background:#3B82F6;color:#fff;border:none;padding:4px 8px;border-radius:4px;cursor:pointer;margin-right:4px;font-size:0.75rem;"><i class="fas fa-eye"></i></button>
-                        <button onclick="pegawaiManager.openModal('${p.id}')" style="background:#F59E0B;color:#fff;border:none;padding:4px 8px;border-radius:4px;cursor:pointer;margin-right:4px;font-size:0.75rem;"><i class="fas fa-edit"></i></button>
-                        <button onclick="pegawaiManager.deletePegawai('${p.id}')" style="background:#EF4444;color:#fff;border:none;padding:4px 8px;border-radius:4px;cursor:pointer;font-size:0.75rem;"><i class="fas fa-trash"></i></button>
+                        <button onclick="karyawanManager.viewDetail('${p.id}')" style="background:#3B82F6;color:#fff;border:none;padding:4px 8px;border-radius:4px;cursor:pointer;margin-right:4px;font-size:0.75rem;"><i class="fas fa-eye"></i></button>
+                        <button onclick="karyawanManager.openModal('${p.id}')" style="background:#F59E0B;color:#fff;border:none;padding:4px 8px;border-radius:4px;cursor:pointer;margin-right:4px;font-size:0.75rem;"><i class="fas fa-edit"></i></button>
+                        <button onclick="karyawanManager.deleteKaryawan('${p.id}')" style="background:#EF4444;color:#fff;border:none;padding:4px 8px;border-radius:4px;cursor:pointer;font-size:0.75rem;"><i class="fas fa-trash"></i></button>
                     </td>
                 </tr>
             `;
@@ -96,7 +96,7 @@ const pegawaiManager = {
     },
 
     switchTab(tab) {
-        ['profil','kepegawaian','keluarga','akun'].forEach(t => {
+        ['profil','kekaryawanan','keluarga','akun'].forEach(t => {
             const content = document.getElementById(`tabcontent-${t}`);
             const btn     = document.getElementById(`tab-${t}`);
             if (content) content.style.display = t === tab ? 'block' : 'none';
@@ -111,7 +111,7 @@ const pegawaiManager = {
     openModal(id = null) {
         this.editingId = id;
         this.anakCount = 0;
-        document.getElementById('modal-pegawai-title').textContent = id ? 'Edit Pegawai' : 'Tambah Pegawai';
+        document.getElementById('modal-karyawan-title').textContent = id ? 'Edit Karyawan' : 'Tambah Karyawan';
         this.resetForm();
         this.switchTab('profil');
 
@@ -119,17 +119,17 @@ const pegawaiManager = {
             this.loadDetailForEdit(id);
         }
 
-        document.getElementById('modal-pegawai').style.display = 'flex';
+        document.getElementById('modal-karyawan').style.display = 'flex';
     },
 
     async loadDetailForEdit(id) {
         try {
-            const result = await api.getPegawaiDetail(id);
+            const result = await api.getKaryawanDetail(id);
             if (!result.success) return;
             const p = result.data;
 
             // Tab Profil
-            document.getElementById('pegawai-id').value        = p.id || '';
+            document.getElementById('karyawan-id').value        = p.id || '';
             document.getElementById('p-nik').value             = p.nik || '';
             document.getElementById('p-nama').value            = p.nama || '';
             document.getElementById('p-jenisKelamin').value    = p.jenisKelamin || '';
@@ -149,7 +149,7 @@ const pegawaiManager = {
                 document.getElementById('foto-placeholder').style.display = 'none';
             }
 
-            // Tab Kepegawaian
+            // Tab Kekaryawanan
             document.getElementById('p-statusPekerjaan').value = p.statusPekerjaan || 'Karyawan Tetap';
             document.getElementById('p-statusKaryawan').value  = p.statusKaryawan || 'AKTIF';
             document.getElementById('p-pendidikan').value      = p.pendidikan || '';
@@ -188,7 +188,7 @@ const pegawaiManager = {
     },
 
     resetForm() {
-        const fields = ['pegawai-id','p-nik','p-nama','p-jenisKelamin','p-statusPernikahan',
+        const fields = ['karyawan-id','p-nik','p-nama','p-jenisKelamin','p-statusPernikahan',
             'p-tempatLahir','p-tanggalLahir','p-golonganDarah','p-noTelp','p-npwp','p-ktp',
             'p-email','p-statusPekerjaan','p-statusKaryawan','p-pendidikan','p-jabatan',
             'p-unitKerja','p-unitWilayah','p-pangkat','p-golongan','p-gajiPokok',
@@ -204,7 +204,7 @@ const pegawaiManager = {
         document.getElementById('foto-preview').style.display = 'none';
         document.getElementById('foto-placeholder').style.display = 'block';
         document.getElementById('anak-list').innerHTML = '';
-        document.getElementById('pegawai-foto-file').value = '';
+        document.getElementById('karyawan-foto-file').value = '';
     },
 
     addAnakField(value = '') {
@@ -235,10 +235,10 @@ const pegawaiManager = {
         }
     },
 
-    async savePegawai() {
+    async saveKaryawan() {
         const nama = document.getElementById('p-nama').value.trim();
         if (!nama) {
-            toast.error('Nama pegawai harus diisi!');
+            toast.error('Nama karyawan harus diisi!');
             this.switchTab('profil');
             return;
         }
@@ -296,10 +296,10 @@ const pegawaiManager = {
             let savedId = this.editingId;
 
             if (this.editingId) {
-                result = await api.updatePegawai(this.editingId, data);
+                result = await api.updateKaryawan(this.editingId, data);
             } else {
                 if (!data.password) data.password = '1234';
-                result = await api.addPegawai(data);
+                result = await api.addKaryawan(data);
                 if (result.success) savedId = result.data.id;
             }
 
@@ -309,14 +309,14 @@ const pegawaiManager = {
             }
 
             // Upload foto jika ada
-            const fotoFile = document.getElementById('pegawai-foto-file').files[0];
+            const fotoFile = document.getElementById('karyawan-foto-file').files[0];
             if (fotoFile && savedId) {
                 await this.uploadFoto(savedId, fotoFile);
             }
 
-            toast.success(this.editingId ? 'Data pegawai berhasil diperbarui!' : 'Pegawai berhasil ditambahkan!');
+            toast.success(this.editingId ? 'Data karyawan berhasil diperbarui!' : 'Karyawan berhasil ditambahkan!');
             this.closeModal();
-            await this.loadPegawai();
+            await this.loadKaryawan();
 
         } catch (e) {
             console.error('Error save:', e);
@@ -331,7 +331,7 @@ const pegawaiManager = {
                 const base64 = e.target.result.split(',')[1];
                 const mimeType = file.type;
                 try {
-                    await api.uploadFotoPegawai(id, base64, mimeType);
+                    await api.uploadFotoKaryawan(id, base64, mimeType);
                 } catch (err) {
                     console.error('Upload foto gagal:', err);
                 }
@@ -343,7 +343,7 @@ const pegawaiManager = {
 
     async viewDetail(id) {
         try {
-            const result = await api.getPegawaiDetail(id);
+            const result = await api.getKaryawanDetail(id);
             if (!result.success) { toast.error('Data tidak ditemukan'); return; }
             const p = result.data;
             const keluarga = p.keluarga || [];
@@ -370,7 +370,7 @@ const pegawaiManager = {
 
             const statusColor = p.statusKaryawan === 'AKTIF' ? '#10B981' : '#F59E0B';
 
-            document.getElementById('detail-pegawai-content').innerHTML = `
+            document.getElementById('detail-karyawan-content').innerHTML = `
                 <div style="text-align:center;margin-bottom:1.5rem;">
                     ${fotoHtml}
                     <h3 style="margin-top:0.75rem;font-size:1.1rem;">${p.nama || '-'}</h3>
@@ -423,28 +423,28 @@ const pegawaiManager = {
                 </div>` : ''}
 
                 <div style="text-align:right;margin-top:1rem;">
-                    <button onclick="pegawaiManager.openModal('${p.id}');document.getElementById('modal-detail-pegawai').style.display='none';"
+                    <button onclick="karyawanManager.openModal('${p.id}');document.getElementById('modal-detail-karyawan').style.display='none';"
                         class="btn-primary" style="font-size:0.85rem;">
                         <i class="fas fa-edit"></i> Edit Data
                     </button>
                 </div>
             `;
 
-            document.getElementById('modal-detail-pegawai').style.display = 'flex';
+            document.getElementById('modal-detail-karyawan').style.display = 'flex';
         } catch (e) {
             console.error('Error view detail:', e);
         }
     },
 
-    async deletePegawai(id) {
-        const p = this.pegawaiList.find(p => String(p.id) === String(id));
-        if (!confirm(`Hapus pegawai "${p?.nama || id}"? Data ini tidak dapat dikembalikan.`)) return;
+    async deleteKaryawan(id) {
+        const p = this.karyawanList.find(p => String(p.id) === String(id));
+        if (!confirm(`Hapus karyawan "${p?.nama || id}"? Data ini tidak dapat dikembalikan.`)) return;
 
         try {
-            const result = await api.deletePegawai(id);
+            const result = await api.deleteKaryawan(id);
             if (result.success) {
-                toast.success('Pegawai berhasil dihapus');
-                await this.loadPegawai();
+                toast.success('Karyawan berhasil dihapus');
+                await this.loadKaryawan();
             } else {
                 toast.error(result.error || 'Gagal menghapus');
             }
@@ -454,10 +454,10 @@ const pegawaiManager = {
     },
 
     closeModal() {
-        document.getElementById('modal-pegawai').style.display = 'none';
+        document.getElementById('modal-karyawan').style.display = 'none';
         this.editingId = null;
     }
 };
 
-window.initPegawai = () => { pegawaiManager.init(); };
-window.pegawaiManager = pegawaiManager;
+window.initKaryawan = () => { karyawanManager.init(); };
+window.karyawanManager = karyawanManager;
