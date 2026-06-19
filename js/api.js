@@ -404,16 +404,6 @@ const api = {
 // Expose to global
 window.api = api;
 
-window.getAvatarUrl = function (emp) {
-    if (emp && emp.avatar && emp.avatar.startsWith('http')) {
-        return emp.avatar;
-    }
-    const name = (emp && emp.name) ? emp.name : 'User';
-    const colors = ['3B82F6', '10B981', 'F59E0B', 'EF4444', '8B5CF6', 'EC4899', '14B8A6', '6B7280'];
-    const colorIdx = name.charCodeAt(0) % colors.length;
-    return `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=${colors[colorIdx]}&color=fff`;
-};
-
 // Helper: always return a valid avatar URL
 window.getAvatarUrl = function (emp) {
     if (emp && emp.avatar && emp.avatar.startsWith('http')) {
@@ -424,23 +414,3 @@ window.getAvatarUrl = function (emp) {
     const colorIdx = name.charCodeAt(0) % colors.length;
     return `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=${colors[colorIdx]}&color=fff`;
 };
-
-// ========== PEGAWAI ==========
-async getPegawaiList() {
-    return this.request('getPegawaiList', {});
-},
-async getPegawaiDetail(id) {
-    return this.request('getPegawaiDetail', { id });
-},
-async addPegawai(data) {
-    return this.request('addPegawai', data);
-},
-async updatePegawai(id, data) {
-    return this.request('updatePegawai', { id, ...data });
-},
-async deletePegawai(id) {
-    return this.request('deletePegawai', { id });
-},
-async uploadFotoPegawai(id, base64Data, mimeType) {
-    return this.request('uploadFotoPegawai', { id, base64Data, mimeType });
-},
