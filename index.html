@@ -156,7 +156,7 @@
                                 <span>Dashboard Admin</span>
                             </a>
                         </li>
-                        <li class="nav-item" data-page="pegawai">
+                        <li class="nav-item" data-page="karyawan">
                             <a href="#" class="nav-link">
                                 <i class="fas fa-id-card"></i>
                                 <span>Data Karyawan</span>
@@ -1006,16 +1006,16 @@
                         </div>
                     </div>
                 </div>
-<!-- Pegawai Page -->
-<div class="page" id="page-pegawai">
+<!-- Karyawan Page -->
+<div class="page" id="page-karyawan">
     <div class="employees-container">
         <div class="employees-header">
             <div class="employees-title">
                 <h2>Data Karyawan</h2>
-                <p>Kelola data lengkap pegawai PT. Tirta Agung Amuntai</p>
+                <p>Kelola data lengkap karyawan PT. Tirta Agung Amuntai</p>
             </div>
             <div class="employees-actions">
-                <button class="btn-primary" id="btn-add-pegawai">
+                <button class="btn-primary" id="btn-add-karyawan">
                     <i class="fas fa-plus"></i><span>Tambah Karyawan</span>
                 </button>
             </div>
@@ -1025,17 +1025,17 @@
             <div class="employees-filters">
                 <div class="filter-group">
                     <i class="fas fa-search"></i>
-                    <input type="text" id="pegawai-search" placeholder="Cari nama atau NIK...">
+                    <input type="text" id="karyawan-search" placeholder="Cari nama atau NIK...">
                 </div>
                 <div class="filter-group">
-                    <select id="pegawai-status-filter">
+                    <select id="karyawan-status-filter">
                         <option value="">Semua Status</option>
                         <option value="AKTIF">Aktif</option>
                         <option value="PENSIUN">Pensiun</option>
                     </select>
                 </div>
                 <div class="filter-group">
-                    <select id="pegawai-jenis-filter">
+                    <select id="karyawan-jenis-filter">
                         <option value="">Semua Jenis</option>
                         <option value="Karyawan Tetap">Karyawan Tetap</option>
                         <option value="Tenaga Kontrak">Tenaga Kontrak</option>
@@ -1059,30 +1059,30 @@
                             <th>Aksi</th>
                         </tr>
                     </thead>
-                    <tbody id="pegawai-table-body"></tbody>
+                    <tbody id="karyawan-table-body"></tbody>
                 </table>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Modal Tambah/Edit Pegawai -->
-<div class="modal-overlay" id="modal-pegawai" style="display:none;">
+<!-- Modal Tambah/Edit Karyawan -->
+<div class="modal-overlay" id="modal-karyawan" style="display:none;">
     <div class="modal-container" style="max-width:700px;max-height:90vh;overflow-y:auto;">
         <div class="modal-header">
-            <h3 id="modal-pegawai-title">Tambah Karyawan</h3>
-            <button class="btn-close-modal" onclick="pegawaiManager.closeModal()">
+            <h3 id="modal-karyawan-title">Tambah Karyawan</h3>
+            <button class="btn-close-modal" onclick="karyawanManager.closeModal()">
                 <i class="fas fa-times"></i>
             </button>
         </div>
         <div class="modal-form">
-            <input type="hidden" id="pegawai-id">
+            <input type="hidden" id="karyawan-id">
             <!-- Tab Navigation -->
             <div style="display:flex;gap:4px;margin-bottom:1.5rem;border-bottom:2px solid var(--border-color);padding-bottom:0;">
-                <button type="button" class="tab-btn active" onclick="pegawaiManager.switchTab('profil')" id="tab-profil" style="padding:8px 16px;border:none;background:none;cursor:pointer;font-weight:600;color:var(--color-primary);border-bottom:2px solid var(--color-primary);margin-bottom:-2px;">Profil</button>
-                <button type="button" class="tab-btn" onclick="pegawaiManager.switchTab('kepegawaian')" id="tab-kepegawaian" style="padding:8px 16px;border:none;background:none;cursor:pointer;font-weight:500;color:var(--text-muted);">Kepegawaian</button>
-                <button type="button" class="tab-btn" onclick="pegawaiManager.switchTab('keluarga')" id="tab-keluarga" style="padding:8px 16px;border:none;background:none;cursor:pointer;font-weight:500;color:var(--text-muted);">Keluarga</button>
-                <button type="button" class="tab-btn" onclick="pegawaiManager.switchTab('akun')" id="tab-akun" style="padding:8px 16px;border:none;background:none;cursor:pointer;font-weight:500;color:var(--text-muted);">Akun</button>
+                <button type="button" class="tab-btn active" onclick="karyawanManager.switchTab('profil')" id="tab-profil" style="padding:8px 16px;border:none;background:none;cursor:pointer;font-weight:600;color:var(--color-primary);border-bottom:2px solid var(--color-primary);margin-bottom:-2px;">Profil</button>
+                <button type="button" class="tab-btn" onclick="karyawanManager.switchTab('kekaryawanan')" id="tab-kekaryawanan" style="padding:8px 16px;border:none;background:none;cursor:pointer;font-weight:500;color:var(--text-muted);">Kekaryawanan</button>
+                <button type="button" class="tab-btn" onclick="karyawanManager.switchTab('keluarga')" id="tab-keluarga" style="padding:8px 16px;border:none;background:none;cursor:pointer;font-weight:500;color:var(--text-muted);">Keluarga</button>
+                <button type="button" class="tab-btn" onclick="karyawanManager.switchTab('akun')" id="tab-akun" style="padding:8px 16px;border:none;background:none;cursor:pointer;font-weight:500;color:var(--text-muted);">Akun</button>
             </div>
 
             <!-- Tab Profil -->
@@ -1094,7 +1094,7 @@
                     </div>
                     <label style="cursor:pointer;color:var(--color-primary);font-size:0.85rem;font-weight:500;">
                         <i class="fas fa-camera"></i> Upload Foto
-                        <input type="file" id="pegawai-foto-file" accept="image/*" style="display:none;" onchange="pegawaiManager.previewFoto(this)">
+                        <input type="file" id="karyawan-foto-file" accept="image/*" style="display:none;" onchange="karyawanManager.previewFoto(this)">
                     </label>
                 </div>
                 <div class="form-row two-col">
@@ -1167,8 +1167,8 @@
                 </div>
             </div>
 
-            <!-- Tab Kepegawaian -->
-            <div id="tabcontent-kepegawaian" style="display:none;">
+            <!-- Tab Kekaryawanan -->
+            <div id="tabcontent-kekaryawanan" style="display:none;">
                 <div class="form-row two-col">
                     <div class="form-group">
                         <label>Status Pekerjaan</label>
@@ -1263,7 +1263,7 @@
                 <div class="form-group" style="margin-top:1.5rem;">
                     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem;">
                         <label style="font-weight:600;margin:0;">Anak-anak</label>
-                        <button type="button" onclick="pegawaiManager.addAnakField()" style="background:var(--color-primary);color:#fff;border:none;padding:4px 12px;border-radius:6px;cursor:pointer;font-size:0.8rem;"><i class="fas fa-plus"></i> Tambah Anak</button>
+                        <button type="button" onclick="karyawanManager.addAnakField()" style="background:var(--color-primary);color:#fff;border:none;padding:4px 12px;border-radius:6px;cursor:pointer;font-size:0.8rem;"><i class="fas fa-plus"></i> Tambah Anak</button>
                     </div>
                     <div id="anak-list"></div>
                 </div>
@@ -1281,7 +1281,7 @@
 
             <!-- Tab Akun -->
             <div id="tabcontent-akun" style="display:none;">
-                <p style="font-size:0.85rem;color:var(--text-muted);margin-bottom:1rem;">Akun ini digunakan pegawai untuk login ke aplikasi absensi.</p>
+                <p style="font-size:0.85rem;color:var(--text-muted);margin-bottom:1rem;">Akun ini digunakan karyawan untuk login ke aplikasi absensi.</p>
                 <div class="form-group">
                     <label>Username *</label>
                     <input type="text" id="p-username" placeholder="Username untuk login">
@@ -1294,8 +1294,8 @@
             </div>
 
             <div class="modal-actions" style="margin-top:1.5rem;">
-                <button type="button" class="btn-secondary" onclick="pegawaiManager.closeModal()">Batal</button>
-                <button type="button" class="btn-primary" onclick="pegawaiManager.savePegawai()">
+                <button type="button" class="btn-secondary" onclick="karyawanManager.closeModal()">Batal</button>
+                <button type="button" class="btn-primary" onclick="karyawanManager.saveKaryawan()">
                     <i class="fas fa-save"></i> Simpan
                 </button>
             </div>
@@ -1303,16 +1303,16 @@
     </div>
 </div>
 
-<!-- Modal Detail Pegawai -->
-<div class="modal-overlay" id="modal-detail-pegawai" style="display:none;">
+<!-- Modal Detail Karyawan -->
+<div class="modal-overlay" id="modal-detail-karyawan" style="display:none;">
     <div class="modal-container" style="max-width:700px;max-height:90vh;overflow-y:auto;">
         <div class="modal-header">
-            <h3>Detail Pegawai</h3>
-            <button class="btn-close-modal" onclick="document.getElementById('modal-detail-pegawai').style.display='none'">
+            <h3>Detail Karyawan</h3>
+            <button class="btn-close-modal" onclick="document.getElementById('modal-detail-karyawan').style.display='none'">
                 <i class="fas fa-times"></i>
             </button>
         </div>
-        <div id="detail-pegawai-content" class="modal-form"></div>
+        <div id="detail-karyawan-content" class="modal-form"></div>
     </div>
 </div>
                 
@@ -2018,7 +2018,7 @@
     <script src="js/cuti.js"></script>
     <script src="js/admin-dashboard.js"></script>
     <script src="js/admin-employees.js"></script>
-    <script src="js/pegawai.js"></script>
+    <script src="js/karyawan.js"></script>
     <script src="js/admin-reports.js"></script>
     <script src="js/shift-schedule.js"></script>
     <script src="js/settings.js"></script>
