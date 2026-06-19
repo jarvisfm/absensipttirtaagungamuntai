@@ -379,24 +379,24 @@ const api = {
         return { success: false, error: 'No fallback for action: ' + action };
     },
 
-    // ========== PEGAWAI ==========
-    async getPegawaiList() {
-        return this.request('getPegawaiList', {});
+    // ========== KARYAWAN ==========
+    async getKaryawanList() {
+        return this.request('getKaryawanList', {});
     },
-    async getPegawaiDetail(id) {
-        return this.request('getPegawaiDetail', { id });
+    async getKaryawanDetail(id) {
+        return this.request('getKaryawanDetail', { id });
     },
-    async addPegawai(data) {
-        return this.request('addPegawai', data);
+    async addKaryawan(data) {
+        return this.request('addKaryawan', data);
     },
-    async updatePegawai(id, data) {
-        return this.request('updatePegawai', { id, ...data });
+    async updateKaryawan(id, data) {
+        return this.request('updateKaryawan', { id, ...data });
     },
-    async deletePegawai(id) {
-        return this.request('deletePegawai', { id });
+    async deleteKaryawan(id) {
+        return this.request('deleteKaryawan', { id });
     },
-    async uploadFotoPegawai(id, base64Data, mimeType) {
-        return this.request('uploadFotoPegawai', { id, base64Data, mimeType });
+    async uploadFotoKaryawan(id, base64Data, mimeType) {
+        return this.request('uploadFotoKaryawan', { id, base64Data, mimeType });
     }   // ← tidak ada koma di fungsi terakhir
 
 };  // ← penutup object api
