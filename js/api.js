@@ -368,23 +368,51 @@ const api = {
         return this.request('saveSchedule', data);
     },
 
-    // ========== LOCAL AUTH FALLBACK ==========
+   // ========== LOCAL AUTH FALLBACK ==========
 
     _localLogin(email, password) {
-        // In local mode, accept any login with role selection
-        // This matches the original frontend behavior
-        return { success: true, data: null }; // null means use frontend logic
+        return { success: true, data: null };
     },
 
     _localFallback(action, data) {
         console.warn(`API Fallback: ${action} - using localStorage`);
-        // This shouldn't be called normally since each method has its own fallback
         return { success: false, error: 'No fallback for action: ' + action };
-    }
-};
+    },
+
+    // ========== PEGAWAI ==========
+    async getPegawaiList() {
+        return this.request('getPegawaiList', {});
+    },
+    async getPegawaiDetail(id) {
+        return this.request('getPegawaiDetail', { id });
+    },
+    async addPegawai(data) {
+        return this.request('addPegawai', data);
+    },
+    async updatePegawai(id, data) {
+        return this.request('updatePegawai', { id, ...data });
+    },
+    async deletePegawai(id) {
+        return this.request('deletePegawai', { id });
+    },
+    async uploadFotoPegawai(id, base64Data, mimeType) {
+        return this.request('uploadFotoPegawai', { id, base64Data, mimeType });
+    }   // ← tidak ada koma di fungsi terakhir
+
+};  // ← penutup object api
 
 // Expose to global
 window.api = api;
+
+window.getAvatarUrl = function (emp) {
+    if (emp && emp.avatar && emp.avatar.startsWith('http')) {
+        return emp.avatar;
+    }
+    const name = (emp && emp.name) ? emp.name : 'User';
+    const colors = ['3B82F6', '10B981', 'F59E0B', 'EF4444', '8B5CF6', 'EC4899', '14B8A6', '6B7280'];
+    const colorIdx = name.charCodeAt(0) % colors.length;
+    return `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=${colors[colorIdx]}&color=fff`;
+};
 
 // Helper: always return a valid avatar URL
 window.getAvatarUrl = function (emp) {
