@@ -6,7 +6,7 @@
 const router = {
     currentPage: 'dashboard',
     routes: ['dashboard', 'absensi', 'face-recognition', 'izin', 'jurnal', 'cuti', 
-         'admin-dashboard', 'employees', 'pegawai', 'attendance-reports', 'jurnal-reports', 
+         'admin-dashboard', 'employees', 'karyawan', 'attendance-reports', 'jurnal-reports', 
          'leave-reports', 'shift-schedule', 'settings'],
     
     init() {
@@ -49,7 +49,7 @@ const router = {
         const titles = {
             dashboard: 'Dashboard',
             absensi: 'Absensi',
-            pegawai: 'Data Pegawai',
+            karyawan: 'Data Karyawan',
             jurnal: 'Jurnal Kerja',
             cuti: 'Pengajuan Cuti',
             'shift-schedule': 'Jadwal Shift',
@@ -122,8 +122,8 @@ const router = {
             case 'employees':
                 if (window.initEmployees) window.initEmployees();
                 break;
-            case 'pegawai':
-                if (window.initPegawai) window.initPegawai();
+            case 'karyawan':
+                if (window.initKaryawan) window.initKaryawan();
                 break;
             case 'attendance-reports':
                 if (window.initAttendanceReports) window.initAttendanceReports();
