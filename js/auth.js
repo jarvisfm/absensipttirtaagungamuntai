@@ -134,6 +134,9 @@ const auth = {
             // Update user UI first
             this.updateUserUI();
 
+            // Isi notifikasi dengan data nyata
+            if (window.notifications) notifications.init();
+
             // Show appropriate menu based on role
             const employeeMenu = document.getElementById('employee-menu');
             const adminMenu = document.getElementById('admin-menu-nav');
