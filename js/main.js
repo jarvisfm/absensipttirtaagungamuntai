@@ -340,7 +340,7 @@ function initializeData() {
 
 // Update company name in UI
 function updateCompanyUI() {
-    const company = storage.get('company', { name: 'Portal Karyawan' });
+    const company = storage.get('company', { name: 'Portal Karyawan', logo: '' });
 
     const elements = {
         'login-company-name': company.name,
@@ -354,6 +354,61 @@ function updateCompanyUI() {
     });
 
     document.title = company.name;
+
+    // Update logo (sidebar & halaman login) jika Logo URL diisi
+    if (company.logo) {
+        const sidebarLogo = document.querySelector('.sidebar-logo');
+        if (sidebarLogo) {
+            let img = sidebarLogo.querySelector('img.company-logo-img');
+            if (!img) {
+                img = document.createElement('img');
+                img.className = 'company-logo-img';
+                img.style.cssText = 'width:28px;height:28px;border-radius:6px;object-fit:cover;flex-shrink:0;';
+                sidebarLogo.insertBefore(img, sidebarLogo.firstChild);
+            }
+            img.src = company.logo;
+            img.alt = company.name;
+            const icon = sidebarLogo.querySelector('i.fa-infinity');
+            if (icon) icon.style.display = 'none';
+        }
+
+        const logoCore = document.querySelector('.logo-core');
+        if (logoCore) {
+            let img = logoCore.querySelector('img.company-logo-img');
+            if (!img) {
+                img = document.createElement('img');
+                img.className = 'company-logo-img';
+                img.style.cssText = 'width:100%;height:100%;border-radius:50%;object-fit:cover;';
+                logoCore.appendChild(img);
+            }
+            img.src = company.logo;
+            img.alt = company.name;
+            const icon = logoCore.querySelector('i.fa-building');
+            if (icon) icon.style.display = 'none';
+        }
+    }
+}
+
+// Sinkronkan nama & logo perusahaan dari server (Apps Script),
+// supaya konsisten di semua device, bukan cuma localStorage browser ini.
+async function syncCompanyFromServer() {
+    try {
+        const res = await api.getSettings();
+        if (res && res.success && res.data) {
+            const name = res.data.company_name;
+            const logo = res.data.company_logo;
+            if (name || logo) {
+                const current = storage.get('company', { name: 'Portal Karyawan', logo: '' });
+                storage.set('company', {
+                    name: name || current.name,
+                    logo: (logo !== undefined && logo !== null) ? logo : current.logo
+                });
+                updateCompanyUI();
+            }
+        }
+    } catch (e) {
+        console.error('Gagal sinkronisasi company settings dari server:', e);
+    }
 }
 
 // DOM Ready
@@ -369,6 +424,7 @@ function onDOMReady(callback) {
 document.addEventListener('DOMContentLoaded', () => {
     initializeData();
     updateCompanyUI();
+    syncCompanyFromServer();
 
     // Update time display
     const timeEl = document.getElementById('current-time');
