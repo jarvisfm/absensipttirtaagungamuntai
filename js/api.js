@@ -397,7 +397,10 @@ const api = {
     },
     async uploadFotoKaryawan(id, base64Data, mimeType) {
         return this.request('uploadFotoKaryawan', { id, base64Data, mimeType });
-    }   // ← tidak ada koma di fungsi terakhir
+    },
+    async uploadFileSK(id, base64Data, mimeType, fileName) {
+        return this.request('uploadFileSK', { id, base64Data, mimeType, fileName });
+    }
 
 };  // ← penutup object api
 
