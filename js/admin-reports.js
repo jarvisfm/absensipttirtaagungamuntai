@@ -7,6 +7,7 @@ const adminReports = {
     attendanceData: [],
     jurnalData: [],
     leaveData: [],
+    _dataLoaded: false,
     filters: {
         attendance: { month: '', dept: '', status: '' },
         jurnal: { month: '', employee: '', status: '' },
@@ -52,6 +53,8 @@ const adminReports = {
     },
 
     async loadData() {
+        // Reset flag agar selalu fresh saat masuk halaman
+        this._dataLoaded = false;
         let employees = [];
         let jurnals = [];
         let leaves = [];
@@ -143,34 +146,67 @@ const adminReports = {
             };
         });
 
+        // Deduplicate by id sebelum mapping
+        const uniqueLeaves = leaves.filter((l, idx, arr) =>
+            arr.findIndex(x => String(x.id) === String(l.id)) === idx
+        );
+        const uniqueIzin = izinList.filter((i, idx, arr) =>
+            arr.findIndex(x => String(x.id) === String(i.id)) === idx
+        );
+
         this.leaveData = [
-            ...leaves.map(l => {
+            ...uniqueLeaves.map(l => {
                 const emp = employees.find(e => String(e.id) === String(l.userId));
                 return {
+                    id: l.id,
                     userId: l.userId,
-                    name: emp ? emp.nama || emp.name : l.userId,
-                    department: emp ? emp.unitKerja || emp.department || '-' : '-',
-                    type: 'Cuti',
-                    dates: l.startDate === l.endDate ? l.startDate : `${l.startDate} - ${l.endDate}`,
-                    duration: l.duration,
-                    reason: l.reason,
-                    status: l.status
+                    name: emp ? (emp.nama || emp.name || l.userId) : l.userId,
+                    department: emp ? (emp.unitKerja || emp.department || '-') : '-',
+                    type: l.typeLabel || (l.type === 'annual' ? 'Cuti Tahunan' : l.type === 'sick' ? 'Cuti Sakit' : 'Cuti'),
+                    dates: l.startDate && l.endDate
+                        ? (l.startDate === l.endDate ? l.startDate : `${l.startDate} - ${l.endDate}`)
+                        : (l.startDate || '-'),
+                    duration: l.duration != null ? l.duration : '-',
+                    reason: l.reason || '-',
+                    status: l.status || 'pending'
                 };
             }),
-            ...izinList.map(i => {
+            ...uniqueIzin.map(i => {
                 const emp = employees.find(e => String(e.id) === String(i.userId));
                 return {
+                    id: i.id,
                     userId: i.userId,
-                    name: emp ? emp.nama || emp.name : i.userId,
-                    department: emp ? emp.unitKerja || emp.department || '-' : '-',
-                    type: 'Izin',
-                    dates: i.date,
-                    duration: i.duration,
-                    reason: i.reason,
-                    status: i.status
+                    name: emp ? (emp.nama || emp.name || i.userId) : i.userId,
+                    department: emp ? (emp.unitKerja || emp.department || '-') : '-',
+                    type: i.typeLabel || 'Izin',
+                    dates: i.date || '-',
+                    duration: i.duration != null ? i.duration : '-',
+                    reason: i.reason || '-',
+                    status: i.status || 'pending'
                 };
             })
         ];
+
+        // Hitung sisa kuota cuti per karyawan (12 hari/tahun)
+        const KUOTA_CUTI = 12;
+        this.leaveQuota = {};
+        employees.forEach(emp => {
+            const tahunIni = new Date().getFullYear();
+            const cutiDisetujui = uniqueLeaves.filter(l =>
+                String(l.userId) === String(emp.id) &&
+                l.status === 'approved' &&
+                l.startDate && l.startDate.startsWith(String(tahunIni))
+            );
+            const totalPakai = cutiDisetujui.reduce((sum, l) => sum + (parseInt(l.duration) || 0), 0);
+            const sisa = KUOTA_CUTI - totalPakai;
+            this.leaveQuota[String(emp.id)] = { pakai: totalPakai, sisa: Math.max(0, sisa) };
+
+            // Notifikasi jika sisa cuti habis
+            if (sisa <= 0 && totalPakai > 0) {
+                const nama = emp.nama || emp.name || 'Karyawan';
+                toast.warning(`⚠️ Kuota cuti ${nama} sudah habis tahun ini!`);
+            }
+        });
     },
 
     populateEmployeeFilter() {
@@ -615,17 +651,23 @@ viewAttendanceDetail(id) {
             'rejected': 'Ditolak'
         };
 
-        tbody.innerHTML = data.map(row => `
+        tbody.innerHTML = data.map(row => {
+            const quota = (this.leaveQuota || {})[String(row.userId)];
+            const sisaHtml = quota != null
+                ? `<span style="color:${quota.sisa <= 0 ? '#EF4444' : quota.sisa <= 3 ? '#F59E0B' : '#10B981'};font-weight:600;">${quota.sisa} hari</span>`
+                : '-';
+            return `
             <tr>
                 <td>${row.name}</td>
                 <td>${row.department}</td>
                 <td>${row.type}</td>
                 <td>${row.dates}</td>
-                <td>${row.duration} hari</td>
+                <td>${row.duration != null ? row.duration + ' hari' : '-'}</td>
                 <td>${row.reason}</td>
+                <td>${sisaHtml}</td>
                 <td>
                     <span class="status-badge ${row.status}">
-                        ${statusLabels[row.status]}
+                        ${statusLabels[row.status] || row.status}
                     </span>
                 </td>
                 <td>
@@ -634,7 +676,7 @@ viewAttendanceDetail(id) {
                     </button>
                 </td>
             </tr>
-        `).join('');
+        `}).join('');
     },
 
     exportToExcel(type) {
