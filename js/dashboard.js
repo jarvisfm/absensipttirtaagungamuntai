@@ -16,6 +16,7 @@ const dashboard = {
         this.updateStats();
         this.updateSessionInfo();
         this.updateProgressBar();
+        this.updateWeeklyChart();
 
         this.initialized = true;
     },
@@ -137,9 +138,9 @@ const dashboard = {
 
         // Calculate stats
         const total = Math.max(26, attendance.length); // Assuming min 26 working days base
-        const present = attendance.filter(a => a.status === 'ontime').length;
-        const late = attendance.filter(a => a.status === 'late').length;
-        const absent = attendance.filter(a => a.status === 'absent').length;
+        const present = attendance.filter(a => ['hadir', 'ontime'].includes(String(a.status || '').toLowerCase())).length;
+        const late = attendance.filter(a => ['terlambat', 'late'].includes(String(a.status || '').toLowerCase())).length;
+        const absent = attendance.filter(a => ['tidak hadir', 'absent', 'alpha'].includes(String(a.status || '').toLowerCase())).length;
 
         // Update donut chart values
         const presentPercent = total > 0 ? Math.round((present / total) * 100) : 0;
@@ -204,6 +205,64 @@ const dashboard = {
         if (progressFill) {
             progressFill.style.width = `${progress}%`;
         }
+    },
+
+    updateWeeklyChart() {
+        const barItems = document.querySelectorAll('.bar-chart .bar-item');
+        if (!barItems.length) return;
+
+        // Tentukan tanggal Senin minggu ini
+        const today = new Date();
+        const dayOfWeek = today.getDay(); // 0=Min, 1=Sen, ... 6=Sab
+        const diffToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+        const monday = new Date(today);
+        monday.setDate(today.getDate() + diffToMonday);
+
+        // Cari durasi kerja maksimum minggu ini untuk skala tinggi bar (default 8 jam)
+        const attendance = this.attendanceData;
+        const durations = [];
+
+        barItems.forEach((item, idx) => {
+            const dayDate = new Date(monday);
+            dayDate.setDate(monday.getDate() + idx);
+            const dayStr = this._formatDateYMD(dayDate);
+
+            const record = attendance.find(a => a.date === dayStr);
+            const fillEl = item.querySelector('.bar-fill');
+            if (!fillEl) return;
+
+            const isWeekend = idx >= 5; // Sab, Min
+            const isFuture = dayDate > today && dayStr !== this._formatDateYMD(today);
+
+            let hours = 0;
+            if (record && record.clockIn && record.clockOut) {
+                hours = dateTime.calculateDurationHours
+                    ? dateTime.calculateDurationHours(record.clockIn, record.clockOut)
+                    : this._durationToHours(dateTime.calculateDuration(record.clockIn, record.clockOut));
+            } else if (record && record.clockIn) {
+                hours = 0.5; // Sudah clock in tapi belum clock out, tampilkan sedikit
+            }
+            durations.push(isWeekend || isFuture ? 0 : hours);
+
+            const heightPercent = isWeekend || isFuture ? 0 : Math.min(100, Math.round((hours / 8) * 100));
+            fillEl.style.height = `${heightPercent}%`;
+            fillEl.classList.toggle('weekend', isWeekend);
+        });
+    },
+
+    _formatDateYMD(d) {
+        const local = new Date(d.getTime() - (d.getTimezoneOffset() * 60000));
+        return local.toISOString().split('T')[0];
+    },
+
+    _durationToHours(durationLabel) {
+        // Fallback parser untuk label seperti "7j 30m"
+        if (!durationLabel) return 0;
+        const match = String(durationLabel).match(/(\d+)j\s*(\d+)?m?/);
+        if (!match) return 0;
+        const h = parseInt(match[1] || '0', 10);
+        const m = parseInt(match[2] || '0', 10);
+        return h + (m / 60);
     }
 };
 
