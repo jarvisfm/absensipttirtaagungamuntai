@@ -207,9 +207,10 @@ const KUOTA_CUTI = 12;
 const tahunIni = new Date().getFullYear();
 this.leaveQuota = {};
 employees.forEach(emp => {
-    const cutiDisetujui = uniqueLeaves.filter(l =>
+        const cutiDisetujui = uniqueLeaves.filter(l =>
         String(l.userId) === String(emp.id) &&
         l.status === 'approved' &&
+        l.type === 'annual' &&                          // ← hanya Cuti Tahunan
         (l.startDate || '').startsWith(String(tahunIni))
     );
     const totalPakai = cutiDisetujui.reduce((sum, l) => sum + (parseInt(l.duration) || 0), 0);
