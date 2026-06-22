@@ -43,10 +43,11 @@ const mobile = {
             }
         }
         
-        // Toggle bottom nav
+        // Toggle bottom nav (hidden for admin regardless of screen size)
         const bottomNav = document.getElementById('bottom-nav');
+        const isAdmin = window.auth && window.auth.isAdmin && window.auth.isAdmin();
         if (bottomNav) {
-            bottomNav.style.display = this.isMobile ? 'flex' : 'none';
+            bottomNav.style.display = (this.isMobile && !isAdmin) ? 'flex' : 'none';
         }
         
         // Update tables to cards on mobile
