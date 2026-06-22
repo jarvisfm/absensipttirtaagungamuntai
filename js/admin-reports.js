@@ -7,7 +7,6 @@ const adminReports = {
     attendanceData: [],
     jurnalData: [],
     leaveData: [],
-    _dataLoaded: false,
     filters: {
         attendance: { month: '', dept: '', status: '' },
         jurnal: { month: '', employee: '', status: '' },
@@ -53,8 +52,6 @@ const adminReports = {
     },
 
     async loadData() {
-        // Reset flag agar selalu fresh saat masuk halaman
-        this._dataLoaded = false;
         let employees = [];
         let jurnals = [];
         let leaves = [];
@@ -146,67 +143,26 @@ const adminReports = {
             };
         });
 
-        // Deduplicate by id sebelum mapping
-        const uniqueLeaves = leaves.filter((l, idx, arr) =>
-            arr.findIndex(x => String(x.id) === String(l.id)) === idx
-        );
-        const uniqueIzin = izinList.filter((i, idx, arr) =>
-            arr.findIndex(x => String(x.id) === String(i.id)) === idx
-        );
-
         this.leaveData = [
-            ...uniqueLeaves.map(l => {
-                const emp = employees.find(e => String(e.id) === String(l.userId));
-                return {
-                    id: l.id,
-                    userId: l.userId,
-                    name: emp ? (emp.nama || emp.name || l.userId) : l.userId,
-                    department: emp ? (emp.unitKerja || emp.department || '-') : '-',
-                    type: l.typeLabel || (l.type === 'annual' ? 'Cuti Tahunan' : l.type === 'sick' ? 'Cuti Sakit' : 'Cuti'),
-                    dates: l.startDate && l.endDate
-                        ? (l.startDate === l.endDate ? l.startDate : `${l.startDate} - ${l.endDate}`)
-                        : (l.startDate || '-'),
-                    duration: l.duration != null ? l.duration : '-',
-                    reason: l.reason || '-',
-                    status: l.status || 'pending'
-                };
-            }),
-            ...uniqueIzin.map(i => {
-                const emp = employees.find(e => String(e.id) === String(i.userId));
-                return {
-                    id: i.id,
-                    userId: i.userId,
-                    name: emp ? (emp.nama || emp.name || i.userId) : i.userId,
-                    department: emp ? (emp.unitKerja || emp.department || '-') : '-',
-                    type: i.typeLabel || 'Izin',
-                    dates: i.date || '-',
-                    duration: i.duration != null ? i.duration : '-',
-                    reason: i.reason || '-',
-                    status: i.status || 'pending'
-                };
-            })
+            ...leaves.map(l => ({
+                name: l.typeLabel === 'Cuti Tahunan' ? 'Budi Santoso' : 'Citra Dewi',
+                department: l.typeLabel === 'Cuti Tahunan' ? 'HR' : 'Finance',
+                type: l.type === 'annual' ? 'Cuti' : l.type,
+                dates: l.startDate === l.endDate ? l.startDate : `${l.startDate} - ${l.endDate}`,
+                duration: l.duration,
+                reason: l.reason,
+                status: l.status
+            })),
+            ...izinList.map(i => ({
+                name: 'Dedi Pratama',
+                department: 'Marketing',
+                type: 'Izin',
+                dates: i.date,
+                duration: i.duration,
+                reason: i.reason,
+                status: i.status
+            }))
         ];
-
-        // Hitung sisa kuota cuti per karyawan (12 hari/tahun)
-        const KUOTA_CUTI = 12;
-        this.leaveQuota = {};
-        employees.forEach(emp => {
-            const tahunIni = new Date().getFullYear();
-            const cutiDisetujui = uniqueLeaves.filter(l =>
-                String(l.userId) === String(emp.id) &&
-                l.status === 'approved' &&
-                l.startDate && l.startDate.startsWith(String(tahunIni))
-            );
-            const totalPakai = cutiDisetujui.reduce((sum, l) => sum + (parseInt(l.duration) || 0), 0);
-            const sisa = KUOTA_CUTI - totalPakai;
-            this.leaveQuota[String(emp.id)] = { pakai: totalPakai, sisa: Math.max(0, sisa) };
-
-            // Notifikasi jika sisa cuti habis
-            if (sisa <= 0 && totalPakai > 0) {
-                const nama = emp.nama || emp.name || 'Karyawan';
-                toast.warning(`⚠️ Kuota cuti ${nama} sudah habis tahun ini!`);
-            }
-        });
     },
 
     populateEmployeeFilter() {
@@ -496,7 +452,7 @@ const adminReports = {
                 const coordLabel = coords ? `${coords.lat.toFixed(5)}, ${coords.lng.toFixed(5)}` : '';
 
                 const lokasiHtml = coords
-                    ? `<span id="loc-${row.id}" style="font-size:0.75rem;">
+                    ? `<span id="loc-t-${row.id}" style="font-size:0.75rem;">
                             <i class="fas fa-spinner fa-spin" style="color:var(--text-muted);font-size:0.7rem;"></i>
                             <small style="color:var(--text-muted);">${coordLabel}</small>
                        </span>`
@@ -533,7 +489,10 @@ const adminReports = {
 
     container.innerHTML = html;
 
-    // Isi nama lokasi secara async
+    // Render versi kartu mobile dengan data yang sama
+    this.renderAttendanceMobileCards(employees, dateFrom, dateTo, status, months);
+
+    // Isi nama lokasi secara async (tabel + kartu mobile)
     employees.forEach(emp => {
         let rows = (this.rawAttendance || []).filter(r => String(r.userId) === String(emp.id));
         if (dateFrom) rows = rows.filter(r => r.date >= dateFrom);
@@ -542,17 +501,128 @@ const adminReports = {
         rows.forEach(async (row) => {
             const coords = this._parseLatLng(row.verificationLocation);
             if (!coords) return;
-            const el = document.getElementById(`loc-${row.id}`);
-            if (!el) return;
             const address = await this._getAddressFromCoords(coords.lat, coords.lng);
-            if (address && el) {
-                el.innerHTML = `<span style="font-size:0.75rem;">${address}</span><br>
-                    <small style="color:var(--text-muted);font-size:0.7rem;">${coords.lat.toFixed(5)}, ${coords.lng.toFixed(5)}</small>`;
-            } else if (el) {
-                el.innerHTML = `<small style="color:var(--text-muted);">${coords.lat.toFixed(5)}, ${coords.lng.toFixed(5)}</small>`;
-            }
+            const elTable = document.getElementById(`loc-t-${row.id}`);
+            const elCard  = document.getElementById(`loc-m-${row.id}`);
+            const html = address
+                ? `<span style="font-size:0.75rem;">${address}</span><br>
+                    <small style="color:var(--text-muted);font-size:0.7rem;">${coords.lat.toFixed(5)}, ${coords.lng.toFixed(5)}</small>`
+                : `<small style="color:var(--text-muted);">${coords.lat.toFixed(5)}, ${coords.lng.toFixed(5)}</small>`;
+            if (elTable) elTable.innerHTML = html;
+            if (elCard) elCard.innerHTML = html;
         });
     });
+},
+
+    renderAttendanceMobileCards(employees, dateFrom, dateTo, status, months) {
+    const container = document.getElementById('attendance-mobile-cards');
+    if (!container) return;
+
+    if (employees.length === 0) {
+        container.innerHTML = '<div style="text-align:center;padding:2rem;color:var(--text-muted);">Tidak ada data karyawan</div>';
+        return;
+    }
+
+    let html = '';
+
+    employees.forEach(emp => {
+        let rows = (this.rawAttendance || []).filter(r => String(r.userId) === String(emp.id));
+        if (dateFrom) rows = rows.filter(r => r.date >= dateFrom);
+        if (dateTo)   rows = rows.filter(r => r.date <= dateTo);
+        if (status)   rows = rows.filter(r => String(r.status || '').toLowerCase() === status.toLowerCase());
+
+        rows.sort((a, b) => String(b.date).localeCompare(String(a.date)));
+
+        const initials = (emp.name || 'K').split(' ').map(w => w[0]).join('').substring(0, 2).toUpperCase();
+        const colors   = ['#F59E0B','#3B82F6','#10B981','#EF4444','#8B5CF6'];
+        const color    = colors[(emp.name || '').charCodeAt(0) % colors.length];
+
+        const totalHadir    = rows.filter(r => ['hadir','ontime'].includes(String(r.status||'').toLowerCase())).length;
+        const totalTerlambat = rows.filter(r => ['terlambat','late'].includes(String(r.status||'').toLowerCase())).length;
+        const totalHari     = rows.length;
+
+        html += `
+            <div class="mobile-card" style="margin-bottom:16px;">
+                <div class="mobile-card-header" style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+                    <div style="width:38px;height:38px;border-radius:50%;background:${color};color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:0.85rem;flex-shrink:0;">${initials}</div>
+                    <div style="flex:1;min-width:0;">
+                        <div style="font-weight:600;font-size:0.95rem;">${emp.name || '-'}</div>
+                        <div style="font-size:0.75rem;color:var(--text-muted);">${emp.department || '-'} — ${emp.position || '-'}</div>
+                    </div>
+                </div>
+                <div style="display:flex;gap:8px;font-size:0.75rem;margin-bottom:10px;flex-wrap:wrap;">
+                    <span style="background:#d1fae5;color:#065f46;padding:3px 10px;border-radius:20px;font-weight:500;">Hadir: ${totalHadir}</span>
+                    <span style="background:#fef3c7;color:#92400e;padding:3px 10px;border-radius:20px;font-weight:500;">Terlambat: ${totalTerlambat}</span>
+                    <span style="background:#e0e7ff;color:#3730a3;padding:3px 10px;border-radius:20px;font-weight:500;">Total: ${totalHari} hari</span>
+                </div>
+        `;
+
+        if (rows.length === 0) {
+            html += `
+                <div style="text-align:center;padding:1rem;color:var(--text-muted);font-size:0.85rem;border-top:1px solid var(--border-color,#e5e7eb);">
+                    <i class="fas fa-calendar-times" style="margin-right:6px;"></i>
+                    Tidak ada data absensi pada periode ini
+                </div>
+            `;
+        } else {
+            rows.forEach(row => {
+                const [y, m, d] = (row.date || '').split('-');
+                const dateStr = (y && m && d) ? `${d} ${months[parseInt(m)-1]} ${y}` : '-';
+
+                const statusLower = String(row.status || '').toLowerCase();
+                let statusBadge = '<span class="badge-status">–</span>';
+                if (statusLower === 'hadir' || statusLower === 'ontime') {
+                    statusBadge = '<span class="badge-status success">Hadir</span>';
+                } else if (statusLower === 'terlambat' || statusLower === 'late') {
+                    statusBadge = '<span class="badge-status warning">Terlambat</span>';
+                } else if (statusLower === 'pending' || statusLower === 'waiting') {
+                    statusBadge = '<span class="badge-status">Pending</span>';
+                }
+
+                const coords = this._parseLatLng(row.verificationLocation);
+                const coordLabel = coords ? `${coords.lat.toFixed(5)}, ${coords.lng.toFixed(5)}` : '';
+
+                const lokasiHtml = coords
+                    ? `<span id="loc-m-${row.id}" style="font-size:0.75rem;">
+                            <i class="fas fa-spinner fa-spin" style="color:var(--text-muted);font-size:0.7rem;"></i>
+                            <small style="color:var(--text-muted);">${coordLabel}</small>
+                       </span>`
+                    : '<span style="color:var(--text-muted)">–</span>';
+
+                const fotoHtml = row.verificationPhoto
+                    ? `<img src="${row.verificationPhoto}" style="width:32px;height:32px;border-radius:50%;object-fit:cover;cursor:pointer;" onclick="adminReports.viewPhoto('${row.verificationPhoto}')">`
+                    : '<span style="color:var(--text-muted)">–</span>';
+
+                const gpsHtml = coords
+                    ? `<button style="background:#10b981;color:#fff;font-size:0.7rem;padding:2px 8px;border-radius:4px;border:none;cursor:pointer;" onclick="adminReports.openMaps('${row.verificationLocation}')"><i class="fas fa-map-marker-alt"></i> GPS</button>`
+                    : '<span style="color:var(--text-muted)">–</span>';
+
+                html += `
+                    <div style="padding:10px 0;border-top:1px solid var(--border-color,#e5e7eb);">
+                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+                            <span style="font-weight:600;font-size:0.85rem;">${dateStr}</span>
+                            ${statusBadge}
+                        </div>
+                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:0.78rem;color:var(--text-muted);margin-bottom:6px;">
+                            <div>Shift: <span style="color:var(--text-primary,#111);">${row.shift || '-'}</span></div>
+                            <div>Masuk: <span style="color:#10b981;font-weight:600;">${row.clockIn || '–'}</span></div>
+                            <div>Istirahat: ${row.breakStart || '–'}</div>
+                            <div>Kembali: ${row.breakEnd || '–'}</div>
+                            <div>Pulang: <span style="color:#EF4444;font-weight:600;">${row.clockOut || '–'}</span></div>
+                        </div>
+                        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
+                            <div style="flex:1;min-width:0;">${lokasiHtml}</div>
+                            <div style="display:flex;gap:6px;align-items:center;flex-shrink:0;">${fotoHtml}${gpsHtml}</div>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        html += `</div>`;
+    });
+
+    container.innerHTML = html;
 },
 
     async _getAddressFromCoords(lat, lng) {
@@ -651,23 +721,17 @@ viewAttendanceDetail(id) {
             'rejected': 'Ditolak'
         };
 
-        tbody.innerHTML = data.map(row => {
-            const quota = (this.leaveQuota || {})[String(row.userId)];
-            const sisaHtml = quota != null
-                ? `<span style="color:${quota.sisa <= 0 ? '#EF4444' : quota.sisa <= 3 ? '#F59E0B' : '#10B981'};font-weight:600;">${quota.sisa} hari</span>`
-                : '-';
-            return `
+        tbody.innerHTML = data.map(row => `
             <tr>
                 <td>${row.name}</td>
                 <td>${row.department}</td>
                 <td>${row.type}</td>
                 <td>${row.dates}</td>
-                <td>${row.duration != null ? row.duration + ' hari' : '-'}</td>
+                <td>${row.duration} hari</td>
                 <td>${row.reason}</td>
-                <td>${sisaHtml}</td>
                 <td>
                     <span class="status-badge ${row.status}">
-                        ${statusLabels[row.status] || row.status}
+                        ${statusLabels[row.status]}
                     </span>
                 </td>
                 <td>
@@ -676,7 +740,7 @@ viewAttendanceDetail(id) {
                     </button>
                 </td>
             </tr>
-        `}).join('');
+        `).join('');
     },
 
     exportToExcel(type) {
