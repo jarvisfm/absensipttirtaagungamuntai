@@ -165,30 +165,105 @@ const adminDashboard = {
         `).join('');
     },
 
-    // Charts initialization (placeholder - would use Chart.js in production)
+    // Charts initialization using Chart.js
     initCharts() {
-        // This would be where Chart.js or similar library is initialized
-        // For now, we'll just show placeholders
-        const attendanceChart = document.getElementById('admin-attendance-chart');
-        const deptChart = document.getElementById('admin-dept-chart');
+        this.renderAttendanceChart();
+        this.renderDeptChart();
+    },
 
-        if (attendanceChart) {
-            attendanceChart.innerHTML = `
-                <div class="chart-placeholder">
-                    <i class="fas fa-chart-bar"></i>
-                    <p>Grafik Kehadiran 30 Hari Terakhir</p>
-                </div>
-            `;
+    _formatDateYMD(d) {
+        const local = new Date(d.getTime() - (d.getTimezoneOffset() * 60000));
+        return local.toISOString().split('T')[0];
+    },
+
+    renderAttendanceChart() {
+        const container = document.getElementById('admin-attendance-chart');
+        if (!container || typeof Chart === 'undefined') return;
+
+        // Siapkan 30 hari terakhir
+        const days = [];
+        const counts = [];
+        const today = new Date();
+        for (let i = 29; i >= 0; i--) {
+            const d = new Date(today);
+            d.setDate(d.getDate() - i);
+            const dateStr = this._formatDateYMD(d); // yyyy-MM-dd
+            const label = `${d.getDate()}/${d.getMonth() + 1}`;
+            const hadirCount = this.attendance.filter(a => a.date === dateStr && a.clockIn).length;
+            days.push(label);
+            counts.push(hadirCount);
         }
 
-        if (deptChart) {
-            deptChart.innerHTML = `
-                <div class="chart-placeholder">
-                    <i class="fas fa-chart-pie"></i>
-                    <p>Distribusi Kehadiran per Departemen</p>
-                </div>
-            `;
-        }
+        container.innerHTML = '<canvas id="admin-attendance-canvas"></canvas>';
+        const ctx = document.getElementById('admin-attendance-canvas');
+
+        if (this._attendanceChartInstance) this._attendanceChartInstance.destroy();
+        this._attendanceChartInstance = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: days,
+                datasets: [{
+                    label: 'Karyawan Hadir',
+                    data: counts,
+                    backgroundColor: '#3B82F6',
+                    borderRadius: 4,
+                    maxBarThickness: 18
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    y: { beginAtZero: true, ticks: { precision: 0 } },
+                    x: { ticks: { autoSkip: true, maxRotation: 0 } }
+                }
+            }
+        });
+    },
+
+    renderDeptChart() {
+        const container = document.getElementById('admin-dept-chart');
+        if (!container || typeof Chart === 'undefined') return;
+
+        const todayStr = dateTime.getLocalDate();
+        const todayAttendance = this.attendance.filter(a => a.date === todayStr && a.clockIn);
+
+        // Hitung kehadiran hari ini per departemen
+        const deptCounts = {};
+        todayAttendance.forEach(att => {
+            const emp = this.employees.find(e => String(e.id) === String(att.userId));
+            const dept = emp?.department || 'Lainnya';
+            deptCounts[dept] = (deptCounts[dept] || 0) + 1;
+        });
+
+        const labels = Object.keys(deptCounts);
+        const data = Object.values(deptCounts);
+        const colors = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#14B8A6'];
+
+        container.innerHTML = labels.length
+            ? '<canvas id="admin-dept-canvas"></canvas>'
+            : '<div class="chart-placeholder"><i class="fas fa-chart-pie"></i><p>Belum ada kehadiran hari ini</p></div>';
+
+        if (!labels.length) return;
+
+        const ctx = document.getElementById('admin-dept-canvas');
+        if (this._deptChartInstance) this._deptChartInstance.destroy();
+        this._deptChartInstance = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels,
+                datasets: [{
+                    data,
+                    backgroundColor: labels.map((_, i) => colors[i % colors.length])
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { position: 'bottom' } }
+            }
+        });
     }
 };
 
