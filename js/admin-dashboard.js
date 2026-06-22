@@ -145,13 +145,28 @@ const adminDashboard = {
         const container = document.getElementById('admin-online-users');
         if (!container) return;
 
-        const onlineUsers = this.employees.filter(e => e.status === 'active').slice(0, 5);
+        const todayStr = this._formatDateYMD(new Date());
+
+        // "Online" = sudah Clock In hari ini & belum Clock Out
+        const todayAttendance = this.attendance.filter(a =>
+            a.date === todayStr && a.clockIn && !a.clockOut
+        );
+
+        const onlineUsers = todayAttendance
+            .map(att => this.employees.find(e => String(e.id) === String(att.userId)))
+            .filter(Boolean);
+
         const onlineCount = onlineUsers.length;
 
         const countEl = document.getElementById('online-count');
         if (countEl) countEl.textContent = onlineCount;
 
-        container.innerHTML = onlineUsers.map(user => `
+        if (onlineUsers.length === 0) {
+            container.innerHTML = '<p style="text-align:center;color:var(--text-muted);padding:1rem;font-size:0.85rem;">Belum ada karyawan yang clock in</p>';
+            return;
+        }
+
+        container.innerHTML = onlineUsers.slice(0, 5).map(user => `
             <div class="online-user-item">
                 <div class="user-status-dot"></div>
                 <div class="activity-avatar">
