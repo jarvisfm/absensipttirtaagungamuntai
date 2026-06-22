@@ -58,7 +58,7 @@ const karyawanManager = {
         const data = this.getFiltered();
 
         if (data.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:2rem;">Belum ada data karyawan</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:2rem;">Belum ada data karyawan</td></tr>';
             return;
         }
 
@@ -71,6 +71,10 @@ const karyawanManager = {
             const fotoHtml = p.foto
                 ? `<img src="${p.foto}" style="width:36px;height:36px;border-radius:50%;object-fit:cover;">`
                 : `<div style="width:36px;height:36px;border-radius:50%;background:${color};color:#fff;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:0.75rem;">${initials}</div>`;
+
+            const skHtml = p.fileSK
+                ? `<a href="${p.fileSK}" target="_blank" title="Lihat berkas SK" style="color:#10B981;font-size:1.1rem;"><i class="fas fa-file-pdf"></i></a>`
+                : `<span style="color:var(--text-secondary);font-size:0.85rem;">-</span>`;
 
             const statusColor = p.statusKaryawan === 'AKTIF' ? 'success' : 'warning';
 
@@ -85,6 +89,7 @@ const karyawanManager = {
                     <td style="padding:10px 12px;">
                         <span class="badge-status ${statusColor}">${p.statusKaryawan || '-'}</span>
                     </td>
+                    <td style="padding:10px 12px;text-align:center;">${skHtml}</td>
                     <td style="padding:10px 12px;">
                         <button onclick="karyawanManager.viewDetail('${p.id}')" style="background:#3B82F6;color:#fff;border:none;padding:4px 8px;border-radius:4px;cursor:pointer;margin-right:4px;font-size:0.75rem;"><i class="fas fa-eye"></i></button>
                         <button onclick="karyawanManager.openModal('${p.id}')" style="background:#F59E0B;color:#fff;border:none;padding:4px 8px;border-radius:4px;cursor:pointer;margin-right:4px;font-size:0.75rem;"><i class="fas fa-edit"></i></button>
