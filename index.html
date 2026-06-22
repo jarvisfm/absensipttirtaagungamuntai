@@ -1054,7 +1054,6 @@
                             <th>Jabatan</th>
                             <th>Unit Kerja</th>
                             <th>Status</th>
-                            <th style="text-align:center;">Berkas SK</th>
                             <th>Aksi</th>
                         </tr>
                     </thead>
@@ -1082,6 +1081,7 @@
                 <button type="button" class="tab-btn" onclick="karyawanManager.switchTab('kekaryawanan')" id="tab-kekaryawanan" style="padding:8px 16px;border:none;background:none;cursor:pointer;font-weight:500;color:var(--text-muted);">Kekaryawanan</button>
                 <button type="button" class="tab-btn" onclick="karyawanManager.switchTab('keluarga')" id="tab-keluarga" style="padding:8px 16px;border:none;background:none;cursor:pointer;font-weight:500;color:var(--text-muted);">Keluarga</button>
                 <button type="button" class="tab-btn" onclick="karyawanManager.switchTab('akun')" id="tab-akun" style="padding:8px 16px;border:none;background:none;cursor:pointer;font-weight:500;color:var(--text-muted);">Akun</button>
+                <button type="button" class="tab-btn" onclick="karyawanManager.switchTab('uploadfile')" id="tab-uploadfile" style="padding:8px 16px;border:none;background:none;cursor:pointer;font-weight:500;color:var(--text-muted);">Upload File</button>
             </div>
 
             <!-- Tab Profil -->
@@ -1183,20 +1183,6 @@
                             <option value="AKTIF">Aktif</option>
                             <option value="PENSIUN">Pensiun</option>
                         </select>
-                    </div>
-                </div>
-                <div class="form-row two-col">
-                    <div class="form-group">
-                        <label>Upload Surat SK</label>
-                        <input type="file" id="karyawan-sk-file" accept=".pdf,.jpg,.jpeg,.png">
-                        <small style="display:block;margin-top:4px;color:var(--text-secondary);">
-                            Format PDF/JPG/PNG, maks 5MB
-                        </small>
-                        <div id="sk-file-current" style="margin-top:6px;display:none;">
-                            <a href="#" id="sk-file-link" target="_blank" style="color:var(--primary-color);">
-                                <i class="fas fa-file-pdf"></i> Lihat berkas SK saat ini
-                            </a>
-                        </div>
                     </div>
                 </div>
                 <div class="form-row two-col">
@@ -1305,6 +1291,71 @@
                     <input type="password" id="p-password" placeholder="Kosongkan jika tidak ingin mengubah">
                     <small style="color:var(--text-muted);">Password default: 1234</small>
                 </div>
+            </div>
+
+            <!-- Tab Upload File -->
+            <div id="tabcontent-uploadfile" style="display:none;">
+                <p style="font-size:0.85rem;color:var(--text-muted);margin-bottom:1.5rem;">Upload dokumen-dokumen karyawan. Format yang diterima: PDF, JPG, PNG (maks 5MB per file).</p>
+
+                <!-- Surat SK -->
+                <div class="form-group" style="border:1px solid var(--border-color);border-radius:8px;padding:1rem;margin-bottom:1rem;">
+                    <div style="display:flex;align-items:center;gap:8px;margin-bottom:0.75rem;">
+                        <i class="fas fa-file-alt" style="color:var(--color-primary);font-size:1.1rem;"></i>
+                        <label style="font-weight:600;margin:0;">Surat Keputusan (SK)</label>
+                    </div>
+                    <input type="file" id="karyawan-sk-file" accept=".pdf,.jpg,.jpeg,.png" style="width:100%;padding:6px;border:1px dashed var(--border-color);border-radius:6px;cursor:pointer;">
+                    <div id="sk-file-current" style="margin-top:8px;display:none;">
+                        <a href="#" id="sk-file-link" target="_blank" style="color:var(--color-primary);font-size:0.85rem;">
+                            <i class="fas fa-file-pdf"></i> Lihat file SK saat ini
+                        </a>
+                    </div>
+                </div>
+
+                <!-- KTP -->
+                <div class="form-group" style="border:1px solid var(--border-color);border-radius:8px;padding:1rem;margin-bottom:1rem;">
+                    <div style="display:flex;align-items:center;gap:8px;margin-bottom:0.75rem;">
+                        <i class="fas fa-id-card" style="color:#3B82F6;font-size:1.1rem;"></i>
+                        <label style="font-weight:600;margin:0;">KTP</label>
+                    </div>
+                    <input type="file" id="karyawan-ktp-file" accept=".pdf,.jpg,.jpeg,.png" style="width:100%;padding:6px;border:1px dashed var(--border-color);border-radius:6px;cursor:pointer;">
+                    <div id="ktp-file-current" style="margin-top:8px;display:none;">
+                        <a href="#" id="ktp-file-link" target="_blank" style="color:var(--color-primary);font-size:0.85rem;">
+                            <i class="fas fa-file-pdf"></i> Lihat file KTP saat ini
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Ijazah -->
+                <div class="form-group" style="border:1px solid var(--border-color);border-radius:8px;padding:1rem;margin-bottom:1rem;">
+                    <div style="display:flex;align-items:center;gap:8px;margin-bottom:0.75rem;">
+                        <i class="fas fa-graduation-cap" style="color:#10B981;font-size:1.1rem;"></i>
+                        <label style="font-weight:600;margin:0;">Ijazah</label>
+                    </div>
+                    <input type="file" id="karyawan-ijazah-file" accept=".pdf,.jpg,.jpeg,.png" style="width:100%;padding:6px;border:1px dashed var(--border-color);border-radius:6px;cursor:pointer;">
+                    <div id="ijazah-file-current" style="margin-top:8px;display:none;">
+                        <a href="#" id="ijazah-file-link" target="_blank" style="color:var(--color-primary);font-size:0.85rem;">
+                            <i class="fas fa-file-pdf"></i> Lihat file Ijazah saat ini
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Sertifikat / Dokumen Lain -->
+                <div class="form-group" style="border:1px solid var(--border-color);border-radius:8px;padding:1rem;margin-bottom:1rem;">
+                    <div style="display:flex;align-items:center;gap:8px;margin-bottom:0.75rem;">
+                        <i class="fas fa-certificate" style="color:#F59E0B;font-size:1.1rem;"></i>
+                        <label style="font-weight:600;margin:0;">Sertifikat / Dokumen Lain</label>
+                    </div>
+                    <input type="file" id="karyawan-sertifikat-file" accept=".pdf,.jpg,.jpeg,.png" style="width:100%;padding:6px;border:1px dashed var(--border-color);border-radius:6px;cursor:pointer;">
+                    <div id="sertifikat-file-current" style="margin-top:8px;display:none;">
+                        <a href="#" id="sertifikat-file-link" target="_blank" style="color:var(--color-primary);font-size:0.85rem;">
+                            <i class="fas fa-file-pdf"></i> Lihat file Sertifikat saat ini
+                        </a>
+                    </div>
+                </div>
+
+                <p style="font-size:0.8rem;color:var(--text-muted);text-align:center;margin-top:0.5rem;">
+                    <i class="fas fa-info-circle"></i> File akan tersimpan saat klik tombol <strong>Simpan</strong>
+                </p>
             </div>
 
             <div class="modal-actions" style="margin-top:1.5rem;">
