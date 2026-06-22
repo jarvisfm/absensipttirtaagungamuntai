@@ -328,17 +328,10 @@ const faceRecognition = {
         // Wrap in async IIFE to allow awaiting the process before navigating
         (async () => {
             try {
-                if (this.currentAction === 'izin') {
-                    if (window.izin) {
-                        await window.izin.submitWithVerification(attendanceData);
-                    }
-                    setTimeout(() => router.navigate('izin'), 500);
-                } else {
-                    if (window.absensi) {
-                        await window.absensi.processWithVerification(this.currentAction, attendanceData);
-                    }
-                    setTimeout(() => router.navigate('absensi'), 500);
+                if (window.absensi) {
+                    await window.absensi.processWithVerification(this.currentAction, attendanceData);
                 }
+                setTimeout(() => router.navigate('absensi'), 500);
             } catch (error) {
                 console.error('Processing error:', error);
                 toast.error('Terjadi kesalahan saat memproses data.');
