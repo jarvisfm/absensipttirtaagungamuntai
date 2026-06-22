@@ -215,6 +215,17 @@
 
         <!-- Main Content -->
         <main class="main-content">
+
+            <!-- Banner Mode Karyawan (hanya tampil saat admin switch) -->
+            <div id="admin-switch-banner" style="display:none;background:linear-gradient(135deg,#F59E0B,#D97706);color:#fff;padding:10px 20px;display:none;align-items:center;justify-content:space-between;gap:12px;z-index:999;box-shadow:0 2px 8px rgba(245,158,11,0.4);">
+                <div style="display:flex;align-items:center;gap:10px;font-weight:500;font-size:0.9rem;">
+                    <i class="fas fa-user-shield"></i>
+                    <span>Anda sedang dalam <strong>Mode Karyawan</strong> — data absensi dicatat atas nama Anda sebagai karyawan</span>
+                </div>
+                <button onclick="adminSwitch.exitEmployeeMode()" style="background:rgba(255,255,255,0.25);color:#fff;border:1px solid rgba(255,255,255,0.5);padding:6px 16px;border-radius:8px;cursor:pointer;font-weight:600;font-size:0.85rem;white-space:nowrap;transition:background 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.4)'" onmouseout="this.style.background='rgba(255,255,255,0.25)'">
+                    <i class="fas fa-arrow-left"></i> Kembali ke Admin
+                </button>
+            </div>
             <!-- Top Bar -->
             <header class="top-bar">
                 <div class="top-bar-left">
@@ -926,11 +937,17 @@
                                 <h2>Dashboard Admin</h2>
                                 <p>Ringkasan statistik seluruh karyawan</p>
                             </div>
-                            <div class="admin-date-filter"><select class="select-filter">
+                            <div style="display:flex;align-items:center;gap:12px;">
+                                <button id="btn-switch-to-employee" onclick="adminSwitch.enterEmployeeMode()" style="display:flex;align-items:center;gap:8px;background:linear-gradient(135deg,#F59E0B,#D97706);color:#fff;border:none;padding:10px 20px;border-radius:10px;cursor:pointer;font-weight:600;font-size:0.9rem;box-shadow:0 4px 12px rgba(245,158,11,0.35);transition:all 0.2s;">
+                                    <i class="fas fa-user-circle"></i>
+                                    <span>Mode Karyawan</span>
+                                </button>
+                                <div class="admin-date-filter"><select class="select-filter">
                                     <option>Hari Ini</option>
                                     <option>Minggu Ini</option>
                                     <option>Bulan Ini</option>
                                 </select></div>
+                            </div>
                         </div>
                         <div class="admin-stats-grid">
                             <div class="admin-stat-card">
@@ -2091,6 +2108,7 @@
     <script src="js/shift-schedule.js"></script>
     <script src="js/settings.js"></script>
     <script src="js/mobile.js"></script>
+    <script src="js/admin-switch.js"></script>
 </body>
 
 </html>
