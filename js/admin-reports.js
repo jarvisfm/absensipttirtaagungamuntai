@@ -151,6 +151,8 @@ const adminReports = {
                 }
                 if (!emp) emp = { name: 'Karyawan', department: '-' };
                 return {
+                    id: l.id,
+                    kind: 'leave',
                     name: emp.name,
                     department: emp.department || '-',
                     type: l.type === 'annual' ? 'Cuti' : (l.typeLabel || l.type),
@@ -167,6 +169,8 @@ const adminReports = {
                 }
                 if (!emp) emp = { name: 'Karyawan', department: '-' };
                 return {
+                    id: i.id,
+                    kind: 'izin',
                     name: emp.name,
                     department: emp.department || '-',
                     type: i.typeLabel || 'Izin',
@@ -748,13 +752,55 @@ viewAttendanceDetail(id) {
                         ${statusLabels[row.status]}
                     </span>
                 </td>
-                <td>
+                <td style="white-space:nowrap;">
                     <button class="btn-action view" onclick="adminReports.viewLeaveDetail('${row.name}')">
                         <i class="fas fa-eye"></i>
                     </button>
+                    ${row.status === 'pending' ? `
+                        <button class="btn-action" style="background:#10B981;color:#fff;" title="Setuju" onclick="adminReports.approveLeaveOrIzin('${row.kind}', '${row.id}')">
+                            <i class="fas fa-check"></i>
+                        </button>
+                        <button class="btn-action" style="background:#EF4444;color:#fff;" title="Tolak" onclick="adminReports.rejectLeaveOrIzin('${row.kind}', '${row.id}')">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    ` : ''}
                 </td>
             </tr>
         `).join('');
+    },
+
+    async approveLeaveOrIzin(kind, id) {
+        if (!confirm('Setujui pengajuan ini?')) return;
+        try {
+            const result = kind === 'leave' ? await api.approveLeave(id) : await api.approveIzin(id);
+            if (result.success) {
+                toast.success('Pengajuan disetujui');
+                await this.loadData();
+                this.renderLeaveReports();
+            } else {
+                toast.error(result.error || 'Gagal menyetujui pengajuan');
+            }
+        } catch (e) {
+            console.error('Error approve:', e);
+            toast.error('Terjadi kesalahan');
+        }
+    },
+
+    async rejectLeaveOrIzin(kind, id) {
+        if (!confirm('Tolak pengajuan ini?')) return;
+        try {
+            const result = kind === 'leave' ? await api.rejectLeave(id) : await api.rejectIzin(id);
+            if (result.success) {
+                toast.success('Pengajuan ditolak');
+                await this.loadData();
+                this.renderLeaveReports();
+            } else {
+                toast.error(result.error || 'Gagal menolak pengajuan');
+            }
+        } catch (e) {
+            console.error('Error reject:', e);
+            toast.error('Terjadi kesalahan');
+        }
     },
 
     exportToExcel(type) {
