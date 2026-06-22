@@ -58,7 +58,7 @@ const karyawanManager = {
         const data = this.getFiltered();
 
         if (data.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:2rem;">Belum ada data karyawan</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:2rem;">Belum ada data karyawan</td></tr>';
             return;
         }
 
@@ -72,9 +72,7 @@ const karyawanManager = {
                 ? `<img src="${p.foto}" style="width:36px;height:36px;border-radius:50%;object-fit:cover;">`
                 : `<div style="width:36px;height:36px;border-radius:50%;background:${color};color:#fff;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:0.75rem;">${initials}</div>`;
 
-            const skHtml = p.fileSK
-                ? `<a href="${p.fileSK}" target="_blank" title="Lihat berkas SK" style="color:#10B981;font-size:1.1rem;"><i class="fas fa-file-pdf"></i></a>`
-                : `<span style="color:var(--text-secondary);font-size:0.85rem;">-</span>`;
+
 
             const statusColor = p.statusKaryawan === 'AKTIF' ? 'success' : 'warning';
 
@@ -89,7 +87,6 @@ const karyawanManager = {
                     <td style="padding:10px 12px;">
                         <span class="badge-status ${statusColor}">${p.statusKaryawan || '-'}</span>
                     </td>
-                    <td style="padding:10px 12px;text-align:center;">${skHtml}</td>
                     <td style="padding:10px 12px;">
                         <button onclick="karyawanManager.viewDetail('${p.id}')" style="background:#3B82F6;color:#fff;border:none;padding:4px 8px;border-radius:4px;cursor:pointer;margin-right:4px;font-size:0.75rem;"><i class="fas fa-eye"></i></button>
                         <button onclick="karyawanManager.openModal('${p.id}')" style="background:#F59E0B;color:#fff;border:none;padding:4px 8px;border-radius:4px;cursor:pointer;margin-right:4px;font-size:0.75rem;"><i class="fas fa-edit"></i></button>
@@ -101,7 +98,7 @@ const karyawanManager = {
     },
 
     switchTab(tab) {
-        ['profil','kekaryawanan','keluarga','akun'].forEach(t => {
+        ['profil','kekaryawanan','keluarga','akun','uploadfile'].forEach(t => {
             const content = document.getElementById(`tabcontent-${t}`);
             const btn     = document.getElementById(`tab-${t}`);
             if (content) content.style.display = t === tab ? 'block' : 'none';
@@ -164,6 +161,16 @@ const karyawanManager = {
                 document.getElementById('sk-file-current').style.display = 'block';
             }
 
+            // Berkas KTP, Ijazah, Sertifikat
+            [['ktp','fileKTP'],['ijazah','fileIjazah'],['sertifikat','fileSertifikat']].forEach(([type, field]) => {
+                if (p[field]) {
+                    const link = document.getElementById(`${type}-file-link`);
+                    const cur  = document.getElementById(`${type}-file-current`);
+                    if (link) link.href = p[field];
+                    if (cur)  cur.style.display = 'block';
+                }
+            });
+
             document.getElementById('p-pendidikan').value      = p.pendidikan || '';
             document.getElementById('p-jabatan').value         = p.jabatan || '';
             document.getElementById('p-unitKerja').value       = p.unitKerja || '';
@@ -219,6 +226,12 @@ const karyawanManager = {
         document.getElementById('karyawan-foto-file').value = '';
         document.getElementById('karyawan-sk-file').value = '';
         document.getElementById('sk-file-current').style.display = 'none';
+        ['ktp','ijazah','sertifikat'].forEach(type => {
+            const el = document.getElementById(`karyawan-${type}-file`);
+            if (el) el.value = '';
+            const cur = document.getElementById(`${type}-file-current`);
+            if (cur) cur.style.display = 'none';
+        });
     },
 
     addAnakField(value = '') {
@@ -338,6 +351,23 @@ const karyawanManager = {
                 }
             }
 
+            // Upload berkas lainnya (KTP, Ijazah, Sertifikat)
+            const extraFiles = [
+                { elId: 'karyawan-ktp-file',       apiMethod: 'uploadFileKTP',       label: 'KTP' },
+                { elId: 'karyawan-ijazah-file',     apiMethod: 'uploadFileIjazah',    label: 'Ijazah' },
+                { elId: 'karyawan-sertifikat-file', apiMethod: 'uploadFileSertifikat',label: 'Sertifikat' },
+            ];
+            for (const f of extraFiles) {
+                const file = document.getElementById(f.elId).files[0];
+                if (file && savedId) {
+                    if (file.size > 5 * 1024 * 1024) {
+                        toast.error(`Berkas ${f.label} terlalu besar (maks 5MB), dilewati`);
+                    } else {
+                        await this.uploadFileGeneric(savedId, file, f.apiMethod, f.label);
+                    }
+                }
+            }
+
             toast.success(this.editingId ? 'Data karyawan berhasil diperbarui!' : 'Karyawan berhasil ditambahkan!');
             this.closeModal();
             await this.loadKaryawan();
@@ -375,6 +405,28 @@ const karyawanManager = {
                     await api.uploadFileSK(id, base64, mimeType, file.name);
                 } catch (err) {
                     console.error('Upload berkas SK gagal:', err);
+                }
+                resolve();
+            };
+            reader.readAsDataURL(file);
+        });
+    },
+
+    async uploadFileGeneric(id, file, apiMethod, label) {
+        return new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onload = async (e) => {
+                const base64   = e.target.result.split(',')[1];
+                const mimeType = file.type;
+                try {
+                    if (typeof api[apiMethod] === 'function') {
+                        await api[apiMethod](id, base64, mimeType, file.name);
+                    } else {
+                        // Fallback: gunakan uploadFileSK dengan field berbeda jika API belum ada
+                        console.warn(`api.${apiMethod} belum tersedia, upload ${label} dilewati`);
+                    }
+                } catch (err) {
+                    console.error(`Upload berkas ${label} gagal:`, err);
                 }
                 resolve();
             };
@@ -450,7 +502,18 @@ const karyawanManager = {
                     ${field('Masa Kerja', p.masaKerja)}
                     ${field('Tahun Pensiun', p.tahunPensiun)}
                     ${field('Jadwal', p.shift)}
-                    ${field('Berkas SK', p.fileSK ? `<a href="${p.fileSK}" target="_blank" style="color:var(--color-primary);"><i class="fas fa-file-pdf"></i> Lihat Berkas</a>` : '')}
+                </div>
+
+                ${(p.fileSK || p.fileKTP || p.fileIjazah || p.fileSertifikat) ? `
+                <div style="margin-bottom:1.5rem;">
+                    <div style="font-weight:600;color:var(--color-primary);margin-bottom:0.5rem;font-size:0.9rem;">
+                        <i class="fas fa-folder-open"></i> BERKAS DOKUMEN
+                    </div>
+                    ${p.fileSK ? field('Surat SK', `<a href="${p.fileSK}" target="_blank" style="color:var(--color-primary);"><i class="fas fa-file-pdf"></i> Lihat Berkas</a>`) : ''}
+                    ${p.fileKTP ? field('KTP', `<a href="${p.fileKTP}" target="_blank" style="color:#3B82F6;"><i class="fas fa-id-card"></i> Lihat Berkas</a>`) : ''}
+                    ${p.fileIjazah ? field('Ijazah', `<a href="${p.fileIjazah}" target="_blank" style="color:#10B981;"><i class="fas fa-graduation-cap"></i> Lihat Berkas</a>`) : ''}
+                    ${p.fileSertifikat ? field('Sertifikat', `<a href="${p.fileSertifikat}" target="_blank" style="color:#F59E0B;"><i class="fas fa-certificate"></i> Lihat Berkas</a>`) : ''}
+                </div>` : ''}
                 </div>
 
                 ${keluarga.length > 0 ? `
