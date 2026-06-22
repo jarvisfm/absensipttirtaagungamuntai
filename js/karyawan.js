@@ -152,6 +152,13 @@ const karyawanManager = {
             // Tab Kekaryawanan
             document.getElementById('p-statusPekerjaan').value = p.statusPekerjaan || 'Karyawan Tetap';
             document.getElementById('p-statusKaryawan').value  = p.statusKaryawan || 'AKTIF';
+
+            // Berkas SK
+            if (p.fileSK) {
+                document.getElementById('sk-file-link').href = p.fileSK;
+                document.getElementById('sk-file-current').style.display = 'block';
+            }
+
             document.getElementById('p-pendidikan').value      = p.pendidikan || '';
             document.getElementById('p-jabatan').value         = p.jabatan || '';
             document.getElementById('p-unitKerja').value       = p.unitKerja || '';
@@ -205,6 +212,8 @@ const karyawanManager = {
         document.getElementById('foto-placeholder').style.display = 'block';
         document.getElementById('anak-list').innerHTML = '';
         document.getElementById('karyawan-foto-file').value = '';
+        document.getElementById('karyawan-sk-file').value = '';
+        document.getElementById('sk-file-current').style.display = 'none';
     },
 
     addAnakField(value = '') {
@@ -314,6 +323,16 @@ const karyawanManager = {
                 await this.uploadFoto(savedId, fotoFile);
             }
 
+            // Upload berkas SK jika ada
+            const skFile = document.getElementById('karyawan-sk-file').files[0];
+            if (skFile && savedId) {
+                if (skFile.size > 5 * 1024 * 1024) {
+                    toast.error('Berkas SK terlalu besar (maks 5MB), data karyawan tetap tersimpan');
+                } else {
+                    await this.uploadFileSK(savedId, skFile);
+                }
+            }
+
             toast.success(this.editingId ? 'Data karyawan berhasil diperbarui!' : 'Karyawan berhasil ditambahkan!');
             this.closeModal();
             await this.loadKaryawan();
@@ -334,6 +353,23 @@ const karyawanManager = {
                     await api.uploadFotoKaryawan(id, base64, mimeType);
                 } catch (err) {
                     console.error('Upload foto gagal:', err);
+                }
+                resolve();
+            };
+            reader.readAsDataURL(file);
+        });
+    },
+
+    async uploadFileSK(id, file) {
+        return new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onload = async (e) => {
+                const base64 = e.target.result.split(',')[1];
+                const mimeType = file.type;
+                try {
+                    await api.uploadFileSK(id, base64, mimeType, file.name);
+                } catch (err) {
+                    console.error('Upload berkas SK gagal:', err);
                 }
                 resolve();
             };
@@ -409,6 +445,7 @@ const karyawanManager = {
                     ${field('Masa Kerja', p.masaKerja)}
                     ${field('Tahun Pensiun', p.tahunPensiun)}
                     ${field('Jadwal', p.shift)}
+                    ${field('Berkas SK', p.fileSK ? `<a href="${p.fileSK}" target="_blank" style="color:var(--color-primary);"><i class="fas fa-file-pdf"></i> Lihat Berkas</a>` : '')}
                 </div>
 
                 ${keluarga.length > 0 ? `
