@@ -641,7 +641,7 @@
     
     /* Bottom Navigation */
     .bottom-nav {
-        display: flex !important;
+        display: flex ;
         position: fixed;
         bottom: 0;
         left: 0;
