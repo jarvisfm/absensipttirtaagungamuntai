@@ -119,12 +119,7 @@ const mobile = {
     
     if (this.sidebarOpen) {
         sidebar?.classList.add('open');
-        if (overlay) {
-            overlay.classList.add('show');
-            overlay.style.display = 'block';
-            overlay.style.background = 'rgba(0,0,0,0.4)';
-            overlay.style.zIndex = '99';
-        }
+        overlay?.classList.add('show');
         document.body.style.overflow = 'hidden';
     } else {
         this.closeSidebar();
@@ -138,6 +133,7 @@ const mobile = {
         this.sidebarOpen = false;
         sidebar?.classList.remove('open');
         overlay?.classList.remove('show');
+        if (overlay) overlay.style.display = 'none';
         document.body.style.overflow = '';
     },
     
