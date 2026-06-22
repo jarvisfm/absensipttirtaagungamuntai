@@ -44,12 +44,15 @@ const izin = {
         if (form) {
             form.addEventListener('submit', (e) => {
                 e.preventDefault();
-                this.startVerification();
+                this.submitIzinForm();
             });
         }
 
         if (verifyBtn) {
-            verifyBtn.addEventListener('click', () => this.startVerification());
+            verifyBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                this.submitIzinForm();
+            });
         }
 
         // File upload handling
@@ -141,7 +144,7 @@ const izin = {
         if (fileInput) fileInput.value = '';
     },
 
-    startVerification() {
+    async submitIzinForm() {
         // Validate form first
         const type = document.getElementById('izin-type')?.value;
         const date = document.getElementById('izin-date')?.value;
@@ -150,28 +153,6 @@ const izin = {
 
         if (!type || !date || !duration || !reason) {
             toast.error('Harap isi semua field yang wajib diisi!');
-            return;
-        }
-
-        // Save form data temporarily
-        this.tempFormData = { type, date, duration, reason };
-        storage.set('temp_izin_form', this.tempFormData);
-
-        // Navigate to face recognition
-        router.navigate('face-recognition');
-
-        // Initialize with izin action
-        setTimeout(() => {
-            if (window.faceRecognition) {
-                window.faceRecognition.init('izin');
-            }
-        }, 100);
-    },
-
-    async submitWithVerification(verificationData) {
-        const formData = storage.get('temp_izin_form');
-        if (!formData) {
-            toast.error('Data form tidak ditemukan');
             return;
         }
 
@@ -185,15 +166,12 @@ const izin = {
 
         const izinEntry = {
             userId: currentUser?.id || 'demo-user',
-            type: formData.type,
-            typeLabel: typeLabels[formData.type] || formData.type,
-            date: formData.date,
-            duration: parseInt(formData.duration),
-            reason: formData.reason,
-            hasAttachment: !!this.currentFile,
-            verificationPhoto: verificationData.photo || '',
-            verificationLocation: verificationData.location || '',
-            verificationTimestamp: verificationData.timestamp || ''
+            type: type,
+            typeLabel: typeLabels[type] || type,
+            date: date,
+            duration: parseInt(duration),
+            reason: reason,
+            hasAttachment: !!this.currentFile
         };
 
         try {
@@ -203,13 +181,11 @@ const izin = {
             }
         } catch (error) {
             console.error('Error submitting izin:', error);
+            toast.error('Gagal mengirim pengajuan izin.');
+            return;
         }
 
-        // Clear temp data
-        storage.remove('temp_izin_form');
-        storage.remove('temp_attendance');
         this.currentFile = null;
-
         toast.success('Pengajuan izin berhasil dikirim!');
 
         // Reset form
