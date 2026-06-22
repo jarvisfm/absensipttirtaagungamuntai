@@ -291,6 +291,9 @@ const auth = {
     },
 
     isAdmin() {
+        // Jika sedang dalam mode karyawan, kembalikan false
+        // agar semua fitur karyawan berjalan normal untuk admin
+        if (sessionStorage.getItem('adminSwitchMode') === 'true') return false;
         return this.currentUser && this.currentUser.role === 'admin';
     },
 
