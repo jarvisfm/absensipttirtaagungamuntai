@@ -144,24 +144,32 @@ const adminReports = {
         });
 
         this.leaveData = [
-            ...leaves.map(l => ({
-                name: l.typeLabel === 'Cuti Tahunan' ? 'Budi Santoso' : 'Citra Dewi',
-                department: l.typeLabel === 'Cuti Tahunan' ? 'HR' : 'Finance',
-                type: l.type === 'annual' ? 'Cuti' : l.type,
-                dates: l.startDate === l.endDate ? l.startDate : `${l.startDate} - ${l.endDate}`,
-                duration: l.duration,
-                reason: l.reason,
-                status: l.status
-            })),
-            ...izinList.map(i => ({
-                name: 'Dedi Pratama',
-                department: 'Marketing',
-                type: 'Izin',
-                dates: i.date,
-                duration: i.duration,
-                reason: i.reason,
-                status: i.status
-            }))
+            ...leaves.map(l => {
+                const emp = employees.find(e => String(e.id) === String(l.userId));
+                return {
+                    userId: l.userId,
+                    name: emp ? emp.nama || emp.name : l.userId,
+                    department: emp ? emp.unitKerja || emp.department || '-' : '-',
+                    type: 'Cuti',
+                    dates: l.startDate === l.endDate ? l.startDate : `${l.startDate} - ${l.endDate}`,
+                    duration: l.duration,
+                    reason: l.reason,
+                    status: l.status
+                };
+            }),
+            ...izinList.map(i => {
+                const emp = employees.find(e => String(e.id) === String(i.userId));
+                return {
+                    userId: i.userId,
+                    name: emp ? emp.nama || emp.name : i.userId,
+                    department: emp ? emp.unitKerja || emp.department || '-' : '-',
+                    type: 'Izin',
+                    dates: i.date,
+                    duration: i.duration,
+                    reason: i.reason,
+                    status: i.status
+                };
+            })
         ];
     },
 
