@@ -143,45 +143,83 @@ const adminReports = {
             };
         });
 
-        this.leaveData = [
-            ...leaves.map(l => {
-                let emp = employees.find(e => String(e.id) === String(l.userId));
-                if (!emp && currentUser && String(currentUser.id) === String(l.userId)) {
-                    emp = { name: currentUser.name, department: currentUser.department || '-' };
-                }
-                if (!emp) emp = { name: 'Karyawan', department: '-' };
-                return {
-                    id: l.id,
-                    kind: 'leave',
-                    name: emp.name,
-                    department: emp.department || '-',
-                    type: l.type === 'annual' ? 'Cuti' : (l.typeLabel || l.type),
-                    dates: l.startDate === l.endDate ? l.startDate : `${l.startDate} - ${l.endDate}`,
-                    duration: l.duration,
-                    reason: l.reason,
-                    status: l.status
-                };
-            }),
-            ...izinList.map(i => {
-                let emp = employees.find(e => String(e.id) === String(i.userId));
-                if (!emp && currentUser && String(currentUser.id) === String(i.userId)) {
-                    emp = { name: currentUser.name, department: currentUser.department || '-' };
-                }
-                if (!emp) emp = { name: 'Karyawan', department: '-' };
-                return {
-                    id: i.id,
-                    kind: 'izin',
-                    name: emp.name,
-                    department: emp.department || '-',
-                    type: i.typeLabel || 'Izin',
-                    dates: i.date,
-                    duration: i.duration,
-                    reason: i.reason,
-                    status: i.status
-                };
-            })
-        ];
-    },
+        // Deduplikasi by id
+const uniqueLeaves = leaves.filter((l, i, arr) =>
+    arr.findIndex(x => String(x.id) === String(l.id)) === i
+);
+const uniqueIzin = izinList.filter((i, idx, arr) =>
+    arr.findIndex(x => String(x.id) === String(i.id)) === idx
+);
+
+this.leaveData = [
+    ...uniqueLeaves.map(l => {
+        let emp = employees.find(e => String(e.id) === String(l.userId));
+        if (!emp && currentUser && String(currentUser.id) === String(l.userId)) {
+            emp = { name: currentUser.name, department: currentUser.department || '-' };
+        }
+        if (!emp) emp = { name: l.userId || 'Karyawan', department: '-' };
+        return {
+            id: l.id,
+            kind: 'leave',
+            userId: l.userId,
+            name: emp.name || emp.nama || l.userId,
+            department: emp.department || emp.unitKerja || '-',
+            type: l.type === 'annual' ? 'Cuti Tahunan'
+                : l.type === 'sick' ? 'Cuti Sakit'
+                : l.type === 'important' ? 'Cuti Penting'
+                : (l.typeLabel || l.type || 'Cuti'),
+            dates: l.startDate && l.endDate
+                ? (l.startDate === l.endDate ? l.startDate : `${l.startDate} - ${l.endDate}`)
+                : (l.startDate || '-'),
+            duration: l.duration != null ? l.duration : '-',
+            reason: l.reason || l.alasan || '-',
+            status: l.status || 'pending',
+            startDate: l.startDate || ''
+        };
+    }),
+    ...uniqueIzin.map(i => {
+        let emp = employees.find(e => String(e.id) === String(i.userId));
+        if (!emp && currentUser && String(currentUser.id) === String(i.userId)) {
+            emp = { name: currentUser.name, department: currentUser.department || '-' };
+        }
+        if (!emp) emp = { name: i.userId || 'Karyawan', department: '-' };
+        return {
+            id: i.id,
+            kind: 'izin',
+            userId: i.userId,
+            name: emp.name || emp.nama || i.userId,
+            department: emp.department || emp.unitKerja || '-',
+            type: i.type === 'sick' ? 'Sakit'
+                : i.type === 'permission' ? 'Izin Penting'
+                : i.type === 'emergency' ? 'Keadaan Darurat'
+                : (i.typeLabel || 'Izin'),
+            dates: i.date || '-',
+            duration: i.duration != null ? i.duration : '-',
+            reason: i.reason || i.alasan || '-',
+            status: i.status || 'pending',
+            startDate: i.date || ''
+        };
+    })
+];
+
+// Hitung kuota cuti per karyawan (12 hari/tahun)
+const KUOTA_CUTI = 12;
+const tahunIni = new Date().getFullYear();
+this.leaveQuota = {};
+employees.forEach(emp => {
+    const cutiDisetujui = uniqueLeaves.filter(l =>
+        String(l.userId) === String(emp.id) &&
+        l.status === 'approved' &&
+        (l.startDate || '').startsWith(String(tahunIni))
+    );
+    const totalPakai = cutiDisetujui.reduce((sum, l) => sum + (parseInt(l.duration) || 0), 0);
+    const sisa = KUOTA_CUTI - totalPakai;
+    this.leaveQuota[String(emp.id)] = { pakai: totalPakai, sisa: Math.max(0, sisa) };
+    if (totalPakai >= KUOTA_CUTI) {
+        const nama = emp.name || emp.nama || 'Karyawan';
+        toast.warning(`⚠️ Kuota cuti ${nama} sudah habis tahun ini!`);
+    }
+});
 
     populateEmployeeFilter() {
         const employees = storage.get('admin_employees', []);
@@ -350,15 +388,17 @@ const adminReports = {
     },
 
     getFilteredLeave() {
-        return this.leaveData.filter(row => {
-            const matchesType = !this.filters.leave.type ||
-                (this.filters.leave.type === 'cuti' && row.type.toLowerCase().includes('cuti')) ||
-                (this.filters.leave.type === 'izin' && row.type.toLowerCase().includes('izin')) ||
-                (this.filters.leave.type === 'sakit' && row.type.toLowerCase().includes('sakit'));
-            const matchesStatus = !this.filters.leave.status || row.status === this.filters.leave.status;
-            return matchesType && matchesStatus;
-        });
-    },
+    const { month, type, status } = this.filters.leave;
+    return this.leaveData.filter(row => {
+        const matchesMonth = !month || (row.startDate && row.startDate.startsWith(month));
+        const matchesType = !type ||
+            (type === 'cuti' && row.type.toLowerCase().includes('cuti')) ||
+            (type === 'izin' && row.type.toLowerCase().includes('izin')) ||
+            (type === 'sakit' && (row.type.toLowerCase().includes('sakit') || row.kind === 'izin'));
+        const matchesStatus = !status || row.status === status;
+        return matchesMonth && matchesType && matchesStatus;
+    });
+},
 
     renderAttendanceReports() {
     const container = document.getElementById('attendance-reports-body');
@@ -729,45 +769,56 @@ viewAttendanceDetail(id) {
     },
 
     renderLeaveReports() {
-        const tbody = document.getElementById('leave-reports-body');
-        if (!tbody) return;
+    const tbody = document.getElementById('leave-reports-body');
+    if (!tbody) return;
 
-        const data = this.getFilteredLeave();
-        const statusLabels = {
-            'pending': 'Menunggu',
-            'approved': 'Disetujui',
-            'rejected': 'Ditolak'
-        };
+    const data = this.getFilteredLeave();
+    const statusLabels = {
+        'pending': 'Menunggu',
+        'approved': 'Disetujui',
+        'rejected': 'Ditolak'
+    };
 
-        tbody.innerHTML = data.map(row => `
-            <tr>
-                <td>${row.name}</td>
-                <td>${row.department}</td>
-                <td>${row.type}</td>
-                <td>${row.dates}</td>
-                <td>${row.duration} hari</td>
-                <td>${row.reason}</td>
-                <td>
-                    <span class="status-badge ${row.status}">
-                        ${statusLabels[row.status]}
-                    </span>
-                </td>
-                <td style="white-space:nowrap;">
-                    <button class="btn-action view" onclick="adminReports.viewLeaveDetail('${row.name}')">
-                        <i class="fas fa-eye"></i>
+    if (data.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:2rem;color:var(--text-muted);">Tidak ada data</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = data.map(row => {
+        const quota = (this.leaveQuota || {})[String(row.userId)];
+        const sisaHtml = quota != null
+            ? `<span style="font-weight:600;color:${quota.sisa <= 0 ? '#EF4444' : quota.sisa <= 3 ? '#F59E0B' : '#10B981'};">${quota.sisa} hari</span>`
+            : '-';
+        return `
+        <tr>
+            <td>${row.name}</td>
+            <td>${row.department}</td>
+            <td>${row.type}</td>
+            <td>${row.dates}</td>
+            <td>${row.duration !== '-' ? row.duration + ' hari' : '-'}</td>
+            <td>${row.reason}</td>
+            <td style="text-align:center;">${sisaHtml}</td>
+            <td>
+                <span class="status-badge ${row.status}">
+                    ${statusLabels[row.status] || row.status}
+                </span>
+            </td>
+            <td style="white-space:nowrap;">
+                <button class="btn-action view" onclick="adminReports.viewLeaveDetail('${row.name}')">
+                    <i class="fas fa-eye"></i>
+                </button>
+                ${row.status === 'pending' ? `
+                    <button class="btn-action" style="background:#10B981;color:#fff;" title="Setuju" onclick="adminReports.approveLeaveOrIzin('${row.kind}', '${row.id}')">
+                        <i class="fas fa-check"></i>
                     </button>
-                    ${row.status === 'pending' ? `
-                        <button class="btn-action" style="background:#10B981;color:#fff;" title="Setuju" onclick="adminReports.approveLeaveOrIzin('${row.kind}', '${row.id}')">
-                            <i class="fas fa-check"></i>
-                        </button>
-                        <button class="btn-action" style="background:#EF4444;color:#fff;" title="Tolak" onclick="adminReports.rejectLeaveOrIzin('${row.kind}', '${row.id}')">
-                            <i class="fas fa-times"></i>
-                        </button>
-                    ` : ''}
-                </td>
-            </tr>
-        `).join('');
-    },
+                    <button class="btn-action" style="background:#EF4444;color:#fff;" title="Tolak" onclick="adminReports.rejectLeaveOrIzin('${row.kind}', '${row.id}')">
+                        <i class="fas fa-times"></i>
+                    </button>
+                ` : ''}
+            </td>
+        </tr>`;
+    }).join('');
+},
 
     async approveLeaveOrIzin(kind, id) {
         if (!confirm('Setujui pengajuan ini?')) return;
