@@ -56,27 +56,31 @@ const adminReports = {
         let izinList = [];
         let attendances = [];
 
-        try {
-            const [empResult, jurnalResult, leaveResult, izinResult, attResult] = await Promise.all([
-                api.getEmployees(),
-                api.getAllJournals(),
-                api.getAllLeaves(),
-                api.getAllIzin(),
-                api.getAllAttendance()
-            ]);
-            employees = empResult.data || [];
-            jurnals = jurnalResult.data || [];
-            leaves = leaveResult.data || [];
-            izinList = izinResult.data || [];
-            attendances = attResult.data || [];
-        } catch (error) {
-            console.error('Error loading report data:', error);
-            employees = storage.get('admin_employees', []);
-            jurnals = storage.get('jurnals', []);
-            leaves = storage.get('leaves', []);
-            izinList = storage.get('izin', []);
-            attendances = storage.get('attendance', []);
-        }
+        const [empResult, jurnalResult, leaveResult, izinResult, attResult] = await Promise.allSettled([
+            api.getEmployees(),
+            api.getAllJournals(),
+            api.getAllLeaves(),
+            api.getAllIzin(),
+            api.getAllAttendance()
+        ]);
+
+        const pick = (settled, label) => {
+            if (settled.status === 'fulfilled' && settled.value && settled.value.success !== false) {
+                return settled.value.data || [];
+            }
+            console.error(`Gagal memuat ${label}:`, settled.reason || settled.value?.error);
+            return [];
+        };
+
+        employees = pick(empResult, 'employees');
+        jurnals = pick(jurnalResult, 'jurnals');
+        leaves = pick(leaveResult, 'leaves');
+        izinList = pick(izinResult, 'izin');
+        attendances = pick(attResult, 'attendance');
+
+        // Fallback ke localStorage hanya untuk bagian yang benar-benar kosong/gagal
+        if (employees.length === 0) employees = storage.get('admin_employees', []);
+        if (attendances.length === 0) attendances = storage.get('attendance', []);
 
         this.rawAttendance = attendances;
         this.rawEmployees = employees;
