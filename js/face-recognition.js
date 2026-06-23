@@ -13,10 +13,27 @@ const faceRecognition = {
     position: null,
 
     init(action) {
-        this.currentAction = action;
-        this.photoCaptured = false;
-        this.locationVerified = false;
-        this.position = null;
+    this.currentAction = action;
+    this.photoCaptured = false;
+    this.locationVerified = false;
+    this.position = null;
+
+    // Reset UI foto & status verifikasi dari sesi sebelumnya
+    const preview = document.getElementById('photo-preview');
+    const captureBtn = document.getElementById('btn-capture');
+    const confirmBtn = document.getElementById('btn-confirm-attendance');
+    const locationStatus = document.getElementById('location-status');
+
+    if (preview) preview.style.display = 'none';
+    if (captureBtn) {
+        captureBtn.disabled = true;
+        captureBtn.textContent = captureBtn.textContent; // trigger re-render
+    }
+    if (confirmBtn) confirmBtn.disabled = true;
+    if (locationStatus) locationStatus.textContent = 'Mendapatkan lokasi...';
+
+    // Hapus data temp dari sesi sebelumnya
+    storage.remove('temp_attendance');
 
         // Update UI based on action
         this.updateActionTitle(action);
