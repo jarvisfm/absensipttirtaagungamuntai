@@ -13,27 +13,10 @@ const faceRecognition = {
     position: null,
 
     init(action) {
-    this.currentAction = action;
-    this.photoCaptured = false;
-    this.locationVerified = false;
-    this.position = null;
-
-    // Reset UI foto & status verifikasi dari sesi sebelumnya
-    const preview = document.getElementById('photo-preview');
-    const captureBtn = document.getElementById('btn-capture');
-    const confirmBtn = document.getElementById('btn-confirm-attendance');
-    const locationStatus = document.getElementById('location-status');
-
-    if (preview) preview.style.display = 'none';
-    if (captureBtn) {
-        captureBtn.disabled = true;
-        captureBtn.textContent = captureBtn.textContent; // trigger re-render
-    }
-    if (confirmBtn) confirmBtn.disabled = true;
-    if (locationStatus) locationStatus.textContent = 'Mendapatkan lokasi...';
-
-    // Hapus data temp dari sesi sebelumnya
-    storage.remove('temp_attendance');
+        this.currentAction = action;
+        this.photoCaptured = false;
+        this.locationVerified = false;
+        this.position = null;
 
         // Update UI based on action
         this.updateActionTitle(action);
@@ -100,6 +83,17 @@ const faceRecognition = {
         }
     },
 
+    // Hitung jarak antara 2 koordinat dalam meter (Haversine formula)
+    _calcDistance(lat1, lng1, lat2, lng2) {
+        const R = 6371000; // radius bumi dalam meter
+        const dLat = (lat2 - lat1) * Math.PI / 180;
+        const dLng = (lng2 - lng1) * Math.PI / 180;
+        const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                  Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                  Math.sin(dLng/2) * Math.sin(dLng/2);
+        return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    },
+
     initLocation() {
         if (!navigator.geolocation) {
             toast.error('Browser Anda tidak mendukung geolokasi');
@@ -111,37 +105,78 @@ const faceRecognition = {
         const mapEl = document.getElementById('location-map');
 
         navigator.geolocation.getCurrentPosition(
-            (position) => {
+            async (position) => {
                 this.position = position;
-                this.locationVerified = true;
 
-                // Update status
-                if (statusEl) {
-                    statusEl.innerHTML = '<i class="fas fa-check-circle"></i> Terverifikasi';
-                    statusEl.classList.add('verified');
+                // Ambil pengaturan lokasi kantor dari backend
+                let officeLat = null, officeLng = null, radius = 100;
+                try {
+                    const result = await api.getSettings();
+                    const s = result.data || {};
+                    officeLat = s.office_lat ? parseFloat(s.office_lat) : null;
+                    officeLng = s.office_lng ? parseFloat(s.office_lng) : null;
+                    radius    = s.location_radius ? parseInt(s.location_radius) : 100;
+                } catch(e) { /* pakai default */ }
+
+                const userLat = position.coords.latitude;
+                const userLng = position.coords.longitude;
+
+                // Validasi radius jika koordinat kantor sudah diset
+                if (officeLat !== null && officeLng !== null) {
+                    const distance = Math.round(this._calcDistance(userLat, userLng, officeLat, officeLng));
+                    const inRadius = distance <= radius;
+
+                    if (statusEl) {
+                        if (inRadius) {
+                            statusEl.innerHTML = `<i class="fas fa-check-circle"></i> Terverifikasi (${distance}m dari kantor)`;
+                            statusEl.classList.add('verified');
+                            statusEl.classList.remove('out-of-range');
+                        } else {
+                            statusEl.innerHTML = `<i class="fas fa-times-circle" style="color:#EF4444;"></i> <span style="color:#EF4444;">Di luar area (${distance}m, maks ${radius}m)</span>`;
+                            statusEl.classList.remove('verified');
+                            statusEl.classList.add('out-of-range');
+                        }
+                    }
+
+                    if (!inRadius) {
+                        // Tampilkan notifikasi & kunci tombol konfirmasi
+                        toast.error(`Anda berada ${distance}m dari kantor. Absensi hanya diizinkan dalam radius ${radius}m.`);
+                        this.locationVerified = false;
+                        this.checkCanSubmit();
+
+                        // Tampilkan info lokasi
+                        if (infoEl) {
+                            infoEl.style.display = 'block';
+                            const coordsEl    = document.getElementById('location-coords');
+                            const addressEl   = document.getElementById('location-address');
+                            const accuracyEl  = document.getElementById('location-accuracy');
+                            if (coordsEl)   coordsEl.textContent   = `${userLat.toFixed(6)}, ${userLng.toFixed(6)}`;
+                            if (addressEl)  addressEl.textContent  = `Di luar radius kantor (${distance}m)`;
+                            if (accuracyEl) accuracyEl.textContent = `±${Math.round(position.coords.accuracy)}m`;
+                        }
+                        return; // jangan set locationVerified = true
+                    }
+                } else {
+                    // Koordinat kantor belum diset, loloskan saja
+                    if (statusEl) {
+                        statusEl.innerHTML = '<i class="fas fa-check-circle"></i> Terverifikasi';
+                        statusEl.classList.add('verified');
+                    }
                 }
+
+                this.locationVerified = true;
 
                 // Show location info
                 if (infoEl) {
                     infoEl.style.display = 'block';
-
-                    const coordsEl = document.getElementById('location-coords');
-                    const addressEl = document.getElementById('location-address');
-                    const timeEl = document.getElementById('location-time');
+                    const coordsEl   = document.getElementById('location-coords');
+                    const addressEl  = document.getElementById('location-address');
+                    const timeEl     = document.getElementById('location-time');
                     const accuracyEl = document.getElementById('location-accuracy');
-
-                    if (coordsEl) {
-                        coordsEl.textContent = `${position.coords.latitude.toFixed(6)}, ${position.coords.longitude.toFixed(6)}`;
-                    }
-                    if (addressEl) {
-                        addressEl.textContent = 'Lokasi Valid';
-                    }
-                    if (timeEl) {
-                        timeEl.textContent = dateTime.getCurrentTime();
-                    }
-                    if (accuracyEl) {
-                        accuracyEl.textContent = `±${Math.round(position.coords.accuracy)}m`;
-                    }
+                    if (coordsEl)   coordsEl.textContent   = `${userLat.toFixed(6)}, ${userLng.toFixed(6)}`;
+                    if (addressEl)  addressEl.textContent  = 'Lokasi Valid';
+                    if (timeEl)     timeEl.textContent     = dateTime.getCurrentTime();
+                    if (accuracyEl) accuracyEl.textContent = `±${Math.round(position.coords.accuracy)}m`;
                 }
 
                 // Update map visualization
@@ -161,24 +196,17 @@ const faceRecognition = {
             },
             (error) => {
                 console.error('Location error:', error);
-
-                // Fallback for testing on desktop/localhost
                 this.position = {
-                    coords: { latitude: -6.200000, longitude: 106.816666, accuracy: 100 } // Jakarta default
+                    coords: { latitude: -6.200000, longitude: 106.816666, accuracy: 100 }
                 };
                 this.locationVerified = true;
-
                 if (statusEl) {
                     statusEl.innerHTML = '<i class="fas fa-exclamation-circle" style="color:var(--color-warning);"></i> Simulasi Lokasi';
                 }
                 toast.warning('Menggunakan lokasi simulasi karena GPS gagal.');
                 this.checkCanSubmit();
             },
-            {
-                enableHighAccuracy: true,
-                timeout: 10000,
-                maximumAge: 0
-            }
+            { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
         );
     },
 
