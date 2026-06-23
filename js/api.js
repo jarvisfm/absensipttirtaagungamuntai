@@ -112,33 +112,6 @@ const api = {
         return this.request('getAllAttendance');
     },
 
-    // ========== JOURNALS ==========
-
-    async getJournals(userId) {
-        if (!API_BASE_URL) {
-            return { success: true, data: storage.get('jurnals', []) };
-        }
-        return this.request('getJournals', { userId });
-    },
-
-    async saveJournal(data) {
-        if (!API_BASE_URL) {
-            const all = storage.get('jurnals', []);
-            const idx = all.findIndex(j => j.date === data.date);
-            if (idx >= 0) { all[idx] = data; } else { all.unshift(data); }
-            storage.set('jurnals', all);
-            return { success: true, data: data };
-        }
-        return this.request('saveJournal', data);
-    },
-
-    async getAllJournals() {
-        if (!API_BASE_URL) {
-            return { success: true, data: storage.get('jurnals', []) };
-        }
-        return this.request('getAllJournals');
-    },
-
     // ========== LEAVES (CUTI) ==========
 
     async getLeaves(userId) {
