@@ -24,7 +24,8 @@ const absensi = {
     const user = auth.getCurrentUser();
     if (!user) return;
     try {
-        const result = await api.checkAttendanceAccess(user.id);
+        const effectiveId = user.employeeId || user.id;
+        const result = await api.checkAttendanceAccess(effectiveId);
         if (result && result.success) {
             this.accessInfo = result.data;
         } else {
@@ -36,11 +37,12 @@ const absensi = {
 },
 
     async loadTodayAttendance() {
-        const user = auth.getCurrentUser();
-        if (!user) return;
+    const user = auth.getCurrentUser();
+    if (!user) return;
 
-        try {
-            const result = await api.getTodayAttendance(user.id);
+    try {
+        const effectiveId = user.employeeId || user.id;        // ← TAMBAH INI
+        const result = await api.getTodayAttendance(effectiveId); // ← GANTI user.id
             let today = result?.data || {};
 
             today.clockIn     = today.clockIn     || null;
@@ -72,7 +74,8 @@ const absensi = {
             const user = auth.getCurrentUser();
             const result = await api.getAllAttendance();
             const all = result.data || [];
-            const history = all.filter(d => String(d.userId) === String(user.id));
+            const effectiveId = user.employeeId || user.id;
+            const history = all.filter(d => String(d.userId) === String(effectiveId));
             this.renderHistory(history);
         } catch (e) {
             console.error('Error loading history:', e);
