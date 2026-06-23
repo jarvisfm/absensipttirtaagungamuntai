@@ -23,22 +23,25 @@ const adminDashboard = {
 
     async loadData() {
         try {
-            const [empResult, attResult, leaveResult, izinResult] = await Promise.all([
+            const [empResult, attResult, leaveResult, izinResult, jurnalResult] = await Promise.all([
                 api.getEmployees(),
                 api.getAllAttendance(),
                 api.getAllLeaves(),
-                api.getAllIzin()
+                api.getAllIzin(),
+                api.getAllJournals()
             ]);
             this.employees = empResult.data || [];
             this.attendance = attResult.data || [];
             this.leaves = leaveResult.data || [];
             this.izin = izinResult.data || [];
+            this.jurnals = jurnalResult.data || [];
         } catch (error) {
             console.error('Error loading admin data:', error);
             this.employees = storage.get('admin_employees', []);
             this.attendance = storage.get('attendance', []);
             this.leaves = storage.get('leaves', []);
             this.izin = storage.get('izin', []);
+            this.jurnals = storage.get('jurnals', []);
         }
     },
 
@@ -120,25 +123,112 @@ const adminDashboard = {
         const container = document.getElementById('admin-recent-activity');
         if (!container) return;
 
-        const activities = [
-            { user: 'Ahmad Rizky', action: 'Clock In', time: '5 menit yang lalu', avatar: 'https://ui-avatars.com/api/?name=Ahmad&background=3B82F6&color=fff' },
-            { user: 'Budi Santoso', action: 'Mengajukan Cuti', time: '15 menit yang lalu', avatar: 'https://ui-avatars.com/api/?name=Budi&background=10B981&color=fff' },
-            { user: 'Citra Dewi', action: 'Mengisi Jurnal', time: '30 menit yang lalu', avatar: 'https://ui-avatars.com/api/?name=Citra&background=F59E0B&color=fff' },
-            { user: 'Dedi Pratama', action: 'Clock Out', time: '1 jam yang lalu', avatar: 'https://ui-avatars.com/api/?name=Dedi&background=EF4444&color=fff' },
-            { user: 'Eka Putri', action: 'Izin Sakit', time: '2 jam yang lalu', avatar: 'https://ui-avatars.com/api/?name=Eka&background=8B5CF6&color=fff' }
-        ];
+        const findEmp = (userId) => this.employees.find(e => String(e.id) === String(userId));
+        const activities = [];
 
-        container.innerHTML = activities.map(act => `
+        // Aktivitas Absensi (Clock In / Clock Out)
+        (this.attendance || []).forEach(att => {
+            const emp = findEmp(att.userId);
+            const empName = emp?.name || `Karyawan #${att.userId}`;
+            const baseTime = att.verificationTimestamp || att.date;
+
+            if (att.clockIn) {
+                activities.push({
+                    user: empName,
+                    avatar: emp?.avatar,
+                    action: 'Clock In',
+                    timestamp: this._toTimestamp(att.verificationTimestamp || `${att.date}T${att.clockIn}`)
+                });
+            }
+            if (att.clockOut) {
+                activities.push({
+                    user: empName,
+                    avatar: emp?.avatar,
+                    action: 'Clock Out',
+                    timestamp: this._toTimestamp(`${att.date}T${att.clockOut}`)
+                });
+            }
+        });
+
+        // Aktivitas Cuti
+        (this.leaves || []).forEach(l => {
+            const emp = findEmp(l.userId);
+            activities.push({
+                user: emp?.name || `Karyawan #${l.userId}`,
+                avatar: emp?.avatar,
+                action: 'Mengajukan Cuti',
+                timestamp: this._toTimestamp(l.appliedAt)
+            });
+        });
+
+        // Aktivitas Izin
+        (this.izin || []).forEach(i => {
+            const emp = findEmp(i.userId);
+            const label = i.type === 'sick' ? 'Izin Sakit'
+                : i.type === 'permission' ? 'Izin Penting'
+                : i.type === 'emergency' ? 'Izin Keadaan Darurat'
+                : (i.typeLabel || 'Mengajukan Izin');
+            activities.push({
+                user: emp?.name || `Karyawan #${i.userId}`,
+                avatar: emp?.avatar,
+                action: label,
+                timestamp: this._toTimestamp(i.appliedAt)
+            });
+        });
+
+        // Aktivitas Jurnal
+        (this.jurnals || []).forEach(j => {
+            const emp = findEmp(j.userId);
+            activities.push({
+                user: emp?.name || `Karyawan #${j.userId}`,
+                avatar: emp?.avatar,
+                action: 'Mengisi Jurnal',
+                timestamp: this._toTimestamp(j.updatedAt)
+            });
+        });
+
+        // Urutkan dari terbaru, ambil yang valid timestamp-nya saja
+        const sorted = activities
+            .filter(a => a.timestamp && !isNaN(a.timestamp))
+            .sort((a, b) => b.timestamp - a.timestamp)
+            .slice(0, 8);
+
+        if (sorted.length === 0) {
+            container.innerHTML = '<p style="text-align:center;color:var(--text-muted);padding:1rem;font-size:0.85rem;">Belum ada aktivitas</p>';
+            return;
+        }
+
+        container.innerHTML = sorted.map(act => `
             <div class="activity-item">
                 <div class="activity-avatar">
-                    <img src="${getAvatarUrl(act)}" alt="${act.user}">
+                    <img src="${getAvatarUrl({ name: act.user, avatar: act.avatar })}" alt="${act.user}">
                 </div>
                 <div class="activity-content">
                     <p class="activity-text"><strong>${act.user}</strong> ${act.action}</p>
-                    <span class="activity-time">${act.time}</span>
+                    <span class="activity-time">${this._formatRelativeTime(act.timestamp)}</span>
                 </div>
             </div>
         `).join('');
+    },
+
+    _toTimestamp(value) {
+        if (!value) return NaN;
+        const t = new Date(value).getTime();
+        return isNaN(t) ? NaN : t;
+    },
+
+    _formatRelativeTime(timestamp) {
+        const diffMs = Date.now() - timestamp;
+        if (diffMs < 0) return 'baru saja';
+        const minutes = Math.floor(diffMs / 60000);
+        if (minutes < 1) return 'baru saja';
+        if (minutes < 60) return `${minutes} menit yang lalu`;
+        const hours = Math.floor(minutes / 60);
+        if (hours < 24) return `${hours} jam yang lalu`;
+        const days = Math.floor(hours / 24);
+        if (days < 30) return `${days} hari yang lalu`;
+        const months = Math.floor(days / 30);
+        return `${months} bulan yang lalu`;
     },
 
     renderOnlineUsers() {
