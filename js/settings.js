@@ -204,14 +204,14 @@ const settings = {
         }
 
         try {
-            await Promise.all([
-                api.saveSetting('late_tolerance',    lateTolerance    ? lateTolerance.value              : '15'),
-                api.saveSetting('face_recognition',  faceRecognition  ? String(faceRecognition.checked)  : 'true'),
-                api.saveSetting('location_tracking', locationTracking ? String(locationTracking.checked) : 'true'),
-                api.saveSetting('location_radius',   locationRadius   ? locationRadius.value             : '100'),
-                api.saveSetting('office_lat',        officeLat        ? officeLat.value                  : ''),
-                api.saveSetting('office_lng',        officeLng        ? officeLng.value                  : ''),
-            ]);
+            await api.saveSettingsBulk({
+                late_tolerance:    lateTolerance    ? lateTolerance.value              : '15',
+                face_recognition:  faceRecognition  ? String(faceRecognition.checked)  : 'true',
+                location_tracking: locationTracking ? String(locationTracking.checked) : 'true',
+                location_radius:   locationRadius   ? locationRadius.value             : '100',
+                office_lat:        officeLat        ? officeLat.value                  : '',
+                office_lng:        officeLng        ? officeLng.value                  : '',
+            });
             toast.success('Pengaturan sistem berhasil disimpan!');
         } catch (error) {
             console.error('Error saving system settings:', error);
