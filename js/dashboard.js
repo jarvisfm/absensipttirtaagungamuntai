@@ -17,6 +17,8 @@ const dashboard = {
         this.updateSessionInfo();
         this.updateProgressBar();
         this.updateWeeklyChart();
+        this.renderRecentActivity();
+        this.renderTeamAttendance();
 
         this.initialized = true;
     },
@@ -26,12 +28,23 @@ const dashboard = {
             const currentUser = auth.getCurrentUser();
             if (currentUser && currentUser.id) {
                 // Fetch attendance and global settings concurrently
-                const [attResult, settingsRes] = await Promise.all([
+                const [attResult, settingsRes, leaveRes, izinRes, jurnalRes, empRes, allAttRes] = await Promise.all([
                     api.getAttendance(currentUser.id),
-                    api.getSettings()
+                    api.getSettings(),
+                    api.getLeaves(currentUser.id).catch(() => ({ success: false })),
+                    api.getIzin(currentUser.id).catch(() => ({ success: false })),
+                    api.getAllJournals().catch(() => ({ success: false })),
+                    api.getEmployees().catch(() => ({ success: false })),
+                    api.getAllAttendance().catch(() => ({ success: false }))
                 ]);
 
                 this.attendanceData = (attResult && attResult.success) ? attResult.data : [];
+                this.myLeaves = (leaveRes && leaveRes.success) ? leaveRes.data : [];
+                this.myIzin = (izinRes && izinRes.success) ? izinRes.data : [];
+                const allJurnals = (jurnalRes && jurnalRes.success) ? jurnalRes.data : [];
+                this.myJurnals = allJurnals.filter(j => String(j.userId) === String(currentUser.id));
+                this.allEmployees = (empRes && empRes.success) ? empRes.data : [];
+                this.allAttendance = (allAttRes && allAttRes.success) ? allAttRes.data : [];
 
                 // Sync global schedule shift mapping from Admin to this employee's local instance
                 if (settingsRes && settingsRes.success && settingsRes.data) {
@@ -53,6 +66,11 @@ const dashboard = {
         } catch (error) {
             console.error('Error loading dashboard data:', error);
             this.attendanceData = [];
+            this.myLeaves = [];
+            this.myIzin = [];
+            this.myJurnals = [];
+            this.allEmployees = [];
+            this.allAttendance = [];
         }
     },
 
@@ -248,6 +266,135 @@ const dashboard = {
             fillEl.style.height = `${heightPercent}%`;
             fillEl.classList.toggle('weekend', isWeekend);
         });
+    },
+
+    renderRecentActivity() {
+        const container = document.getElementById('dashboard-recent-activity');
+        if (!container) return;
+
+        const activities = [];
+
+        (this.attendanceData || []).forEach(att => {
+            if (att.clockIn) {
+                activities.push({
+                    title: 'Clock In',
+                    icon: 'clock-in',
+                    iconClass: 'fa-sign-in-alt',
+                    timestamp: this._toTimestamp(att.verificationTimestamp || `${att.date}T${att.clockIn}`)
+                });
+            }
+            if (att.clockOut) {
+                activities.push({
+                    title: 'Clock Out',
+                    icon: 'clock-out',
+                    iconClass: 'fa-sign-out-alt',
+                    timestamp: this._toTimestamp(`${att.date}T${att.clockOut}`)
+                });
+            }
+        });
+
+        (this.myLeaves || []).forEach(l => {
+            activities.push({
+                title: 'Mengajukan Cuti',
+                icon: 'leave',
+                iconClass: 'fa-umbrella-beach',
+                timestamp: this._toTimestamp(l.appliedAt)
+            });
+        });
+
+        (this.myIzin || []).forEach(i => {
+            activities.push({
+                title: i.type === 'sick' ? 'Izin Sakit' : (i.typeLabel || 'Mengajukan Izin'),
+                icon: 'leave',
+                iconClass: 'fa-file-medical',
+                timestamp: this._toTimestamp(i.appliedAt)
+            });
+        });
+
+        (this.myJurnals || []).forEach(j => {
+            activities.push({
+                title: 'Mengisi Jurnal',
+                icon: 'journal',
+                iconClass: 'fa-edit',
+                timestamp: this._toTimestamp(j.updatedAt)
+            });
+        });
+
+        const sorted = activities
+            .filter(a => a.timestamp && !isNaN(a.timestamp))
+            .sort((a, b) => b.timestamp - a.timestamp)
+            .slice(0, 5);
+
+        if (sorted.length === 0) {
+            container.innerHTML = '<p style="text-align:center;color:var(--text-muted);padding:1rem;font-size:0.85rem;">Belum ada aktivitas</p>';
+            return;
+        }
+
+        container.innerHTML = sorted.map(act => `
+            <div class="activity-item">
+                <div class="activity-icon ${act.icon}"><i class="fas ${act.iconClass}"></i></div>
+                <div class="activity-content">
+                    <p class="activity-title">${act.title}</p>
+                    <p class="activity-time">${this._formatRelativeTime(act.timestamp)}</p>
+                </div>
+            </div>
+        `).join('');
+    },
+
+    renderTeamAttendance() {
+        const countEl = document.getElementById('dashboard-team-count');
+        const avatarsEl = document.getElementById('dashboard-team-avatars');
+        const onlineEl = document.getElementById('dashboard-team-online');
+        const offlineEl = document.getElementById('dashboard-team-offline');
+        if (!countEl || !avatarsEl) return;
+
+        const employees = this.allEmployees || [];
+        const total = employees.length;
+        const todayStr = dateTime.getLocalDate();
+
+        // "Online" = sudah Clock In hari ini & belum Clock Out
+        const onlineUserIds = new Set(
+            (this.allAttendance || [])
+                .filter(a => a.date === todayStr && a.clockIn && !a.clockOut)
+                .map(a => String(a.userId))
+        );
+
+        const onlineCount = employees.filter(e => onlineUserIds.has(String(e.id))).length;
+        const offlineCount = Math.max(0, total - onlineCount);
+
+        countEl.textContent = `${total} orang`;
+        if (onlineEl) onlineEl.textContent = onlineCount;
+        if (offlineEl) offlineEl.textContent = offlineCount;
+
+        const colors = ['F59E0B', '3B82F6', '10B981', 'EF4444', '8B5CF6', 'EC4899', '14B8A6'];
+        const shown = employees.slice(0, 5);
+        const extra = Math.max(0, total - shown.length);
+
+        avatarsEl.innerHTML = shown.map((emp, idx) => {
+            const src = getAvatarUrl(emp) || `https://ui-avatars.com/api/?name=${encodeURIComponent(emp.name || '?')}&background=${colors[idx % colors.length]}&color=fff`;
+            return `<img src="${src}" alt="${emp.name || 'Karyawan'}">`;
+        }).join('') + (extra > 0 ? `<div class="avatar-more">+${extra}</div>` : '');
+    },
+
+    _toTimestamp(value) {
+        if (!value) return NaN;
+        const t = new Date(value).getTime();
+        return isNaN(t) ? NaN : t;
+    },
+
+    _formatRelativeTime(timestamp) {
+        const diffMs = Date.now() - timestamp;
+        if (diffMs < 0) return 'baru saja';
+        const minutes = Math.floor(diffMs / 60000);
+        if (minutes < 1) return 'baru saja';
+        if (minutes < 60) return `${minutes} menit yang lalu`;
+        const hours = Math.floor(minutes / 60);
+        if (hours < 24) return `${hours} jam yang lalu`;
+        const days = Math.floor(hours / 24);
+        if (days === 1) return 'Kemarin';
+        if (days < 30) return `${days} hari yang lalu`;
+        const months = Math.floor(days / 30);
+        return `${months} bulan yang lalu`;
     },
 
     _formatDateYMD(d) {
