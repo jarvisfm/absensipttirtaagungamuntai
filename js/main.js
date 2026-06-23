@@ -324,6 +324,7 @@ function initializeData() {
     if (!storage.get('izin')) {
         storage.set('izin', []);
     }
+}
 
 
 // Update company name in UI
