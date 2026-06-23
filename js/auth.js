@@ -114,10 +114,11 @@ const auth = {
     },
 
     handleLogout() {
-        if (confirm('Apakah Anda yakin ingin logout?')) {
-            this.currentUser = null;
-            storage.remove('session');
-            storage.remove('currentPage');
+    if (confirm('Apakah Anda yakin ingin logout?')) {
+        this.currentUser = null;
+        storage.remove('session');
+        storage.remove('currentPage');
+        sessionStorage.removeItem('adminSwitchMode'); 
 
             this.showLogin();
             toast.info('Anda telah logout');
