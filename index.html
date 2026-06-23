@@ -337,12 +337,6 @@
                                     </div>
                                     <span>Clock Out</span>
                                 </button>
-                                <button class="quick-btn" onclick="router.navigate('jurnal')">
-                                    <div class="quick-icon journal">
-                                        <i class="fas fa-edit"></i>
-                                    </div>
-                                    <span>Jurnal</span>
-                                </button>
                                 <button class="quick-btn" onclick="router.navigate('cuti')">
                                     <div class="quick-icon leave">
                                         <i class="fas fa-umbrella-beach"></i>
@@ -358,19 +352,19 @@
                             </div>
                             <div class="bar-chart">
                                 <div class="bar-item">
-                                    <div class="bar-fill" style="height: 100%"></div><span class="bar-label">Sen</span>
+                                    <div class="bar-fill" style="height: 0%"></div><span class="bar-label">Sen</span>
                                 </div>
                                 <div class="bar-item">
-                                    <div class="bar-fill" style="height: 100%"></div><span class="bar-label">Sel</span>
+                                    <div class="bar-fill" style="height: 0%"></div><span class="bar-label">Sel</span>
                                 </div>
                                 <div class="bar-item">
-                                    <div class="bar-fill" style="height: 80%"></div><span class="bar-label">Rab</span>
+                                    <div class="bar-fill" style="height: 0%"></div><span class="bar-label">Rab</span>
                                 </div>
                                 <div class="bar-item">
-                                    <div class="bar-fill" style="height: 100%"></div><span class="bar-label">Kam</span>
+                                    <div class="bar-fill" style="height: 0%"></div><span class="bar-label">Kam</span>
                                 </div>
                                 <div class="bar-item">
-                                    <div class="bar-fill" style="height: 100%"></div><span class="bar-label">Jum</span>
+                                    <div class="bar-fill" style="height: 0%"></div><span class="bar-label">Jum</span>
                                 </div>
                                 <div class="bar-item">
                                     <div class="bar-fill weekend" style="height: 0%"></div><span
@@ -386,50 +380,25 @@
                         <div class="dashboard-card activity-card">
                             <div class="card-header">
                                 <h3>Aktivitas Terbaru</h3>
-                                <a href="#" class="view-all">Lihat Semua</a>
+                                <a href="#" class="view-all" onclick="router.navigate('absensi');return false;">Lihat Semua</a>
                             </div>
-                            <div class="activity-list">
-                                <div class="activity-item">
-                                    <div class="activity-icon clock-in"><i class="fas fa-sign-in-alt"></i></div>
-                                    <div class="activity-content">
-                                        <p class="activity-title">Clock In</p>
-                                        <p class="activity-time">Hari ini, 07:55</p>
-                                    </div>
-                                </div>
-                    
-                                <div class="activity-item">
-                                    <div class="activity-icon clock-out"><i class="fas fa-sign-out-alt"></i></div>
-                                    <div class="activity-content">
-                                        <p class="activity-title">Clock Out</p>
-                                        <p class="activity-time">Kemarin, 17:15</p>
-                                    </div>
-                                </div>
+                            <div class="activity-list" id="dashboard-recent-activity">
+                                <p style="text-align:center;color:var(--text-muted);padding:1rem;font-size:0.85rem;">Memuat aktivitas...</p>
                             </div>
                         </div>
 
                         <div class="dashboard-card team-card">
                             <div class="card-header">
                                 <h3>Kehadiran Tim</h3>
-                                <span class="team-count">24 orang</span>
+                                <span class="team-count" id="dashboard-team-count">0 orang</span>
                             </div>
                             <div class="team-avatars">
-                                <div class="avatar-stack">
-                                    <img src="https://ui-avatars.com/api/?name=A&background=F59E0B&color=fff"
-                                        alt="Team">
-                                    <img src="https://ui-avatars.com/api/?name=B&background=3B82F6&color=fff"
-                                        alt="Team">
-                                    <img src="https://ui-avatars.com/api/?name=C&background=10B981&color=fff"
-                                        alt="Team">
-                                    <img src="https://ui-avatars.com/api/?name=D&background=EF4444&color=fff"
-                                        alt="Team">
-                                    <img src="https://ui-avatars.com/api/?name=E&background=8B5CF6&color=fff"
-                                        alt="Team">
-                                    <div class="avatar-more">+19</div>
+                                <div class="avatar-stack" id="dashboard-team-avatars">
                                 </div>
                                 <div class="presence-stats">
-                                    <div class="presence-item"><span class="presence-dot online"></span><span>18
+                                    <div class="presence-item"><span class="presence-dot online"></span><span><span id="dashboard-team-online">0</span>
                                             Online</span></div>
-                                    <div class="presence-item"><span class="presence-dot offline"></span><span>6
+                                    <div class="presence-item"><span class="presence-dot offline"></span><span><span id="dashboard-team-offline">0</span>
                                             Offline</span></div>
                                 </div>
                             </div>
