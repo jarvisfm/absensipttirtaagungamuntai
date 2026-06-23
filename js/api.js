@@ -310,6 +310,21 @@ const api = {
         return this.request('saveSetting', { key, value });
     },
 
+    async saveSettingsBulk(settingsObj) {
+        if (!API_BASE_URL) {
+            Object.keys(settingsObj).forEach(key => {
+                if (key === 'company_name' || key === 'company_logo') {
+                    const company = storage.get('company', { name: '', logo: '' });
+                    if (key === 'company_name') company.name = settingsObj[key];
+                    if (key === 'company_logo') company.logo = settingsObj[key];
+                    storage.set('company', company);
+                }
+            });
+            return { success: true, data: settingsObj };
+        }
+        return this.request('saveSettingsBulk', { settings: settingsObj });
+    },
+
     // ========== SHIFTS ==========
 
     async getShifts() {
