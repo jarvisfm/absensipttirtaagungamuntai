@@ -76,6 +76,7 @@ const auth = {
                 // Backend mode - user from API (Employees or Users sheet)
                 user = {
                     id: result.data.id,
+                    employeeId: result.data.employeeId || null, 
                     username: result.data.username,
                     name: result.data.name,
                     role: result.data.role,
