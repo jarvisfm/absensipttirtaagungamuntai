@@ -64,6 +64,25 @@ const settings = {
                 const el = document.getElementById('setting-location-tracking');
                 if (el) el.checked = allSettings.location_tracking === 'true' || allSettings.location_tracking === true;
             }
+            if (allSettings.location_radius !== undefined) {
+                const el = document.getElementById('setting-location-radius');
+                if (el) el.value = allSettings.location_radius;
+            }
+            if (allSettings.office_lat !== undefined) {
+                const el = document.getElementById('setting-office-lat');
+                if (el) el.value = allSettings.office_lat;
+            }
+            if (allSettings.office_lng !== undefined) {
+                const el = document.getElementById('setting-office-lng');
+                if (el) el.value = allSettings.office_lng;
+                // Tampilkan preview jika koordinat sudah ada
+                if (allSettings.office_lat && allSettings.office_lng) {
+                    const preview = document.getElementById('office-location-preview');
+                    const text = document.getElementById('office-location-text');
+                    if (preview) preview.style.display = 'block';
+                    if (text) text.textContent = `${parseFloat(allSettings.office_lat).toFixed(6)}, ${parseFloat(allSettings.office_lng).toFixed(6)}`;
+                }
+            }
         } catch (error) {
             console.error('Error loading settings:', error);
             this.shifts = storage.get('shifts', []);
@@ -167,21 +186,63 @@ const settings = {
     },
 
     async saveSystemSettings() {
-        const lateTolerance = document.getElementById('setting-late-tolerance');
-        const faceRecognition = document.getElementById('setting-face-recognition');
+        const lateTolerance    = document.getElementById('setting-late-tolerance');
+        const faceRecognition  = document.getElementById('setting-face-recognition');
         const locationTracking = document.getElementById('setting-location-tracking');
+        const locationRadius   = document.getElementById('setting-location-radius');
+        const officeLat        = document.getElementById('setting-office-lat');
+        const officeLng        = document.getElementById('setting-office-lng');
+
+        // Validasi koordinat kantor jika diisi
+        if (officeLat && officeLng && (officeLat.value || officeLng.value)) {
+            const lat = parseFloat(officeLat.value);
+            const lng = parseFloat(officeLng.value);
+            if (isNaN(lat) || isNaN(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+                toast.error('Koordinat kantor tidak valid! Latitude: -90 s/d 90, Longitude: -180 s/d 180');
+                return;
+            }
+        }
 
         try {
             await Promise.all([
-                api.saveSetting('late_tolerance', lateTolerance ? lateTolerance.value : '15'),
-                api.saveSetting('face_recognition', faceRecognition ? String(faceRecognition.checked) : 'true'),
-                api.saveSetting('location_tracking', locationTracking ? String(locationTracking.checked) : 'true')
+                api.saveSetting('late_tolerance',    lateTolerance    ? lateTolerance.value              : '15'),
+                api.saveSetting('face_recognition',  faceRecognition  ? String(faceRecognition.checked)  : 'true'),
+                api.saveSetting('location_tracking', locationTracking ? String(locationTracking.checked) : 'true'),
+                api.saveSetting('location_radius',   locationRadius   ? locationRadius.value             : '100'),
+                api.saveSetting('office_lat',        officeLat        ? officeLat.value                  : ''),
+                api.saveSetting('office_lng',        officeLng        ? officeLng.value                  : ''),
             ]);
             toast.success('Pengaturan sistem berhasil disimpan!');
         } catch (error) {
             console.error('Error saving system settings:', error);
             toast.error('Gagal menyimpan pengaturan sistem');
         }
+    },
+
+    // Deteksi lokasi saat ini sebagai koordinat kantor
+    detectOfficeLocation() {
+        if (!navigator.geolocation) {
+            toast.error('Browser tidak mendukung geolokasi');
+            return;
+        }
+        toast.info('Mendeteksi lokasi...');
+        navigator.geolocation.getCurrentPosition(
+            (pos) => {
+                const lat = pos.coords.latitude.toFixed(6);
+                const lng = pos.coords.longitude.toFixed(6);
+                const latEl = document.getElementById('setting-office-lat');
+                const lngEl = document.getElementById('setting-office-lng');
+                const preview = document.getElementById('office-location-preview');
+                const text    = document.getElementById('office-location-text');
+                if (latEl) latEl.value = lat;
+                if (lngEl) lngEl.value = lng;
+                if (preview) preview.style.display = 'block';
+                if (text)    text.textContent = `${lat}, ${lng}`;
+                toast.success('Lokasi kantor berhasil dideteksi!');
+            },
+            () => { toast.error('Gagal mendeteksi lokasi. Pastikan izin lokasi diaktifkan.'); },
+            { enableHighAccuracy: true, timeout: 10000 }
+        );
     },
 
     renderShifts() {
