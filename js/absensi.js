@@ -275,8 +275,10 @@ const absensi = {
     },
 
     async saveAttendance() {
-        const user = auth.getCurrentUser();
-        this.attendanceData.userId = user?.id;
+    const user = auth.getCurrentUser();
+    // Gunakan employeeId jika ada (untuk admin yang punya data karyawan sendiri)
+    // Fallback ke id jika employeeId tidak ada
+    this.attendanceData.userId = user?.employeeId || user?.id;
 
         try {
             const result = await api.saveAttendance(this.attendanceData);
