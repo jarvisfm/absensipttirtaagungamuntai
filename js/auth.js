@@ -139,6 +139,13 @@ const auth = {
             // Isi notifikasi dengan data nyata
             if (window.notifications) notifications.init();
 
+            // Selalu reset mode karyawan saat showApp (login baru)
+            sessionStorage.removeItem('adminSwitchMode');
+            const banner = document.getElementById('admin-switch-banner');
+            const switchBtn = document.getElementById('btn-switch-to-employee');
+            if (banner) banner.style.display = 'none';
+            if (switchBtn) switchBtn.style.display = '';
+                        
             // Show appropriate menu based on role
             const employeeMenu = document.getElementById('employee-menu');
             const adminMenu = document.getElementById('admin-menu-nav');
