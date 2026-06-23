@@ -10,14 +10,19 @@ const absensi = {
     liveClockInterval: null,
 
     async init() {
-        await this.loadAccessInfo();
-        await this.loadTodayAttendance();
-        await this.loadAttendanceHistory();
-        this.initLiveClock();
-        this.initButtons();
-        this.renderTimeline();
-        this.updateUI();
-    },
+    // Reset state dulu sebelum load data baru
+    this.currentState = 'waiting';
+    this.attendanceData = {};
+    this.accessInfo = null;
+
+    await this.loadAccessInfo();
+    await this.loadTodayAttendance();
+    await this.loadAttendanceHistory();
+    this.initLiveClock();
+    this.initButtons();
+    this.renderTimeline();
+    this.updateUI();
+},
 
     // Cek jadwal & sesi absensi hari ini dari backend
     async loadAccessInfo() {
