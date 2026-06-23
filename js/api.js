@@ -210,6 +210,34 @@ const api = {
         return this.request('getAllIzin');
     },
 
+    // ========== JOURNALS (JURNAL KERJA) ==========
+
+    async getJournals(userId) {
+        if (!API_BASE_URL) {
+            const all = storage.get('jurnals', []);
+            return { success: true, data: all.filter(j => String(j.userId) === String(userId)) };
+        }
+        return this.request('getJournals', { userId });
+    },
+
+    async saveJournal(data) {
+        if (!API_BASE_URL) {
+            const all = storage.get('jurnals', []);
+            const idx = all.findIndex(j => j.userId === data.userId && j.date === data.date);
+            if (idx >= 0) { all[idx] = { ...all[idx], ...data }; } else { data.id = Date.now(); all.unshift(data); }
+            storage.set('jurnals', all);
+            return { success: true, data: data };
+        }
+        return this.request('saveJournal', data);
+    },
+
+    async getAllJournals() {
+        if (!API_BASE_URL) {
+            return { success: true, data: storage.get('jurnals', []) };
+        }
+        return this.request('getAllJournals');
+    },
+
     // ========== EMPLOYEES ==========
 
     async getEmployees() {
