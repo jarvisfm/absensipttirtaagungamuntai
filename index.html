@@ -135,6 +135,12 @@
                                 <span>Request Cuti</span>
                             </a>
                         </li>
+                        <li class="nav-item hidden" id="nav-manager-approval" data-page="leave-reports">
+                            <a href="#" class="nav-link">
+                                <i class="fas fa-stamp"></i>
+                                <span>Approval Cuti & Izin</span>
+                            </a>
+                        </li>
                     </ul>
                 </div>
             </nav>
@@ -1723,6 +1729,13 @@
                     </div>
                 </div>
                 <div class="form-group">
+                    <label for="emp-role">Role / Hak Akses</label>
+                    <select id="emp-role">
+                        <option value="karyawan">Karyawan</option>
+                        <option value="manager">Manager (bisa approve Izin/Cuti tahap 1)</option>
+                    </select>
+                </div>
+                <div class="form-group">
                     <label for="emp-join-date">Tanggal Bergabung</label>
                     <input type="date" id="emp-join-date" required>
                 </div>
@@ -1836,6 +1849,13 @@
                         <option value="inactive">Non-Aktif</option>
                     </select>
                 </div>
+            </div>
+            <div class="form-group">
+                <label for="edit-emp-role">Role / Hak Akses</label>
+                <select id="edit-emp-role">
+                    <option value="karyawan">Karyawan</option>
+                    <option value="manager">Manager (bisa approve Izin/Cuti tahap 1)</option>
+                </select>
             </div>
             <div class="form-group">
                 <label for="edit-emp-joindate">Tanggal Bergabung</label>
