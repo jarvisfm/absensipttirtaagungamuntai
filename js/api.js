@@ -134,24 +134,33 @@ const api = {
         return this.request('submitLeave', data);
     },
 
-    async approveLeave(id) {
+    async approveLeave(id, approver) {
         if (!API_BASE_URL) {
             const all = storage.get('leaves', []);
             const leave = all.find(l => l.id === id);
-            if (leave) { leave.status = 'approved'; storage.set('leaves', all); }
+            if (leave) {
+                if (approver?.role === 'manager') {
+                    leave.status = 'manager_approved';
+                    leave.managerName = approver.name; leave.managerNik = approver.nik;
+                } else {
+                    leave.status = 'approved';
+                    leave.directorName = approver?.name; leave.directorNik = approver?.nik;
+                }
+                storage.set('leaves', all);
+            }
             return { success: true, data: leave };
         }
-        return this.request('approveLeave', { id });
+        return this.request('approveLeave', { id, approver });
     },
 
-    async rejectLeave(id) {
+    async rejectLeave(id, approver) {
         if (!API_BASE_URL) {
             const all = storage.get('leaves', []);
             const leave = all.find(l => l.id === id);
             if (leave) { leave.status = 'rejected'; storage.set('leaves', all); }
             return { success: true, data: leave };
         }
-        return this.request('rejectLeave', { id });
+        return this.request('rejectLeave', { id, approver });
     },
 
     async getAllLeaves() {
@@ -183,24 +192,33 @@ const api = {
         return this.request('submitIzin', data);
     },
 
-    async approveIzin(id) {
+    async approveIzin(id, approver) {
         if (!API_BASE_URL) {
             const all = storage.get('izin', []);
             const item = all.find(i => i.id === id);
-            if (item) { item.status = 'approved'; storage.set('izin', all); }
+            if (item) {
+                if (approver?.role === 'manager') {
+                    item.status = 'manager_approved';
+                    item.managerName = approver.name; item.managerNik = approver.nik;
+                } else {
+                    item.status = 'approved';
+                    item.directorName = approver?.name; item.directorNik = approver?.nik;
+                }
+                storage.set('izin', all);
+            }
             return { success: true, data: item };
         }
-        return this.request('approveIzin', { id });
+        return this.request('approveIzin', { id, approver });
     },
 
-    async rejectIzin(id) {
+    async rejectIzin(id, approver) {
         if (!API_BASE_URL) {
             const all = storage.get('izin', []);
             const item = all.find(i => i.id === id);
             if (item) { item.status = 'rejected'; storage.set('izin', all); }
             return { success: true, data: item };
         }
-        return this.request('rejectIzin', { id });
+        return this.request('rejectIzin', { id, approver });
     },
 
     async getAllIzin() {
