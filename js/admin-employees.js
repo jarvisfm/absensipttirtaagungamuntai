@@ -323,6 +323,7 @@ const adminEmployees = {
         const shift = document.getElementById('emp-shift').value;
         const status = document.getElementById('emp-status').value;
         const joinDate = document.getElementById('emp-join-date').value;
+        const role = document.getElementById('emp-role')?.value || 'karyawan';
 
         const employeeData = {
             name,
@@ -332,6 +333,7 @@ const adminEmployees = {
             shift,
             status,
             joinDate,
+            role,
             avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=${this.getRandomColor()}&color=fff`
         };
 
@@ -416,6 +418,9 @@ editEmployee(id) {
     document.getElementById('edit-emp-shift').value = emp.shift || 'Reguler (Sen-Kam)';
     document.getElementById('edit-emp-status').value = emp.status || 'active';
     document.getElementById('edit-emp-joindate').value = emp.joinDate || '';
+    if (document.getElementById('edit-emp-role')) {
+        document.getElementById('edit-emp-role').value = emp.role || 'karyawan';
+    }
 
     const modal = document.getElementById('modal-edit-employee');
     if (modal) modal.style.display = 'flex';
@@ -442,6 +447,7 @@ async handleEditEmployee(e) {
         shift:      document.getElementById('edit-emp-shift').value,
         status:     document.getElementById('edit-emp-status').value,
         joinDate:   document.getElementById('edit-emp-joindate').value,
+        role:       document.getElementById('edit-emp-role')?.value || 'karyawan',
     };
 
     try {
