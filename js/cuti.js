@@ -20,7 +20,7 @@ const cuti = {
         const currentUser = auth.getCurrentUser();
         const userId = currentUser?.id || 'demo-user';
         try {
-            const result = auth.isAdmin() ? await api.getAllLeaves() : await api.getLeaves(userId);
+            const result = auth.isApprover() ? await api.getAllLeaves() : await api.getLeaves(userId);
             this.leaves = result.data || [];
         } catch (error) {
             console.error('Error loading leaves:', error);
@@ -245,39 +245,60 @@ const cuti = {
     getStatusLabel(status) {
         const labels = {
             pending: 'Menunggu',
+            manager_approved: 'Disetujui Manager',
             approved: 'Disetujui',
             rejected: 'Ditolak'
         };
         return labels[status] || status;
     },
 
-    // Admin functions
+    // Admin / Manager functions
     async approveLeave(id) {
-        if (!auth.isAdmin()) {
+        if (!auth.isApprover()) {
             toast.error('Anda tidak memiliki akses!');
             return;
         }
 
+        const user = auth.getCurrentUser();
+        const approver = {
+            id: user?.id,
+            name: user?.name || '',
+            nik: user?.nik || '',
+            role: auth.isManager() ? 'manager' : 'admin'
+        };
+
         try {
-            await api.approveLeave(id);
+            const result = await api.approveLeave(id, approver);
             const leave = this.leaves.find(l => l.id === id);
-            if (leave) { leave.status = 'approved'; }
+            if (leave && result?.data) {
+                Object.assign(leave, result.data);
+            }
             this.renderLeaveList();
             this.updateStats();
-            toast.success('Pengajuan cuti disetujui!');
+            toast.success(approver.role === 'manager'
+                ? 'Disetujui sebagai Manager! Menunggu persetujuan Direktur.'
+                : 'Pengajuan cuti disetujui final!');
         } catch (error) {
             console.error('Error approving leave:', error);
         }
     },
 
     async rejectLeave(id) {
-        if (!auth.isAdmin()) {
+        if (!auth.isApprover()) {
             toast.error('Anda tidak memiliki akses!');
             return;
         }
 
+        const user = auth.getCurrentUser();
+        const approver = {
+            id: user?.id,
+            name: user?.name || '',
+            nik: user?.nik || '',
+            role: auth.isManager() ? 'manager' : 'admin'
+        };
+
         try {
-            await api.rejectLeave(id);
+            await api.rejectLeave(id, approver);
             const leave = this.leaves.find(l => l.id === id);
             if (leave) {
                 leave.status = 'rejected';
