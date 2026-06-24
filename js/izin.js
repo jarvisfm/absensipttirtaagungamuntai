@@ -27,7 +27,7 @@ const izin = {
         const currentUser = auth.getCurrentUser();
         const userId = currentUser?.id || 'demo-user';
         try {
-            const result = auth.isAdmin() ? await api.getAllIzin() : await api.getIzin(userId);
+            const result = auth.isApprover() ? await api.getAllIzin() : await api.getIzin(userId);
             this.izinData = result.data || [];
         } catch (error) {
             console.error('Error loading izin:', error);
@@ -281,6 +281,7 @@ const izin = {
     getStatusLabel(status) {
         const labels = {
             'pending': 'Menunggu',
+            'manager_approved': 'Disetujui Manager',
             'approved': 'Disetujui',
             'rejected': 'Ditolak'
         };
