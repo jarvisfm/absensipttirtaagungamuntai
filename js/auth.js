@@ -165,6 +165,12 @@ const auth = {
                 if (adminMenu) adminMenu.classList.add('hidden');
                 if (bottomNav) bottomNav.style.display = window.innerWidth <= 768 ? 'flex' : 'none';
 
+                // Manager dapat menu tambahan untuk approval Cuti & Izin
+                const managerApprovalNav = document.getElementById('nav-manager-approval');
+                if (managerApprovalNav) {
+                    managerApprovalNav.classList.toggle('hidden', !(this.currentUser && this.currentUser.role === 'manager'));
+                }
+
                 // Navigate to employee dashboard
                 router.navigate('dashboard');
             }
@@ -304,6 +310,16 @@ const auth = {
         // agar semua fitur karyawan berjalan normal untuk admin
         if (sessionStorage.getItem('adminSwitchMode') === 'true') return false;
         return this.currentUser && this.currentUser.role === 'admin';
+    },
+
+    isManager() {
+        if (sessionStorage.getItem('adminSwitchMode') === 'true') return false;
+        return this.currentUser && this.currentUser.role === 'manager';
+    },
+
+    // Admin ATAU Manager - keduanya bisa approve Izin/Cuti (tahap berbeda)
+    isApprover() {
+        return this.isAdmin() || this.isManager();
     },
 
     getCurrentUser() {
