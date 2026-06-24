@@ -39,7 +39,7 @@ const adminReports = {
     },
 
     async initLeaveReports() {
-        if (!auth.isAdmin()) {
+        if (!auth.isApprover()) {
             toast.error('Anda tidak memiliki akses!');
             router.navigate('dashboard');
             return;
@@ -641,7 +641,7 @@ const adminReports = {
         if (!tbody) return;
 
         const data = this.getFilteredLeave();
-        const statusLabels = { 'pending': 'Menunggu', 'approved': 'Disetujui', 'rejected': 'Ditolak' };
+        const statusLabels = { 'pending': 'Menunggu', 'manager_approved': 'Disetujui Manager', 'approved': 'Disetujui', 'rejected': 'Ditolak' };
 
         if (data.length === 0) {
             tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:2rem;color:var(--text-muted);">Tidak ada data</td></tr>';
@@ -673,25 +673,62 @@ const adminReports = {
                     <button class="btn-action view" onclick="adminReports.viewLeaveDetail('${row.name}')">
                         <i class="fas fa-eye"></i>
                     </button>
-                    ${row.status === 'pending' ? `
-                        <button class="btn-action" style="background:#10B981;color:#fff;" title="Setuju" onclick="adminReports.approveLeaveOrIzin('${row.kind}', '${row.id}')">
-                            <i class="fas fa-check"></i>
-                        </button>
-                        <button class="btn-action" style="background:#EF4444;color:#fff;" title="Tolak" onclick="adminReports.rejectLeaveOrIzin('${row.kind}', '${row.id}')">
-                            <i class="fas fa-times"></i>
-                        </button>
-                    ` : ''}
+                    ${this._renderApprovalActions(row)}
                 </td>
             </tr>`;
         }).join('');
     },
 
+    /**
+     * Tombol approve/reject sesuai tahap & role yang sedang login:
+     * - pending          -> bisa di-approve oleh Manager ATAU Admin (langsung jadi tahap final kalau Admin)
+     * - manager_approved -> tinggal menunggu Admin (Direktur) approve final; Manager tidak bisa apa-apa lagi
+     */
+    _renderApprovalActions(row) {
+        const isManager = auth.isManager();
+        const isAdminUser = auth.isAdmin();
+
+        if (row.status === 'pending' && (isManager || isAdminUser)) {
+            return `
+                <button class="btn-action" style="background:#10B981;color:#fff;" title="Setuju" onclick="adminReports.approveLeaveOrIzin('${row.kind}', '${row.id}')">
+                    <i class="fas fa-check"></i>
+                </button>
+                <button class="btn-action" style="background:#EF4444;color:#fff;" title="Tolak" onclick="adminReports.rejectLeaveOrIzin('${row.kind}', '${row.id}')">
+                    <i class="fas fa-times"></i>
+                </button>
+            `;
+        }
+
+        if (row.status === 'manager_approved') {
+            if (isAdminUser) {
+                return `
+                    <button class="btn-action" style="background:#10B981;color:#fff;" title="Setuju Final (Direktur)" onclick="adminReports.approveLeaveOrIzin('${row.kind}', '${row.id}')">
+                        <i class="fas fa-check-double"></i>
+                    </button>
+                    <button class="btn-action" style="background:#EF4444;color:#fff;" title="Tolak" onclick="adminReports.rejectLeaveOrIzin('${row.kind}', '${row.id}')">
+                        <i class="fas fa-times"></i>
+                    </button>
+                `;
+            }
+            return `<span style="font-size:0.75rem;color:var(--text-muted);">Menunggu Direktur</span>`;
+        }
+
+        return '';
+    },
+
     async approveLeaveOrIzin(kind, id) {
         if (!confirm('Setujui pengajuan ini?')) return;
+        const user = auth.getCurrentUser();
+        const approver = {
+            id: user?.id,
+            name: user?.name || '',
+            nik: user?.nik || '',
+            role: auth.isManager() ? 'manager' : 'admin'
+        };
         try {
-            const result = kind === 'leave' ? await api.approveLeave(id) : await api.approveIzin(id);
+            const result = kind === 'leave' ? await api.approveLeave(id, approver) : await api.approveIzin(id, approver);
             if (result.success) {
-                toast.success('Pengajuan disetujui');
+                toast.success(approver.role === 'manager' ? 'Disetujui sebagai Manager' : 'Disetujui final');
                 await this.loadData();
                 this.renderLeaveReports();
             } else {
@@ -705,8 +742,15 @@ const adminReports = {
 
     async rejectLeaveOrIzin(kind, id) {
         if (!confirm('Tolak pengajuan ini?')) return;
+        const user = auth.getCurrentUser();
+        const approver = {
+            id: user?.id,
+            name: user?.name || '',
+            nik: user?.nik || '',
+            role: auth.isManager() ? 'manager' : 'admin'
+        };
         try {
-            const result = kind === 'leave' ? await api.rejectLeave(id) : await api.rejectIzin(id);
+            const result = kind === 'leave' ? await api.rejectLeave(id, approver) : await api.rejectIzin(id, approver);
             if (result.success) {
                 toast.success('Pengajuan ditolak');
                 await this.loadData();
