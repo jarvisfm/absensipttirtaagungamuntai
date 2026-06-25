@@ -236,6 +236,13 @@ const cuti = {
                             </span>
                         </div>
                         <p class="leave-reason">${leave.reason}</p>
+                        ${leave.status === 'approved' ? `
+                            <div style="margin-top:8px;">
+                                <button class="btn-small btn-outline" onclick="printLetters.openCuti(${leave.id})">
+                                    <i class="fas fa-print"></i> Cetak Formulir Cuti
+                                </button>
+                            </div>
+                        ` : ''}
                     </div>
                 </div>
             `;
