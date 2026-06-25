@@ -272,6 +272,16 @@ const izin = {
                                 Lampiran tersedia
                             </span>
                         ` : ''}
+                        ${izin.status === 'approved' ? `
+                            <div style="margin-top:8px;display:flex;gap:6px;">
+                                <button class="btn-small btn-outline" onclick="printLetters.openIzinPermohonan(${izin.id})">
+                                <i class="fas fa-print"></i> Surat Permohonan Izin
+                            </button>
+                            <button class="btn-small btn-outline" onclick="printLetters.openIzinKeluarKantor(${izin.id})">
+                                <i class="fas fa-print"></i> Surat Izin Keluar Kantor
+                            </button>
+                        </div>
+                    ` : ''}
                     </div>
                 </div>
             `;
