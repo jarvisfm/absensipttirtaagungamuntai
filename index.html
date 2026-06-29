@@ -1171,51 +1171,77 @@
                 </div>
             </div>
 
-            <!-- Tab Upload File -->
-            <div id="tabcontent-uploadfile" style="display:none;">
-                <p style="font-size:0.85rem;color:var(--text-muted);margin-bottom:1.5rem;">Upload dokumen-dokumen karyawan. Format yang diterima: PDF, JPG, PNG (maks 5MB per file).</p>
+            <!-- Tab Upload File (Link Google Drive) -->
+<div id="tabcontent-uploadfile" style="display:none;">
+    <p style="font-size:0.85rem;color:var(--text-muted);margin-bottom:1.5rem;">
+        Tempel link Google Drive untuk dokumen karyawan. Pastikan sharing file diset ke
+        <strong>"Anyone with the link"</strong> agar bisa dibuka.
+    </p>
 
-                <!-- Surat SK -->
-                <div class="form-group" style="border:1px solid var(--border-color);border-radius:8px;padding:1rem;margin-bottom:1rem;">
-                    <div style="display:flex;align-items:center;gap:8px;margin-bottom:0.75rem;">
-                        <i class="fas fa-file-alt" style="color:var(--color-primary);font-size:1.1rem;"></i>
-                        <label style="font-weight:600;margin:0;">Surat Keputusan (SK)</label>
-                    </div>
-                    <input type="file" id="karyawan-sk-file" accept=".pdf,.jpg,.jpeg,.png" style="width:100%;padding:6px;border:1px dashed var(--border-color);border-radius:6px;cursor:pointer;">
-                    <div id="sk-file-current" style="margin-top:8px;display:none;">
-                        <a href="#" id="sk-file-link" target="_blank" style="color:var(--color-primary);font-size:0.85rem;">
-                            <i class="fas fa-file-pdf"></i> Lihat file SK saat ini
-                        </a>
-                    </div>
-                </div>
+    <!-- Surat SK -->
+    <div class="form-group" style="border:1px solid var(--border-color);border-radius:8px;padding:1rem;margin-bottom:1rem;">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:0.75rem;">
+            <i class="fas fa-file-alt" style="color:var(--color-primary);font-size:1.1rem;"></i>
+            <label style="font-weight:600;margin:0;">Surat Keputusan (SK)</label>
+        </div>
+        <input type="url" id="karyawan-sk-link" placeholder="https://drive.google.com/file/d/..."
+            style="width:100%;padding:8px 10px;border:1px solid var(--border-color);border-radius:6px;font-family:inherit;">
+        <div id="sk-file-current" style="margin-top:8px;display:none;">
+            <a href="#" id="sk-file-link" target="_blank" style="color:var(--color-primary);font-size:0.85rem;">
+                <i class="fas fa-external-link-alt"></i> Buka file SK saat ini
+            </a>
+        </div>
+    </div>
 
-                <!-- KTP -->
-                <div class="form-group" style="border:1px solid var(--border-color);border-radius:8px;padding:1rem;margin-bottom:1rem;">
-                    <div style="display:flex;align-items:center;gap:8px;margin-bottom:0.75rem;">
-                        <i class="fas fa-id-card" style="color:#3B82F6;font-size:1.1rem;"></i>
-                        <label style="font-weight:600;margin:0;">KTP</label>
-                    </div>
-                    <input type="file" id="karyawan-ktp-file" accept=".pdf,.jpg,.jpeg,.png" style="width:100%;padding:6px;border:1px dashed var(--border-color);border-radius:6px;cursor:pointer;">
-                    <div id="ktp-file-current" style="margin-top:8px;display:none;">
-                        <a href="#" id="ktp-file-link" target="_blank" style="color:var(--color-primary);font-size:0.85rem;">
-                            <i class="fas fa-file-pdf"></i> Lihat file KTP saat ini
-                        </a>
-                    </div>
-                </div>
+    <!-- KTP -->
+    <div class="form-group" style="border:1px solid var(--border-color);border-radius:8px;padding:1rem;margin-bottom:1rem;">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:0.75rem;">
+            <i class="fas fa-id-card" style="color:#3B82F6;font-size:1.1rem;"></i>
+            <label style="font-weight:600;margin:0;">KTP</label>
+        </div>
+        <input type="url" id="karyawan-ktp-link" placeholder="https://drive.google.com/file/d/..."
+            style="width:100%;padding:8px 10px;border:1px solid var(--border-color);border-radius:6px;font-family:inherit;">
+        <div id="ktp-file-current" style="margin-top:8px;display:none;">
+            <a href="#" id="ktp-file-link" target="_blank" style="color:var(--color-primary);font-size:0.85rem;">
+                <i class="fas fa-external-link-alt"></i> Buka file KTP saat ini
+            </a>
+        </div>
+    </div>
 
-                <!-- Ijazah -->
-                <div class="form-group" style="border:1px solid var(--border-color);border-radius:8px;padding:1rem;margin-bottom:1rem;">
-                    <div style="display:flex;align-items:center;gap:8px;margin-bottom:0.75rem;">
-                        <i class="fas fa-graduation-cap" style="color:#10B981;font-size:1.1rem;"></i>
-                        <label style="font-weight:600;margin:0;">Ijazah</label>
-                    </div>
-                    <input type="file" id="karyawan-ijazah-file" accept=".pdf,.jpg,.jpeg,.png" style="width:100%;padding:6px;border:1px dashed var(--border-color);border-radius:6px;cursor:pointer;">
-                    <div id="ijazah-file-current" style="margin-top:8px;display:none;">
-                        <a href="#" id="ijazah-file-link" target="_blank" style="color:var(--color-primary);font-size:0.85rem;">
-                            <i class="fas fa-file-pdf"></i> Lihat file Ijazah saat ini
-                        </a>
-                    </div>
-                </div>
+    <!-- Ijazah -->
+    <div class="form-group" style="border:1px solid var(--border-color);border-radius:8px;padding:1rem;margin-bottom:1rem;">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:0.75rem;">
+            <i class="fas fa-graduation-cap" style="color:#10B981;font-size:1.1rem;"></i>
+            <label style="font-weight:600;margin:0;">Ijazah</label>
+        </div>
+        <input type="url" id="karyawan-ijazah-link" placeholder="https://drive.google.com/file/d/..."
+            style="width:100%;padding:8px 10px;border:1px solid var(--border-color);border-radius:6px;font-family:inherit;">
+        <div id="ijazah-file-current" style="margin-top:8px;display:none;">
+            <a href="#" id="ijazah-file-link" target="_blank" style="color:var(--color-primary);font-size:0.85rem;">
+                <i class="fas fa-external-link-alt"></i> Buka file Ijazah saat ini
+            </a>
+        </div>
+    </div>
+
+    <!-- Sertifikat / Dokumen Lain -->
+    <div class="form-group" style="border:1px solid var(--border-color);border-radius:8px;padding:1rem;margin-bottom:1rem;">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:0.75rem;">
+            <i class="fas fa-certificate" style="color:#F59E0B;font-size:1.1rem;"></i>
+            <label style="font-weight:600;margin:0;">Sertifikat / Dokumen Lain</label>
+        </div>
+        <input type="url" id="karyawan-sertifikat-link" placeholder="https://drive.google.com/file/d/..."
+            style="width:100%;padding:8px 10px;border:1px solid var(--border-color);border-radius:6px;font-family:inherit;">
+        <div id="sertifikat-file-current" style="margin-top:8px;display:none;">
+            <a href="#" id="sertifikat-file-link" target="_blank" style="color:var(--color-primary);font-size:0.85rem;">
+                <i class="fas fa-external-link-alt"></i> Buka file Sertifikat saat ini
+            </a>
+        </div>
+    </div>
+
+    <p style="font-size:0.8rem;color:var(--text-muted);text-align:center;margin-top:0.5rem;">
+        <i class="fas fa-info-circle"></i> Link akan tersimpan saat klik tombol <strong>Simpan</strong>
+    </p>
+</div>
 
                 <!-- Sertifikat / Dokumen Lain -->
                 <div class="form-group" style="border:1px solid var(--border-color);border-radius:8px;padding:1rem;margin-bottom:1rem;">
