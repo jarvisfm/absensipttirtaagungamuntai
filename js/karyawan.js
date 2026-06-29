@@ -157,6 +157,7 @@ const karyawanManager = {
 
             // Berkas SK
             if (p.fileSK) {
+                document.getElementById('karyawan-sk-link').value = p.fileSK;
                 document.getElementById('sk-file-link').href = p.fileSK;
                 document.getElementById('sk-file-current').style.display = 'block';
             }
@@ -164,10 +165,12 @@ const karyawanManager = {
             // Berkas KTP, Ijazah, Sertifikat
             [['ktp','fileKTP'],['ijazah','fileIjazah'],['sertifikat','fileSertifikat']].forEach(([type, field]) => {
                 if (p[field]) {
-                    const link = document.getElementById(`${type}-file-link`);
-                    const cur  = document.getElementById(`${type}-file-current`);
-                    if (link) link.href = p[field];
-                    if (cur)  cur.style.display = 'block';
+                    const input = document.getElementById(`karyawan-${type}-link`);
+                    const link  = document.getElementById(`${type}-file-link`);
+                    const cur   = document.getElementById(`${type}-file-current`);
+                    if (input) input.value = p[field];
+                    if (link)  link.href = p[field];
+                    if (cur)   cur.style.display = 'block';
                 }
             });
 
@@ -224,10 +227,10 @@ const karyawanManager = {
         document.getElementById('foto-placeholder').style.display = 'block';
         document.getElementById('anak-list').innerHTML = '';
         document.getElementById('karyawan-foto-file').value = '';
-        document.getElementById('karyawan-sk-file').value = '';
+        document.getElementById('karyawan-sk-link').value = '';
         document.getElementById('sk-file-current').style.display = 'none';
         ['ktp','ijazah','sertifikat'].forEach(type => {
-            const el = document.getElementById(`karyawan-${type}-file`);
+            const el = document.getElementById(`karyawan-${type}-link`);
             if (el) el.value = '';
             const cur = document.getElementById(`${type}-file-current`);
             if (cur) cur.style.display = 'none';
