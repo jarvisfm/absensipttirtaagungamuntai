@@ -14,6 +14,11 @@ const printLetters = {
         return `${d.getDate()} ${this._bulanIndo[d.getMonth()]} ${d.getFullYear()}`;
     },
 
+    _formatJam(jamStr) {
+        if (!jamStr) return '......................';
+        return jamStr.replace(':', '.');
+    },
+
     _getEmployee() {
         return auth.getCurrentUser() || {};
     },
@@ -56,12 +61,13 @@ const printLetters = {
     _letterHeader() {
         return `
             <div class="letter-kop">
+                <img src="assets/logo-taa.png" alt="Logo PT. Tirta Agung Amuntai" class="letter-kop-logo">
                 <div class="letter-kop-left">
-                    <div class="letter-kop-title">PT. TIRTA AGUNG AMUNTAI</div>
-                    <div class="letter-kop-sub">(Perseroda)</div>
+                    <div class="letter-kop-title">PT. TIRTA AGUNG AMUNTAI (PERSERODA)</div>
                 </div>
             </div>
             <div class="letter-kop-divider"></div>
+            <div class="letter-kop-center-title">PT. TIRTA AGUNG AMUNTAI (PERSERODA)</div>
         `;
     },
 
@@ -83,8 +89,8 @@ const printLetters = {
                 <tr><td class="lbl">UNIT KERJA</td><td>:</td><td><input type="text" class="letter-input" value="${emp.unitKerja || ''}"></td></tr>
                 <tr><td class="lbl">KEPERLUAN</td><td>:</td><td><input type="text" class="letter-input" value="${izin.reason || ''}"></td></tr>
                 <tr><td class="lbl">HARI / TGL</td><td>:</td><td><input type="text" class="letter-input" value="${this._formatTanggalIndo(izin.date)}"></td></tr>
-                <tr><td class="lbl">KELUAR JAM</td><td>:</td><td><input type="text" class="letter-input" placeholder="cth. 13.00" value="${izin.jamKeluar || ''}"></td></tr>
-                <tr><td class="lbl">MASUK JAM</td><td>:</td><td><input type="text" class="letter-input" placeholder="cth. 14.00" value="${izin.jamMasuk || ''}"></td></tr>
+                <tr><td class="lbl">KELUAR JAM</td><td>:</td><td><input type="text" class="letter-input" value="${this._formatJam(izin.jamKeluar)}"></td></tr>
+                <tr><td class="lbl">MASUK JAM</td><td>:</td><td><input type="text" class="letter-input" value="${this._formatJam(izin.jamMasuk)}"></td></tr>
             </table>
 
             <div class="letter-signoff-right">
