@@ -84,6 +84,11 @@ const auth = {
                     position: result.data.position || '',
                     shift: result.data.shift || '',
                     avatar: result.data.avatar || '',
+                    nik: result.data.nik || '',
+                    jabatan: result.data.jabatan || '',
+                    unitKerja: result.data.unitKerja || '',
+                    pangkat: result.data.pangkat || '',
+                    golongan: result.data.golongan || '',
                     loginTime: new Date().toISOString()
                 };
     
