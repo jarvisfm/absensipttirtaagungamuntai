@@ -166,8 +166,7 @@ const izin = {
         if (fileInput) fileInput.value = '';
     },
 
-    // SESUDAH
-async submitIzinForm() {
+    /async submitIzinForm() {
     // Validate form first
     const type = document.getElementById('izin-type')?.value;
     const date = document.getElementById('izin-date')?.value;
@@ -210,6 +209,30 @@ async submitIzinForm() {
         jamMasuk: isKeluarKantor ? jamMasuk : '',
         hasAttachment: !!this.currentFile
     };
+
+    try {
+        const result = await api.submitIzin(izinEntry);
+        if (result.success) {
+            this.izinData.unshift(result.data);
+        }
+    } catch (error) {
+        console.error('Error submitting izin:', error);
+        toast.error('Gagal mengirim pengajuan izin.');
+        return;
+    }
+
+    this.currentFile = null;
+    toast.success('Pengajuan izin berhasil dikirim!');
+
+    // Reset form
+    const form = document.getElementById('izin-form');
+    if (form) form.reset();
+    this.toggleKeluarKantorFields('');
+    this.removeFile();
+
+    this.renderIzinList();
+    this.updateStats();
+},
 
     updateStats() {
         const pending = this.izinData.filter(i => i.status === 'pending').length;
