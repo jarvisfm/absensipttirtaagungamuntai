@@ -42,10 +42,12 @@
     box-shadow: 0 0 10px rgba(0,0,0,0.15);
     min-height: 1000px;
 }
-.letter-kop { display: flex; align-items: center; }
+.letter-kop { display: flex; align-items: center; gap: 12px; }
+.letter-kop-logo { height: 50px; width: auto; flex-shrink: 0; }
 .letter-kop-title { font-weight: bold; font-size: 1.1rem; }
 .letter-kop-sub { font-size: 0.9rem; }
-.letter-kop-divider { border-bottom: 2px solid #000; margin: 8px 0 20px; }
+.letter-kop-divider { border-bottom: 2px solid #000; margin: 8px 0 4px; }
+.letter-kop-center-title { text-align: center; font-weight: bold; font-size: 1.15rem; margin: 4px 0 1.5rem; }
 .letter-title { text-align: center; text-decoration: underline; margin: 1rem 0 1.5rem; }
 .letter-center { text-align: center; }
 .letter-field-table { width: 100%; border-collapse: collapse; margin-bottom: 1rem; }
