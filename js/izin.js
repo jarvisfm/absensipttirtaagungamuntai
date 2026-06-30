@@ -48,7 +48,6 @@ const izin = {
             });
         }
 
-                // TAMBAH BARU, setelah blok form submit listener
         const typeSelect = document.getElementById('izin-type');
         if (typeSelect) {
             typeSelect.addEventListener('change', (e) => this.toggleKeluarKantorFields(e.target.value));
@@ -311,7 +310,6 @@ const izin = {
                                 Lampiran tersedia
                             </span>
                         ` : ''}
-                        // SESUDAH
                         ${izin.status === 'approved' && izin.type === 'keluar_kantor' ? `
                             <div style="margin-top:8px;display:flex;gap:6px;">
                                 <button class="btn-small btn-outline" onclick="printLetters.openIzinKeluarKantor(${izin.id})">
