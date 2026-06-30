@@ -48,6 +48,12 @@ const izin = {
             });
         }
 
+                // TAMBAH BARU, setelah blok form submit listener
+        const typeSelect = document.getElementById('izin-type');
+        if (typeSelect) {
+            typeSelect.addEventListener('change', (e) => this.toggleKeluarKantorFields(e.target.value));
+        }
+
         if (verifyBtn) {
             verifyBtn.addEventListener('click', (e) => {
                 e.preventDefault();
@@ -95,6 +101,22 @@ const izin = {
         this.initFilters();
     },
 
+    toggleKeluarKantorFields(type) {
+        const jamRow = document.getElementById('izin-jam-row');
+        const durationGroup = document.getElementById('izin-duration-group');
+        const durationInput = document.getElementById('izin-duration');
+        const jamKeluar = document.getElementById('izin-jam-keluar');
+        const jamMasuk = document.getElementById('izin-jam-masuk');
+        const isKeluarKantor = type === 'keluar_kantor';
+    
+        if (jamRow) jamRow.style.display = isKeluarKantor ? 'flex' : 'none';
+        if (durationGroup) durationGroup.style.display = isKeluarKantor ? 'none' : 'block';
+    
+        if (durationInput) durationInput.required = !isKeluarKantor;
+        if (jamKeluar) jamKeluar.required = isKeluarKantor;
+        if (jamMasuk) jamMasuk.required = isKeluarKantor;
+    },
+    
     initFilters() {
         // Status filter for izin history
         const statusFilter = document.querySelector('.izin-history-card .select-filter');
@@ -144,58 +166,50 @@ const izin = {
         if (fileInput) fileInput.value = '';
     },
 
-    async submitIzinForm() {
-        // Validate form first
-        const type = document.getElementById('izin-type')?.value;
-        const date = document.getElementById('izin-date')?.value;
-        const duration = document.getElementById('izin-duration')?.value;
-        const reason = document.getElementById('izin-reason')?.value;
+    // SESUDAH
+async submitIzinForm() {
+    // Validate form first
+    const type = document.getElementById('izin-type')?.value;
+    const date = document.getElementById('izin-date')?.value;
+    const duration = document.getElementById('izin-duration')?.value;
+    const reason = document.getElementById('izin-reason')?.value;
+    const isKeluarKantor = type === 'keluar_kantor';
+    const jamKeluar = document.getElementById('izin-jam-keluar')?.value;
+    const jamMasuk = document.getElementById('izin-jam-masuk')?.value;
 
-        if (!type || !date || !duration || !reason) {
-            toast.error('Harap isi semua field yang wajib diisi!');
-            return;
-        }
+    if (!type || !date || !reason) {
+        toast.error('Harap isi semua field yang wajib diisi!');
+        return;
+    }
+    if (isKeluarKantor && (!jamKeluar || !jamMasuk)) {
+        toast.error('Harap isi Jam Keluar dan Jam Masuk!');
+        return;
+    }
+    if (!isKeluarKantor && !duration) {
+        toast.error('Harap isi Durasi!');
+        return;
+    }
 
-        const typeLabels = {
-            'sick': 'Sakit',
-            'permission': 'Izin Penting',
-            'emergency': 'Keadaan Darurat'
-        };
+    const typeLabels = {
+        'sick': 'Sakit',
+        'permission': 'Izin Penting',
+        'emergency': 'Keadaan Darurat',
+        'keluar_kantor': 'Keluar Kantor'
+    };
 
-        const currentUser = auth.getCurrentUser();
+    const currentUser = auth.getCurrentUser();
 
-        const izinEntry = {
-            userId: currentUser?.id || 'demo-user',
-            type: type,
-            typeLabel: typeLabels[type] || type,
-            date: date,
-            duration: parseInt(duration),
-            reason: reason,
-            hasAttachment: !!this.currentFile
-        };
-
-        try {
-            const result = await api.submitIzin(izinEntry);
-            if (result.success) {
-                this.izinData.unshift(result.data);
-            }
-        } catch (error) {
-            console.error('Error submitting izin:', error);
-            toast.error('Gagal mengirim pengajuan izin.');
-            return;
-        }
-
-        this.currentFile = null;
-        toast.success('Pengajuan izin berhasil dikirim!');
-
-        // Reset form
-        const form = document.getElementById('izin-form');
-        if (form) form.reset();
-        this.removeFile();
-
-        this.renderIzinList();
-        this.updateStats();
-    },
+    const izinEntry = {
+        userId: currentUser?.id || 'demo-user',
+        type: type,
+        typeLabel: typeLabels[type] || type,
+        date: date,
+        duration: isKeluarKantor ? 0 : parseInt(duration),
+        reason: reason,
+        jamKeluar: isKeluarKantor ? jamKeluar : '',
+        jamMasuk: isKeluarKantor ? jamMasuk : '',
+        hasAttachment: !!this.currentFile
+    };
 
     updateStats() {
         const pending = this.izinData.filter(i => i.status === 'pending').length;
@@ -243,10 +257,12 @@ const izin = {
             const date = new Date(izin.date);
             const dateFormatted = dateTime.formatDate(date, 'short');
 
+            
             const icons = {
                 'sick': 'fa-heartbeat',
                 'permission': 'fa-hand-paper',
-                'emergency': 'fa-exclamation-triangle'
+                'emergency': 'fa-exclamation-triangle',
+                'keluar_kantor': 'fa-door-open'
             };
 
             return `
@@ -272,13 +288,18 @@ const izin = {
                                 Lampiran tersedia
                             </span>
                         ` : ''}
-                        ${izin.status === 'approved' ? `
+                        // SESUDAH
+                        ${izin.status === 'approved' && izin.type === 'keluar_kantor' ? `
+                            <div style="margin-top:8px;display:flex;gap:6px;">
+                                <button class="btn-small btn-outline" onclick="printLetters.openIzinKeluarKantor(${izin.id})">
+                                    <i class="fas fa-print"></i> Cetak Surat Izin Keluar Kantor
+                                </button>
+                            </div>
+                        ` : ''}
+                        ${izin.status === 'approved' && izin.type !== 'keluar_kantor' ? `
                             <div style="margin-top:8px;display:flex;gap:6px;">
                                 <button class="btn-small btn-outline" onclick="printLetters.openIzinPermohonan(${izin.id})">
                                     <i class="fas fa-print"></i> Surat Permohonan Izin
-                                </button>
-                                <button class="btn-small btn-outline" onclick="printLetters.openIzinKeluarKantor(${izin.id})">
-                                    <i class="fas fa-print"></i> Surat Izin Keluar Kantor
                                 </button>
                             </div>
                         ` : ''}
