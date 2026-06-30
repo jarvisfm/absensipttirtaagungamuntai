@@ -166,7 +166,7 @@ const izin = {
         if (fileInput) fileInput.value = '';
     },
 
-    /async submitIzinForm() {
+    async submitIzinForm() {
     // Validate form first
     const type = document.getElementById('izin-type')?.value;
     const date = document.getElementById('izin-date')?.value;
