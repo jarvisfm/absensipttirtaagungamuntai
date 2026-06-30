@@ -69,8 +69,8 @@ const printLetters = {
     // 1. SURAT IZIN KELUAR KANTOR
     // ============================================================
     openIzinKeluarKantor(izinId) {
-        const emp = this._getEmployee();
-        const izin = (izin_module_data => izin_module_data)(window.izin?.izinData?.find(i => i.id === izinId)) || {};
+    const emp = this._getEmployee();
+    const izin = window.izin?.izinData?.find(i => i.id === izinId) || {};
 
         const html = `
             ${this._letterHeader()}
