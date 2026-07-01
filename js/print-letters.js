@@ -89,9 +89,20 @@ const printLetters = {
     // ── Bagian isi yang sama untuk semua format Permohonan Izin ──
     _izinPermohonanTop(emp, izin) {
         const tgl       = izin.date    || izin.tanggal || '';
-        const tglEnd    = izin.dateEnd || '';
         const keperluan = izin.reason  || izin.alasan  || '';
         const durasi    = izin.duration || '......';
+
+        // dateEnd seharusnya sudah dikirim backend untuk tipe 'izin_harian'.
+        // Fallback: kalau kosong (mis. data lama sebelum kolom dateEnd ada di sheet)
+        // tapi durasi > 1 hari diketahui, hitung tanggal selesai dari tgl + (durasi - 1) hari.
+        let tglEnd = izin.dateEnd || '';
+        if (!tglEnd && tgl && izin.duration && Number(izin.duration) > 1) {
+            const start = new Date(tgl);
+            if (!isNaN(start.getTime())) {
+                start.setDate(start.getDate() + (Number(izin.duration) - 1));
+                tglEnd = start.toISOString().split('T')[0];
+            }
+        }
 
         const tanggalValue = tglEnd
             ? `${this._formatTanggalIndo(tgl)} s/d ${this._formatTanggalIndo(tglEnd)}`
