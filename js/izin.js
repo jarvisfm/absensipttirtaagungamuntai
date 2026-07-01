@@ -314,8 +314,7 @@ const izin = {
             
             const icons = {
                 'sick': 'fa-heartbeat',
-                'permission': 'fa-hand-paper',
-                'emergency': 'fa-exclamation-triangle',
+                'izin_harian': 'fa-file-alt',
                 'keluar_kantor': 'fa-door-open'
             };
             const typeLabelFallback = {
