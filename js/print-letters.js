@@ -86,12 +86,60 @@ const printLetters = {
         document.body.style.overflow = '';
     },
 
+    // ── Kop teks sederhana (khusus Surat Izin Keluar Kantor) ──────
+    _letterHeaderPlain() {
+        return `
+            <div class="letter-kop">
+                <img src="assets/logo-taa.png" alt="Logo PT. Tirta Agung Amuntai" class="letter-kop-logo">
+                <div class="letter-kop-left">
+                    <div class="letter-kop-title">PT. TIRTA AGUNG AMUNTAI (PERSERODA)</div>
+                </div>
+            </div>
+            <div class="letter-kop-divider"></div>
+            <div class="letter-kop-center-title">PT. TIRTA AGUNG AMUNTAI (PERSERODA)</div>
+        `;
+    },
+
+    // Render tanpa banner jpeg — hanya kop teks polos di atas isi surat
+    _showPlain(contentHtml) {
+        const overlay = this._ensureOverlay();
+        overlay.innerHTML = `
+            <div class="print-letter-toolbar no-print">
+                <button class="btn-small" onclick="printLetters.close()">
+                    <i class="fas fa-times"></i> Tutup
+                </button>
+                <button class="btn-small btn-primary" onclick="window.print()">
+                    <i class="fas fa-print"></i> Cetak / Simpan PDF
+                </button>
+            </div>
+            <div class="print-letter-page">
+                <div class="letter-body" style="padding-top:28px;">
+                    ${this._letterHeaderPlain()}
+                    ${contentHtml}
+                </div>
+            </div>
+        `;
+        overlay.classList.add('active');
+        document.body.style.overflow = 'hidden';
+    },
+
     // ── Bagian isi yang sama untuk semua format Permohonan Izin ──
     _izinPermohonanTop(emp, izin) {
         const tgl       = izin.date    || izin.tanggal || '';
-        const tglEnd    = izin.dateEnd || '';
         const keperluan = izin.reason  || izin.alasan  || '';
         const durasi    = izin.duration || '......';
+
+        // dateEnd seharusnya sudah dikirim backend untuk tipe 'izin_harian'.
+        // Fallback: kalau kosong (mis. data lama sebelum kolom dateEnd ada di sheet)
+        // tapi durasi > 1 hari diketahui, hitung tanggal selesai dari tgl + (durasi - 1) hari.
+        let tglEnd = izin.dateEnd || '';
+        if (!tglEnd && tgl && izin.duration && Number(izin.duration) > 1) {
+            const start = new Date(tgl);
+            if (!isNaN(start.getTime())) {
+                start.setDate(start.getDate() + (Number(izin.duration) - 1));
+                tglEnd = start.toISOString().split('T')[0];
+            }
+        }
 
         const tanggalValue = tglEnd
             ? `${this._formatTanggalIndo(tgl)} s/d ${this._formatTanggalIndo(tglEnd)}`
@@ -145,9 +193,12 @@ const printLetters = {
             <p class="letter-p letter-justify">Demikian permohonan izin ini disampaikan atas
                 persetujuan Bapak diucapkan terimakasih.</p>
 
-            <p class="letter-p" style="text-align:right; margin-top:20px;">
-                Amuntai, ${this._formatTanggalIndo(new Date().toISOString())}
-            </p>
+            <table class="letter-signoff-table" style="margin-top:20px;">
+                <tr>
+                    <td></td>
+                    <td>Amuntai, ${this._formatTanggalIndo(new Date().toISOString())}</td>
+                </tr>
+            </table>
         `;
     },
 
@@ -175,12 +226,14 @@ const printLetters = {
 
     // =============================================================
     // 1. SURAT IZIN KELUAR KANTOR
+    //    Dokumen ini berbeda dari Surat Permohonan Izin — cukup TTD
+    //    Direktur saja, tanpa tahapan Asmen/Manajer bidang.
     // =============================================================
-    openIzinKeluarKantor(izinId) {
-        const emp  = this._getEmployee();
-        const izin = window.izin?.izinData?.find(i => i.id == izinId) || {};
+    openIzinKeluarKantor(izinId, empOverride, izinOverride) {
+        const emp  = empOverride || this._getEmployee();
+        const izin = izinOverride || window.izin?.izinData?.find(i => i.id == izinId) || {};
 
-        const tgl       = izin.date      || izin.tanggal   || '';
+        const tgl       = izin.date      || izin.tanggal   || izin.dates || '';
         const keluar    = izin.jamKeluar || izin.jam_keluar || '';
         const masuk     = izin.jamMasuk  || izin.jam_masuk  || '';
         const keperluan = izin.reason    || izin.alasan     || '';
@@ -219,7 +272,7 @@ const printLetters = {
                 <p class="signature-name-underline">Muhammad Nasrullah, S. AB</p>
             </div>
         `;
-        this._show(html);
+        this._showPlain(html);
     },
 
     // =============================================================
@@ -329,10 +382,13 @@ const printLetters = {
 
     // =============================================================
     // 2. ENTRY POINT — otomatis pilih format berdasarkan jabatan
+    //    empOverride/izinOverride: dipakai saat dipanggil dari modal
+    //    Admin (Rekap Cuti & Izin), karena di situ karyawan yang
+    //    login bukan si pemohon izin.
     // =============================================================
-    openIzinPermohonan(izinId) {
-        const emp  = this._getEmployee();
-        const izin = window.izin?.izinData?.find(i => i.id == izinId) || {};
+    openIzinPermohonan(izinId, empOverride, izinOverride) {
+        const emp  = empOverride || this._getEmployee();
+        const izin = izinOverride || window.izin?.izinData?.find(i => i.id == izinId) || {};
 
         const format = this._getLetterFormat(emp.jabatan);
 
