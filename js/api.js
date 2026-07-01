@@ -434,6 +434,9 @@ const api = {
     },
     async uploadFileSK(id, base64Data, mimeType, fileName) {
         return this.request('uploadFileSK', { id, base64Data, mimeType, fileName });
+    },
+    async uploadFileIzin(id, base64Data, mimeType, fileName) {
+        return this.request('uploadFileIzin', { id, base64Data, mimeType, fileName });
     }
 
 };  // ← penutup object api
