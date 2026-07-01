@@ -200,8 +200,7 @@ const izin = {
 
         const typeLabels = {
             'sick': 'Sakit',
-            'permission': 'Izin Penting',
-            'emergency': 'Keadaan Darurat',
+            'izin_harian': 'Permohonan Izin Harian',
             'keluar_kantor': 'Keluar Kantor'
         };
 
