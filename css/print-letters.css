@@ -46,7 +46,7 @@
 .letter-kop-logo { height: 50px; width: auto; flex-shrink: 0; }
 .letter-kop-title { font-weight: bold; font-size: 1.1rem; }
 .letter-kop-sub { font-size: 0.9rem; }
-.letter-kop-divider { border-bottom: 2px solid #000; margin: 8px 0 4px; }
+.letter-kop-divider { border-bottom: 2px solid #000; margin: 4px 0 0; }
 .letter-kop-center-title { text-align: center; font-weight: bold; font-size: 1.15rem; margin: 4px 0 1.5rem; }
 .letter-title { text-align: center; text-decoration: underline; margin: 1rem 0 1.5rem; }
 .letter-center { text-align: center; }
@@ -78,8 +78,11 @@
 .letter-signoff-right, .letter-signoff-right-text { text-align: right; margin: 1.5rem 0 0.5rem; }
 .letter-signoff-table { width: 100%; margin-top: 1rem; }
 .letter-signoff-table td { width: 50%; text-align: center; vertical-align: top; padding: 0 10px; }
+.letter-signoff-block { text-align: right; margin-top: 2rem; }
+.letter-signoff-block p { margin: 0 0 2px; }
 .signature-space { height: 70px; }
 .signature-name { font-weight: bold; text-decoration: underline; }
+.signature-name-underline { font-weight: bold; text-decoration: underline; display: inline-block; margin-top: 2px; }
 
 @media print {
     body * { visibility: hidden; }
