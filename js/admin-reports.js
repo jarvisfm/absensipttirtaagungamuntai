@@ -669,7 +669,6 @@ const adminReports = {
         if (!tbody) return;
 
         const data = this.getFilteredLeave();
-        const statusLabels = { 'pending': 'Menunggu', 'manager_approved': 'Disetujui Manager', 'approved': 'Disetujui', 'rejected': 'Ditolak' };
 
         if (data.length === 0) {
             tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:2rem;color:var(--text-muted);">Tidak ada data</td></tr>';
@@ -679,6 +678,7 @@ const adminReports = {
         tbody.innerHTML = data.map(row => {
             const isKeluarKantor = row.kind === 'izin' && row.rawType === 'keluar_kantor';
             const durasiHtml = row.duration === '-' ? '-' : (isKeluarKantor ? row.duration : row.duration + ' hari');
+            const needsAction = this._canActOnStage(row);
 
             return `
             <tr>
@@ -688,104 +688,209 @@ const adminReports = {
                 <td>${row.dates}</td>
                 <td>${durasiHtml}</td>
                 <td>${row.reason}</td>
-                <td>
-                    <span class="status-badge ${row.status}">
-                        ${statusLabels[row.status] || row.status}
-                    </span>
-                </td>
+                <td>${this._stageBadgeHtml(row)}</td>
                 <td style="white-space:nowrap;">
-                    <button class="btn-action view" onclick="adminReports.viewLeaveDetail('${row.kind}', '${row.id}')">
-                        <i class="fas fa-eye"></i>
+                    <button class="btn-action view" onclick="adminReports.viewLeaveDetail('${row.kind}', '${row.id}')" title="${needsAction ? 'Tinjau & putuskan' : 'Lihat detail'}">
+                        <i class="fas ${needsAction ? 'fa-stamp' : 'fa-eye'}"></i>
                     </button>
-                    ${this._renderApprovalActions(row)}
                 </td>
             </tr>`;
         }).join('');
     },
 
     /**
-     * Tombol approve/reject sesuai tahap & role yang sedang login:
-     * - pending          -> bisa di-approve oleh Manager ATAU Admin (langsung jadi tahap final kalau Admin)
-     * - manager_approved -> tinggal menunggu Admin (Direktur) approve final; Manager tidak bisa apa-apa lagi
+     * ============================================================
+     * RANTAI APPROVAL DINAMIS (Staf / Asmen / Manajer)
+     * ------------------------------------------------------------
+     * Catatan penting: field row.requesterRoleTier, row.status
+     * ('menunggu_tahap1' dst) dan row.stageNApproverName/Decision/Note
+     * adalah skema BARU yang perlu ditambahkan di backend (Izin.gs /
+     * Leave.gs). Sebelum backend diupdate, kode di bawah otomatis
+     * fallback ke skema lama (pending / manager_approved / approved)
+     * supaya tampilan tidak error. Sekali backend sudah kirim field
+     * baru itu, stepper & riwayat di bawah akan otomatis lengkap
+     * tanpa perlu ubah UI lagi.
      */
-    _renderApprovalActions(row) {
-        const isManager = auth.isManager();
-        const isAdminUser = auth.isAdmin();
+    _approvalChainFor(row) {
+        const chains = {
+            staf:    [{ key: 'asmen',      label: 'Asmen bidang' },   { key: 'manajer',    label: 'Manajer bidang' }, { key: 'direktur', label: 'Direktur' }],
+            asmen:   [{ key: 'manajer',    label: 'Manajer bidang' }, { key: 'manajer_uk', label: 'Manajer UK' },      { key: 'direktur', label: 'Direktur' }],
+            manajer: [{ key: 'direktur',   label: 'Direktur' }]
+        };
+        const tier = (row.requesterRoleTier || this._guessTierFromPosition(row.position) || 'staf').toLowerCase();
+        return chains[tier] || chains.staf;
+    },
 
-        if (row.status === 'pending' && (isManager || isAdminUser)) {
-            return `
-                <button class="btn-action" style="background:#10B981;color:#fff;" title="Setuju" onclick="adminReports.approveLeaveOrIzin('${row.kind}', '${row.id}')">
-                    <i class="fas fa-check"></i>
-                </button>
-                <button class="btn-action" style="background:#EF4444;color:#fff;" title="Tolak" onclick="adminReports.rejectLeaveOrIzin('${row.kind}', '${row.id}')">
-                    <i class="fas fa-times"></i>
-                </button>
-            `;
+    _guessTierFromPosition(position) {
+        const p = (position || '').toLowerCase();
+        if (p.includes('asisten manajer') || p.includes('asmen')) return 'asmen';
+        if (p.includes('manajer')) return 'manajer';
+        return 'staf';
+    },
+
+    // Index tahap yang sedang berjalan (0-based). >= chain.length berarti sudah selesai.
+    _currentStageIndex(row, chain) {
+        if (row.status && row.status.indexOf('menunggu_tahap') === 0) {
+            return parseInt(row.status.replace('menunggu_tahap', ''), 10) - 1;
         }
-
+        if (row.status === 'selesai' || row.status === 'approved' || row.status === 'rejected') {
+            return chain.length;
+        }
         if (row.status === 'manager_approved') {
-            if (isAdminUser) {
-                return `
-                    <button class="btn-action" style="background:#10B981;color:#fff;" title="Setuju Final (Direktur)" onclick="adminReports.approveLeaveOrIzin('${row.kind}', '${row.id}')">
-                        <i class="fas fa-check-double"></i>
-                    </button>
-                    <button class="btn-action" style="background:#EF4444;color:#fff;" title="Tolak" onclick="adminReports.rejectLeaveOrIzin('${row.kind}', '${row.id}')">
-                        <i class="fas fa-times"></i>
-                    </button>
-                `;
-            }
-            return `<span style="font-size:0.75rem;color:var(--text-muted);">Menunggu Direktur</span>`;
+            return Math.max(chain.length - 1, 0);
         }
-
-        return '';
+        return 0; // 'pending' / status lain / default
     },
 
-    async approveLeaveOrIzin(kind, id) {
-        if (!confirm('Setujui pengajuan ini?')) return;
+    _isRowFinished(row) {
+        return row.status === 'selesai' || row.status === 'approved' || row.status === 'rejected';
+    },
+
+    _finalDecisionLabel(row) {
+        if (row.finalDecision === 'ditolak' || row.status === 'rejected') return { text: 'Ditolak', cls: 'selesai-ditolak' };
+        if (row.finalDecision === 'disetujui' || row.status === 'approved') return { text: 'Disetujui', cls: 'selesai-disetujui' };
+        return null;
+    },
+
+    // Badge ringkas untuk kolom status di tabel
+    _stageBadgeHtml(row) {
+        const chain = this._approvalChainFor(row);
+        const finished = this._finalDecisionLabel(row);
+        if (finished) {
+            return `<span class="stage-badge ${finished.cls}">${finished.text}</span>`;
+        }
+        const idx = Math.min(this._currentStageIndex(row, chain), chain.length - 1);
+        const stage = chain[idx] || chain[0];
+        return `<span class="stage-badge tahap-${idx + 1}">Tahap ${idx + 1} &middot; ${stage.label}</span>`;
+    },
+
+    // Stepper visual di dalam modal detail
+    _renderStageStepper(row) {
+        const chain = this._approvalChainFor(row);
+        const finished = this._isRowFinished(row);
+        const currentIdx = finished ? chain.length : this._currentStageIndex(row, chain);
+
+        const steps = chain.map((stage, i) => {
+            const state = i < currentIdx ? 'done' : (i === currentIdx ? 'current' : 'upcoming');
+            const dotContent = state === 'done' ? '<i class="fas fa-check"></i>' : (i + 1);
+            const connector = i < chain.length - 1
+                ? `<div class="stage-connector ${i < currentIdx ? 'done' : ''}"></div>`
+                : '';
+            return `
+                <div class="stage-row" style="flex:1;">
+                    <div class="stage-step ${state === 'current' ? 'current' : ''}">
+                        <div class="stage-dot ${state}">${dotContent}</div>
+                        <span class="stage-label">${stage.label}</span>
+                    </div>
+                    ${connector}
+                </div>`;
+        }).join('');
+
+        return `<div class="stage-stepper">${steps}</div>`;
+    },
+
+    // Riwayat catatan tiap tahap yang sudah lewat
+    _renderApprovalHistory(row) {
+        const chain = this._approvalChainFor(row);
+        let items = chain.map((stage, i) => {
+            const n = i + 1;
+            const name = row[`stage${n}ApproverName`];
+            const decision = row[`stage${n}Decision`];
+            const note = row[`stage${n}Note`];
+            if (!name && !decision) return '';
+            const decisionLabel = decision === 'tolak' ? 'Tolak' : (decision === 'setuju' ? 'Setuju' : '');
+            return `
+                <div class="approval-history-item">
+                    <div class="ah-top">
+                        <span><span class="ah-role">${stage.label}</span><span class="ah-who"> &middot; ${name || '-'}</span></span>
+                        ${decisionLabel ? `<span class="ah-decision ${decision}">${decisionLabel}</span>` : ''}
+                    </div>
+                    ${note ? `<div class="ah-note">&ldquo;${note}&rdquo;</div>` : ''}
+                </div>`;
+        }).filter(Boolean);
+
+        // fallback skema lama (managerName / directorName tanpa catatan)
+        if (!items.length) {
+            if (row.managerName) items.push(`<div class="approval-history-item"><span class="ah-role">Manager</span><span class="ah-who"> &middot; ${row.managerName}</span></div>`);
+            if (row.directorName) items.push(`<div class="approval-history-item"><span class="ah-role">Direktur</span><span class="ah-who"> &middot; ${row.directorName}</span></div>`);
+        }
+
+        return items.length ? `<div class="approval-history">${items.join('')}</div>` : '';
+    },
+
+    // Sementara pakai auth.isManager()/isAdmin() sampai backend kirim data
+    // role+bidang approver per tahap untuk pencocokan yang presisi.
+    _canActOnStage(row) {
+        if (this._isRowFinished(row)) return false;
+        const chain = this._approvalChainFor(row);
+        const idx = this._currentStageIndex(row, chain);
+        if (idx >= chain.length) return false;
+        const stageKey = chain[idx].key;
+        if (stageKey === 'direktur') return auth.isAdmin();
+        return auth.isManager() || auth.isAdmin();
+    },
+
+    // Form catatan wajib + tombol Setuju/Tolak (dipakai di dalam modal detail)
+    _renderApprovalActions(row) {
+        if (!this._canActOnStage(row)) return '';
+        const boxId = `approval-note-${row.kind}-${row.id}`;
+        return `
+            <div class="approval-note-box">
+                <label>Catatan (wajib)</label>
+                <textarea id="${boxId}" placeholder="Tulis catatan pertimbangan..."></textarea>
+            </div>
+            <div style="display:flex; gap:8px; margin-top:10px;">
+                <button class="btn-action" style="flex:1;background:#EF4444;color:#fff;" onclick="adminReports.submitDecision('${row.kind}', '${row.id}', 'tolak')">
+                    <i class="fas fa-times"></i> Tolak
+                </button>
+                <button class="btn-action" style="flex:1;background:#10B981;color:#fff;" onclick="adminReports.submitDecision('${row.kind}', '${row.id}', 'setuju')">
+                    <i class="fas fa-check"></i> Setuju
+                </button>
+            </div>
+        `;
+    },
+
+    async submitDecision(kind, id, decision) {
+        const boxId = `approval-note-${kind}-${id}`;
+        const noteEl = document.getElementById(boxId);
+        const note = noteEl ? noteEl.value.trim() : '';
+
+        if (!note) {
+            toast.error('Catatan wajib diisi sebelum menyetujui atau menolak');
+            if (noteEl) { noteEl.classList.add('input-error'); noteEl.focus(); }
+            return;
+        }
+
+        if (!confirm(decision === 'setuju' ? 'Setujui pengajuan ini?' : 'Tolak pengajuan ini? Catatan tetap akan diteruskan ke tahap berikutnya.')) return;
+
         const user = auth.getCurrentUser();
         const approver = {
             id: user?.id,
             name: user?.name || '',
             nik: user?.nik || '',
-            role: auth.isManager() ? 'manager' : 'admin'
+            role: auth.isManager() ? 'manager' : 'admin',
+            // Field berikut (decision, note) dikirim untuk backend skema baru.
+            // Backend saat ini mungkin belum membacanya — lihat catatan di atas.
+            decision,
+            note
         };
-        try {
-            const result = kind === 'leave' ? await api.approveLeave(id, approver) : await api.approveIzin(id, approver);
-            if (result.success) {
-                toast.success(approver.role === 'manager' ? 'Disetujui sebagai Manager' : 'Disetujui final');
-                document.getElementById('modal-detail-leave') && (document.getElementById('modal-detail-leave').style.display = 'none');
-                await this.loadData();
-                this.renderLeaveReports();
-            } else {
-                toast.error(result.error || 'Gagal menyetujui pengajuan');
-            }
-        } catch (e) {
-            console.error('Error approve:', e);
-            toast.error('Terjadi kesalahan');
-        }
-    },
 
-    async rejectLeaveOrIzin(kind, id) {
-        if (!confirm('Tolak pengajuan ini?')) return;
-        const user = auth.getCurrentUser();
-        const approver = {
-            id: user?.id,
-            name: user?.name || '',
-            nik: user?.nik || '',
-            role: auth.isManager() ? 'manager' : 'admin'
-        };
         try {
-            const result = kind === 'leave' ? await api.rejectLeave(id, approver) : await api.rejectIzin(id, approver);
+            const call = decision === 'tolak'
+                ? (kind === 'leave' ? api.rejectLeave(id, approver) : api.rejectIzin(id, approver))
+                : (kind === 'leave' ? api.approveLeave(id, approver) : api.approveIzin(id, approver));
+            const result = await call;
+
             if (result.success) {
-                toast.success('Pengajuan ditolak');
+                toast.success(decision === 'setuju' ? 'Catatan persetujuan tersimpan' : 'Catatan penolakan tersimpan, diteruskan ke tahap berikutnya');
                 document.getElementById('modal-detail-leave') && (document.getElementById('modal-detail-leave').style.display = 'none');
                 await this.loadData();
                 this.renderLeaveReports();
             } else {
-                toast.error(result.error || 'Gagal menolak pengajuan');
+                toast.error(result.error || 'Gagal menyimpan keputusan');
             }
         } catch (e) {
-            console.error('Error reject:', e);
+            console.error('Error submitDecision:', e);
             toast.error('Terjadi kesalahan');
         }
     },
@@ -885,9 +990,6 @@ const adminReports = {
         const row = this.leaveData.find(r => r.kind === kind && String(r.id) === String(id));
         if (!row) { toast.error('Data tidak ditemukan'); return; }
 
-        const statusLabels = { 'pending': 'Menunggu', 'manager_approved': 'Disetujui Manager', 'approved': 'Disetujui', 'rejected': 'Ditolak' };
-        const statusColors = { 'pending': '#F59E0B', 'manager_approved': '#3B82F6', 'approved': '#10B981', 'rejected': '#EF4444' };
-        const statusColor = statusColors[row.status] || '#94A3B8';
         const isKeluarKantor = row.kind === 'izin' && row.rawType === 'keluar_kantor';
 
         const infoRow = (icon, label, value) => `
@@ -937,8 +1039,10 @@ const adminReports = {
                     <i class="fas ${isKeluarKantor ? 'fa-door-open' : 'fa-file-alt'}"></i>
                 </div>
                 <h3 style="font-size:1.05rem;margin-bottom:4px;">${row.type}</h3>
-                <span style="background:${statusColor}20;color:${statusColor};padding:4px 14px;border-radius:20px;font-size:0.78rem;font-weight:700;">${statusLabels[row.status] || row.status}</span>
+                ${this._stageBadgeHtml(row)}
             </div>
+
+            ${this._renderStageStepper(row)}
 
             ${infoRow('fa-user', 'Nama Karyawan', row.name)}
             ${infoRow('fa-briefcase', 'Jabatan', row.position)}
@@ -954,9 +1058,13 @@ const adminReports = {
 
             ${attachmentHtml}
 
-            <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:1.5rem;padding-top:1rem;border-top:1px solid var(--border-color);">
-                ${row.status === 'pending' || row.status === 'manager_approved' ? this._renderApprovalActions(row) : ''}
-                <button class="btn-secondary" style="font-size:0.85rem;" onclick="document.getElementById('modal-detail-leave').style.display='none'">Tutup</button>
+            ${this._renderApprovalHistory(row)}
+
+            <div style="margin-top:1rem;padding-top:1rem;border-top:1px solid var(--border-color);">
+                ${this._renderApprovalActions(row)}
+                <div style="display:flex;justify-content:flex-end;margin-top:${this._canActOnStage(row) ? '10px' : '0'};">
+                    <button class="btn-secondary" style="font-size:0.85rem;" onclick="document.getElementById('modal-detail-leave').style.display='none'">Tutup</button>
+                </div>
             </div>
         `;
 
