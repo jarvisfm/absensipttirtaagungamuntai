@@ -28,6 +28,14 @@
 .letter-kop-img-wrap { width: 100%; line-height: 0; }
 .letter-kop-img { width: 100%; height: auto; display: block; }
 
+/* === Kop teks sederhana (khusus Surat Izin Keluar Kantor) === */
+.letter-kop { display: flex; align-items: center; gap: 12px; margin-bottom: 6px; }
+.letter-kop-logo { width: 56px; height: 56px; object-fit: contain; }
+.letter-kop-left { flex: 1; }
+.letter-kop-title { font-weight: bold; font-size: 16px; letter-spacing: 0.5px; }
+.letter-kop-divider { border-top: 2px solid #111; margin-bottom: 14px; }
+.letter-kop-center-title { text-align: center; font-weight: bold; font-size: 15px; margin-bottom: 16px; }
+
 /* === Body === */
 .letter-body { flex: 1; padding: 20px 48px 28px; }
 
