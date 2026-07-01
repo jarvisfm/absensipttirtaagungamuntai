@@ -106,19 +106,35 @@ const izin = {
     },
 
     toggleKeluarKantorFields(type) {
-        const jamRow = document.getElementById('izin-jam-row');
+        const jamRow        = document.getElementById('izin-jam-row');
         const durationGroup = document.getElementById('izin-duration-group');
+        const singleRow     = document.getElementById('izin-date-single-row');
+        const rangeRow      = document.getElementById('izin-date-range-row');
         const durationInput = document.getElementById('izin-duration');
-        const jamKeluar = document.getElementById('izin-jam-keluar');
-        const jamMasuk = document.getElementById('izin-jam-masuk');
+        const jamKeluar     = document.getElementById('izin-jam-keluar');
+        const jamMasuk      = document.getElementById('izin-jam-masuk');
+        const dateStart     = document.getElementById('izin-date-start');
+        const dateEnd       = document.getElementById('izin-date-end');
+        const dateInput     = document.getElementById('izin-date');
+
         const isKeluarKantor = type === 'keluar_kantor';
-    
+        const isIzinHarian   = type === 'izin_harian';
+
+        // Jam keluar/masuk — hanya untuk keluar_kantor
         if (jamRow) jamRow.style.display = isKeluarKantor ? 'flex' : 'none';
-        if (durationGroup) durationGroup.style.display = isKeluarKantor ? 'none' : 'block';
-    
-        if (durationInput) durationInput.required = !isKeluarKantor;
         if (jamKeluar) jamKeluar.required = isKeluarKantor;
-        if (jamMasuk) jamMasuk.required = isKeluarKantor;
+        if (jamMasuk)  jamMasuk.required  = isKeluarKantor;
+
+        // Tanggal range — hanya untuk izin_harian
+        if (rangeRow)   rangeRow.style.display   = isIzinHarian ? 'flex' : 'none';
+        if (singleRow)  singleRow.style.display  = isIzinHarian ? 'none' : 'flex';
+        if (dateStart)  dateStart.required = isIzinHarian;
+        if (dateEnd)    dateEnd.required   = isIzinHarian;
+        if (dateInput)  dateInput.required = !isIzinHarian;
+
+        // Durasi — sembunyikan untuk keluar_kantor dan izin_harian
+        if (durationGroup) durationGroup.style.display = (isKeluarKantor || isIzinHarian) ? 'none' : 'block';
+        if (durationInput) durationInput.required      = (!isKeluarKantor && !isIzinHarian);
     },
     
     initFilters() {
@@ -171,21 +187,22 @@ const izin = {
     },
 
     async submitIzinForm() {
-    // Guard: cegah submit dobel (klik cepat 2x, atau listener yang sempat terpasang ulang)
     if (this.isSubmitting) return;
     this.isSubmitting = true;
 
     try {
-        // Validate form first
-        const type = document.getElementById('izin-type')?.value;
-        const date = document.getElementById('izin-date')?.value;
-        const duration = document.getElementById('izin-duration')?.value;
-        const reason = document.getElementById('izin-reason')?.value;
+        const type           = document.getElementById('izin-type')?.value;
+        const date           = document.getElementById('izin-date')?.value;
+        const duration       = document.getElementById('izin-duration')?.value;
+        const reason         = document.getElementById('izin-reason')?.value;
         const isKeluarKantor = type === 'keluar_kantor';
-        const jamKeluar = document.getElementById('izin-jam-keluar')?.value;
-        const jamMasuk = document.getElementById('izin-jam-masuk')?.value;
+        const isIzinHarian   = type === 'izin_harian';
+        const jamKeluar      = document.getElementById('izin-jam-keluar')?.value;
+        const jamMasuk       = document.getElementById('izin-jam-masuk')?.value;
+        const dateStart      = document.getElementById('izin-date-start')?.value;
+        const dateEnd        = document.getElementById('izin-date-end')?.value;
 
-        if (!type || !date || !reason) {
+        if (!type || !reason) {
             toast.error('Harap isi semua field yang wajib diisi!');
             return;
         }
@@ -193,28 +210,45 @@ const izin = {
             toast.error('Harap isi Jam Keluar dan Jam Masuk!');
             return;
         }
-        if (!isKeluarKantor && !duration) {
+        if (isIzinHarian && (!dateStart || !dateEnd)) {
+            toast.error('Harap isi Tanggal Mulai dan Tanggal Selesai!');
+            return;
+        }
+        if (!isKeluarKantor && !isIzinHarian && !date) {
+            toast.error('Harap isi Tanggal!');
+            return;
+        }
+        if (!isKeluarKantor && !isIzinHarian && !duration) {
             toast.error('Harap isi Durasi!');
             return;
         }
 
         const typeLabels = {
-            'sick': 'Sakit',
-            'izin_harian': 'Permohonan Izin Harian',
-            'keluar_kantor': 'Keluar Kantor'
+            'sick':         'Sakit',
+            'permission':   'Izin Penting',
+            'emergency':    'Keadaan Darurat',
+            'izin_harian':  'Permohonan Izin Harian',
+            'keluar_kantor':'Keluar Kantor'
         };
 
         const currentUser = auth.getCurrentUser();
 
+        let computedDuration = isKeluarKantor ? 0 : parseInt(duration);
+        if (isIzinHarian && dateStart && dateEnd) {
+            const diff = (new Date(dateEnd) - new Date(dateStart)) / (1000 * 60 * 60 * 24);
+            computedDuration = Math.max(1, Math.round(diff) + 1);
+        }
+
         const izinEntry = {
-            userId: currentUser?.id || 'demo-user',
-            type: type,
-            typeLabel: typeLabels[type] || type,
-            date: date,
-            duration: isKeluarKantor ? 0 : parseInt(duration),
-            reason: reason,
-            jamKeluar: isKeluarKantor ? jamKeluar : '',
-            jamMasuk: isKeluarKantor ? jamMasuk : '',
+            userId:        currentUser?.id || 'demo-user',
+            type:          type,
+            typeLabel:     typeLabels[type] || type,
+            date:          isIzinHarian ? dateStart : date,
+            dateEnd:       isIzinHarian ? dateEnd   : '',
+            duration:      computedDuration,
+            reason:        reason,
+            jamKeluar:     isKeluarKantor ? jamKeluar : '',
+            jamMasuk:      isKeluarKantor ? jamMasuk  : '',
             hasAttachment: !!this.currentFile
         };
 
@@ -235,7 +269,6 @@ const izin = {
         this.currentFile = null;
         toast.success('Pengajuan izin berhasil dikirim!');
 
-        // Reset form
         const form = document.getElementById('izin-form');
         if (form) form.reset();
         this.toggleKeluarKantorFields('');
@@ -312,9 +345,10 @@ const izin = {
             const dateFormatted = dateTime.formatDate(date, 'short');
 
             
-           const icons = {
+            const icons = {
                 'sick': 'fa-heartbeat',
-                'izin_harian': 'fa-file-alt',
+                'permission': 'fa-hand-paper',
+                'emergency': 'fa-exclamation-triangle',
                 'keluar_kantor': 'fa-door-open'
             };
             const typeLabelFallback = {
