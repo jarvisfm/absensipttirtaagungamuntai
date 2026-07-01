@@ -200,8 +200,7 @@ const izin = {
 
         const typeLabels = {
             'sick': 'Sakit',
-            'permission': 'Izin Penting',
-            'emergency': 'Keadaan Darurat',
+            'izin_harian': 'Permohonan Izin Harian',
             'keluar_kantor': 'Keluar Kantor'
         };
 
@@ -313,10 +312,9 @@ const izin = {
             const dateFormatted = dateTime.formatDate(date, 'short');
 
             
-            const icons = {
+           const icons = {
                 'sick': 'fa-heartbeat',
-                'permission': 'fa-hand-paper',
-                'emergency': 'fa-exclamation-triangle',
+                'izin_harian': 'fa-file-alt',
                 'keluar_kantor': 'fa-door-open'
             };
             const typeLabelFallback = {
@@ -357,10 +355,10 @@ const izin = {
                                 </button>
                             </div>
                         ` : ''}
-                        ${izin.status === 'approved' && izin.type !== 'keluar_kantor' ? `
+                        ${izin.status === 'approved' && izin.type === 'izin_harian' ? `
                             <div style="margin-top:8px;display:flex;gap:6px;">
                                 <button class="btn-small btn-outline" onclick="printLetters.openIzinPermohonan(${izin.id})">
-                                    <i class="fas fa-print"></i> Surat Permohonan Izin
+                                    <i class="fas fa-print"></i> Cetak Surat Permohonan Izin
                                 </button>
                             </div>
                         ` : ''}
