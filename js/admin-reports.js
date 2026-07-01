@@ -150,6 +150,7 @@ const adminReports = {
                     userId: l.userId,
                     name: emp.name || emp.nama || l.userId,
                     department: emp.department || emp.unitKerja || '-',
+                    position: emp.position || emp.jabatan || '-',
                     type: l.type === 'annual' ? 'Cuti Tahunan'
                         : l.type === 'maternity' ? 'Cuti Melahirkan'
                         : (l.typeLabel || l.type || 'Cuti'),
@@ -173,12 +174,21 @@ const adminReports = {
                     userId: i.userId,
                     name: emp.name || emp.nama || i.userId,
                     department: emp.department || emp.unitKerja || '-',
+                    position: emp.position || emp.jabatan || '-',
+                    rawType: i.type || '',
                     type: i.type === 'sick' ? 'Sakit'
                         : i.type === 'permission' ? 'Izin Penting'
                         : i.type === 'emergency' ? 'Keadaan Darurat'
+                        : i.type === 'keluar_kantor' ? 'Izin Keluar Kantor'
                         : (i.typeLabel || 'Izin'),
                     dates: i.date || '-',
-                    duration: i.duration != null ? i.duration : '-',
+                    duration: i.type === 'keluar_kantor'
+                        ? this.hitungDurasiJam(i.jamKeluar, i.jamMasuk)
+                        : (i.duration != null ? i.duration : '-'),
+                    jamKeluar: i.jamKeluar || '',
+                    jamMasuk: i.jamMasuk || '',
+                    hasAttachment: i.hasAttachment === true || i.hasAttachment === 'true' || i.hasAttachment === 'TRUE',
+                    fileUrl: i.fileUrl || '',
                     reason: i.reason || i.alasan || '-',
                     status: i.status || 'pending',
                     startDate: i.date || ''
@@ -205,6 +215,24 @@ const adminReports = {
                 toast.warning(`⚠️ Kuota cuti tahunan ${nama} sudah habis tahun ini!`);
             }
         });
+    },
+
+    /**
+     * Hitung durasi antara jamKeluar & jamMasuk (format "HH:MM") menjadi teks "X jam Y menit".
+     * Khusus dipakai untuk Surat Izin Keluar Kantor.
+     */
+    hitungDurasiJam(jamKeluar, jamMasuk) {
+        if (!jamKeluar || !jamMasuk) return '-';
+        const [h1, m1] = jamKeluar.split(':').map(Number);
+        const [h2, m2] = jamMasuk.split(':').map(Number);
+        if ([h1, m1, h2, m2].some(n => isNaN(n))) return '-';
+        let totalMenit = (h2 * 60 + m2) - (h1 * 60 + m1);
+        if (totalMenit < 0) totalMenit += 24 * 60; // jaga-jaga kalau lintas tengah malam
+        const jam = Math.floor(totalMenit / 60);
+        const menit = totalMenit % 60;
+        if (jam === 0) return `${menit} menit`;
+        if (menit === 0) return `${jam} jam`;
+        return `${jam} jam ${menit} menit`;
     },
 
     populateEmployeeFilter() {
@@ -644,33 +672,29 @@ const adminReports = {
         const statusLabels = { 'pending': 'Menunggu', 'manager_approved': 'Disetujui Manager', 'approved': 'Disetujui', 'rejected': 'Ditolak' };
 
         if (data.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:2rem;color:var(--text-muted);">Tidak ada data</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:2rem;color:var(--text-muted);">Tidak ada data</td></tr>';
             return;
         }
 
         tbody.innerHTML = data.map(row => {
-            // Sisa cuti hanya tampil untuk jenis Cuti Tahunan
-            const quota = (this.leaveQuota || {})[String(row.userId)];
-            const sisaHtml = (row.type === 'Cuti Tahunan' && quota != null)
-                ? `<span style="font-weight:600;color:${quota.sisa <= 0 ? '#EF4444' : quota.sisa <= 3 ? '#F59E0B' : '#10B981'};">${quota.sisa} hari</span>`
-                : '<span style="color:var(--text-muted);">-</span>';
+            const isKeluarKantor = row.kind === 'izin' && row.rawType === 'keluar_kantor';
+            const durasiHtml = row.duration === '-' ? '-' : (isKeluarKantor ? row.duration : row.duration + ' hari');
 
             return `
             <tr>
                 <td>${row.name}</td>
-                <td>${row.department}</td>
+                <td>${row.position}</td>
                 <td>${row.type}</td>
                 <td>${row.dates}</td>
-                <td>${row.duration !== '-' ? row.duration + ' hari' : '-'}</td>
+                <td>${durasiHtml}</td>
                 <td>${row.reason}</td>
-                <td style="text-align:center;">${sisaHtml}</td>
                 <td>
                     <span class="status-badge ${row.status}">
                         ${statusLabels[row.status] || row.status}
                     </span>
                 </td>
                 <td style="white-space:nowrap;">
-                    <button class="btn-action view" onclick="adminReports.viewLeaveDetail('${row.name}')">
+                    <button class="btn-action view" onclick="adminReports.viewLeaveDetail('${row.kind}', '${row.id}')">
                         <i class="fas fa-eye"></i>
                     </button>
                     ${this._renderApprovalActions(row)}
@@ -729,6 +753,7 @@ const adminReports = {
             const result = kind === 'leave' ? await api.approveLeave(id, approver) : await api.approveIzin(id, approver);
             if (result.success) {
                 toast.success(approver.role === 'manager' ? 'Disetujui sebagai Manager' : 'Disetujui final');
+                document.getElementById('modal-detail-leave') && (document.getElementById('modal-detail-leave').style.display = 'none');
                 await this.loadData();
                 this.renderLeaveReports();
             } else {
@@ -753,6 +778,7 @@ const adminReports = {
             const result = kind === 'leave' ? await api.rejectLeave(id, approver) : await api.rejectIzin(id, approver);
             if (result.success) {
                 toast.success('Pengajuan ditolak');
+                document.getElementById('modal-detail-leave') && (document.getElementById('modal-detail-leave').style.display = 'none');
                 await this.loadData();
                 this.renderLeaveReports();
             } else {
@@ -855,8 +881,87 @@ const adminReports = {
         ]);
     },
 
-    viewLeaveDetail(name) {
-        toast.info(`Detail cuti/izin ${name}`);
+    viewLeaveDetail(kind, id) {
+        const row = this.leaveData.find(r => r.kind === kind && String(r.id) === String(id));
+        if (!row) { toast.error('Data tidak ditemukan'); return; }
+
+        const statusLabels = { 'pending': 'Menunggu', 'manager_approved': 'Disetujui Manager', 'approved': 'Disetujui', 'rejected': 'Ditolak' };
+        const statusColors = { 'pending': '#F59E0B', 'manager_approved': '#3B82F6', 'approved': '#10B981', 'rejected': '#EF4444' };
+        const statusColor = statusColors[row.status] || '#94A3B8';
+        const isKeluarKantor = row.kind === 'izin' && row.rawType === 'keluar_kantor';
+
+        const infoRow = (icon, label, value) => `
+            <div style="display:flex;align-items:flex-start;gap:12px;padding:10px 0;border-bottom:1px solid var(--border-color);">
+                <div style="width:32px;height:32px;border-radius:8px;background:rgba(245,158,11,0.12);color:var(--color-primary);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                    <i class="fas ${icon}"></i>
+                </div>
+                <div style="flex:1;">
+                    <div style="font-size:0.72rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.02em;">${label}</div>
+                    <div style="font-size:0.9rem;font-weight:600;color:var(--text-primary);margin-top:2px;">${value}</div>
+                </div>
+            </div>`;
+
+        const jamHtml = isKeluarKantor ? `
+            <div style="display:flex;gap:12px;margin:14px 0;">
+                <div style="flex:1;background:var(--color-gray-50);border-radius:10px;padding:12px;text-align:center;">
+                    <div style="font-size:0.72rem;color:var(--text-muted);text-transform:uppercase;">Jam Keluar</div>
+                    <div style="font-size:1.1rem;font-weight:700;color:var(--color-primary);margin-top:4px;">${row.jamKeluar || '-'}</div>
+                </div>
+                <div style="flex:1;background:var(--color-gray-50);border-radius:10px;padding:12px;text-align:center;">
+                    <div style="font-size:0.72rem;color:var(--text-muted);text-transform:uppercase;">Jam Masuk</div>
+                    <div style="font-size:1.1rem;font-weight:700;color:var(--color-primary);margin-top:4px;">${row.jamMasuk || '-'}</div>
+                </div>
+                <div style="flex:1;background:var(--color-gray-50);border-radius:10px;padding:12px;text-align:center;">
+                    <div style="font-size:0.72rem;color:var(--text-muted);text-transform:uppercase;">Durasi</div>
+                    <div style="font-size:1.1rem;font-weight:700;color:var(--color-primary);margin-top:4px;">${row.duration}</div>
+                </div>
+            </div>` : '';
+
+        const attachmentHtml = row.kind === 'izin'
+            ? (row.fileUrl
+                ? `<a href="${row.fileUrl}" target="_blank" style="display:flex;align-items:center;gap:8px;background:rgba(16,185,129,0.1);color:#10B981;border-radius:8px;padding:10px 12px;font-size:0.85rem;font-weight:600;margin-top:12px;text-decoration:none;">
+                        <i class="fas fa-file-import"></i> Lihat Surat Lampiran <i class="fas fa-external-link-alt" style="margin-left:auto;font-size:0.75rem;"></i>
+                   </a>`
+                : row.hasAttachment
+                    ? `<div style="display:flex;align-items:center;gap:8px;background:rgba(245,158,11,0.1);color:#D97706;border-radius:8px;padding:10px 12px;font-size:0.85rem;font-weight:600;margin-top:12px;">
+                            <i class="fas fa-paperclip"></i> Lampiran disertakan, namun berkas belum berhasil ter-upload
+                       </div>`
+                    : `<div style="display:flex;align-items:center;gap:8px;background:var(--color-gray-100);color:var(--text-muted);border-radius:8px;padding:10px 12px;font-size:0.85rem;margin-top:12px;">
+                            <i class="fas fa-paperclip"></i> Tidak ada lampiran surat
+                       </div>`)
+            : '';
+
+        const content = `
+            <div style="text-align:center;margin-bottom:1.25rem;">
+                <div style="width:56px;height:56px;border-radius:50%;background:rgba(245,158,11,0.12);color:var(--color-primary);display:flex;align-items:center;justify-content:center;font-size:1.4rem;margin:0 auto 10px;">
+                    <i class="fas ${isKeluarKantor ? 'fa-door-open' : 'fa-file-alt'}"></i>
+                </div>
+                <h3 style="font-size:1.05rem;margin-bottom:4px;">${row.type}</h3>
+                <span style="background:${statusColor}20;color:${statusColor};padding:4px 14px;border-radius:20px;font-size:0.78rem;font-weight:700;">${statusLabels[row.status] || row.status}</span>
+            </div>
+
+            ${infoRow('fa-user', 'Nama Karyawan', row.name)}
+            ${infoRow('fa-briefcase', 'Jabatan', row.position)}
+            ${infoRow('fa-calendar-day', 'Tanggal Izin', row.dates)}
+            ${!isKeluarKantor ? infoRow('fa-clock', 'Durasi', row.duration !== '-' ? row.duration + ' hari' : '-') : ''}
+
+            ${jamHtml}
+
+            <div style="margin-top:14px;">
+                <div style="font-size:0.72rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.02em;margin-bottom:6px;">Alasan</div>
+                <div style="background:var(--color-gray-50);border-radius:10px;padding:12px 14px;font-size:0.88rem;color:var(--text-primary);line-height:1.5;">${row.reason}</div>
+            </div>
+
+            ${attachmentHtml}
+
+            <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:1.5rem;padding-top:1rem;border-top:1px solid var(--border-color);">
+                ${row.status === 'pending' || row.status === 'manager_approved' ? this._renderApprovalActions(row) : ''}
+                <button class="btn-secondary" style="font-size:0.85rem;" onclick="document.getElementById('modal-detail-leave').style.display='none'">Tutup</button>
+            </div>
+        `;
+
+        document.getElementById('detail-leave-content').innerHTML = content;
+        document.getElementById('modal-detail-leave').style.display = 'flex';
     }
 };
 
