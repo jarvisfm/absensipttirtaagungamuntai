@@ -637,16 +637,23 @@
                                         <select id="izin-type" required>
                                             <option value="">Pilih Jenis Izin</option>
                                             <option value="sick">Sakit</option>
-                                            <option value="izin_harian">Permohonan Izin Harian</option>
+                                            <option value="permission">Izin Penting</option>
+                                            <option value="emergency">Keadaan Darurat</option>
                                             <option value="keluar_kantor">Izin Keluar Kantor</option>
                                         </select>
                                     </div>
-                                        <div class="form-row two-col">
+                                        <div class="form-row two-col" id="izin-date-single-row">
                                             <div class="form-group"><label for="izin-date">Tanggal</label><input type="date"
                                                     id="izin-date" required></div>
                                             <div class="form-group" id="izin-duration-group"><label for="izin-duration">Durasi (hari)</label><input
                                                     type="number" id="izin-duration" min="1" max="30" value="1" required>
                                             </div>
+                                        </div>
+                                        <div class="form-row two-col" id="izin-date-range-row" style="display:none;">
+                                            <div class="form-group"><label for="izin-date-start">Tanggal Mulai</label><input type="date"
+                                                    id="izin-date-start"></div>
+                                            <div class="form-group"><label for="izin-date-end">Tanggal Selesai</label><input type="date"
+                                                    id="izin-date-end"></div>
                                         </div>
                                         <div class="form-row two-col" id="izin-jam-row" style="display:none;">
                                             <div class="form-group"><label for="izin-jam-keluar">Keluar Jam</label><input
