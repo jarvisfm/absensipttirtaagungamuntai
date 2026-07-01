@@ -675,6 +675,8 @@ const adminReports = {
             return;
         }
 
+        const statusLabels = { 'pending': 'Menunggu', 'manager_approved': 'Disetujui Manager', 'approved': 'Disetujui', 'rejected': 'Ditolak' };
+
         tbody.innerHTML = data.map(row => {
             const isKeluarKantor = row.kind === 'izin' && row.rawType === 'keluar_kantor';
             const durasiHtml = row.duration === '-' ? '-' : (isKeluarKantor ? row.duration : row.duration + ' hari');
@@ -688,7 +690,7 @@ const adminReports = {
                 <td>${row.dates}</td>
                 <td>${durasiHtml}</td>
                 <td>${row.reason}</td>
-                <td>${this._stageBadgeHtml(row)}</td>
+                <td><span class="status-badge ${row.status}">${statusLabels[row.status] || row.status}</span></td>
                 <td style="white-space:nowrap;">
                     <button class="btn-action view" onclick="adminReports.viewLeaveDetail('${row.kind}', '${row.id}')" title="${needsAction ? 'Tinjau & putuskan' : 'Lihat detail'}">
                         <i class="fas ${needsAction ? 'fa-stamp' : 'fa-eye'}"></i>
@@ -1033,16 +1035,18 @@ const adminReports = {
                        </div>`)
             : '';
 
+        const statusLabels = { 'pending': 'Menunggu', 'manager_approved': 'Disetujui Manager', 'approved': 'Disetujui', 'rejected': 'Ditolak' };
+        const statusColors = { 'pending': '#F59E0B', 'manager_approved': '#3B82F6', 'approved': '#10B981', 'rejected': '#EF4444' };
+        const statusColor = statusColors[row.status] || '#94A3B8';
+
         const content = `
             <div style="text-align:center;margin-bottom:1.25rem;">
                 <div style="width:56px;height:56px;border-radius:50%;background:rgba(245,158,11,0.12);color:var(--color-primary);display:flex;align-items:center;justify-content:center;font-size:1.4rem;margin:0 auto 10px;">
                     <i class="fas ${isKeluarKantor ? 'fa-door-open' : 'fa-file-alt'}"></i>
                 </div>
                 <h3 style="font-size:1.05rem;margin-bottom:4px;">${row.type}</h3>
-                ${this._stageBadgeHtml(row)}
+                <span style="background:${statusColor}20;color:${statusColor};padding:4px 14px;border-radius:20px;font-size:0.78rem;font-weight:700;">${statusLabels[row.status] || row.status}</span>
             </div>
-
-            ${this._renderStageStepper(row)}
 
             ${infoRow('fa-user', 'Nama Karyawan', row.name)}
             ${infoRow('fa-briefcase', 'Jabatan', row.position)}
@@ -1062,7 +1066,10 @@ const adminReports = {
 
             <div style="margin-top:1rem;padding-top:1rem;border-top:1px solid var(--border-color);">
                 ${this._renderApprovalActions(row)}
-                <div style="display:flex;justify-content:flex-end;margin-top:${this._canActOnStage(row) ? '10px' : '0'};">
+                <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:${this._canActOnStage(row) ? '10px' : '0'};">
+                    ${row.kind === 'izin' && (row.rawType === 'keluar_kantor' || row.rawType === 'izin_harian')
+                        ? `<button class="btn-secondary" style="font-size:0.85rem;" onclick="adminReports.printIzinLetter('${row.kind}','${row.id}')"><i class="fas fa-print"></i> Cetak Surat</button>`
+                        : ''}
                     <button class="btn-secondary" style="font-size:0.85rem;" onclick="document.getElementById('modal-detail-leave').style.display='none'">Tutup</button>
                 </div>
             </div>
@@ -1070,6 +1077,44 @@ const adminReports = {
 
         document.getElementById('detail-leave-content').innerHTML = content;
         document.getElementById('modal-detail-leave').style.display = 'flex';
+    },
+
+    // Cetak surat langsung dari modal detail admin. Karena yang login
+    // di sini adalah admin (bukan si pemohon izin), data karyawan &
+    // izin diteruskan manual ke printLetters lewat parameter override.
+    printIzinLetter(kind, id) {
+        const row = this.leaveData.find(r => r.kind === kind && String(r.id) === String(id));
+        if (!row) { toast.error('Data tidak ditemukan'); return; }
+
+        const empRaw = (this.rawEmployees || []).find(e => String(e.id) === String(row.userId)) || {};
+        const emp = {
+            name:      empRaw.name || empRaw.nama || row.name,
+            nik:       empRaw.nik || '',
+            jabatan:   empRaw.jabatan || row.position,
+            pangkat:   empRaw.pangkat || '',
+            golongan:  empRaw.golongan || '',
+            unitKerja: empRaw.unitKerja || row.department
+        };
+        const izinOverride = {
+            date:         row.startDate || row.dates,
+            dateEnd:      row.dateEnd || '',
+            jamKeluar:    row.jamKeluar,
+            jamMasuk:     row.jamMasuk,
+            reason:       row.reason,
+            duration:     row.duration,
+            asmenName:    row.asmenName    || '',
+            asmenNik:     row.asmenNik     || '',
+            managerName:  row.managerName  || '',
+            managerNik:   row.managerNik   || '',
+            managerNote:  row.managerNote  || '',
+            directorNote: row.directorNote || ''
+        };
+
+        if (row.rawType === 'keluar_kantor') {
+            printLetters.openIzinKeluarKantor(row.id, emp, izinOverride);
+        } else {
+            printLetters.openIzinPermohonan(row.id, emp, izinOverride);
+        }
     }
 };
 
