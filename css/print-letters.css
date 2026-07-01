@@ -123,8 +123,8 @@
     .print-letter-overlay,
     .print-letter-overlay * { visibility: visible; }
     .print-letter-overlay {
-        position: static;
-        inset: auto;
+        position: fixed;
+        inset: 0;
         background: #fff;
         overflow: visible;
         height: auto;
