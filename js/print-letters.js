@@ -156,9 +156,12 @@ const printLetters = {
             <p class="letter-p letter-justify">Demikian permohonan izin ini disampaikan atas
                 persetujuan Bapak diucapkan terimakasih.</p>
 
-            <p class="letter-p" style="text-align:right; margin-top:20px;">
-                Amuntai, ${this._formatTanggalIndo(new Date().toISOString())}
-            </p>
+            <table class="letter-signoff-table" style="margin-top:20px;">
+                <tr>
+                    <td></td>
+                    <td>Amuntai, ${this._formatTanggalIndo(new Date().toISOString())}</td>
+                </tr>
+            </table>
         `;
     },
 
