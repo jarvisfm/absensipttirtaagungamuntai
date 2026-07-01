@@ -170,10 +170,13 @@ const auth = {
                 if (adminMenu) adminMenu.classList.add('hidden');
                 if (bottomNav) bottomNav.style.display = window.innerWidth <= 768 ? 'flex' : 'none';
 
-                // Manager dapat menu tambahan untuk approval Cuti & Izin
+                // Manager & Asmen dapat menu tambahan untuk approval Cuti & Izin.
+                // 'asmen' belum pernah dikirim backend saat ini (masih 'manager'/'admin' saja) —
+                // baris ini disiapkan supaya begitu backend kirim roleTier 'asmen', menu otomatis muncul.
                 const managerApprovalNav = document.getElementById('nav-manager-approval');
                 if (managerApprovalNav) {
-                    managerApprovalNav.classList.toggle('hidden', !(this.currentUser && this.currentUser.role === 'manager'));
+                    const canApprove = this.currentUser && ['manager', 'asmen'].includes(this.currentUser.role);
+                    managerApprovalNav.classList.toggle('hidden', !canApprove);
                 }
 
                 // Navigate to employee dashboard
