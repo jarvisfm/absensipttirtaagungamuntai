@@ -1272,6 +1272,19 @@
         <div id="detail-karyawan-content" class="modal-form"></div>
     </div>
 </div>
+
+<!-- Modal Detail Cuti & Izin -->
+<div class="modal-overlay" id="modal-detail-leave" style="display:none;">
+    <div class="modal-container" style="max-width:520px;max-height:90vh;overflow-y:auto;">
+        <div class="modal-header">
+            <h3>Detail Pengajuan</h3>
+            <button class="btn-close-modal" onclick="document.getElementById('modal-detail-leave').style.display='none'">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div id="detail-leave-content" class="modal-form"></div>
+    </div>
+</div>
                 
                 <!-- Employees Page -->
                 <div class="page" id="page-employees">
@@ -1418,12 +1431,11 @@
                                     <thead>
                                         <tr>
                                             <th>Nama</th>
-                                            <th>Departemen</th>
+                                            <th>Jabatan</th>
                                             <th>Jenis</th>
                                             <th>Tanggal</th>
                                             <th>Durasi</th>
                                             <th>Alasan</th>
-                                            <th style="text-align:center;">Sisa Cuti</th> 
                                             <th>Status</th>
                                             <th>Aksi</th>
                                         </tr>
