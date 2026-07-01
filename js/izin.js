@@ -36,6 +36,11 @@ const izin = {
     },
 
     initForm() {
+        // Guard: cegah listener dobel kalau initForm() terpanggil ulang
+        // (terjadi setiap kali router membuka halaman Izin lagi)
+        if (this._formBound) return;
+        this._formBound = true;
+
         const form = document.getElementById('izin-form');
         const verifyBtn = document.getElementById('btn-verify-izin');
         const fileInput = document.getElementById('izin-document');
@@ -166,74 +171,82 @@ const izin = {
     },
 
     async submitIzinForm() {
-    // Validate form first
-    const type = document.getElementById('izin-type')?.value;
-    const date = document.getElementById('izin-date')?.value;
-    const duration = document.getElementById('izin-duration')?.value;
-    const reason = document.getElementById('izin-reason')?.value;
-    const isKeluarKantor = type === 'keluar_kantor';
-    const jamKeluar = document.getElementById('izin-jam-keluar')?.value;
-    const jamMasuk = document.getElementById('izin-jam-masuk')?.value;
-
-    if (!type || !date || !reason) {
-        toast.error('Harap isi semua field yang wajib diisi!');
-        return;
-    }
-    if (isKeluarKantor && (!jamKeluar || !jamMasuk)) {
-        toast.error('Harap isi Jam Keluar dan Jam Masuk!');
-        return;
-    }
-    if (!isKeluarKantor && !duration) {
-        toast.error('Harap isi Durasi!');
-        return;
-    }
-
-    const typeLabels = {
-        'sick': 'Sakit',
-        'permission': 'Izin Penting',
-        'emergency': 'Keadaan Darurat',
-        'keluar_kantor': 'Keluar Kantor'
-    };
-
-    const currentUser = auth.getCurrentUser();
-
-    const izinEntry = {
-        userId: currentUser?.id || 'demo-user',
-        type: type,
-        typeLabel: typeLabels[type] || type,
-        date: date,
-        duration: isKeluarKantor ? 0 : parseInt(duration),
-        reason: reason,
-        jamKeluar: isKeluarKantor ? jamKeluar : '',
-        jamMasuk: isKeluarKantor ? jamMasuk : '',
-        hasAttachment: !!this.currentFile
-    };
+    // Guard: cegah submit dobel (klik cepat 2x, atau listener yang sempat terpasang ulang)
+    if (this.isSubmitting) return;
+    this.isSubmitting = true;
 
     try {
-        const result = await api.submitIzin(izinEntry);
-        if (result.success) {
-            this.izinData.unshift(result.data);
-            if (this.currentFile) {
-                await this.uploadLampiranIzin(result.data.id, this.currentFile);
-            }
+        // Validate form first
+        const type = document.getElementById('izin-type')?.value;
+        const date = document.getElementById('izin-date')?.value;
+        const duration = document.getElementById('izin-duration')?.value;
+        const reason = document.getElementById('izin-reason')?.value;
+        const isKeluarKantor = type === 'keluar_kantor';
+        const jamKeluar = document.getElementById('izin-jam-keluar')?.value;
+        const jamMasuk = document.getElementById('izin-jam-masuk')?.value;
+
+        if (!type || !date || !reason) {
+            toast.error('Harap isi semua field yang wajib diisi!');
+            return;
         }
-    } catch (error) {
-        console.error('Error submitting izin:', error);
-        toast.error('Gagal mengirim pengajuan izin.');
-        return;
+        if (isKeluarKantor && (!jamKeluar || !jamMasuk)) {
+            toast.error('Harap isi Jam Keluar dan Jam Masuk!');
+            return;
+        }
+        if (!isKeluarKantor && !duration) {
+            toast.error('Harap isi Durasi!');
+            return;
+        }
+
+        const typeLabels = {
+            'sick': 'Sakit',
+            'permission': 'Izin Penting',
+            'emergency': 'Keadaan Darurat',
+            'keluar_kantor': 'Keluar Kantor'
+        };
+
+        const currentUser = auth.getCurrentUser();
+
+        const izinEntry = {
+            userId: currentUser?.id || 'demo-user',
+            type: type,
+            typeLabel: typeLabels[type] || type,
+            date: date,
+            duration: isKeluarKantor ? 0 : parseInt(duration),
+            reason: reason,
+            jamKeluar: isKeluarKantor ? jamKeluar : '',
+            jamMasuk: isKeluarKantor ? jamMasuk : '',
+            hasAttachment: !!this.currentFile
+        };
+
+        try {
+            const result = await api.submitIzin(izinEntry);
+            if (result.success) {
+                this.izinData.unshift(result.data);
+                if (this.currentFile) {
+                    await this.uploadLampiranIzin(result.data.id, this.currentFile);
+                }
+            }
+        } catch (error) {
+            console.error('Error submitting izin:', error);
+            toast.error('Gagal mengirim pengajuan izin.');
+            return;
+        }
+
+        this.currentFile = null;
+        toast.success('Pengajuan izin berhasil dikirim!');
+
+        // Reset form
+        const form = document.getElementById('izin-form');
+        if (form) form.reset();
+        this.toggleKeluarKantorFields('');
+        this.removeFile();
+
+        this.renderIzinList();
+        this.updateStats();
+    } finally {
+        this.isSubmitting = false;
     }
-
-    this.currentFile = null;
-    toast.success('Pengajuan izin berhasil dikirim!');
-
-    // Reset form
-    const form = document.getElementById('izin-form');
-    if (form) form.reset();
-    this.toggleKeluarKantorFields('');
-    this.removeFile();
-
-    this.renderIzinList();
-    this.updateStats();
 },
 
     async uploadLampiranIzin(id, file) {
@@ -306,6 +319,13 @@ const izin = {
                 'emergency': 'fa-exclamation-triangle',
                 'keluar_kantor': 'fa-door-open'
             };
+            const typeLabelFallback = {
+                'sick': 'Sakit',
+                'permission': 'Izin Penting',
+                'emergency': 'Keadaan Darurat',
+                'keluar_kantor': 'Izin Keluar Kantor'
+            };
+            const typeLabel = izin.typeLabel || typeLabelFallback[izin.type] || 'Izin';
 
             return `
                 <div class="izin-item">
@@ -314,7 +334,7 @@ const izin = {
                     </div>
                     <div class="izin-content">
                         <div class="izin-header-row">
-                            <h4 class="izin-type">${izin.typeLabel}</h4>
+                            <h4 class="izin-type">${typeLabel}</h4>
                             <span class="izin-status ${izin.status}">${this.getStatusLabel(izin.status)}</span>
                         </div>
                         <div class="izin-details">
