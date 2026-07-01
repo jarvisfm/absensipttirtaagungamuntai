@@ -40,7 +40,7 @@ const cuti = {
             form.addEventListener('submit', (e) => this.handleSubmit(e));
         }
 
-        // Auto-calculate duration when dates change
+        // Auto-calculate duration when dates change (masih bisa diedit manual oleh user)
         const startDate = document.getElementById('leave-start');
         const endDate = document.getElementById('leave-end');
         const duration = document.getElementById('leave-duration');
@@ -62,6 +62,15 @@ const cuti = {
 
         if (startDate) startDate.addEventListener('change', calculateDuration);
         if (endDate) endDate.addEventListener('change', calculateDuration);
+
+        // Sisa cuti hanya berlaku untuk Cuti Tahunan
+        const typeSelect = document.getElementById('leave-type');
+        const balanceHint = document.getElementById('leave-balance-hint');
+        if (typeSelect && balanceHint) {
+            typeSelect.addEventListener('change', () => {
+                balanceHint.style.display = typeSelect.value === 'annual' ? 'block' : 'none';
+            });
+        }
     },
 
     async handleSubmit(e) {
@@ -71,23 +80,31 @@ const cuti = {
         const startDate = document.getElementById('leave-start');
         const endDate = document.getElementById('leave-end');
         const reason = document.getElementById('leave-reason');
+        const durationInput = document.getElementById('leave-duration');
+        const address = document.getElementById('leave-address');
+        const phone = document.getElementById('leave-phone');
 
         if (!type.value || !startDate.value || !endDate.value || !reason.value) {
             toast.error('Semua field harus diisi!');
             return;
         }
 
-        // Calculate duration
+        // Durasi: pakai selisih tanggal, kecuali user sudah mengisi manual berbeda
         const start = new Date(startDate.value);
         const end = new Date(endDate.value);
-        const diffDays = Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1;
+        const calculatedDays = Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1;
+
+        const manualDays = parseInt((durationInput.value || '').replace(/[^0-9]/g, ''), 10);
+        const diffDays = (durationInput.value && !isNaN(manualDays) && manualDays > 0)
+            ? manualDays
+            : calculatedDays;
 
         if (diffDays <= 0) {
             toast.error('Tanggal selesai harus setelah tanggal mulai!');
             return;
         }
 
-        // Check balance for annual leave
+        // Sisa cuti hanya berlaku untuk Cuti Tahunan
         if (type.value === 'annual' && diffDays > this.leaveBalance) {
             toast.error('Sisa cuti tidak mencukupi!');
             return;
@@ -95,10 +112,11 @@ const cuti = {
 
         const typeLabels = {
             annual: 'Cuti Tahunan',
+            important: 'Cuti Alasan Penting',
             sick: 'Cuti Sakit',
-            important: 'Cuti Penting',
-            maternity: 'Cuti Melahirkan',
-            other: 'Lainnya'
+            besar: 'Cuti Besar',
+            maternity: 'Cuti Bersalin',
+            other: 'Keterangan Lain-lain'
         };
 
         const currentUser = auth.getCurrentUser();
@@ -110,7 +128,9 @@ const cuti = {
             startDate: startDate.value,
             endDate: endDate.value,
             duration: diffDays,
-            reason: reason.value
+            reason: reason.value,
+            address: address?.value || '',
+            phone: phone?.value || ''
         };
 
         try {
@@ -118,7 +138,7 @@ const cuti = {
             if (result.success) {
                 this.leaves.unshift(result.data);
 
-                // Deduct balance for annual leave
+                // Deduct balance for annual leave saja
                 if (type.value === 'annual') {
                     this.leaveBalance -= diffDays;
                     storage.set('leaveBalance', this.leaveBalance);
@@ -137,6 +157,8 @@ const cuti = {
         // Reset form
         e.target.reset();
         document.getElementById('leave-duration').value = '';
+        const balanceHint = document.getElementById('leave-balance-hint');
+        if (balanceHint) balanceHint.style.display = 'none';
 
         this.renderLeaveList();
         this.updateStats();
@@ -213,8 +235,9 @@ const cuti = {
 
             const icons = {
                 annual: 'fa-umbrella-beach',
+                important: 'fa-house-chimney',
                 sick: 'fa-heartbeat',
-                important: 'fa-home',
+                besar: 'fa-suitcase-rolling',
                 maternity: 'fa-baby',
                 other: 'fa-question-circle'
             };
