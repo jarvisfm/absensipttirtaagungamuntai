@@ -435,7 +435,7 @@ const printLetters = {
             <table class="letter-checkbox-table">
                 <tr>
                     <td>${checkbox(isType('annual'))} CUTI TAHUNAN</td>
-                    <td>${checkbox(false)} CUTI BESAR</td>
+                    <td>${checkbox(isType('besar'))} CUTI BESAR</td>
                 </tr>
                 <tr>
                     <td>${checkbox(isType('important'))} CUTI ALASAN PENTING</td>
@@ -462,9 +462,9 @@ const printLetters = {
                             value="${this._formatTanggalIndo(leave.endDate)}">
                     </td></tr>
                 <tr><td class="lbl">Alamat selama cuti</td><td class="sep">:</td>
-                    <td><input type="text" class="letter-input" placeholder="Isi alamat..."></td></tr>
+                    <td><input type="text" class="letter-input" value="${leave.address || ''}" placeholder="Isi alamat..."></td></tr>
                 <tr><td class="lbl">No. Telp/HP</td><td class="sep">:</td>
-                    <td><input type="text" class="letter-input" placeholder="Isi no. HP..."></td></tr>
+                    <td><input type="text" class="letter-input" value="${leave.phone || ''}" placeholder="Isi no. HP..."></td></tr>
             </table>
 
             <p style="text-align:right; margin-top:20px;">
