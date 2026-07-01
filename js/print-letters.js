@@ -89,8 +89,14 @@ const printLetters = {
     // ── Bagian isi yang sama untuk semua format Permohonan Izin ──
     _izinPermohonanTop(emp, izin) {
         const tgl       = izin.date    || izin.tanggal || '';
+        const tglEnd    = izin.dateEnd || '';
         const keperluan = izin.reason  || izin.alasan  || '';
         const durasi    = izin.duration || '......';
+
+        const tanggalValue = tglEnd
+            ? `${this._formatTanggalIndo(tgl)} s/d ${this._formatTanggalIndo(tglEnd)}`
+            : this._formatTanggalIndo(tgl);
+
         return `
             <h3 class="letter-title">SURAT PERMOHONAN IZIN</h3>
 
@@ -122,7 +128,7 @@ const printLetters = {
                 <tr>
                     <td class="lbl">Tanggal</td>
                     <td class="sep">:</td>
-                    <td><input type="text" class="letter-input" value="${this._formatTanggalIndo(tgl)}"></td>
+                    <td><input type="text" class="letter-input" value="${tanggalValue}"></td>
                 </tr>
                 <tr>
                     <td class="lbl">Keperluan</td>
@@ -149,8 +155,8 @@ const printLetters = {
     _ttdRow(label, subLabel, name, nik) {
         return `
             <td>
-                <p>${label}</p>
-                ${subLabel ? `<p>${subLabel}</p>` : ''}
+                <p style="margin:0 0 2px;">${label}</p>
+                <p style="margin:0 0 2px; min-height:1.4em;">${subLabel || '&nbsp;'}</p>
                 <div class="signature-space"></div>
                 <div class="signature-line"></div>
                 <p style="text-align:center; margin:4px 0 2px;">
