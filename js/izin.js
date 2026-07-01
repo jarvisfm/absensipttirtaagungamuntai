@@ -213,6 +213,9 @@ const izin = {
         const result = await api.submitIzin(izinEntry);
         if (result.success) {
             this.izinData.unshift(result.data);
+            if (this.currentFile) {
+                await this.uploadLampiranIzin(result.data.id, this.currentFile);
+            }
         }
     } catch (error) {
         console.error('Error submitting izin:', error);
@@ -232,6 +235,23 @@ const izin = {
     this.renderIzinList();
     this.updateStats();
 },
+
+    async uploadLampiranIzin(id, file) {
+        return new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onload = async (e) => {
+                const base64 = e.target.result.split(',')[1];
+                const mimeType = file.type;
+                try {
+                    await api.uploadFileIzin(id, base64, mimeType, file.name);
+                } catch (err) {
+                    console.error('Upload lampiran izin gagal:', err);
+                }
+                resolve();
+            };
+            reader.readAsDataURL(file);
+        });
+    },
 
     updateStats() {
         const pending = this.izinData.filter(i => i.status === 'pending').length;
