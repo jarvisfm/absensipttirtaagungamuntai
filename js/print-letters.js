@@ -59,14 +59,16 @@ const printLetters = {
     },
 
     
-    _letterHeader() {
+        _letterHeader() {
         return `
-            <div class="letter-kop">
-                <img src="assets/logo-taa.png" alt="Logo PT. Tirta Agung Amuntai" class="letter-kop-logo">
-                <div class="letter-kop-left">
-                    <div class="letter-kop-title">PT. TIRTA AGUNG AMUNTAI (PERSERODA)</div>
-                    <div class="letter-kop-divider"></div>
+            <div style="display:inline-block; width:100%;">
+                <div class="letter-kop">
+                    <img src="assets/logo-taa.png" alt="Logo PT. Tirta Agung Amuntai" class="letter-kop-logo">
+                    <div class="letter-kop-left">
+                        <div class="letter-kop-title">PT. TIRTA AGUNG AMUNTAI (PERSERODA)</div>
+                    </div>
                 </div>
+                <div class="letter-kop-divider"></div>
             </div>
             <div class="letter-kop-center-title">PT. TIRTA AGUNG AMUNTAI (PERSERODA)</div>
         `;
