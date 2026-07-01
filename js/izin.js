@@ -225,8 +225,6 @@ const izin = {
 
         const typeLabels = {
             'sick':         'Sakit',
-            'permission':   'Izin Penting',
-            'emergency':    'Keadaan Darurat',
             'izin_harian':  'Permohonan Izin Harian',
             'keluar_kantor':'Keluar Kantor'
         };
@@ -347,14 +345,14 @@ const izin = {
             
             const icons = {
                 'sick': 'fa-heartbeat',
-                'permission': 'fa-hand-paper',
-                'emergency': 'fa-exclamation-triangle',
+                'izin_harian': 'fa-file-alt',
                 'keluar_kantor': 'fa-door-open'
             };
             const typeLabelFallback = {
                 'sick': 'Sakit',
                 'permission': 'Izin Penting',
                 'emergency': 'Keadaan Darurat',
+                'izin_harian': 'Permohonan Izin Harian',
                 'keluar_kantor': 'Izin Keluar Kantor'
             };
             const typeLabel = izin.typeLabel || typeLabelFallback[izin.type] || 'Izin';
