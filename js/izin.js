@@ -348,10 +348,18 @@ const izin = {
                                 Lampiran tersedia
                             </span>
                         ` : ''}
+            
                         ${izin.status === 'approved' && izin.type === 'keluar_kantor' ? `
                             <div style="margin-top:8px;display:flex;gap:6px;">
                                 <button class="btn-small btn-outline" onclick="printLetters.openIzinKeluarKantor(${izin.id})">
                                     <i class="fas fa-print"></i> Cetak Surat Izin Keluar Kantor
+                                </button>
+                            </div>
+                        ` : ''}
+                        ${izin.status === 'approved' && izin.type === 'izin_harian' ? `
+                            <div style="margin-top:8px;display:flex;gap:6px;">
+                                <button class="btn-small btn-outline" onclick="printLetters.openIzinPermohonan(${izin.id})">
+                                    <i class="fas fa-print"></i> Cetak Surat Permohonan Izin
                                 </button>
                             </div>
                         ` : ''}
