@@ -118,19 +118,28 @@
 
 /* === Print === */
 @media print {
+    html, body { height: auto; overflow: visible; }
     body * { visibility: hidden; }
     .print-letter-overlay,
     .print-letter-overlay * { visibility: visible; }
-    .print-letter-overlay { position: absolute; inset: 0; background: #fff; }
+    .print-letter-overlay {
+        position: static;
+        inset: auto;
+        background: #fff;
+        overflow: visible;
+        height: auto;
+    }
     .no-print { display: none !important; }
     .print-letter-page {
         box-shadow: none; margin: 0;
         max-width: 100%;
-        min-height: unset;
-        height: auto;
+        min-height: 297mm;
+        height: 297mm;
+        overflow: hidden;
         page-break-after: avoid;
+        page-break-inside: avoid;
     }
-    .letter-footer-img-wrap { margin-top: 0; }
+    .letter-footer-img-wrap { margin-top: auto; }
     .letter-input,
     .letter-input-inline { border-bottom: 1px dotted #555 !important; }
     .letter-kop-img,
