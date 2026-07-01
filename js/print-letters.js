@@ -58,15 +58,16 @@ const printLetters = {
         document.body.style.overflow = '';
     },
 
+    
     _letterHeader() {
         return `
             <div class="letter-kop">
                 <img src="assets/logo-taa.png" alt="Logo PT. Tirta Agung Amuntai" class="letter-kop-logo">
                 <div class="letter-kop-left">
                     <div class="letter-kop-title">PT. TIRTA AGUNG AMUNTAI (PERSERODA)</div>
+                    <div class="letter-kop-divider"></div>
                 </div>
             </div>
-            <div class="letter-kop-divider"></div>
             <div class="letter-kop-center-title">PT. TIRTA AGUNG AMUNTAI (PERSERODA)</div>
         `;
     },
@@ -75,29 +76,35 @@ const printLetters = {
     // 1. SURAT IZIN KELUAR KANTOR
     // ============================================================
     openIzinKeluarKantor(izinId) {
-    const emp = this._getEmployee();
-    const izin = window.izin?.izinData?.find(i => i.id === izinId) || {};
-
+        const emp  = this._getEmployee();
+        const izin = window.izin?.izinData?.find(i => i.id == izinId) || {};
+    
+        // Cek field date — backend bisa simpan sebagai 'date' atau 'tanggal'
+        const tgl      = izin.date || izin.tanggal || '';
+        const keluar   = izin.jamKeluar || izin.jam_keluar || '';
+        const masuk    = izin.jamMasuk  || izin.jam_masuk  || '';
+        const keperluan = izin.reason   || izin.alasan      || '';
+    
         const html = `
             ${this._letterHeader()}
             <h3 class="letter-title">SURAT IZIN KELUAR KANTOR</h3>
-
+    
             <table class="letter-field-table">
-                <tr><td class="lbl">NAMA / NIK</td><td>:</td><td><input type="text" class="letter-input" value="${emp.name || ''} / ${emp.nik || ''}"></td></tr>
-                <tr><td class="lbl">PANGKAT / GOL</td><td>:</td><td><input type="text" class="letter-input" value="${emp.pangkat || ''} / ${emp.golongan || ''}"></td></tr>
-                <tr><td class="lbl">JABATAN</td><td>:</td><td><input type="text" class="letter-input" value="${emp.jabatan || ''}"></td></tr>
-                <tr><td class="lbl">UNIT KERJA</td><td>:</td><td><input type="text" class="letter-input" value="${emp.unitKerja || ''}"></td></tr>
-                <tr><td class="lbl">KEPERLUAN</td><td>:</td><td><input type="text" class="letter-input" value="${izin.reason || ''}"></td></tr>
-                <tr><td class="lbl">HARI / TGL</td><td>:</td><td><input type="text" class="letter-input" value="${this._formatTanggalIndo(izin.date)}"></td></tr>
-                <tr><td class="lbl">KELUAR JAM</td><td>:</td><td><input type="text" class="letter-input" value="${this._formatJam(izin.jamKeluar)}"></td></tr>
-                <tr><td class="lbl">MASUK JAM</td><td>:</td><td><input type="text" class="letter-input" value="${this._formatJam(izin.jamMasuk)}"></td></tr>
+                <tr><td class="lbl">NAMA / NIK</td><td class="sep">:</td><td><input type="text" class="letter-input" value="${emp.name || ''} / ${emp.nik || ''}"></td></tr>
+                <tr><td class="lbl">PANGKAT / GOL</td><td class="sep">:</td><td><input type="text" class="letter-input" value="${emp.pangkat || ''} / ${emp.golongan || ''}"></td></tr>
+                <tr><td class="lbl">JABATAN</td><td class="sep">:</td><td><input type="text" class="letter-input" value="${emp.jabatan || ''}"></td></tr>
+                <tr><td class="lbl">UNIT KERJA</td><td class="sep">:</td><td><input type="text" class="letter-input" value="${emp.unitKerja || ''}"></td></tr>
+                <tr><td class="lbl">KEPERLUAN</td><td class="sep">:</td><td><input type="text" class="letter-input" value="${keperluan}"></td></tr>
+                <tr><td class="lbl">HARI / TGL</td><td class="sep">:</td><td><input type="text" class="letter-input" value="${this._formatTanggalIndo(tgl)}"></td></tr>
+                <tr><td class="lbl">KELUAR JAM</td><td class="sep">:</td><td><input type="text" class="letter-input" value="${this._formatJam(keluar)}"></td></tr>
+                <tr><td class="lbl">MASUK JAM</td><td class="sep">:</td><td><input type="text" class="letter-input" value="${this._formatJam(masuk)}"></td></tr>
             </table>
-
-            <div class="letter-signoff-right">
+    
+            <div class="letter-signoff-block">
                 <p>Amuntai, ${this._formatTanggalIndo(new Date().toISOString())}</p>
                 <p>Direktur</p>
                 <div class="signature-space"></div>
-                <p class="signature-name"><input type="text" class="letter-input letter-input-center" value="${izin.directorName || ''}" placeholder="Nama Direktur"></p>
+                <p class="signature-name-underline">Muhammad Nasrullah, S. AB</p>
             </div>
         `;
         this._show(html);
