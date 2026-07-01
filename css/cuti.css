@@ -97,6 +97,13 @@
     padding-right: 40px;
 }
 
+.form-hint {
+    display: block;
+    margin-top: 4px;
+    font-size: 0.78rem;
+    color: var(--text-muted);
+}
+
 /* Summary Card */
 .cuti-summary-card {
     background: var(--bg-secondary);
