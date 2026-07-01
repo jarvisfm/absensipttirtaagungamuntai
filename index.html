@@ -745,9 +745,15 @@
                                         <select id="leave-type" required>
                                             <option value="">Pilih Jenis Cuti</option>
                                             <option value="annual">Cuti Tahunan</option>
-                                            <option value="maternity">Cuti Melahirkan</option>
-                                            <option value="other">Lainnya</option>
+                                            <option value="important">Cuti Alasan Penting</option>
+                                            <option value="sick">Cuti Sakit</option>
+                                            <option value="besar">Cuti Besar</option>
+                                            <option value="maternity">Cuti Bersalin</option>
+                                            <option value="other">Keterangan Lain-lain</option>
                                         </select>
+                                        <small class="form-hint" id="leave-balance-hint" style="display:none;">
+                                            Sisa cuti hanya berlaku untuk Cuti Tahunan
+                                        </small>
                                     </div>
                                     <div class="form-row two-col">
                                         <div class="form-group"><label for="leave-start">Tanggal Mulai</label><input
@@ -755,15 +761,22 @@
                                         <div class="form-group"><label for="leave-end">Tanggal Selesai</label><input
                                                 type="date" id="leave-end" required></div>
                                     </div>
-                                    <div class="form-group"><label for="leave-duration">Durasi</label><input type="text"
-                                            id="leave-duration" readonly placeholder="0 hari"></div>
-                                    <div class="form-group"><label for="leave-reason">Alasan Cuti</label><textarea
+                                    <div class="form-group"><label for="leave-duration">Jumlah Cuti (hari)</label><input type="text"
+                                            id="leave-duration" placeholder="Terisi otomatis, atau isi manual"></div>
+                                    <div class="form-group"><label for="leave-reason">Untuk Keperluan</label><textarea
                                             id="leave-reason" rows="3" placeholder="Jelaskan alasan pengajuan cuti..."
                                             required></textarea></div>
+                                    <div class="form-row two-col">
+                                        <div class="form-group"><label for="leave-address">Alamat Selama Cuti</label><input
+                                                type="text" id="leave-address" placeholder="Alamat yang dapat dihubungi..."></div>
+                                        <div class="form-group"><label for="leave-phone">Nomor Telpon/HP</label><input
+                                                type="text" id="leave-phone" placeholder="08xx-xxxx-xxxx"></div>
+                                    </div>
                                     <div class="form-actions"><button type="submit" class="btn-primary"><i
                                                 class="fas fa-paper-plane"></i><span>Ajukan Cuti</span></button></div>
                                 </form>
                             </div>
+
                             <div class="cuti-summary-card">
                                 <div class="card-header">
                                     <h3>Ringkasan Cuti</h3>
