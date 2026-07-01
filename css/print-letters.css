@@ -29,11 +29,11 @@
 .letter-kop-img { width: 100%; height: auto; display: block; }
 
 /* === Kop teks sederhana (khusus Surat Izin Keluar Kantor) === */
-.letter-kop { display: flex; align-items: center; gap: 12px; margin-bottom: 6px; }
+.letter-kop { display: flex; align-items: center; gap: 12px; margin-bottom: 6px; width: 70%;}
 .letter-kop-logo { width: 56px; height: 56px; object-fit: contain; }
 .letter-kop-left { flex: 1; }
 .letter-kop-title { font-weight: bold; font-size: 16px; letter-spacing: 0.5px; }
-.letter-kop-divider { border-top: 2px solid #111; margin-bottom: 14px; }
+.letter-kop-divider { border-top: 2px solid #111; margin-bottom: 14px; width: 70%; }
 .letter-kop-center-title { text-align: center; font-weight: bold; font-size: 15px; margin-bottom: 16px; }
 
 /* === Body === */
