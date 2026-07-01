@@ -187,19 +187,14 @@ const printLetters = {
         return Array(n).fill('<div class="letter-dotted-line"></div>').join('');
     },
 
-    // =============================================================
-    // 1. SURAT IZIN KELUAR KANTOR
-    // =============================================================
-    openIzinKeluarKantor(izinId) {
-        const emp  = this._getEmployee();
-        const izin = window.izin?.izinData?.find(i => i.id == izinId) || {};
-
-        const tgl       = izin.date      || izin.tanggal   || '';
+    // ── Bagian isi yang sama untuk semua format Izin Keluar Kantor ──
+    _izinKeluarKantorTop(emp, izin) {
+        const tgl       = izin.date      || izin.tanggal   || izin.dates || '';
         const keluar    = izin.jamKeluar || izin.jam_keluar || '';
         const masuk     = izin.jamMasuk  || izin.jam_masuk  || '';
         const keperluan = izin.reason    || izin.alasan     || '';
 
-        const html = `
+        return `
             <h3 class="letter-title">SURAT IZIN KELUAR KANTOR</h3>
 
             <table class="letter-field-table">
@@ -226,14 +221,133 @@ const printLetters = {
                         value="${this._formatJam(masuk)}"></td></tr>
             </table>
 
-            <div class="letter-signoff-block">
-                <p>Amuntai, ${this._formatTanggalIndo(new Date().toISOString())}</p>
-                <p>Direktur</p>
-                <div class="signature-space"></div>
-                <p class="signature-name-underline">Muhammad Nasrullah, S. AB</p>
+            <table class="letter-signoff-table" style="margin-top:20px;">
+                <tr>
+                    <td></td>
+                    <td>Amuntai, ${this._formatTanggalIndo(new Date().toISOString())}</td>
+                </tr>
+            </table>
+        `;
+    },
+
+    // =============================================================
+    // 1a. SURAT IZIN KELUAR KANTOR — FORMAT STAFF
+    //     Alur: Asmen bidang → Manajer bidang → Direktur
+    // =============================================================
+    _openIzinKeluarKantorStaff(emp, izin) {
+        const pertimbangan = izin.managerNote || '';
+        const keputusan    = izin.directorNote || '';
+        const asmenName    = izin.asmenName  || '';
+        const asmenNik     = izin.asmenNik   || '';
+
+        const html = `
+            ${this._izinKeluarKantorTop(emp, izin)}
+
+            <table class="letter-signoff-table" style="margin-top:24px;">
+                <tr>
+                    ${this._ttdRow('Diketahui Oleh :', 'Asmen', asmenName, asmenNik)}
+                    ${this._ttdRow('Yang Mengajukan Izin,', '', emp.name, emp.nik)}
+                </tr>
+            </table>
+
+            <table class="letter-signoff-table" style="margin-top:24px;">
+                <tr>
+                    <td style="vertical-align:top;">
+                        <p><strong>Pertimbangan :</strong></p>
+                        <p><strong>Manager Bidang</strong></p>
+                        <textarea class="letter-textarea" rows="5">${pertimbangan}</textarea>
+                    </td>
+                    <td style="vertical-align:top;">
+                        <p><strong>Keputusan Direktur :</strong></p>
+                        <textarea class="letter-textarea" rows="5">${keputusan}</textarea>
+                    </td>
+                </tr>
+            </table>
+        `;
+        this._show(html);
+    },
+
+    // =============================================================
+    // 1b. SURAT IZIN KELUAR KANTOR — FORMAT ASMEN
+    //     Alur: Manajer bidang → Manajer Umum & Kepegawaian → Direktur
+    // =============================================================
+    _openIzinKeluarKantorAsmen(emp, izin) {
+        const pertimbangan = izin.managerNote || '';
+        const keputusan    = izin.directorNote || '';
+        const mgrName      = izin.managerName || '';
+        const mgrNik       = izin.managerNik  || '';
+
+        const html = `
+            ${this._izinKeluarKantorTop(emp, izin)}
+
+            <table class="letter-signoff-table" style="margin-top:24px;">
+                <tr>
+                    ${this._ttdRow('Diketahui Oleh :', 'Manager', mgrName, mgrNik)}
+                    ${this._ttdRow('Yang Mengajukan Izin,', '', emp.name, emp.nik)}
+                </tr>
+            </table>
+
+            <table class="letter-signoff-table" style="margin-top:24px;">
+                <tr>
+                    <td style="vertical-align:top;">
+                        <p><strong>Pertimbangan :</strong></p>
+                        <p><strong>Manager Umum &amp; Kepegawaian</strong></p>
+                        <textarea class="letter-textarea" rows="5">${pertimbangan}</textarea>
+                    </td>
+                    <td style="vertical-align:top;">
+                        <p><strong>Keputusan Direktur :</strong></p>
+                        <textarea class="letter-textarea" rows="5">${keputusan}</textarea>
+                    </td>
+                </tr>
+            </table>
+        `;
+        this._show(html);
+    },
+
+    // =============================================================
+    // 1c. SURAT IZIN KELUAR KANTOR — FORMAT MANAJER
+    //     Alur: Direktur saja
+    // =============================================================
+    _openIzinKeluarKantorManajer(emp, izin) {
+        const keputusan = izin.directorNote || '';
+
+        const html = `
+            ${this._izinKeluarKantorTop(emp, izin)}
+
+            <table class="letter-signoff-table" style="margin-top:24px;">
+                <tr>
+                    <td></td>
+                    ${this._ttdRow('Yang Mengajukan Izin,', '', emp.name, emp.nik)}
+                </tr>
+            </table>
+
+            <div style="margin-top:24px;">
+                <p><strong>Keputusan Direktur :</strong></p>
+                <textarea class="letter-textarea" rows="5">${keputusan}</textarea>
             </div>
         `;
         this._show(html);
+    },
+
+    // =============================================================
+    // 1. ENTRY POINT — otomatis pilih format berdasarkan jabatan
+    //    empOverride/izinOverride: dipakai saat dipanggil dari modal
+    //    Admin (Rekap Cuti & Izin), karena di situ karyawan yang
+    //    login bukan si pemohon izin.
+    // =============================================================
+    openIzinKeluarKantor(izinId, empOverride, izinOverride) {
+        const emp  = empOverride || this._getEmployee();
+        const izin = izinOverride || window.izin?.izinData?.find(i => i.id == izinId) || {};
+
+        const format = this._getLetterFormat(emp.jabatan);
+
+        if (format === 'manajer') {
+            this._openIzinKeluarKantorManajer(emp, izin);
+        } else if (format === 'asmen') {
+            this._openIzinKeluarKantorAsmen(emp, izin);
+        } else {
+            this._openIzinKeluarKantorStaff(emp, izin);
+        }
     },
 
     // =============================================================
@@ -343,10 +457,13 @@ const printLetters = {
 
     // =============================================================
     // 2. ENTRY POINT — otomatis pilih format berdasarkan jabatan
+    //    empOverride/izinOverride: dipakai saat dipanggil dari modal
+    //    Admin (Rekap Cuti & Izin), karena di situ karyawan yang
+    //    login bukan si pemohon izin.
     // =============================================================
-    openIzinPermohonan(izinId) {
-        const emp  = this._getEmployee();
-        const izin = window.izin?.izinData?.find(i => i.id == izinId) || {};
+    openIzinPermohonan(izinId, empOverride, izinOverride) {
+        const emp  = empOverride || this._getEmployee();
+        const izin = izinOverride || window.izin?.izinData?.find(i => i.id == izinId) || {};
 
         const format = this._getLetterFormat(emp.jabatan);
 
