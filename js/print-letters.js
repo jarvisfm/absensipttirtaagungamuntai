@@ -61,7 +61,7 @@ const printLetters = {
     
         _letterHeader() {
         return `
-            <div style="display:inline-block; width:60%;">
+            <div style="display:inline-block; width:70%;">
                 <div class="letter-kop">
                     <img src="assets/logo-taa.png" alt="Logo PT. Tirta Agung Amuntai" class="letter-kop-logo">
                     <div class="letter-kop-left">
