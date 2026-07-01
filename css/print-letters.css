@@ -108,10 +108,6 @@
     vertical-align: top; padding: 0 8px;
 }
 
-.letter-signoff-right, .letter-signoff-right-text {
-    text-align: right; margin: 1.5rem 0 0.5rem;
-}
-
 /* === Print === */
 @media print {
     body * { visibility: hidden; }
@@ -121,8 +117,12 @@
     .no-print { display: none !important; }
     .print-letter-page {
         box-shadow: none; margin: 0;
-        max-width: 100%; min-height: 100vh;
+        max-width: 100%;
+        min-height: unset;
+        height: auto;
+        page-break-after: avoid;
     }
+    .letter-footer-img-wrap { margin-top: 0; }
     .letter-input,
     .letter-input-inline { border-bottom: 1px dotted #555 !important; }
     .letter-kop-img,
@@ -130,4 +130,5 @@
         -webkit-print-color-adjust: exact;
         print-color-adjust: exact;
     }
+    @page { margin: 0; size: A4 portrait; }
 }
