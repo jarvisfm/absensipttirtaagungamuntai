@@ -1062,10 +1062,7 @@ const adminReports = {
 
             <div style="margin-top:1rem;padding-top:1rem;border-top:1px solid var(--border-color);">
                 ${this._renderApprovalActions(row)}
-                <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:${this._canActOnStage(row) ? '10px' : '0'};">
-                    ${row.kind === 'izin' && (row.rawType === 'keluar_kantor' || row.rawType === 'izin_harian')
-                        ? `<button class="btn-secondary" style="font-size:0.85rem;" onclick="adminReports.printIzinLetter('${row.kind}','${row.id}')"><i class="fas fa-print"></i> Cetak Surat</button>`
-                        : ''}
+                <div style="display:flex;justify-content:flex-end;margin-top:${this._canActOnStage(row) ? '10px' : '0'};">
                     <button class="btn-secondary" style="font-size:0.85rem;" onclick="document.getElementById('modal-detail-leave').style.display='none'">Tutup</button>
                 </div>
             </div>
@@ -1073,44 +1070,6 @@ const adminReports = {
 
         document.getElementById('detail-leave-content').innerHTML = content;
         document.getElementById('modal-detail-leave').style.display = 'flex';
-    },
-
-    // Cetak surat langsung dari modal detail admin. Karena yang login
-    // di sini adalah admin (bukan si pemohon izin), data karyawan &
-    // izin diteruskan manual ke printLetters lewat parameter override.
-    printIzinLetter(kind, id) {
-        const row = this.leaveData.find(r => r.kind === kind && String(r.id) === String(id));
-        if (!row) { toast.error('Data tidak ditemukan'); return; }
-
-        const empRaw = (this.rawEmployees || []).find(e => String(e.id) === String(row.userId)) || {};
-        const emp = {
-            name:      empRaw.name || empRaw.nama || row.name,
-            nik:       empRaw.nik || '',
-            jabatan:   empRaw.jabatan || row.position,
-            pangkat:   empRaw.pangkat || '',
-            golongan:  empRaw.golongan || '',
-            unitKerja: empRaw.unitKerja || row.department
-        };
-        const izinOverride = {
-            date:         row.startDate || row.dates,
-            dateEnd:      row.dateEnd || '',
-            jamKeluar:    row.jamKeluar,
-            jamMasuk:     row.jamMasuk,
-            reason:       row.reason,
-            duration:     row.duration,
-            asmenName:    row.asmenName    || '',
-            asmenNik:     row.asmenNik     || '',
-            managerName:  row.managerName  || '',
-            managerNik:   row.managerNik   || '',
-            managerNote:  row.managerNote  || '',
-            directorNote: row.directorNote || ''
-        };
-
-        if (row.rawType === 'keluar_kantor') {
-            printLetters.openIzinKeluarKantor(row.id, emp, izinOverride);
-        } else {
-            printLetters.openIzinPermohonan(row.id, emp, izinOverride);
-        }
     }
 };
 
