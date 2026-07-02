@@ -466,7 +466,7 @@ const printLetters = {
                         <td>
                             <input type="text" class="letter-input-inline"
                                 value="${this._formatTanggalIndo(leave.startDate)}">
-                            s/d
+                            Sampai dengan tanggal
                             <input type="text" class="letter-input-inline"
                                 value="${this._formatTanggalIndo(leave.endDate)}">
                         </td></tr>
@@ -483,7 +483,11 @@ const printLetters = {
                     </div>
                 </div>
 
-                <table class="letter-signoff-table" style="margin-top:6px;">
+                    <table class="letter-signoff-table" style="margin-top:10px;">
+                    <tr>
+                        <td></td>
+                        <td style="text-align:right;">Amuntai, ${this._formatTanggalIndo(new Date().toISOString())}</td>
+                    </tr>
                     <tr>
                         <td>
                             <p>MENGETAHUI :</p>
