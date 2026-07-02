@@ -152,6 +152,14 @@
 .cuti-keputusan-table td:first-child { width: 55%; }
 .cuti-keputusan-table td:last-child { width: 45%; }
 
+/* Spacer lebar tetap agar checkbox DISETUJUI & DITUNDA sejajar persis,
+   tidak tergantung lebar teks "DIREKTUR PT.TAA :" */
+.keputusan-lbl {
+    display: inline-block;
+    width: 150px;
+}
+
+/* Baris "SAMPAI DENGAN : ....." sejajar 1 baris, tidak wrap ke bawah */
 .cuti-sampai-dengan {
     display: flex;
     align-items: center;
@@ -166,10 +174,10 @@
     .print-letter-overlay,
     .print-letter-overlay * { visibility: visible; }
     .print-letter-overlay {
-    position: static;
-    background: #fff;
-    overflow: visible;
-    height: auto;
+        position: static;
+        background: #fff;
+        overflow: visible;
+        height: auto;
     }
     .no-print { display: none !important; }
     .print-letter-page {
