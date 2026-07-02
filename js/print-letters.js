@@ -463,11 +463,11 @@ const printLetters = {
                         <td><input type="text" class="letter-input-inline" style="width:60px"
                             value="${leave.duration || ''}"> hari</td></tr>
                     <tr><td class="lbl">Dari Tanggal</td><td class="sep">:</td>
-                        <td>
-                            <input type="text" class="letter-input-inline"
+                        <td style="white-space:nowrap;">    
+                            <input type="text" class="letter-input-inline" style="width:110px"
                                 value="${this._formatTanggalIndo(leave.startDate)}">
                             Sampai dengan tanggal
-                            <input type="text" class="letter-input-inline"
+                            <input type="text" class="letter-input-inline" style="width:110px"
                                 value="${this._formatTanggalIndo(leave.endDate)}">
                         </td></tr>
                     <tr><td class="lbl" style="vertical-align:top;">Alamat yang dapat dihubungi selama cuti</td><td class="sep" style="vertical-align:top;">:</td>
@@ -479,7 +479,7 @@ const printLetters = {
                      <table class="letter-signoff-table" style="margin-top:10px;">
                          <tr>
                              <td></td>
-                             <td style="text-align:right;">Amuntai, ${this._formatTanggalIndo(new Date().toISOString())}</td>
+                             <td>Amuntai, ${this._formatTanggalIndo(new Date().toISOString())}</td>
                          </tr>
                     <tr>
                         <td>
