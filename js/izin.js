@@ -357,6 +357,10 @@ const izin = {
             };
             const typeLabel = izin.typeLabel || typeLabelFallback[izin.type] || 'Izin';
 
+            const durationText = izin.type === 'keluar_kantor'
+                ? this._hitungDurasiJam(izin.jamKeluar, izin.jamMasuk)
+                : `${izin.duration} hari`;
+
             return `
                 <div class="izin-item">
                     <div class="izin-icon ${izin.type}">
@@ -370,7 +374,7 @@ const izin = {
                         <div class="izin-details">
                             <span class="izin-date">
                                 <i class="fas fa-calendar"></i>
-                                ${dateFormatted} (${izin.duration} hari)
+                                ${dateFormatted} (${durationText})
                             </span>
                         </div>
                         <p class="izin-reason">${izin.reason}</p>
@@ -439,6 +443,22 @@ const izin = {
         } catch (error) {
             console.error('Error rejecting izin:', error);
         }
+    },
+
+    // Durasi Izin Keluar Kantor ditampilkan dalam jam/menit, bukan hari,
+    // karena field duration untuk tipe ini memang selalu 0 (lihat handleSubmit).
+    _hitungDurasiJam(jamKeluar, jamMasuk) {
+        if (!jamKeluar || !jamMasuk) return '-';
+        const [h1, m1] = jamKeluar.split(':').map(Number);
+        const [h2, m2] = jamMasuk.split(':').map(Number);
+        if ([h1, m1, h2, m2].some(n => isNaN(n))) return '-';
+        let totalMenit = (h2 * 60 + m2) - (h1 * 60 + m1);
+        if (totalMenit < 0) totalMenit += 24 * 60; // jaga-jaga kalau lintas tengah malam
+        const jam = Math.floor(totalMenit / 60);
+        const menit = totalMenit % 60;
+        if (jam === 0) return `${menit} menit`;
+        if (menit === 0) return `${jam} jam`;
+        return `${jam} jam ${menit} menit`;
     }
 };
 
