@@ -138,6 +138,8 @@ const adminReports = {
             arr.findIndex(x => String(x.id) === String(i.id)) === idx
         );
 
+        this.rawLeaves = uniqueLeaves;
+
         this.leaveData = [
             ...uniqueLeaves.map(l => {
                 let emp = employees.find(e => String(e.id) === String(l.userId));
@@ -152,8 +154,13 @@ const adminReports = {
                     department: emp.department || emp.unitKerja || '-',
                     position: emp.position || emp.jabatan || '-',
                     type: l.type === 'annual' ? 'Cuti Tahunan'
+                        : l.type === 'important' ? 'Cuti Alasan Penting'
+                        : l.type === 'sick' ? 'Cuti Sakit'
+                        : l.type === 'besar' ? 'Cuti Besar'
                         : l.type === 'maternity' ? 'Cuti Melahirkan'
+                        : l.type === 'other' ? 'Keterangan Lain-lain'
                         : (l.typeLabel || l.type || 'Cuti'),
+                    rawType: l.type || '',
                     dates: l.startDate && l.endDate
                         ? (l.startDate === l.endDate ? l.startDate : `${l.startDate} - ${l.endDate}`)
                         : (l.startDate || '-'),
@@ -1070,6 +1077,9 @@ const adminReports = {
                     ${row.kind === 'izin' && (row.rawType === 'keluar_kantor' || row.rawType === 'izin_harian')
                         ? `<button class="btn-secondary" style="font-size:0.85rem;" onclick="adminReports.printIzinLetter('${row.kind}','${row.id}')"><i class="fas fa-print"></i> Cetak Surat</button>`
                         : ''}
+                    ${row.kind === 'leave'
+                        ? `<button class="btn-secondary" style="font-size:0.85rem;" onclick="adminReports.printCutiLetter('${row.id}')"><i class="fas fa-print"></i> Cetak Surat</button>`
+                        : ''}
                     <button class="btn-secondary" style="font-size:0.85rem;" onclick="document.getElementById('modal-detail-leave').style.display='none'">Tutup</button>
                 </div>
             </div>
@@ -1115,6 +1125,41 @@ const adminReports = {
         } else {
             printLetters.openIzinPermohonan(row.id, emp, izinOverride);
         }
+    },
+
+    // Cetak Formulir Cuti langsung dari modal detail admin. Sama seperti
+    // printIzinLetter() di atas — data karyawan & cuti diteruskan manual
+    // lewat parameter override karena yang login adalah admin.
+    printCutiLetter(id) {
+        const row = this.leaveData.find(r => r.kind === 'leave' && String(r.id) === String(id));
+        if (!row) { toast.error('Data tidak ditemukan'); return; }
+
+        const leaveRaw = (this.rawLeaves || []).find(l => String(l.id) === String(id)) || {};
+        const empRaw = (this.rawEmployees || []).find(e => String(e.id) === String(row.userId)) || {};
+        const emp = {
+            name:      empRaw.name || empRaw.nama || row.name,
+            nik:       empRaw.nik || '',
+            jabatan:   empRaw.jabatan || row.position,
+            pangkat:   empRaw.pangkat || '',
+            golongan:  empRaw.golongan || '',
+            unitKerja: empRaw.unitKerja || row.department
+        };
+        const leaveOverride = {
+            type:         leaveRaw.type || '',
+            suratNumber:  leaveRaw.suratNumber || '',
+            reason:       row.reason,
+            duration:     row.duration,
+            startDate:    leaveRaw.startDate || row.startDate,
+            endDate:      leaveRaw.endDate   || row.startDate,
+            address:      leaveRaw.address     || '',
+            phone:        leaveRaw.phone       || '',
+            managerName:  leaveRaw.managerName || '',
+            managerNik:   leaveRaw.managerNik  || '',
+            managerNote:  leaveRaw.managerNote || '',
+            mgrUmumNote:  leaveRaw.mgrUmumNote || ''
+        };
+
+        printLetters.openCuti(row.id, emp, leaveOverride);
     }
 };
 
