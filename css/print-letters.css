@@ -148,8 +148,16 @@
 }
 
 .cuti-keputusan-table { width: 100%; border-collapse: collapse; }
-.cuti-keputusan-table td { vertical-align: top; padding: 3px 2px; }
-.cuti-keputusan-table td:first-child { width: 62%; }
+.cuti-keputusan-table td { vertical-align: top; padding: 3px 2px; white-space: nowrap; }
+.cuti-keputusan-table td:first-child { width: 55%; }
+.cuti-keputusan-table td:last-child { width: 45%; }
+
+.cuti-sampai-dengan {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+}
 
 /* === Print === */
 @media print {
