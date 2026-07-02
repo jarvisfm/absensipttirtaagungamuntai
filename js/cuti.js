@@ -227,10 +227,25 @@ const cuti = {
             return;
         }
 
-        // Sort by applied date descending
-        const sortedLeaves = filteredLeaves.sort((a, b) =>
-            new Date(b.appliedAt) - new Date(a.appliedAt)
-        );
+        // Sort by applied date descending. Fallback ke id (auto-increment di backend,
+        // jadi id lebih besar = lebih baru) untuk kasus appliedAt kosong/tidak valid,
+        // supaya urutan tetap benar walau data lama appliedAt-nya tidak tersimpan.
+        const sortedLeaves = filteredLeaves.sort((a, b) => {
+            const diff = new Date(b.appliedAt) - new Date(a.appliedAt);
+            if (!isNaN(diff) && diff !== 0) return diff;
+            return (Number(b.id) || 0) - (Number(a.id) || 0);
+        });
+
+        // Label & icon dihitung dari leave.type di sini (bukan field typeLabel dari
+        // server), supaya tidak tergantung apakah kolom typeLabel tersimpan di sheet.
+        const typeLabels = {
+            annual: 'Cuti Tahunan',
+            important: 'Cuti Alasan Penting',
+            sick: 'Cuti Sakit',
+            besar: 'Cuti Besar',
+            maternity: 'Cuti Bersalin',
+            other: 'Keterangan Lain-lain'
+        };
 
         list.innerHTML = sortedLeaves.map(leave => {
             const start = new Date(leave.startDate);
@@ -252,6 +267,8 @@ const cuti = {
                 other: 'fa-question-circle'
             };
 
+            const typeLabel = leave.typeLabel || typeLabels[leave.type] || 'Cuti';
+
             return `
                 <div class="leave-item">
                     <div class="leave-icon">
@@ -259,7 +276,7 @@ const cuti = {
                     </div>
                     <div class="leave-content">
                         <div class="leave-header">
-                            <h4 class="leave-type">${leave.typeLabel}</h4>
+                            <h4 class="leave-type">${typeLabel}</h4>
                             <span class="leave-status ${leave.status}">${this.getStatusLabel(leave.status)}</span>
                         </div>
                         <div class="leave-details">
