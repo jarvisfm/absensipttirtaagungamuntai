@@ -147,9 +147,9 @@
     font-size: 13px; font-weight: bold; line-height: 1;
 }
 
-.cuti-keputusan { display: flex; justify-content: space-between; gap: 24px; }
-.cuti-keputusan-left { flex: 1; }
-.cuti-keputusan-right { width: 220px; text-align: center; }
+.cuti-keputusan-table { width: 100%; border-collapse: collapse; }
+.cuti-keputusan-table td { vertical-align: top; padding: 3px 2px; }
+.cuti-keputusan-table td:first-child { width: 62%; }
 
 /* === Print === */
 @media print {
