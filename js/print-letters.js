@@ -406,9 +406,9 @@ const printLetters = {
     // =============================================================
     // 3. FORMULIR PERMOHONAN IZIN CUTI
     // =============================================================
-    openCuti(leaveId) {
-        const emp   = this._getEmployee();
-        const leave = window.cuti?.leaves?.find(l => l.id == leaveId) || {};
+    openCuti(leaveId, empOverride, leaveOverride) {
+        const emp   = empOverride || this._getEmployee();
+        const leave = leaveOverride || window.cuti?.leaves?.find(l => l.id == leaveId) || {};
 
         const chk    = (checked) => `<span class="cuti-chk${checked ? ' checked' : ''}"></span>`;
         const isType = (t) => leave.type === t;
