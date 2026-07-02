@@ -158,11 +158,10 @@
     .print-letter-overlay,
     .print-letter-overlay * { visibility: visible; }
     .print-letter-overlay {
-        position: fixed;
-        inset: 0;
-        background: #fff;
-        overflow: visible;
-        height: auto;
+    position: static;
+    background: #fff;
+    overflow: visible;
+    height: auto;
     }
     .no-print { display: none !important; }
     .print-letter-page {
