@@ -183,4 +183,11 @@
         print-color-adjust: exact;
     }
     @page { margin: 0; size: A4 portrait; }
+    /* Formulir Cuti lebih panjang dari surat lain -> perketat spacing biar muat 1 halaman */
+    .letter-body { padding: 10px 40px 14px; }
+    .cuti-box { padding: 4px 12px; }
+    .cuti-field-table td { padding: 1px 2px; }
+    .cuti-checkbox-cols { margin-bottom: 4px; }
+    .cuti-checkbox-cols label { margin-bottom: 3px; }
+    .signature-space { height: 40px; }
 }
