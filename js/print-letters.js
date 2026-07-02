@@ -476,18 +476,11 @@ const printLetters = {
                         <td><input type="text" class="letter-input" value="${leave.phone || ''}" placeholder="Isi no. HP..."></td></tr>
                 </table>
 
-                <div class="cuti-checkbox-cols" style="margin:10px 0 0;">
-                    <div class="col"></div>
-                    <div class="col" style="text-align:right;">
-                        Amuntai, ${this._formatTanggalIndo(new Date().toISOString())}
-                    </div>
-                </div>
-
-                    <table class="letter-signoff-table" style="margin-top:10px;">
-                    <tr>
-                        <td></td>
-                        <td style="text-align:right;">Amuntai, ${this._formatTanggalIndo(new Date().toISOString())}</td>
-                    </tr>
+                     <table class="letter-signoff-table" style="margin-top:10px;">
+                         <tr>
+                             <td></td>
+                             <td style="text-align:right;">Amuntai, ${this._formatTanggalIndo(new Date().toISOString())}</td>
+                         </tr>
                     <tr>
                         <td>
                             <p>MENGETAHUI :</p>
