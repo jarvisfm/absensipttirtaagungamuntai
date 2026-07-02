@@ -518,23 +518,27 @@ const printLetters = {
                 </table>
             </div>
 
-            <div class="cuti-box cuti-keputusan">
-                <div class="cuti-keputusan-left">
-                    <p style="margin:0 0 6px;"><span class="cuti-field-lbl">KEPUTUSAN</span>:</p>
-                    <p style="margin:0 0 6px;"><span class="cuti-field-lbl">DIREKTUR PT.TAA</span>:
-                        ${chk(leave.status === 'approved')} DISETUJUI
-                    </p>
-                    <div style="display:flex; align-items:baseline; margin:0; padding-left:176px; gap:6px;">
-                       ${chk(false)} <span style="white-space:nowrap;">DITUNDA sampai dengan</span>
-                       <input type="text" class="letter-input-inline" style="flex:1;">
-                    </div>
-                </div>
-                <div class="cuti-keputusan-right">
-                    <p style="margin:0 0 4px;">Tanda Tangan :</p>
-                    <div class="signature-space"></div>
-                    <div class="signature-line"></div>
-                </div>
-            </div>
+                        <div class="cuti-box">
+                 <table class="cuti-keputusan-table">
+                     <tr>
+                         <td>KEPUTUSAN :</td>
+                         <td>Tanda Tangan :</td>
+                     </tr>
+                     <tr>
+                         <td>DIREKTUR PT.TAA : ☐ DISETUJUI</td>
+                         <td></td>
+                     </tr>
+                     <tr>
+                         <td style="padding-left:176px;">☐ DITUNDA</td>
+                         <td>
+                             <div style="display:flex;...">
+                                 <span>Sampai dengan</span>
+                                 <input class="letter-input-inline" style="flex:1;">
+                             </div>
+                         </td>
+                     </tr>
+                 </table>
+             </div>
         `;
         this._show(html);
     }
