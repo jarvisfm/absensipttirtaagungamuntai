@@ -35,9 +35,15 @@ const cuti = {
     },
 
     initForm() {
+        // PENTING: halaman Cuti tidak di-render ulang setiap kali dibuka (router hanya
+        // toggle class 'active'), jadi elemen form-nya sama terus. Kalau listener
+        // dipasang lagi setiap initForm() dipanggil, submit form akan memicu
+        // handleSubmit() berkali-kali -> data cuti & notifikasi tercipta ganda.
+        // Guard dengan flag supaya listener hanya dipasang sekali.
         const form = document.getElementById('cuti-form');
-        if (form) {
+        if (form && !this._formListenerAttached) {
             form.addEventListener('submit', (e) => this.handleSubmit(e));
+            this._formListenerAttached = true;
         }
 
         // Auto-calculate duration when dates change (masih bisa diedit manual oleh user)
@@ -60,16 +66,20 @@ const cuti = {
             }
         };
 
-        if (startDate) startDate.addEventListener('change', calculateDuration);
-        if (endDate) endDate.addEventListener('change', calculateDuration);
+        if (startDate && endDate && !this._dateListenerAttached) {
+            startDate.addEventListener('change', calculateDuration);
+            endDate.addEventListener('change', calculateDuration);
+            this._dateListenerAttached = true;
+        }
 
         // Sisa cuti hanya berlaku untuk Cuti Tahunan
         const typeSelect = document.getElementById('leave-type');
         const balanceHint = document.getElementById('leave-balance-hint');
-        if (typeSelect && balanceHint) {
+        if (typeSelect && balanceHint && !this._typeListenerAttached) {
             typeSelect.addEventListener('change', () => {
                 balanceHint.style.display = typeSelect.value === 'annual' ? 'block' : 'none';
             });
+            this._typeListenerAttached = true;
         }
     },
 
