@@ -418,7 +418,7 @@ const printLetters = {
             <div class="cuti-box">
                 <table class="cuti-field-table">
                     <tr>
-                        <td class="lbl">NIK</td><td class="sep">:</td>
+                        <td class="lbl" style="width:70px;">NIK</td><td class="sep">:</td>
                         <td><input type="text" class="letter-input" value="${emp.nik || ''}"></td>
                         <td class="lbl" style="padding-left:1.5rem; width:120px;">UNIT/BAGIAN</td><td class="sep">:</td>
                         <td><input type="text" class="letter-input" value="${emp.jabatan || ''}"></td>
@@ -429,7 +429,7 @@ const printLetters = {
                         <td><input type="text" class="letter-input" value="${emp.unitKerja || ''}"></td>
                     </tr>
                     <tr>
-                        <td class="lbl">NAMA</td><td class="sep">:</td>
+                        <td class="lbl" style="width:70px;">NAMA</td><td class="sep">:</td>
                         <td><input type="text" class="letter-input" value="${emp.name || ''}"></td>
                         <td class="lbl" style="padding-left:1.5rem; width:120px;">PANGKAT/GOL</td><td class="sep">:</td>
                         <td><input type="text" class="letter-input"
