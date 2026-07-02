@@ -408,118 +408,135 @@ const printLetters = {
         const emp   = this._getEmployee();
         const leave = window.cuti?.leaves?.find(l => l.id == leaveId) || {};
 
-        const checkbox = (checked) => checked ? '☑' : '☐';
-        const isType   = (t) => leave.type === t;
+        const chk    = (checked) => `<span class="cuti-chk${checked ? ' checked' : ''}"></span>`;
+        const isType = (t) => leave.type === t;
 
         const html = `
             <h3 class="letter-title">FORMULIR PERMOHONAN IZIN CUTI</h3>
-            <p class="letter-center">No. ${leave.suratNumber || '851/...../..../PT.TAA/....'}</p>
+            <p class="letter-center" style="margin-top:-10px;">No. ${leave.suratNumber || '851/...../..../PT.TAA/....'}</p>
 
-            <table class="letter-field-table">
-                <tr>
-                    <td class="lbl">NIK</td><td class="sep">:</td>
-                    <td><input type="text" class="letter-input" value="${emp.nik || ''}"></td>
-                    <td class="lbl" style="padding-left:1.5rem;">UNIT/BAGIAN</td><td class="sep">:</td>
-                    <td><input type="text" class="letter-input" value="${emp.unitKerja || ''}"></td>
-                </tr>
-                <tr>
-                    <td class="lbl">NAMA</td><td class="sep">:</td>
-                    <td><input type="text" class="letter-input" value="${emp.name || ''}"></td>
-                    <td class="lbl" style="padding-left:1.5rem;">PANGKAT/GOL</td><td class="sep">:</td>
-                    <td><input type="text" class="letter-input"
-                        value="${emp.pangkat || ''} / ${emp.golongan || ''}"></td>
-                </tr>
-            </table>
+            <div class="cuti-box">
+                <table class="cuti-field-table">
+                    <tr>
+                        <td class="lbl">NIK</td><td class="sep">:</td>
+                        <td><input type="text" class="letter-input" value="${emp.nik || ''}"></td>
+                        <td class="lbl" style="padding-left:1.5rem;">UNIT/BAGIAN</td><td class="sep">:</td>
+                        <td><input type="text" class="letter-input" value="${emp.jabatan || ''}"></td>
+                    </tr>
+                    <tr>
+                        <td colspan="3"></td>
+                        <td class="lbl" style="padding-left:1.5rem;">UNIT KERJA</td><td class="sep">:</td>
+                        <td><input type="text" class="letter-input" value="${emp.unitKerja || ''}"></td>
+                    </tr>
+                    <tr>
+                        <td class="lbl">NAMA</td><td class="sep">:</td>
+                        <td><input type="text" class="letter-input" value="${emp.name || ''}"></td>
+                        <td class="lbl" style="padding-left:1.5rem;">PANGKAT/GOL</td><td class="sep">:</td>
+                        <td><input type="text" class="letter-input"
+                            value="${emp.pangkat || ''} / ${emp.golongan || ''}"></td>
+                    </tr>
+                </table>
+            </div>
 
-            <p><strong>MENGAJUKAN CUTI :</strong></p>
-            <table class="letter-checkbox-table">
-                <tr>
-                    <td>${checkbox(isType('annual'))} CUTI TAHUNAN</td>
-                    <td>${checkbox(isType('besar'))} CUTI BESAR</td>
-                </tr>
-                <tr>
-                    <td>${checkbox(isType('important'))} CUTI ALASAN PENTING</td>
-                    <td>${checkbox(isType('maternity'))} CUTI BERSALIN</td>
-                </tr>
-                <tr>
-                    <td>${checkbox(isType('sick'))} CUTI SAKIT</td>
-                    <td>${checkbox(isType('other'))} KETERANGAN LAIN-LAIN</td>
-                </tr>
-            </table>
+            <div class="cuti-box">
+                <div class="cuti-section-headers">
+                    <span>DATA KARYAWAN BERSANGKUTAN</span>
+                    <span>MENGAJUKAN CUTI :</span>
+                </div>
+                <div class="cuti-checkbox-cols">
+                    <div class="col">
+                        <label>${chk(isType('annual'))} CUTI TAHUNAN</label>
+                        <label>${chk(isType('important'))} CUTI ALASAN PENTING</label>
+                        <label>${chk(isType('sick'))} CUTI SAKIT</label>
+                    </div>
+                    <div class="col">
+                        <label>${chk(isType('besar'))} CUTI BESAR</label>
+                        <label>${chk(isType('maternity'))} CUTI BERSALIN</label>
+                        <label>${chk(isType('other'))} KETERANGAN LAIN-LAIN</label>
+                    </div>
+                </div>
 
-            <table class="letter-field-table">
-                <tr><td class="lbl">Untuk keperluan</td><td class="sep">:</td>
-                    <td><input type="text" class="letter-input" value="${leave.reason || ''}"></td></tr>
-                <tr><td class="lbl">Jumlah Cuti</td><td class="sep">:</td>
-                    <td><input type="text" class="letter-input-inline" style="width:60px"
-                        value="${leave.duration || ''}"> hari</td></tr>
-                <tr><td class="lbl">Dari Tanggal</td><td class="sep">:</td>
-                    <td>
-                        <input type="text" class="letter-input-inline"
-                            value="${this._formatTanggalIndo(leave.startDate)}">
-                        s/d
-                        <input type="text" class="letter-input-inline"
-                            value="${this._formatTanggalIndo(leave.endDate)}">
-                    </td></tr>
-                <tr><td class="lbl">Alamat selama cuti</td><td class="sep">:</td>
-                    <td><input type="text" class="letter-input" value="${leave.address || ''}" placeholder="Isi alamat..."></td></tr>
-                <tr><td class="lbl">No. Telp/HP</td><td class="sep">:</td>
-                    <td><input type="text" class="letter-input" value="${leave.phone || ''}" placeholder="Isi no. HP..."></td></tr>
-            </table>
+                <table class="cuti-field-table">
+                    <tr><td class="lbl">Untuk keperluan</td><td class="sep">:</td>
+                        <td><input type="text" class="letter-input" value="${leave.reason || ''}"></td></tr>
+                    <tr><td class="lbl">Jumlah Cuti</td><td class="sep">:</td>
+                        <td><input type="text" class="letter-input-inline" style="width:60px"
+                            value="${leave.duration || ''}"> hari</td></tr>
+                    <tr><td class="lbl">Dari Tanggal</td><td class="sep">:</td>
+                        <td>
+                            <input type="text" class="letter-input-inline"
+                                value="${this._formatTanggalIndo(leave.startDate)}">
+                            s/d
+                            <input type="text" class="letter-input-inline"
+                                value="${this._formatTanggalIndo(leave.endDate)}">
+                        </td></tr>
+                    <tr><td class="lbl" style="vertical-align:top;">Alamat yang dapat dihubungi selama cuti</td><td class="sep" style="vertical-align:top;">:</td>
+                        <td><input type="text" class="letter-input" value="${leave.address || ''}" placeholder="Isi alamat..."></td></tr>
+                    <tr><td class="lbl">Nomor Telpon/HP</td><td class="sep">:</td>
+                        <td><input type="text" class="letter-input" value="${leave.phone || ''}" placeholder="Isi no. HP..."></td></tr>
+                </table>
 
-            <p style="text-align:right; margin-top:20px;">
-                Amuntai, ${this._formatTanggalIndo(leave.appliedAt || new Date().toISOString())}
-            </p>
+                <p style="text-align:right; margin:14px 0 0;">
+                    Amuntai, ${this._formatTanggalIndo(leave.appliedAt || new Date().toISOString())}
+                </p>
 
-            <table class="letter-signoff-table">
-                <tr>
-                    <td>
-                        <p>MENGETAHUI :</p>
-                        <div class="signature-space"></div>
-                        <div class="signature-line"></div>
-                        <p style="text-align:center; margin:4px 0 2px;">
-                            <input type="text" class="letter-input letter-input-center"
-                                value="${leave.managerName || ''}" placeholder="......................">
-                        </p>
-                        <p style="text-align:center;">NIK. ${leave.managerNik || '63 08 ......'}</p>
-                    </td>
-                    <td>
-                        <p>YANG MEMOHON,</p>
-                        <div class="signature-space"></div>
-                        <div class="signature-line"></div>
-                        <p style="text-align:center; margin:4px 0 2px;">${emp.name || ''}</p>
-                        <p style="text-align:center;">NIK. ${emp.nik || ''}</p>
-                    </td>
-                </tr>
-            </table>
+                <table class="letter-signoff-table" style="margin-top:10px;">
+                    <tr>
+                        <td>
+                            <p>MENGETAHUI :</p>
+                            <div class="signature-space"></div>
+                            <div class="signature-line"></div>
+                            <p style="text-align:center; margin:4px 0 2px;">
+                                <input type="text" class="letter-input letter-input-center"
+                                    value="${leave.managerName || ''}" placeholder="......................">
+                            </p>
+                            <p style="text-align:center;">NIK. ${leave.managerNik || '63 08 ......'}</p>
+                        </td>
+                        <td>
+                            <p>YANG MEMOHON,</p>
+                            <div class="signature-space"></div>
+                            <div class="signature-line"></div>
+                            <p style="text-align:center; margin:4px 0 2px;">${emp.name || ''}</p>
+                            <p style="text-align:center;">NIK. ${emp.nik || ''}</p>
+                        </td>
+                    </tr>
+                </table>
+            </div>
 
-            <table class="letter-signoff-table" style="margin-top:24px;">
-                <tr>
-                    <td style="vertical-align:top;">
-                        <p><strong>CATATAN / PERTIMBANGAN :</strong></p>
-                        <textarea class="letter-textarea" rows="3">${leave.managerNote || ''}</textarea>
-                        <p style="margin-top:8px;"><strong>MANAGER UMUM &amp; KEPEG :</strong></p>
-                        <textarea class="letter-textarea" rows="2">${leave.mgrUmumNote || ''}</textarea>
-                    </td>
-                    <td style="vertical-align:top;">
-                        <p><strong>KEPUTUSAN DIREKTUR PT.TAA :</strong></p>
-                        <p>
-                            <label>${checkbox(leave.status === 'approved')} DISETUJUI</label>
-                            &nbsp;&nbsp;
-                            <label>${checkbox(false)} DITUNDA sampai dengan
-                                <input type="text" class="letter-input-inline" style="width:100px">
-                            </label>
-                        </p>
-                        <p>Tanda Tangan :</p>
-                        <div class="signature-space"></div>
-                        <div class="signature-line"></div>
-                        <p style="text-align:center; margin:4px 0 2px;">
-                            <input type="text" class="letter-input letter-input-center"
-                                value="${leave.directorName || ''}" placeholder="......................">
-                        </p>
-                    </td>
-                </tr>
-            </table>
+            <div class="cuti-box">
+                <table class="cuti-field-table">
+                    <tr><td class="lbl">CATATAN / PERTIMBANGAN</td><td class="sep">:</td>
+                        <td><input type="text" class="letter-input" value="${leave.managerNote || ''}"></td></tr>
+                    <tr><td class="lbl"></td><td class="sep">:</td>
+                        <td><input type="text" class="letter-input"></td></tr>
+                    <tr><td class="lbl" style="padding-top:14px;">MANAGER UMUM &amp; KEPEG</td><td class="sep" style="padding-top:14px;">:</td>
+                        <td style="padding-top:14px;"><input type="text" class="letter-input" value="${leave.mgrUmumNote || ''}"></td></tr>
+                    <tr><td class="lbl"></td><td class="sep">:</td>
+                        <td><input type="text" class="letter-input"></td></tr>
+                    <tr><td class="lbl"></td><td class="sep">:</td>
+                        <td><input type="text" class="letter-input"></td></tr>
+                </table>
+            </div>
+
+            <div class="cuti-box cuti-keputusan">
+                <div class="cuti-keputusan-left">
+                    <p style="margin:0 0 8px;"><span class="cuti-field-lbl">KEPUTUSAN</span>:</p>
+                    <p style="margin:0 0 8px;"><span class="cuti-field-lbl">DIREKTUR PT.TAA</span>:
+                        ${chk(leave.status === 'approved')} DISETUJUI
+                    </p>
+                    <p style="margin:0;">
+                        ${chk(false)} DITUNDA sampai dengan
+                        <input type="text" class="letter-input-inline" style="width:130px">
+                    </p>
+                </div>
+                <div class="cuti-keputusan-right">
+                    <p style="margin:0 0 4px;">Tanda Tangan :</p>
+                    <div class="signature-space"></div>
+                    <div class="signature-line"></div>
+                    <input type="text" class="letter-input letter-input-center"
+                        value="${leave.directorName || ''}" placeholder="......................">
+                </div>
+            </div>
         `;
         this._show(html);
     }
