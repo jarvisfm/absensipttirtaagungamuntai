@@ -50,7 +50,8 @@ const printLetters = {
         return overlay;
     },
 
-    _show(contentHtml) {
+        _show(contentHtml, options = {}) {
+        const showFooter = options.showFooter !== false; // default true, kecuali di-set false
         const overlay = this._ensureOverlay();
         overlay.innerHTML = `
             <div class="print-letter-toolbar no-print">
@@ -68,9 +69,10 @@ const printLetters = {
                 <div class="letter-body">
                     ${contentHtml}
                 </div>
+                ${showFooter ? `
                 <div class="letter-footer-img-wrap">
                     <img src="assets/footer-surat.jpeg" alt="Footer" class="letter-footer-img">
-                </div>
+                </div>` : ''}
             </div>
         `;
         overlay.classList.add('active');
@@ -518,7 +520,7 @@ const printLetters = {
                 </table>
             </div>
 
-                        <div class="cuti-box">
+            <div class="cuti-box">
                  <table class="cuti-keputusan-table">
                      <tr>
                          <td>KEPUTUSAN :</td>
@@ -531,16 +533,16 @@ const printLetters = {
                      <tr>
                          <td style="padding-left:176px;">☐ DITUNDA</td>
                          <td>
-                             <div style="display:flex;...">
-                                 <span>Sampai dengan</span>
-                                 <input class="letter-input-inline" style="flex:1;">
+                             <div class="cuti-sampai-dengan">
+                                 <span>SAMPAI DENGAN&nbsp;:</span>
+                                 <input type="text" class="letter-input-inline" style="flex:1; min-width:80px;">
                              </div>
                          </td>
                      </tr>
                  </table>
              </div>
         `;
-        this._show(html);
+        this._show(html, { showFooter: false });
     }
 };
 
