@@ -420,18 +420,18 @@ const printLetters = {
                     <tr>
                         <td class="lbl">NIK</td><td class="sep">:</td>
                         <td><input type="text" class="letter-input" value="${emp.nik || ''}"></td>
-                        <td class="lbl" style="padding-left:1.5rem;">UNIT/BAGIAN</td><td class="sep">:</td>
+                        <td class="lbl" style="padding-left:1.5rem; width:120px;">UNIT/BAGIAN</td><td class="sep">:</td>
                         <td><input type="text" class="letter-input" value="${emp.jabatan || ''}"></td>
                     </tr>
                     <tr>
                         <td colspan="3"></td>
-                        <td class="lbl" style="padding-left:1.5rem;">UNIT KERJA</td><td class="sep">:</td>
+                        <td class="lbl" style="padding-left:1.5rem; width:120px;">UNIT KERJA</td><td class="sep">:</td>
                         <td><input type="text" class="letter-input" value="${emp.unitKerja || ''}"></td>
                     </tr>
                     <tr>
                         <td class="lbl">NAMA</td><td class="sep">:</td>
                         <td><input type="text" class="letter-input" value="${emp.name || ''}"></td>
-                        <td class="lbl" style="padding-left:1.5rem;">PANGKAT/GOL</td><td class="sep">:</td>
+                        <td class="lbl" style="padding-left:1.5rem; width:120px;">PANGKAT/GOL</td><td class="sep">:</td>
                         <td><input type="text" class="letter-input"
                             value="${emp.pangkat || ''} / ${emp.golongan || ''}"></td>
                     </tr>
@@ -439,9 +439,9 @@ const printLetters = {
             </div>
 
             <div class="cuti-box">
-                <div class="cuti-section-headers">
-                    <span>DATA KARYAWAN BERSANGKUTAN</span>
-                    <span>MENGAJUKAN CUTI :</span>
+                <div class="cuti-checkbox-cols" style="margin-bottom:8px; font-weight:bold;">
+                    <div class="col">DATA KARYAWAN BERSANGKUTAN</div>
+                    <div class="col">MENGAJUKAN CUTI :</div>
                 </div>
                 <div class="cuti-checkbox-cols">
                     <div class="col">
@@ -466,7 +466,7 @@ const printLetters = {
                         <td>
                             <input type="text" class="letter-input-inline"
                                 value="${this._formatTanggalIndo(leave.startDate)}">
-                            Sampai dengan tanggal
+                            s/d
                             <input type="text" class="letter-input-inline"
                                 value="${this._formatTanggalIndo(leave.endDate)}">
                         </td></tr>
@@ -476,11 +476,14 @@ const printLetters = {
                         <td><input type="text" class="letter-input" value="${leave.phone || ''}" placeholder="Isi no. HP..."></td></tr>
                 </table>
 
-                <p style="text-align:right; margin:14px 0 0;">
-                    Amuntai, ${this._formatTanggalIndo(leave.appliedAt || new Date().toISOString())}
-                </p>
+                <div class="cuti-checkbox-cols" style="margin:10px 0 0;">
+                    <div class="col"></div>
+                    <div class="col" style="text-align:right;">
+                        Amuntai, ${this._formatTanggalIndo(new Date().toISOString())}
+                    </div>
+                </div>
 
-                <table class="letter-signoff-table" style="margin-top:10px;">
+                <table class="letter-signoff-table" style="margin-top:6px;">
                     <tr>
                         <td>
                             <p>MENGETAHUI :</p>
@@ -509,8 +512,8 @@ const printLetters = {
                         <td><input type="text" class="letter-input" value="${leave.managerNote || ''}"></td></tr>
                     <tr><td class="lbl"></td><td class="sep">:</td>
                         <td><input type="text" class="letter-input"></td></tr>
-                    <tr><td class="lbl" style="padding-top:14px;">MANAGER UMUM &amp; KEPEG</td><td class="sep" style="padding-top:14px;">:</td>
-                        <td style="padding-top:14px;"><input type="text" class="letter-input" value="${leave.mgrUmumNote || ''}"></td></tr>
+                    <tr><td class="lbl" style="padding-top:10px;">MANAGER UMUM &amp; KEPEG</td><td class="sep" style="padding-top:10px;">:</td>
+                        <td style="padding-top:10px;"><input type="text" class="letter-input" value="${leave.mgrUmumNote || ''}"></td></tr>
                     <tr><td class="lbl"></td><td class="sep">:</td>
                         <td><input type="text" class="letter-input"></td></tr>
                     <tr><td class="lbl"></td><td class="sep">:</td>
@@ -520,13 +523,13 @@ const printLetters = {
 
             <div class="cuti-box cuti-keputusan">
                 <div class="cuti-keputusan-left">
-                    <p style="margin:0 0 8px;"><span class="cuti-field-lbl">KEPUTUSAN</span>:</p>
-                    <p style="margin:0 0 8px;"><span class="cuti-field-lbl">DIREKTUR PT.TAA</span>:
+                    <p style="margin:0 0 6px;"><span class="cuti-field-lbl">KEPUTUSAN</span>:</p>
+                    <p style="margin:0 0 6px;"><span class="cuti-field-lbl">DIREKTUR PT.TAA</span>:
                         ${chk(leave.status === 'approved')} DISETUJUI
                     </p>
-                    <p style="margin:0;">
+                    <p style="margin:0; padding-left:180px;">
                         ${chk(false)} DITUNDA sampai dengan
-                        <input type="text" class="letter-input-inline" style="width:130px">
+                        <input type="text" class="letter-input-inline" style="width:120px">
                     </p>
                 </div>
                 <div class="cuti-keputusan-right">
