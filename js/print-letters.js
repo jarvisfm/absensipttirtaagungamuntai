@@ -142,7 +142,7 @@ const printLetters = {
         }
 
         const tanggalValue = tglEnd
-            ? `${this._formatTanggalIndo(tgl)} s/d ${this._formatTanggalIndo(tglEnd)}`
+            ? `${this._formatTanggalIndo(tgl)} Sampai dengan tanggal ${this._formatTanggalIndo(tglEnd)}`
             : this._formatTanggalIndo(tgl);
 
         return `
@@ -466,7 +466,7 @@ const printLetters = {
                         <td>
                             <input type="text" class="letter-input-inline"
                                 value="${this._formatTanggalIndo(leave.startDate)}">
-                            s/d
+                            Sampai dengan tanggal
                             <input type="text" class="letter-input-inline"
                                 value="${this._formatTanggalIndo(leave.endDate)}">
                         </td></tr>
