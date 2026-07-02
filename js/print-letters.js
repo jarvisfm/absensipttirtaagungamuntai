@@ -50,7 +50,7 @@ const printLetters = {
         return overlay;
     },
 
-        _show(contentHtml, options = {}) {
+    _show(contentHtml, options = {}) {
         const showFooter = options.showFooter !== false; // default true, kecuali di-set false
         const overlay = this._ensureOverlay();
         overlay.innerHTML = `
@@ -520,18 +520,18 @@ const printLetters = {
                 </table>
             </div>
 
-            <div class="cuti-box">
+                        <div class="cuti-box">
                  <table class="cuti-keputusan-table">
                      <tr>
                          <td>KEPUTUSAN :</td>
                          <td>Tanda Tangan :</td>
                      </tr>
                      <tr>
-                         <td>DIREKTUR PT.TAA : ☐ DISETUJUI</td>
+                         <td><span class="keputusan-lbl">DIREKTUR PT.TAA :</span> ☐ DISETUJUI</td>
                          <td></td>
                      </tr>
                      <tr>
-                         <td style="padding-left:176px;">☐ DITUNDA</td>
+                         <td><span class="keputusan-lbl">&nbsp;</span> ☐ DITUNDA</td>
                          <td>
                              <div class="cuti-sampai-dengan">
                                  <span>SAMPAI DENGAN&nbsp;:</span>
