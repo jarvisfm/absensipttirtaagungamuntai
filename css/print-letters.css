@@ -170,6 +170,11 @@
 /* === Print === */
 @media print {
     html, body { height: auto; overflow: visible; }
+    /* display:none (bukan hanya visibility:hidden) supaya elemen ini benar-benar
+       tidak memakan ruang tinggi dokumen -> mencegah halaman kosong ekstra saat print */
+    #login-container,
+    #app-container { display: none !important; }
+
     body * { visibility: hidden; }
     .print-letter-overlay,
     .print-letter-overlay * { visibility: visible; }
