@@ -524,17 +524,15 @@ const printLetters = {
                     <p style="margin:0 0 6px;"><span class="cuti-field-lbl">DIREKTUR PT.TAA</span>:
                         ${chk(leave.status === 'approved')} DISETUJUI
                     </p>
-                    <p style="margin:0; padding-left:180px;">
-                        ${chk(false)} DITUNDA sampai dengan
-                        <input type="text" class="letter-input-inline" style="width:120px">
-                    </p>
+                    <div style="display:flex; align-items:baseline; margin:0; padding-left:176px; gap:6px;">
+                       ${chk(false)} <span style="white-space:nowrap;">DITUNDA sampai dengan</span>
+                       <input type="text" class="letter-input-inline" style="flex:1;">
+                    </div>
                 </div>
                 <div class="cuti-keputusan-right">
                     <p style="margin:0 0 4px;">Tanda Tangan :</p>
                     <div class="signature-space"></div>
                     <div class="signature-line"></div>
-                    <input type="text" class="letter-input letter-input-center"
-                        value="${leave.directorName || ''}" placeholder="......................">
                 </div>
             </div>
         `;
