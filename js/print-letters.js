@@ -414,8 +414,8 @@ const printLetters = {
         const isType = (t) => leave.type === t;
 
         const html = `
-            <h3 class="letter-title">FORMULIR PERMOHONAN IZIN CUTI</h3>
-            <p class="letter-center" style="margin-top:-10px;">No. ${leave.suratNumber || '851/...../..../PT.TAA/....'}</p>
+            <h3 class="letter-title" style="margin-bottom:6px;">FORMULIR PERMOHONAN IZIN CUTI</h3>
+            <p class="letter-center" style="margin:0 0 14px;">No. ${leave.suratNumber || '851/...../..../PT.TAA/....'}</p>
 
             <div class="cuti-box">
                 <table class="cuti-field-table">
