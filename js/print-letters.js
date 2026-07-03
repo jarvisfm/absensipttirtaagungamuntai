@@ -486,8 +486,8 @@ const printLetters = {
                     <tr>
                         <td>
                             <p>MENGETAHUI :</p>
+                            <div class="letter-dotted-line" style="width:80%;"></div>
                             <div class="signature-space"></div>
-                            <div class="signature-line"></div>
                             <p style="text-align:center; margin:4px 0 2px;">
                                 <input type="text" class="letter-input letter-input-center"
                                     value="${leave.managerName || ''}" placeholder="......................">
@@ -497,7 +497,6 @@ const printLetters = {
                         <td>
                             <p>YANG MEMOHON,</p>
                             <div class="signature-space"></div>
-                            <div class="signature-line"></div>
                             <p style="text-align:center; margin:4px 0 2px;">${emp.name || ''}</p>
                             <p style="text-align:center;">NIK. ${emp.nik || ''}</p>
                         </td>
