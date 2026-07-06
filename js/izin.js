@@ -27,21 +27,23 @@ const izin = {
         this._setupAsmenDropdown();
     },
 
-    // Tampilkan & isi dropdown "Pilih Asmen" kalau user yang login role-nya staff.
+    // Muat daftar Asmen (kalau user role-nya staff). Visibilitas dropdown-nya
+    // sendiri diatur oleh _toggleAsmenGroup() berdasarkan Jenis Izin yang
+    // dipilih — Asmen penyetuju CUMA dipakai untuk Surat Permohonan Izin
+    // (izin_harian), bukan untuk Izin Keluar Kantor/Sakit/dll.
     async _setupAsmenDropdown() {
         const user = auth.getCurrentUser();
         const group = document.getElementById('izin-asmen-group');
         const select = document.getElementById('izin-asmen');
         if (!group || !select) return;
 
-        if (!user || user.role !== 'staff') {
+        this._userNeedsAsmen = !!(user && user.role === 'staff');
+
+        if (!this._userNeedsAsmen) {
             group.style.display = 'none';
             select.required = false;
             return;
         }
-
-        group.style.display = 'block';
-        select.required = true;
 
         try {
             const result = await api.getAsmenByBagian(user.bagian);
@@ -54,6 +56,22 @@ const izin = {
             console.error('Gagal memuat daftar Asmen:', error);
             select.innerHTML = '<option value="">Gagal memuat daftar Asmen</option>';
         }
+
+        // Sinkronkan visibilitas dengan Jenis Izin yang sedang dipilih saat ini
+        const currentType = document.getElementById('izin-type')?.value || '';
+        this._toggleAsmenGroup(currentType);
+    },
+
+    // Tampilkan/wajibkan dropdown Asmen HANYA saat Jenis Izin = izin_harian
+    // (Surat Permohonan Izin) DAN user yang login role-nya staff.
+    _toggleAsmenGroup(type) {
+        const group = document.getElementById('izin-asmen-group');
+        const select = document.getElementById('izin-asmen');
+        if (!group || !select) return;
+
+        const show = !!this._userNeedsAsmen && type === 'izin_harian';
+        group.style.display = show ? 'block' : 'none';
+        select.required = show;
     },
 
     async loadIzinData() {
@@ -171,6 +189,9 @@ const izin = {
         const isKeluarKantor = type === 'keluar_kantor';
         const isIzinHarian   = type === 'izin_harian';
 
+        // Asmen penyetuju cuma relevan untuk Surat Permohonan Izin (izin_harian)
+        this._toggleAsmenGroup(type);
+
         // Jam keluar/masuk — hanya untuk keluar_kantor
         if (jamRow) jamRow.style.display = isKeluarKantor ? 'flex' : 'none';
         if (jamKeluar) jamKeluar.required = isKeluarKantor;
@@ -278,7 +299,9 @@ const izin = {
         const asmenSelect = document.getElementById('izin-asmen');
         const asmenId = asmenSelect ? asmenSelect.value : '';
 
-        if (currentUser?.role === 'staff' && !asmenId) {
+        // Asmen penyetuju cuma wajib untuk Surat Permohonan Izin (izin_harian).
+        // Izin Keluar Kantor/Sakit/dll tidak butuh Asmen sama sekali.
+        if (currentUser?.role === 'staff' && isIzinHarian && !asmenId) {
             toast.error('Silakan pilih Asmen penyetuju!');
             return;
         }
@@ -306,7 +329,7 @@ const izin = {
             jamKeluar:     isKeluarKantor ? jamKeluar : '',
             jamMasuk:      isKeluarKantor ? jamMasuk  : '',
             hasAttachment: !!this.currentFile,
-            asmenId:       asmenId || ''
+            asmenId:       isIzinHarian ? (asmenId || '') : ''
         };
 
         try {
@@ -545,6 +568,12 @@ const izin = {
             });
         } else if (role === 'direktur') {
             filtered = data.filter(i => {
+                // Izin Keluar Kantor: alur sendiri, langsung ke Direktur begitu
+                // status masih pending — apapun jabatan pemohonnya (staff/asmen/manajer).
+                if (i.type === 'keluar_kantor') {
+                    return i.status === 'pending';
+                }
+
                 const pemohon = this._findEmployee(i.userId);
                 const pemohonRole = pemohon.role || 'staff';
                 const pemohonBagian = String(pemohon.bagian || '').toUpperCase().trim();
