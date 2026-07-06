@@ -171,26 +171,36 @@ const auth = {
                 if (adminMenu) adminMenu.classList.add('hidden');
                 if (bottomNav) bottomNav.style.display = window.innerWidth <= 768 ? 'flex' : 'none';
 
-                // Menu approval terpisah untuk tiap tahap: Asmen, Manajer, Direktur.
-                // Masing-masing hanya muncul untuk role yang sesuai.
-                const navApprovalAsmen = document.getElementById('nav-approval-asmen');
-                if (navApprovalAsmen) navApprovalAsmen.classList.toggle('hidden', !this.isAsmen());
-
-                const navApprovalManajer = document.getElementById('nav-approval-manajer');
-                if (navApprovalManajer) navApprovalManajer.classList.toggle('hidden', !this.isManajer());
-
-                const navApprovalDirektur = document.getElementById('nav-approval-direktur');
-                if (navApprovalDirektur) navApprovalDirektur.classList.toggle('hidden', !this.isDirektur());
-
                 // Navigate to employee dashboard
                 router.navigate('dashboard');
             }
+
+            // Menu approval terpisah untuk tiap tahap: Asmen, Manajer, Direktur.
+            // Dihitung ulang untuk SEMUA login (termasuk admin) — admin yang
+            // juga menjabat salah satu dari role tsb (dual role) tetap perlu
+            // melihat menu approval-nya begitu masuk Mode Karyawan.
+            this.updateApprovalMenuVisibility();
 
             // Initialize mobile
             if (window.mobile) {
                 window.mobile.handleResize();
             }
         }
+    },
+
+    // Tampilkan/sembunyikan item menu Approval Asmen/Manajer/Direktur sesuai
+    // jabatan user saat ini. Dipanggil dari showApp() (saat login) dan dari
+    // adminSwitch._applyEmployeeMode() (saat admin masuk Mode Karyawan),
+    // supaya statenya selalu segar dan tidak ada sisa state dari sesi sebelumnya.
+    updateApprovalMenuVisibility() {
+        const navApprovalAsmen = document.getElementById('nav-approval-asmen');
+        if (navApprovalAsmen) navApprovalAsmen.classList.toggle('hidden', !this.isAsmen());
+
+        const navApprovalManajer = document.getElementById('nav-approval-manajer');
+        if (navApprovalManajer) navApprovalManajer.classList.toggle('hidden', !this.isManajer());
+
+        const navApprovalDirektur = document.getElementById('nav-approval-direktur');
+        if (navApprovalDirektur) navApprovalDirektur.classList.toggle('hidden', !this.isDirektur());
     },
 
     showLogin() {
@@ -331,19 +341,27 @@ const auth = {
     // Role Bahasa Indonesia yang dipakai alur approval Izin bertingkat
     // (Asmen -> Manajer -> Direktur). Terpisah dari isManager() lama
     // ('manager' bahasa Inggris) yang masih dipakai skema Cuti.
+    //
+    // Sengaja TIDAK dibatasi oleh adminSwitchMode seperti isAdmin()/isManager():
+    // admin yang juga menjabat Asmen/Manajer/Direktur (dual role) harus tetap
+    // dikenali jabatan aslinya begitu masuk "Mode Karyawan", supaya antrean
+    // approval miliknya benar-benar muncul di halaman Approval Asmen/dst.
     isAsmen() {
-        if (sessionStorage.getItem('adminSwitchMode') === 'true') return false;
-        return this.currentUser && this.currentUser.role === 'asmen';
+        if (!this.currentUser) return false;
+        if (this.currentUser.role === 'asmen') return true;
+        return this.currentUser.role === 'admin' && this.currentUser.employeeRole === 'asmen';
     },
 
     isManajer() {
-        if (sessionStorage.getItem('adminSwitchMode') === 'true') return false;
-        return this.currentUser && this.currentUser.role === 'manajer';
+        if (!this.currentUser) return false;
+        if (this.currentUser.role === 'manajer') return true;
+        return this.currentUser.role === 'admin' && this.currentUser.employeeRole === 'manajer';
     },
 
     isDirektur() {
-        if (sessionStorage.getItem('adminSwitchMode') === 'true') return false;
-        return this.currentUser && this.currentUser.role === 'direktur';
+        if (!this.currentUser) return false;
+        if (this.currentUser.role === 'direktur') return true;
+        return this.currentUser.role === 'admin' && this.currentUser.employeeRole === 'direktur';
     },
 
     // Admin, Manager, Asmen, Manajer, atau Direktur - semua bisa approve
