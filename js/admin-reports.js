@@ -198,7 +198,18 @@ const adminReports = {
                     fileUrl: i.fileUrl || '',
                     reason: i.reason || i.alasan || '-',
                     status: i.status || 'pending',
-                    startDate: i.date || ''
+                    startDate: i.date || '',
+                    dateEnd: i.dateEnd || '',
+                    asmenId:        i.asmenId        || '',
+                    asmenName:      i.asmenName      || '',
+                    asmenNik:       i.asmenNik       || '',
+                    asmenNote:      i.asmenNote      || '',
+                    managerName:    i.managerName    || '',
+                    managerNik:     i.managerNik     || '',
+                    managerNote:    i.managerNote    || '',
+                    directorName:   i.directorName   || '',
+                    directorNik:    i.directorNik    || '',
+                    directorNote:   i.directorNote   || ''
                 };
             })
         ];
@@ -827,13 +838,16 @@ const adminReports = {
         return items.length ? `<div class="approval-history">${items.join('')}</div>` : '';
     },
 
-    // Rekap Cuti & Izin di panel Admin sengaja dijadikan HALAMAN HISTORI/RECAP
-    // SAJA — tidak ada aksi Setuju/Tolak di sini. Persetujuan dilakukan lewat
-    // halaman Approval Asmen / Approval Manajer / Approval Direktur masing-
-    // masing (termasuk oleh admin sendiri kalau dia dual-role, lewat "Mode
-    // Karyawan" — lihat auth.js: isAsmen()/isManajer()/isDirektur()).
+    // Sementara pakai auth.isManager()/isAdmin() sampai backend kirim data
+    // role+bidang approver per tahap untuk pencocokan yang presisi.
     _canActOnStage(row) {
-        return false;
+        if (this._isRowFinished(row)) return false;
+        const chain = this._approvalChainFor(row);
+        const idx = this._currentStageIndex(row, chain);
+        if (idx >= chain.length) return false;
+        const stageKey = chain[idx].key;
+        if (stageKey === 'direktur') return auth.isAdmin();
+        return auth.isManager() || auth.isAdmin();
     },
 
     // Form catatan wajib + tombol Setuju/Tolak (dipakai di dalam modal detail)
