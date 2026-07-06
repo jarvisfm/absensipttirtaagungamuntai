@@ -27,21 +27,23 @@ const izin = {
         this._setupAsmenDropdown();
     },
 
-    // Tampilkan & isi dropdown "Pilih Asmen" kalau user yang login role-nya staff.
+    // Muat daftar Asmen (kalau user role-nya staff). Visibilitas dropdown-nya
+    // sendiri diatur oleh _toggleAsmenGroup() berdasarkan Jenis Izin yang
+    // dipilih — Asmen penyetuju CUMA dipakai untuk Surat Permohonan Izin
+    // (izin_harian), bukan untuk Izin Keluar Kantor/Sakit/dll.
     async _setupAsmenDropdown() {
         const user = auth.getCurrentUser();
         const group = document.getElementById('izin-asmen-group');
         const select = document.getElementById('izin-asmen');
         if (!group || !select) return;
 
-        if (!user || user.role !== 'staff') {
+        this._userNeedsAsmen = !!(user && user.role === 'staff');
+
+        if (!this._userNeedsAsmen) {
             group.style.display = 'none';
             select.required = false;
             return;
         }
-
-        group.style.display = 'block';
-        select.required = true;
 
         try {
             const result = await api.getAsmenByBagian(user.bagian);
@@ -54,6 +56,22 @@ const izin = {
             console.error('Gagal memuat daftar Asmen:', error);
             select.innerHTML = '<option value="">Gagal memuat daftar Asmen</option>';
         }
+
+        // Sinkronkan visibilitas dengan Jenis Izin yang sedang dipilih saat ini
+        const currentType = document.getElementById('izin-type')?.value || '';
+        this._toggleAsmenGroup(currentType);
+    },
+
+    // Tampilkan/wajibkan dropdown Asmen HANYA saat Jenis Izin = izin_harian
+    // (Surat Permohonan Izin) DAN user yang login role-nya staff.
+    _toggleAsmenGroup(type) {
+        const group = document.getElementById('izin-asmen-group');
+        const select = document.getElementById('izin-asmen');
+        if (!group || !select) return;
+
+        const show = !!this._userNeedsAsmen && type === 'izin_harian';
+        group.style.display = show ? 'block' : 'none';
+        select.required = show;
     },
 
     async loadIzinData() {
@@ -152,6 +170,9 @@ const izin = {
 
         const isKeluarKantor = type === 'keluar_kantor';
         const isIzinHarian   = type === 'izin_harian';
+
+        // Asmen penyetuju cuma relevan untuk Surat Permohonan Izin (izin_harian)
+        this._toggleAsmenGroup(type);
 
         // Jam keluar/masuk — hanya untuk keluar_kantor
         if (jamRow) jamRow.style.display = isKeluarKantor ? 'flex' : 'none';
@@ -260,7 +281,9 @@ const izin = {
         const asmenSelect = document.getElementById('izin-asmen');
         const asmenId = asmenSelect ? asmenSelect.value : '';
 
-        if (currentUser?.role === 'staff' && !asmenId) {
+        // Asmen penyetuju cuma wajib untuk Surat Permohonan Izin (izin_harian).
+        // Izin Keluar Kantor/Sakit/dll tidak butuh Asmen sama sekali.
+        if (currentUser?.role === 'staff' && isIzinHarian && !asmenId) {
             toast.error('Silakan pilih Asmen penyetuju!');
             return;
         }
@@ -288,7 +311,7 @@ const izin = {
             jamKeluar:     isKeluarKantor ? jamKeluar : '',
             jamMasuk:      isKeluarKantor ? jamMasuk  : '',
             hasAttachment: !!this.currentFile,
-            asmenId:       asmenId || ''
+            asmenId:       isIzinHarian ? (asmenId || '') : ''
         };
 
         try {
@@ -337,10 +360,22 @@ const izin = {
         });
     },
 
+    // "Riwayat Pengajuan Izin" & statistik di halaman Izin/Sakit HARUS cuma
+    // menampilkan pengajuan MILIK SENDIRI. this.izinData bisa berisi SEMUA
+    // pengajuan (bukan cuma milik sendiri) kalau user yang login adalah
+    // approver (Asmen/Manajer/Direktur), karena loadIzinData() memanggil
+    // getAllIzin() untuk role tsb supaya bisa memproses antrean approval
+    // di halaman Approval Asmen/Manajer/Direktur.
+    _myIzinData() {
+        const user = auth.getCurrentUser();
+        return this.izinData.filter(i => String(i.userId) === String(user?.id));
+    },
+
     updateStats() {
-        const pending = this.izinData.filter(i => i.status === 'pending').length;
-        const approved = this.izinData.filter(i => i.status === 'approved').length;
-        const rejected = this.izinData.filter(i => i.status === 'rejected').length;
+        const mine = this._myIzinData();
+        const pending = mine.filter(i => i.status === 'pending').length;
+        const approved = mine.filter(i => i.status === 'approved').length;
+        const rejected = mine.filter(i => i.status === 'rejected').length;
 
         const pendingEl = document.getElementById('izin-pending-count');
         const approvedEl = document.getElementById('izin-approved-count');
@@ -355,8 +390,8 @@ const izin = {
         const list = document.getElementById('izin-list');
         if (!list) return;
 
-        // Filter izin data
-        let filteredData = this.izinData.filter(i => {
+        // Filter izin data — mulai dari milik sendiri saja, baru filter status
+        let filteredData = this._myIzinData().filter(i => {
             if (!this.filterStatus) return true;
             if (this.filterStatus === 'menunggu') return i.status === 'pending';
             if (this.filterStatus === 'disetujui') return i.status === 'approved';
@@ -492,12 +527,16 @@ const izin = {
         if (!list) return;
 
         const user = auth.getCurrentUser();
+        // Admin yang dual-role (juga Asmen/Manajer/dst) login dengan id dari
+        // tabel Users, sedangkan asmenId pada data Izin merujuk ke id tabel
+        // Employees — pakai employeeId (kalau ada) supaya pencocokan tepat.
+        const myEmployeeId = user?.employeeId || user?.id;
         let filtered = [];
 
         if (role === 'asmen') {
             // Hanya izin yang memang memilih Asmen ini sebagai penyetuju, status masih pending
             filtered = this.izinData.filter(i =>
-                i.status === 'pending' && String(i.asmenId) === String(user?.id)
+                i.status === 'pending' && String(i.asmenId) === String(myEmployeeId)
             );
         } else if (role === 'manajer') {
             // Sudah disetujui Asmen, dan izin itu dari bagian yang sama dengan Manajer ini
@@ -638,7 +677,13 @@ const izin = {
     async submitApproval(id, role, decision) {
         const catatan = document.getElementById('approval-catatan')?.value || '';
         const user = auth.getCurrentUser();
-        const approver = { id: user?.id, name: user?.name, nik: user?.nik, role: role, bagian: user?.bagian };
+        const approver = {
+            id: user?.employeeId || user?.id,
+            name: user?.name,
+            nik: user?.nik,
+            role: role,
+            bagian: user?.bagian
+        };
 
         try {
             const result = decision === 'approve'
