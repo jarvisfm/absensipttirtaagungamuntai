@@ -20,6 +20,12 @@ const adminSwitch = {
         // Terapkan tampilan mode karyawan
         this._applyEmployeeMode();
 
+        // PENTING: baru setelah flag di atas di-set, isAsmen()/isManajer()/isDirektur()
+        // bisa mengecek employeeRole dengan benar (untuk akun rangkap seperti Admin
+        // yang juga Asmen/Manajer). Tanpa panggilan ulang ini, menu Approval tidak
+        // akan muncul walau data karyawannya sudah benar.
+        auth.updateApprovalNav();
+
         // Navigasi ke dashboard karyawan
         router.navigate('dashboard');
 
@@ -40,6 +46,10 @@ const adminSwitch = {
 
         // Terapkan kembali tampilan admin
         this._applyAdminMode();
+
+        // Refresh juga status menu approval (balik ke false karena adminSwitchMode
+        // sudah dihapus dan role tingkat atas 'admin' bukan asmen/manajer/direktur)
+        auth.updateApprovalNav();
 
         // Navigasi ke dashboard admin
         router.navigate('admin-dashboard');
@@ -72,13 +82,6 @@ const adminSwitch = {
         if (banner)       banner.style.display = 'flex';
         if (switchBtn)    switchBtn.style.display = 'none';
         if (bottomNav && window.innerWidth <= 768) bottomNav.style.display = 'flex';
-
-        // Segarkan visibilitas menu Approval Asmen/Manajer/Direktur — admin
-        // yang juga menjabat salah satu peran itu (dual role) harus melihat
-        // menu approval-nya begitu masuk Mode Karyawan.
-        if (window.auth && auth.updateApprovalMenuVisibility) {
-            auth.updateApprovalMenuVisibility();
-        }
     },
 
     /**
