@@ -21,6 +21,39 @@ const izin = {
         if (dateInput) {
             dateInput.valueAsDate = new Date();
         }
+
+        // Dropdown "Pilih Asmen" hanya untuk role staff (lihat submitIzinData
+        // di backend - staff wajib pilih Asmen penyetuju sesuai bagiannya)
+        this._setupAsmenDropdown();
+    },
+
+    // Tampilkan & isi dropdown "Pilih Asmen" kalau user yang login role-nya staff.
+    async _setupAsmenDropdown() {
+        const user = auth.getCurrentUser();
+        const group = document.getElementById('izin-asmen-group');
+        const select = document.getElementById('izin-asmen');
+        if (!group || !select) return;
+
+        if (!user || user.role !== 'staff') {
+            group.style.display = 'none';
+            select.required = false;
+            return;
+        }
+
+        group.style.display = 'block';
+        select.required = true;
+
+        try {
+            const result = await api.getAsmenByBagian(user.bagian);
+            const list = result.data || [];
+            select.innerHTML = list.length
+                ? '<option value="">Pilih Asmen...</option>' +
+                  list.map(a => `<option value="${a.id}">${a.nama}</option>`).join('')
+                : '<option value="">Tidak ada Asmen untuk bagian ini</option>';
+        } catch (error) {
+            console.error('Gagal memuat daftar Asmen:', error);
+            select.innerHTML = '<option value="">Gagal memuat daftar Asmen</option>';
+        }
     },
 
     async loadIzinData() {
@@ -223,13 +256,20 @@ const izin = {
             return;
         }
 
+        const currentUser = auth.getCurrentUser();
+        const asmenSelect = document.getElementById('izin-asmen');
+        const asmenId = asmenSelect ? asmenSelect.value : '';
+
+        if (currentUser?.role === 'staff' && !asmenId) {
+            toast.error('Silakan pilih Asmen penyetuju!');
+            return;
+        }
+
         const typeLabels = {
             'sick':         'Sakit',
             'izin_harian':  'Permohonan Izin Harian',
             'keluar_kantor':'Keluar Kantor'
         };
-
-        const currentUser = auth.getCurrentUser();
 
         let computedDuration = isKeluarKantor ? 0 : parseInt(duration);
         if (isIzinHarian && dateStart && dateEnd) {
@@ -247,7 +287,8 @@ const izin = {
             reason:        reason,
             jamKeluar:     isKeluarKantor ? jamKeluar : '',
             jamMasuk:      isKeluarKantor ? jamMasuk  : '',
-            hasAttachment: !!this.currentFile
+            hasAttachment: !!this.currentFile,
+            asmenId:       asmenId || ''
         };
 
         try {
@@ -407,6 +448,8 @@ const izin = {
     getStatusLabel(status) {
         const labels = {
             'pending': 'Menunggu',
+            'asmen_approved': 'Disetujui Asmen',
+            'manajer_approved': 'Disetujui Manajer',
             'manager_approved': 'Disetujui Manager',
             'approved': 'Disetujui',
             'rejected': 'Ditolak'
@@ -414,34 +457,208 @@ const izin = {
         return labels[status] || status;
     },
 
-    // Admin functions
-    async approveIzin(id) {
-        if (!auth.isAdmin()) return;
+    // =========================================================
+    // APPROVAL BERTINGKAT: Asmen -> Manajer -> Direktur
+    // Dipanggil dari router saat halaman approval-asmen/manajer/direktur dibuka.
+    // =========================================================
+    async initApprovalPage(role) {
+        // Approver butuh data SEMUA izin (bukan cuma miliknya sendiri) supaya bisa
+        // melihat pengajuan staff lain. auth.isApprover() sudah true untuk role ini
+        // (lihat auth.js), jadi loadIzinData() otomatis panggil getAllIzin().
+        await this.loadIzinData();
+        await this._ensureEmployeesLoaded();
+        this.renderApprovalList(role);
+    },
 
+    // Cache daftar karyawan (untuk resolve nama/jabatan pemohon by userId),
+    // karena tabel Izin sendiri cuma menyimpan userId, bukan snapshot nama.
+    async _ensureEmployeesLoaded() {
+        if (this._employees) return;
         try {
-            await api.approveIzin(id);
-            const izin = this.izinData.find(i => i.id === id);
-            if (izin) { izin.status = 'approved'; }
-            this.renderIzinList();
-            this.updateStats();
-            toast.success('Pengajuan izin disetujui');
+            const result = await api.getKaryawanList();
+            this._employees = result.data || [];
         } catch (error) {
-            console.error('Error approving izin:', error);
+            console.error('Gagal memuat data karyawan:', error);
+            this._employees = [];
         }
     },
 
-    async rejectIzin(id) {
-        if (!auth.isAdmin()) return;
+    _findEmployee(userId) {
+        return (this._employees || []).find(e => String(e.id) === String(userId)) || {};
+    },
+
+    renderApprovalList(role) {
+        const list = document.getElementById(`approval-${role}-list`);
+        if (!list) return;
+
+        const user = auth.getCurrentUser();
+        let filtered = [];
+
+        if (role === 'asmen') {
+            // Hanya izin yang memang memilih Asmen ini sebagai penyetuju, status masih pending
+            filtered = this.izinData.filter(i =>
+                i.status === 'pending' && String(i.asmenId) === String(user?.id)
+            );
+        } else if (role === 'manajer') {
+            // Sudah disetujui Asmen, dan izin itu dari bagian yang sama dengan Manajer ini
+            filtered = this.izinData.filter(i =>
+                i.status === 'asmen_approved' && String(i.bagian) === String(user?.bagian)
+            );
+        } else if (role === 'direktur') {
+            // Tahap terakhir: semua bagian, yang sudah disetujui Manajer
+            filtered = this.izinData.filter(i => i.status === 'manajer_approved');
+        }
+
+        if (filtered.length === 0) {
+            list.innerHTML = `
+                <div class="empty-state" style="text-align:center;padding:var(--spacing-xl);color:var(--text-muted);">
+                    <i class="fas fa-inbox" style="font-size:3rem;margin-bottom:var(--spacing);"></i>
+                    <p>Tidak ada pengajuan yang menunggu persetujuan Anda saat ini</p>
+                </div>
+            `;
+            return;
+        }
+
+        const sorted = filtered.sort((a, b) => new Date(b.appliedAt) - new Date(a.appliedAt));
+
+        const typeLabelFallback = {
+            'sick': 'Sakit',
+            'permission': 'Izin Penting',
+            'emergency': 'Keadaan Darurat',
+            'izin_harian': 'Permohonan Izin Harian',
+            'keluar_kantor': 'Izin Keluar Kantor'
+        };
+
+        list.innerHTML = sorted.map(item => {
+            const emp = this._findEmployee(item.userId);
+            const typeLabel = item.typeLabel || typeLabelFallback[item.type] || 'Izin';
+            const dateFormatted = dateTime.formatDate(new Date(item.date), 'short');
+            const dateDisplay = item.dateEnd
+                ? `${dateFormatted} - ${dateTime.formatDate(new Date(item.dateEnd), 'short')}`
+                : dateFormatted;
+
+            return `
+                <div class="izin-item">
+                    <div class="izin-icon ${item.type}"><i class="fas fa-file-alt"></i></div>
+                    <div class="izin-content">
+                        <div class="izin-header-row">
+                            <h4 class="izin-type">${typeLabel}</h4>
+                            <span class="izin-status ${item.status}">${this.getStatusLabel(item.status)}</span>
+                        </div>
+                        <div class="izin-details">
+                            <span class="izin-date"><i class="fas fa-user"></i> ${emp.nama || 'Tidak diketahui'}</span>
+                        </div>
+                        <div class="izin-details">
+                            <span class="izin-date"><i class="fas fa-calendar"></i> ${dateDisplay}</span>
+                        </div>
+                        <p class="izin-reason">${item.reason || ''}</p>
+                        <div style="margin-top:8px;">
+                            <button class="btn-small btn-primary" onclick="izin.openApprovalModal(${item.id}, '${role}')">
+                                <i class="fas fa-eye"></i> Lihat &amp; Proses
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    },
+
+    openApprovalModal(id, role) {
+        const item = this.izinData.find(i => String(i.id) === String(id));
+        const modal = document.getElementById('modal-approval-izin');
+        const content = document.getElementById('approval-izin-content');
+        if (!item || !modal || !content) return;
+
+        const emp = this._findEmployee(item.userId);
+        const typeLabelFallback = {
+            'sick': 'Sakit',
+            'permission': 'Izin Penting',
+            'emergency': 'Keadaan Darurat',
+            'izin_harian': 'Permohonan Izin Harian',
+            'keluar_kantor': 'Izin Keluar Kantor'
+        };
+        const typeLabel = item.typeLabel || typeLabelFallback[item.type] || 'Izin';
+        const dateFormatted = dateTime.formatDate(new Date(item.date), 'short');
+        const dateDisplay = item.dateEnd
+            ? `${dateFormatted} - ${dateTime.formatDate(new Date(item.dateEnd), 'short')}`
+            : dateFormatted;
+
+        const infoRow = (icon, label, value) => `
+            <div style="display:flex;align-items:flex-start;gap:12px;padding:10px 0;border-bottom:1px solid var(--border-color);">
+                <div style="width:32px;height:32px;border-radius:8px;background:rgba(245,158,11,0.12);color:var(--color-primary);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                    <i class="fas ${icon}"></i>
+                </div>
+                <div style="flex:1;">
+                    <div style="font-size:0.72rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.02em;">${label}</div>
+                    <div style="font-size:0.9rem;font-weight:600;color:var(--text-primary);margin-top:2px;">${value}</div>
+                </div>
+            </div>`;
+
+        content.innerHTML = `
+            <div style="text-align:center;margin-bottom:1.25rem;">
+                <div style="width:56px;height:56px;border-radius:50%;background:rgba(245,158,11,0.12);color:var(--color-primary);display:flex;align-items:center;justify-content:center;font-size:1.4rem;margin:0 auto 10px;">
+                    <i class="fas fa-file-alt"></i>
+                </div>
+                <h3 style="font-size:1.05rem;margin-bottom:4px;">${typeLabel}</h3>
+                <span class="izin-status ${item.status}">${this.getStatusLabel(item.status)}</span>
+            </div>
+
+            ${infoRow('fa-user', 'Nama Karyawan', emp.nama || '-')}
+            ${infoRow('fa-briefcase', 'Jabatan', emp.jabatan || '-')}
+            ${infoRow('fa-calendar-day', 'Tanggal Izin', dateDisplay)}
+
+            <div style="margin-top:14px;">
+                <div style="font-size:0.72rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.02em;margin-bottom:6px;">Alasan</div>
+                <div style="background:var(--color-gray-50);border-radius:10px;padding:12px 14px;font-size:0.88rem;color:var(--text-primary);line-height:1.5;">${item.reason || '-'}</div>
+            </div>
+
+            <div class="form-group" style="margin-top:14px;">
+                <label for="approval-catatan">Catatan${role === 'asmen' ? ' (opsional)' : ''}</label>
+                <textarea id="approval-catatan" rows="3" placeholder="Tulis catatan/pertimbangan Anda di sini..."></textarea>
+            </div>
+
+            <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px;">
+                <button class="btn-secondary" onclick="izin.submitApproval(${item.id}, '${role}', 'reject')">
+                    <i class="fas fa-times"></i> Tolak
+                </button>
+                <button class="btn-primary" onclick="izin.submitApproval(${item.id}, '${role}', 'approve')">
+                    <i class="fas fa-check"></i> Setuju
+                </button>
+            </div>
+        `;
+
+        modal.style.display = 'flex';
+    },
+
+    closeApprovalModal() {
+        const modal = document.getElementById('modal-approval-izin');
+        if (modal) modal.style.display = 'none';
+    },
+
+    async submitApproval(id, role, decision) {
+        const catatan = document.getElementById('approval-catatan')?.value || '';
+        const user = auth.getCurrentUser();
+        const approver = { id: user?.id, name: user?.name, nik: user?.nik, role: role, bagian: user?.bagian };
 
         try {
-            await api.rejectIzin(id);
-            const izin = this.izinData.find(i => i.id === id);
-            if (izin) { izin.status = 'rejected'; }
-            this.renderIzinList();
-            this.updateStats();
-            toast.info('Pengajuan izin ditolak');
+            const result = decision === 'approve'
+                ? await api.approveIzin(id, approver, catatan)
+                : await api.rejectIzin(id, approver, catatan);
+
+            if (!result.success) {
+                toast.error(result.error || 'Gagal memproses pengajuan');
+                return;
+            }
+
+            const idx = this.izinData.findIndex(i => String(i.id) === String(id));
+            if (idx > -1) this.izinData[idx] = { ...this.izinData[idx], ...result.data };
+
+            this.closeApprovalModal();
+            this.renderApprovalList(role);
+            toast.success(decision === 'approve' ? 'Pengajuan disetujui' : 'Pengajuan ditolak');
         } catch (error) {
-            console.error('Error rejecting izin:', error);
+            console.error('Error submitApproval:', error);
+            toast.error('Terjadi kesalahan, silakan coba lagi.');
         }
     },
 
