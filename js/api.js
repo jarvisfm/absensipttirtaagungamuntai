@@ -192,7 +192,7 @@ const api = {
         return this.request('submitIzin', data);
     },
 
-    async approveIzin(id, approver) {
+    async approveIzin(id, approver, catatan) {
         if (!API_BASE_URL) {
             const all = storage.get('izin', []);
             const item = all.find(i => i.id === id);
@@ -208,17 +208,17 @@ const api = {
             }
             return { success: true, data: item };
         }
-        return this.request('approveIzin', { id, approver });
+        return this.request('approveIzin', { id, approver, catatan });
     },
 
-    async rejectIzin(id, approver) {
+    async rejectIzin(id, approver, catatan) {
         if (!API_BASE_URL) {
             const all = storage.get('izin', []);
             const item = all.find(i => i.id === id);
             if (item) { item.status = 'rejected'; storage.set('izin', all); }
             return { success: true, data: item };
         }
-        return this.request('rejectIzin', { id, approver });
+        return this.request('rejectIzin', { id, approver, catatan });
     },
 
     async getAllIzin() {
@@ -226,6 +226,15 @@ const api = {
             return { success: true, data: storage.get('izin', []) };
         }
         return this.request('getAllIzin');
+    },
+
+    // Ambil daftar Asmen untuk 1 bagian tertentu, dipakai di dropdown "Pilih Asmen"
+    // saat staff mengajukan izin.
+    async getAsmenByBagian(bagian) {
+        if (!API_BASE_URL) {
+            return { success: true, data: [] };
+        }
+        return this.request('getAsmenByBagian', { bagian });
     },
 
     // ========== JOURNALS (JURNAL KERJA) ==========
