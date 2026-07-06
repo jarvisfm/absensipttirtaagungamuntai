@@ -80,6 +80,7 @@ const auth = {
                     username: result.data.username,
                     name: result.data.name,
                     role: result.data.role,
+                    employeeRole: result.data.employeeRole || '',
                     department: result.data.department || '',
                     position: result.data.position || '',
                     shift: result.data.shift || '',
@@ -171,36 +172,26 @@ const auth = {
                 if (adminMenu) adminMenu.classList.add('hidden');
                 if (bottomNav) bottomNav.style.display = window.innerWidth <= 768 ? 'flex' : 'none';
 
+                // Menu approval terpisah untuk tiap tahap: Asmen, Manajer, Direktur.
+                // Masing-masing hanya muncul untuk role yang sesuai.
+                const navApprovalAsmen = document.getElementById('nav-approval-asmen');
+                if (navApprovalAsmen) navApprovalAsmen.classList.toggle('hidden', !this.isAsmen());
+
+                const navApprovalManajer = document.getElementById('nav-approval-manajer');
+                if (navApprovalManajer) navApprovalManajer.classList.toggle('hidden', !this.isManajer());
+
+                const navApprovalDirektur = document.getElementById('nav-approval-direktur');
+                if (navApprovalDirektur) navApprovalDirektur.classList.toggle('hidden', !this.isDirektur());
+
                 // Navigate to employee dashboard
                 router.navigate('dashboard');
             }
-
-            // Menu approval terpisah untuk tiap tahap: Asmen, Manajer, Direktur.
-            // Dihitung ulang untuk SEMUA login (termasuk admin) — admin yang
-            // juga menjabat salah satu dari role tsb (dual role) tetap perlu
-            // melihat menu approval-nya begitu masuk Mode Karyawan.
-            this.updateApprovalMenuVisibility();
 
             // Initialize mobile
             if (window.mobile) {
                 window.mobile.handleResize();
             }
         }
-    },
-
-    // Tampilkan/sembunyikan item menu Approval Asmen/Manajer/Direktur sesuai
-    // jabatan user saat ini. Dipanggil dari showApp() (saat login) dan dari
-    // adminSwitch._applyEmployeeMode() (saat admin masuk Mode Karyawan),
-    // supaya statenya selalu segar dan tidak ada sisa state dari sesi sebelumnya.
-    updateApprovalMenuVisibility() {
-        const navApprovalAsmen = document.getElementById('nav-approval-asmen');
-        if (navApprovalAsmen) navApprovalAsmen.classList.toggle('hidden', !this.isAsmen());
-
-        const navApprovalManajer = document.getElementById('nav-approval-manajer');
-        if (navApprovalManajer) navApprovalManajer.classList.toggle('hidden', !this.isManajer());
-
-        const navApprovalDirektur = document.getElementById('nav-approval-direktur');
-        if (navApprovalDirektur) navApprovalDirektur.classList.toggle('hidden', !this.isDirektur());
     },
 
     showLogin() {
@@ -342,26 +333,31 @@ const auth = {
     // (Asmen -> Manajer -> Direktur). Terpisah dari isManager() lama
     // ('manager' bahasa Inggris) yang masih dipakai skema Cuti.
     //
-    // Sengaja TIDAK dibatasi oleh adminSwitchMode seperti isAdmin()/isManager():
-    // admin yang juga menjabat Asmen/Manajer/Direktur (dual role) harus tetap
-    // dikenali jabatan aslinya begitu masuk "Mode Karyawan", supaya antrean
-    // approval miliknya benar-benar muncul di halaman Approval Asmen/dst.
+    // Catatan khusus akun rangkap (misal admin yang juga Asmen/Manajer,
+    // seperti M. Azemi): saat login sebagai Admin, currentUser.role selalu
+    // 'admin'. Jabatan aslinya (asmen/manajer/direktur) disimpan terpisah di
+    // currentUser.employeeRole (lihat Auth.gs). Begitu admin masuk "Mode
+    // Karyawan", kita cek employeeRole itu - BUKAN role - supaya menu
+    // approval yang sesuai muncul.
     isAsmen() {
-        if (!this.currentUser) return false;
-        if (this.currentUser.role === 'asmen') return true;
-        return this.currentUser.role === 'admin' && this.currentUser.employeeRole === 'asmen';
+        if (sessionStorage.getItem('adminSwitchMode') === 'true') {
+            return this.currentUser && this.currentUser.employeeRole === 'asmen';
+        }
+        return this.currentUser && this.currentUser.role === 'asmen';
     },
 
     isManajer() {
-        if (!this.currentUser) return false;
-        if (this.currentUser.role === 'manajer') return true;
-        return this.currentUser.role === 'admin' && this.currentUser.employeeRole === 'manajer';
+        if (sessionStorage.getItem('adminSwitchMode') === 'true') {
+            return this.currentUser && this.currentUser.employeeRole === 'manajer';
+        }
+        return this.currentUser && this.currentUser.role === 'manajer';
     },
 
     isDirektur() {
-        if (!this.currentUser) return false;
-        if (this.currentUser.role === 'direktur') return true;
-        return this.currentUser.role === 'admin' && this.currentUser.employeeRole === 'direktur';
+        if (sessionStorage.getItem('adminSwitchMode') === 'true') {
+            return this.currentUser && this.currentUser.employeeRole === 'direktur';
+        }
+        return this.currentUser && this.currentUser.role === 'direktur';
     },
 
     // Admin, Manager, Asmen, Manajer, atau Direktur - semua bisa approve
