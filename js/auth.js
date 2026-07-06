@@ -172,20 +172,18 @@ const auth = {
                 if (adminMenu) adminMenu.classList.add('hidden');
                 if (bottomNav) bottomNav.style.display = window.innerWidth <= 768 ? 'flex' : 'none';
 
-                // Menu approval terpisah untuk tiap tahap: Asmen, Manajer, Direktur.
-                // Masing-masing hanya muncul untuk role yang sesuai.
-                const navApprovalAsmen = document.getElementById('nav-approval-asmen');
-                if (navApprovalAsmen) navApprovalAsmen.classList.toggle('hidden', !this.isAsmen());
-
-                const navApprovalManajer = document.getElementById('nav-approval-manajer');
-                if (navApprovalManajer) navApprovalManajer.classList.toggle('hidden', !this.isManajer());
-
-                const navApprovalDirektur = document.getElementById('nav-approval-direktur');
-                if (navApprovalDirektur) navApprovalDirektur.classList.toggle('hidden', !this.isDirektur());
-
                 // Navigate to employee dashboard
                 router.navigate('dashboard');
             }
+
+            // Menu approval terpisah untuk tiap tahap: Asmen, Manajer, Direktur.
+            // Dipanggil di LUAR if/else di atas (bukan cuma di cabang employee),
+            // karena akun rangkap seperti Admin yang juga Asmen/Manajer punya
+            // currentUser.role === 'admin' di level atas - employeeRole-nya baru
+            // kepakai lewat isAsmen()/isManajer()/isDirektur() begitu masuk Mode
+            // Karyawan. Fungsi ini juga dipanggil ulang oleh admin-switch.js
+            // setiap kali Mode Karyawan diaktifkan/dinonaktifkan.
+            this.updateApprovalNav();
 
             // Initialize mobile
             if (window.mobile) {
@@ -311,6 +309,23 @@ const auth = {
             passwordInput.type = 'password';
             toggleBtn.innerHTML = '<i class="fas fa-eye"></i>';
         }
+    },
+
+    // Menu approval terpisah untuk tiap tahap: Asmen, Manajer, Direktur.
+    // Masing-masing hanya muncul untuk role yang sesuai (lihat isAsmen/isManajer/
+    // isDirektur - keduanya sadar soal Mode Karyawan untuk akun rangkap admin).
+    // Dipanggil dari showApp() (login) dan dari admin-switch.js (tiap kali Mode
+    // Karyawan diaktifkan/dinonaktifkan), karena hasil isAsmen() dkk. bisa berubah
+    // begitu adminSwitchMode berubah.
+    updateApprovalNav() {
+        const navApprovalAsmen = document.getElementById('nav-approval-asmen');
+        if (navApprovalAsmen) navApprovalAsmen.classList.toggle('hidden', !this.isAsmen());
+
+        const navApprovalManajer = document.getElementById('nav-approval-manajer');
+        if (navApprovalManajer) navApprovalManajer.classList.toggle('hidden', !this.isManajer());
+
+        const navApprovalDirektur = document.getElementById('nav-approval-direktur');
+        if (navApprovalDirektur) navApprovalDirektur.classList.toggle('hidden', !this.isDirektur());
     },
 
     isLoggedIn() {
