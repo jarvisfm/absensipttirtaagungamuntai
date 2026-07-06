@@ -20,7 +20,11 @@ const cuti = {
         const currentUser = auth.getCurrentUser();
         const userId = currentUser?.id || 'demo-user';
         try {
-            const result = auth.isApprover() ? await api.getAllLeaves() : await api.getLeaves(userId);
+            // PENTING: ini riwayat MILIK SENDIRI di halaman "Request Cuti", jadi harus
+            // selalu getLeaves(userId) - jangan pakai isApprover() di sini, karena kalau
+            // yang login Manajer/Asmen/Direktur, mereka akan lihat cuti SEMUA orang
+            // tercampur di riwayat pribadinya sendiri (bukan cuma miliknya).
+            const result = await api.getLeaves(userId);
             this.leaves = result.data || [];
         } catch (error) {
             console.error('Error loading leaves:', error);
