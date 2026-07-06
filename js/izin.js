@@ -514,6 +514,8 @@ const izin = {
         // Karyawan"), id Employees-nya ada di employeeId, bukan id (id di sana
         // adalah id akun Users). Untuk karyawan biasa, employeeId kosong -> pakai id.
         const myEmployeeId = user?.employeeId || user?.id;
+        const myBagian = String(user?.bagian || '').toUpperCase().trim();
+        const isHrManajer = myBagian === 'UMUM DAN KEPEGAWAIAN';
         const data = this.allIzinData || [];
         let filtered = [];
 
@@ -523,13 +525,38 @@ const izin = {
                 i.status === 'pending' && String(i.asmenId) === String(myEmployeeId)
             );
         } else if (role === 'manajer') {
-            // Sudah disetujui Asmen, dan izin itu dari bagian yang sama dengan Manajer ini
-            filtered = data.filter(i =>
-                i.status === 'asmen_approved' && String(i.bagian) === String(user?.bagian)
-            );
+            filtered = data.filter(i => {
+                const pemohon = this._findEmployee(i.userId);
+                const pemohonRole = pemohon.role || 'staff';
+                const pemohonBagian = String(pemohon.bagian || '').toUpperCase().trim();
+
+                if (pemohonRole === 'staff') {
+                    // Sudah disetujui Asmen, dan izin itu dari bagian yang sama dengan Manajer ini
+                    return i.status === 'asmen_approved' && pemohonBagian === myBagian;
+                }
+                if (pemohonRole === 'asmen' && pemohonBagian !== 'UMUM DAN KEPEGAWAIAN') {
+                    // Izin dari Asmen bagian lain wajib lewat Manajer Umum & Kepegawaian
+                    // (bukan manajer bidang si Asmen), berlaku company-wide.
+                    return isHrManajer && i.status === 'pending';
+                }
+                // Asmen dari Umum & Kepegawaian sendiri, atau pemohon Manajer:
+                // tahap ini dilewati sama sekali (langsung ke Direktur).
+                return false;
+            });
         } else if (role === 'direktur') {
-            // Tahap terakhir: semua bagian, yang sudah disetujui Manajer
-            filtered = data.filter(i => i.status === 'manajer_approved');
+            filtered = data.filter(i => {
+                const pemohon = this._findEmployee(i.userId);
+                const pemohonRole = pemohon.role || 'staff';
+                const pemohonBagian = String(pemohon.bagian || '').toUpperCase().trim();
+                const isHrAsmen = pemohonRole === 'asmen' && pemohonBagian === 'UMUM DAN KEPEGAWAIAN';
+
+                if (pemohonRole === 'manajer' || isHrAsmen) {
+                    // Langsung dari pending, tahap Manajer dilewati
+                    return i.status === 'pending';
+                }
+                // Staff & Asmen bagian lain: harus sudah disetujui Manajer dulu
+                return i.status === 'manajer_approved';
+            });
         }
 
         if (filtered.length === 0) {
