@@ -87,6 +87,7 @@ const auth = {
                     nik: result.data.nik || '',
                     jabatan: result.data.jabatan || '',
                     unitKerja: result.data.unitKerja || '',
+                    bagian: result.data.bagian || '',
                     pangkat: result.data.pangkat || '',
                     golongan: result.data.golongan || '',
                     loginTime: new Date().toISOString()
@@ -170,14 +171,16 @@ const auth = {
                 if (adminMenu) adminMenu.classList.add('hidden');
                 if (bottomNav) bottomNav.style.display = window.innerWidth <= 768 ? 'flex' : 'none';
 
-                // Manager & Asmen dapat menu tambahan untuk approval Cuti & Izin.
-                // 'asmen' belum pernah dikirim backend saat ini (masih 'manager'/'admin' saja) —
-                // baris ini disiapkan supaya begitu backend kirim roleTier 'asmen', menu otomatis muncul.
-                const managerApprovalNav = document.getElementById('nav-manager-approval');
-                if (managerApprovalNav) {
-                    const canApprove = this.currentUser && ['manager', 'asmen'].includes(this.currentUser.role);
-                    managerApprovalNav.classList.toggle('hidden', !canApprove);
-                }
+                // Menu approval terpisah untuk tiap tahap: Asmen, Manajer, Direktur.
+                // Masing-masing hanya muncul untuk role yang sesuai.
+                const navApprovalAsmen = document.getElementById('nav-approval-asmen');
+                if (navApprovalAsmen) navApprovalAsmen.classList.toggle('hidden', !this.isAsmen());
+
+                const navApprovalManajer = document.getElementById('nav-approval-manajer');
+                if (navApprovalManajer) navApprovalManajer.classList.toggle('hidden', !this.isManajer());
+
+                const navApprovalDirektur = document.getElementById('nav-approval-direktur');
+                if (navApprovalDirektur) navApprovalDirektur.classList.toggle('hidden', !this.isDirektur());
 
                 // Navigate to employee dashboard
                 router.navigate('dashboard');
@@ -325,9 +328,28 @@ const auth = {
         return this.currentUser && this.currentUser.role === 'manager';
     },
 
-    // Admin ATAU Manager - keduanya bisa approve Izin/Cuti (tahap berbeda)
+    // Role Bahasa Indonesia yang dipakai alur approval Izin bertingkat
+    // (Asmen -> Manajer -> Direktur). Terpisah dari isManager() lama
+    // ('manager' bahasa Inggris) yang masih dipakai skema Cuti.
+    isAsmen() {
+        if (sessionStorage.getItem('adminSwitchMode') === 'true') return false;
+        return this.currentUser && this.currentUser.role === 'asmen';
+    },
+
+    isManajer() {
+        if (sessionStorage.getItem('adminSwitchMode') === 'true') return false;
+        return this.currentUser && this.currentUser.role === 'manajer';
+    },
+
+    isDirektur() {
+        if (sessionStorage.getItem('adminSwitchMode') === 'true') return false;
+        return this.currentUser && this.currentUser.role === 'direktur';
+    },
+
+    // Admin, Manager, Asmen, Manajer, atau Direktur - semua bisa approve
+    // Izin/Cuti (tahap berbeda-beda sesuai role masing-masing)
     isApprover() {
-        return this.isAdmin() || this.isManager();
+        return this.isAdmin() || this.isManager() || this.isAsmen() || this.isManajer() || this.isDirektur();
     },
 
     getCurrentUser() {
