@@ -6,6 +6,7 @@
 const router = {
     currentPage: 'dashboard',
     routes: ['dashboard', 'absensi', 'face-recognition', 'izin', 'jurnal', 'cuti', 
+         'approval-asmen', 'approval-manajer', 'approval-direktur',
          'admin-dashboard', 'employees', 'karyawan', 'attendance-reports', 'jurnal-reports', 
          'leave-reports', 'shift-schedule', 'settings'],
     
@@ -52,6 +53,9 @@ const router = {
             karyawan: 'Data Karyawan',
             jurnal: 'Jurnal Kerja',
             cuti: 'Pengajuan Cuti',
+            'approval-asmen': 'Approval Asmen',
+            'approval-manajer': 'Approval Manajer',
+            'approval-direktur': 'Approval Direktur',
             'shift-schedule': 'Jadwal Shift',
             settings: 'Settings'
         };
@@ -115,6 +119,15 @@ const router = {
                 break;
             case 'cuti':
                 if (window.initCuti) window.initCuti();
+                break;
+            case 'approval-asmen':
+                if (window.izin) izin.initApprovalPage('asmen');
+                break;
+            case 'approval-manajer':
+                if (window.izin) izin.initApprovalPage('manajer');
+                break;
+            case 'approval-direktur':
+                if (window.izin) izin.initApprovalPage('direktur');
                 break;
             case 'admin-dashboard':
                 if (window.initAdminDashboard) window.initAdminDashboard();
