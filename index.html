@@ -136,10 +136,22 @@
                                 <span>Request Cuti</span>
                             </a>
                         </li>
-                        <li class="nav-item hidden" id="nav-manager-approval" data-page="leave-reports">
+                        <li class="nav-item hidden" id="nav-approval-asmen" data-page="approval-asmen">
                             <a href="#" class="nav-link">
                                 <i class="fas fa-stamp"></i>
-                                <span>Approval Cuti & Izin</span>
+                                <span>Approval Asmen</span>
+                            </a>
+                        </li>
+                        <li class="nav-item hidden" id="nav-approval-manajer" data-page="approval-manajer">
+                            <a href="#" class="nav-link">
+                                <i class="fas fa-stamp"></i>
+                                <span>Approval Manajer</span>
+                            </a>
+                        </li>
+                        <li class="nav-item hidden" id="nav-approval-direktur" data-page="approval-direktur">
+                            <a href="#" class="nav-link">
+                                <i class="fas fa-stamp"></i>
+                                <span>Approval Direktur</span>
                             </a>
                         </li>
                     </ul>
@@ -641,6 +653,12 @@
                                             <option value="keluar_kantor">Izin Keluar Kantor</option>
                                         </select>
                                     </div>
+                                    <div class="form-group" id="izin-asmen-group" style="display:none;">
+                                        <label for="izin-asmen">Pilih Asmen Penyetuju</label>
+                                        <select id="izin-asmen">
+                                            <option value="">Pilih Asmen...</option>
+                                        </select>
+                                    </div>
                                         <div class="form-row two-col" id="izin-date-single-row">
                                             <div class="form-group"><label for="izin-date">Tanggal</label><input type="date"
                                                     id="izin-date" required></div>
@@ -714,6 +732,60 @@
                                 <h3>Riwayat Pengajuan Izin</h3>
                             </div>
                             <div class="izin-list" id="izin-list"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Approval Asmen Page -->
+                <div class="page" id="page-approval-asmen">
+                    <div class="izin-container">
+                        <div class="izin-header">
+                            <div class="izin-info">
+                                <h2>Approval Izin - Asmen</h2>
+                                <p>Pengajuan izin staff yang menunggu persetujuan Anda</p>
+                            </div>
+                        </div>
+                        <div class="izin-history-card">
+                            <div class="card-header">
+                                <h3>Menunggu Persetujuan Asmen</h3>
+                            </div>
+                            <div class="izin-list" id="approval-asmen-list"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Approval Manajer Page -->
+                <div class="page" id="page-approval-manajer">
+                    <div class="izin-container">
+                        <div class="izin-header">
+                            <div class="izin-info">
+                                <h2>Approval Izin - Manajer</h2>
+                                <p>Pengajuan izin di bagian Anda yang sudah disetujui Asmen, menunggu persetujuan Anda</p>
+                            </div>
+                        </div>
+                        <div class="izin-history-card">
+                            <div class="card-header">
+                                <h3>Menunggu Persetujuan Manajer</h3>
+                            </div>
+                            <div class="izin-list" id="approval-manajer-list"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Approval Direktur Page -->
+                <div class="page" id="page-approval-direktur">
+                    <div class="izin-container">
+                        <div class="izin-header">
+                            <div class="izin-info">
+                                <h2>Approval Izin - Direktur</h2>
+                                <p>Pengajuan izin yang sudah disetujui Manajer, menunggu keputusan final Anda</p>
+                            </div>
+                        </div>
+                        <div class="izin-history-card">
+                            <div class="card-header">
+                                <h3>Menunggu Keputusan Direktur</h3>
+                            </div>
+                            <div class="izin-list" id="approval-direktur-list"></div>
                         </div>
                     </div>
                 </div>
@@ -1301,6 +1373,19 @@
             </button>
         </div>
         <div id="detail-leave-content" class="modal-form"></div>
+    </div>
+</div>
+
+<!-- Modal Approval Izin - dipakai bersama oleh halaman Approval Asmen, Manajer, Direktur -->
+<div class="modal-overlay" id="modal-approval-izin" style="display:none;">
+    <div class="modal-container" style="max-width:520px;max-height:90vh;overflow-y:auto;">
+        <div class="modal-header">
+            <h3>Detail Pengajuan Izin</h3>
+            <button class="btn-close-modal" onclick="izin.closeApprovalModal()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div id="approval-izin-content" class="modal-form"></div>
     </div>
 </div>
                 
