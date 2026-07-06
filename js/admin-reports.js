@@ -840,14 +840,14 @@ const adminReports = {
 
     // Sementara pakai auth.isManager()/isAdmin() sampai backend kirim data
     // role+bidang approver per tahap untuk pencocokan yang presisi.
+    // Halaman "Rekap Cuti & Izin" ini VIEW-ONLY (rekap saja). Approve/tolak
+    // yang sebenarnya sekarang dilakukan lewat halaman khusus Approval Asmen /
+    // Approval Manajer / Approval Direktur (lihat izin.js), yang sudah pakai
+    // role 'asmen'/'manajer'/'direktur' - bukan 'manager'/'admin' seperti di
+    // sini. Dibiarkan selalu false supaya tombol Setuju/Tolak tidak muncul lagi
+    // di modal ini (menghindari admin approve dari tempat yang salah).
     _canActOnStage(row) {
-        if (this._isRowFinished(row)) return false;
-        const chain = this._approvalChainFor(row);
-        const idx = this._currentStageIndex(row, chain);
-        if (idx >= chain.length) return false;
-        const stageKey = chain[idx].key;
-        if (stageKey === 'direktur') return auth.isAdmin();
-        return auth.isManager() || auth.isAdmin();
+        return false;
     },
 
     // Form catatan wajib + tombol Setuju/Tolak (dipakai di dalam modal detail)
