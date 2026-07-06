@@ -178,6 +178,8 @@ const karyawanManager = {
             document.getElementById('p-jabatan').value         = p.jabatan || '';
             document.getElementById('p-unitKerja').value       = p.unitKerja || '';
             document.getElementById('p-unitWilayah').value     = p.unitWilayah || '';
+            document.getElementById('p-bagian').value          = p.bagian || '';
+            document.getElementById('p-role').value            = p.role || 'staff';
             document.getElementById('p-pangkat').value         = p.pangkat || '';
             document.getElementById('p-golongan').value        = p.golongan || '';
             document.getElementById('p-gajiPokok').value       = p.gajiPokok || '';
@@ -213,7 +215,7 @@ const karyawanManager = {
         const fields = ['karyawan-id','p-nik','p-nama','p-jenisKelamin','p-statusPernikahan',
             'p-tempatLahir','p-tanggalLahir','p-golonganDarah','p-noTelp','p-npwp','p-ktp',
             'p-email','p-statusPekerjaan','p-statusKaryawan','p-pendidikan','p-jabatan',
-            'p-unitKerja','p-unitWilayah','p-pangkat','p-golongan','p-gajiPokok',
+            'p-unitKerja','p-unitWilayah','p-bagian','p-pangkat','p-golongan','p-gajiPokok',
             'p-terhitungMulai','p-masaKerja','p-tahunPensiun','p-shift',
             'p-namaPasangan','p-namaAyah','p-namaIbu','p-username','p-password'];
 
@@ -221,6 +223,10 @@ const karyawanManager = {
             const el = document.getElementById(id);
             if (el) el.value = '';
         });
+
+        // Select tidak punya opsi kosong, jadi default-kan manual ke 'staff'
+        const roleEl = document.getElementById('p-role');
+        if (roleEl) roleEl.value = 'staff';
 
         document.getElementById('foto-preview').src = '';
         document.getElementById('foto-preview').style.display = 'none';
@@ -307,6 +313,8 @@ const karyawanManager = {
             jabatan:          document.getElementById('p-jabatan').value.trim(),
             unitKerja:        document.getElementById('p-unitKerja').value.trim(),
             unitWilayah:      document.getElementById('p-unitWilayah').value.trim(),
+            bagian:           document.getElementById('p-bagian').value.trim(),
+            role:             document.getElementById('p-role').value,
             pangkat:          document.getElementById('p-pangkat').value.trim(),
             golongan:         document.getElementById('p-golongan').value.trim(),
             gajiPokok:        document.getElementById('p-gajiPokok').value,
