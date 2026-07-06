@@ -827,16 +827,13 @@ const adminReports = {
         return items.length ? `<div class="approval-history">${items.join('')}</div>` : '';
     },
 
-    // Sementara pakai auth.isManager()/isAdmin() sampai backend kirim data
-    // role+bidang approver per tahap untuk pencocokan yang presisi.
+    // Rekap Cuti & Izin di panel Admin sengaja dijadikan HALAMAN HISTORI/RECAP
+    // SAJA — tidak ada aksi Setuju/Tolak di sini. Persetujuan dilakukan lewat
+    // halaman Approval Asmen / Approval Manajer / Approval Direktur masing-
+    // masing (termasuk oleh admin sendiri kalau dia dual-role, lewat "Mode
+    // Karyawan" — lihat auth.js: isAsmen()/isManajer()/isDirektur()).
     _canActOnStage(row) {
-        if (this._isRowFinished(row)) return false;
-        const chain = this._approvalChainFor(row);
-        const idx = this._currentStageIndex(row, chain);
-        if (idx >= chain.length) return false;
-        const stageKey = chain[idx].key;
-        if (stageKey === 'direktur') return auth.isAdmin();
-        return auth.isManager() || auth.isAdmin();
+        return false;
     },
 
     // Form catatan wajib + tombol Setuju/Tolak (dipakai di dalam modal detail)
