@@ -1192,6 +1192,29 @@
                 </div>
                 <div class="form-row two-col">
                     <div class="form-group">
+                        <label for="p-bagian">Bagian</label>
+                        <input type="text" id="p-bagian" placeholder="Contoh: UMUM DAN KEPEGAWAIAN" list="bagian-list">
+                        <datalist id="bagian-list">
+                            <option value="SPI">
+                            <option value="UMUM DAN KEPEGAWAIAN">
+                            <option value="KEUANGAN">
+                            <option value="HUBUNGAN LANGGANAN">
+                            <option value="TEKNIK DAN PENGAWASAN">
+                            <option value="OPERASI DAN JARINGAN">
+                        </datalist>
+                    </div>
+                    <div class="form-group">
+                        <label for="p-role">Role (Alur Approval Izin/Cuti)</label>
+                        <select id="p-role">
+                            <option value="staff">Staff</option>
+                            <option value="asmen">Asmen (Asisten Manajer)</option>
+                            <option value="manajer">Manajer</option>
+                            <option value="direktur">Direktur</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-row two-col">
+                    <div class="form-group">
                         <label>Pangkat</label>
                         <input type="text" id="p-pangkat" placeholder="Pangkat">
                     </div>
