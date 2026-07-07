@@ -143,6 +143,9 @@
     width: 50%; text-align: center;
     vertical-align: top; padding: 0 8px;
 }
+/* Override khusus tabel Pertimbangan Manajer / Keputusan Direktur - labelnya
+   rata kiri, BUKAN center seperti tabel TTD di atas (_openIzinPermohonanStaff) */
+.letter-note-table td { text-align: left; }
 
 /* === Formulir Permohonan Izin Cuti — kotak & layout khusus === */
 .cuti-box {
