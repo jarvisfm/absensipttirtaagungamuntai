@@ -479,6 +479,18 @@ const printLetters = {
         const chk    = (checked) => `<span class="cuti-chk${checked ? ' checked' : ''}"></span>`;
         const isType = (t) => leave.type === t;
 
+        // Kalau bagian pemohon = UMUM DAN KEPEGAWAIAN, Manajer bidang dan Manajer
+        // Umum & Kepegawaian adalah orang yang sama -> cukup 1x approval, jadi
+        // catatan di kedua baris (atas & bawah) sama-sama pakai leave.managerNote.
+        // Kalau bukan, ada 2 tahap manajer berbeda -> baris bawah pakai
+        // catatan Manajer Umum & Kepegawaian yang tersimpan di leave.hrManagerNote.
+        const isBagianUmumKepeg = String(leave.bagian || '').toUpperCase().trim() === 'UMUM DAN KEPEGAWAIAN';
+        const mgrUmumNote = isBagianUmumKepeg ? (leave.managerNote || '') : (leave.hrManagerNote || '');
+
+        // Keputusan Direktur: centang otomatis sesuai status surat.
+        const isDisetujui = leave.status === 'approved';
+        const isDitunda   = leave.status === 'ditunda';
+
         const html = `
             <h3 class="letter-title" style="margin-bottom:6px;">FORMULIR PERMOHONAN IZIN CUTI</h3>
             <p class="letter-center" style="margin:0 0 14px;">No. ${leave.suratNumber || '851/...../..../PT.TAA/....'}</p>
@@ -556,9 +568,9 @@ const printLetters = {
                             <div class="signature-space"></div>
                             <p style="text-align:center; margin:4px 0 2px;">
                                 <input type="text" class="letter-input letter-input-center"
-                                    value="${leave.managerName || ''}" placeholder="......................">
+                                    value="${leave.asmenName || ''}" placeholder="......................">
                             </p>
-                            <p style="text-align:center;">NIK. ${leave.managerNik || '63 08 ......'}</p>
+                            <p style="text-align:center;">NIK. ${leave.asmenNik || '63 08 ......'}</p>
                         </td>
                         <td>
                             <p>YANG MEMOHON,</p>
@@ -577,7 +589,7 @@ const printLetters = {
                     <tr><td class="lbl"></td><td class="sep">:</td>
                         <td><input type="text" class="letter-input"></td></tr>
                     <tr><td class="lbl" style="padding-top:10px;">MANAGER UMUM &amp; KEPEG</td><td class="sep" style="padding-top:10px;">:</td>
-                        <td style="padding-top:10px;"><input type="text" class="letter-input" value="${leave.mgrUmumNote || ''}"></td></tr>
+                        <td style="padding-top:10px;"><input type="text" class="letter-input" value="${mgrUmumNote}"></td></tr>
                     <tr><td class="lbl"></td><td class="sep">:</td>
                         <td><input type="text" class="letter-input"></td></tr>
                     <tr><td class="lbl"></td><td class="sep">:</td>
@@ -592,15 +604,16 @@ const printLetters = {
                          <td>Tanda Tangan :</td>
                      </tr>
                      <tr>
-                         <td><span class="keputusan-lbl">DIREKTUR PT.TAA :</span> ☐ DISETUJUI</td>
+                         <td><span class="keputusan-lbl">DIREKTUR PT.TAA :</span> ${chk(isDisetujui)} DISETUJUI</td>
                          <td></td>
                      </tr>
                      <tr>
-                         <td><span class="keputusan-lbl">&nbsp;</span> ☐ DITUNDA</td>
+                         <td><span class="keputusan-lbl">&nbsp;</span> ${chk(isDitunda)} DITUNDA</td>
                          <td>
                              <div class="cuti-sampai-dengan">
                                  <span>SAMPAI DENGAN&nbsp;:</span>
-                                 <input type="text" class="letter-input-inline" style="flex:1; min-width:80px;">
+                                 <input type="text" class="letter-input-inline" style="flex:1; min-width:80px;"
+                                     value="${isDitunda ? this._formatTanggalIndo(leave.tundaSampai) : ''}">
                              </div>
                          </td>
                      </tr>
