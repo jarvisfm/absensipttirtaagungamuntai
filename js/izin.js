@@ -506,6 +506,31 @@ const izin = {
         return labels[status] || status;
     },
 
+    // Label status 'manajer_approved' yang lebih spesifik sesuai siapa
+    // approver sebenarnya di tahap itu — karena "Disetujui Manajer" saja
+    // ambigu (bisa manajer bagian staff, atau Manajer Umum & Kepegawaian
+    // untuk pemohon Asmen). Status selain 'manajer_approved' tetap pakai
+    // label generik dari getStatusLabel().
+    _getDetailedStatusLabel(item, emp) {
+        if (item.status !== 'manajer_approved') {
+            return this.getStatusLabel(item.status);
+        }
+
+        const pemohonRole = emp?.role || 'staff';
+
+        if (pemohonRole === 'staff') {
+            const bagian = emp?.bagian || '';
+            return bagian ? `Disetujui Manajer ${bagian}` : 'Disetujui Manajer';
+        }
+        if (pemohonRole === 'asmen') {
+            // Baik representasi tunggal (Asmen dari Umum & Kepegawaian sendiri)
+            // maupun tahap ke-2 (Asmen bagian lain) — keduanya digerbangi oleh
+            // Manajer Umum & Kepegawaian sebagai approver terakhir sebelum Direktur.
+            return 'Disetujui Manajer Umum dan Kepegawaian';
+        }
+        return this.getStatusLabel(item.status);
+    },
+
     // =========================================================
     // APPROVAL BERTINGKAT: Asmen -> Manajer -> Direktur
     // Dipanggil dari router saat halaman approval-asmen/manajer/direktur dibuka.
@@ -645,7 +670,7 @@ const izin = {
                     <div class="izin-content">
                         <div class="izin-header-row">
                             <h4 class="izin-type">${typeLabel}</h4>
-                            <span class="izin-status ${item.status}">${this.getStatusLabel(item.status)}</span>
+                            <span class="izin-status ${item.status}">${this._getDetailedStatusLabel(item, emp)}</span>
                         </div>
                         <div class="izin-details">
                             <span class="izin-date"><i class="fas fa-user"></i> ${emp.nama || 'Tidak diketahui'}</span>
@@ -702,7 +727,7 @@ const izin = {
                     <i class="fas fa-file-alt"></i>
                 </div>
                 <h3 style="font-size:1.05rem;margin-bottom:4px;">${typeLabel}</h3>
-                <span class="izin-status ${item.status}">${this.getStatusLabel(item.status)}</span>
+                <span class="izin-status ${item.status}">${this._getDetailedStatusLabel(item, emp)}</span>
             </div>
 
             ${infoRow('fa-user', 'Nama Karyawan', emp.nama || '-')}
