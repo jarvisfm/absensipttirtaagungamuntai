@@ -88,6 +88,21 @@
     margin-bottom: 11px; height: 10px;
 }
 
+/* Kotak catatan non-editable bergaris titik-titik berlapis, meniru form asli
+   (khusus dipakai _openIzinPermohonanStaff - Pertimbangan Manajer & Keputusan
+   Direktur). Pakai <div>, bukan <textarea>, jadi tidak bisa diedit saat print. */
+.letter-note-lines {
+    min-height: 150px;
+    line-height: 24px;
+    padding: 2px 4px;
+    font-family: inherit; font-size: inherit;
+    white-space: pre-wrap; word-wrap: break-word;
+    background-image: radial-gradient(circle, #555 0.6px, transparent 1px);
+    background-size: 5px 24px;
+    background-position: 0 23px;
+    background-repeat: repeat;
+}
+
 /* === Signoff / TTD === */
 .letter-signoff-block {
     float: right; text-align: center;
