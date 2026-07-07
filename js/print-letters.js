@@ -203,7 +203,7 @@ const printLetters = {
             <table class="letter-signoff-table" style="margin-top:20px;">
                 <tr>
                     <td></td>
-                    <td>Amuntai, ${this._formatTanggalIndo(new Date().toISOString())}</td>
+                    <td>Amuntai, ${this._formatTanggalIndo(izin.appliedAt || new Date().toISOString())}</td>
                 </tr>
             </table>
         `;
@@ -273,7 +273,7 @@ const printLetters = {
             </table>
 
             <div class="letter-signoff-block">
-                <p>Amuntai, ${this._formatTanggalIndo(new Date().toISOString())}</p>
+                <p>Amuntai, ${this._formatTanggalIndo(izin.appliedAt || new Date().toISOString())}</p>
                 <p>Direktur</p>
                 <div class="signature-space"></div>
                 <p class="signature-name-underline">Muhammad Nasrullah, S. AB</p>
@@ -486,7 +486,7 @@ const printLetters = {
                      <table class="letter-signoff-table" style="margin-top:10px;">
                          <tr>
                              <td></td>
-                             <td>Amuntai, ${this._formatTanggalIndo(new Date().toISOString())}</td>
+                             <td>Amuntai, ${this._formatTanggalIndo(leave.appliedAt || new Date().toISOString())}</td>
                          </tr>
                     <tr>
                         <td>
