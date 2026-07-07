@@ -187,6 +187,7 @@ const adminReports = {
                         : i.type === 'permission' ? 'Izin Penting'
                         : i.type === 'emergency' ? 'Keadaan Darurat'
                         : i.type === 'keluar_kantor' ? 'Izin Keluar Kantor'
+                        : i.type === 'izin_harian' ? 'Izin Harian'
                         : (i.typeLabel || 'Izin'),
                     dates: i.date || '-',
                     duration: i.type === 'keluar_kantor'
