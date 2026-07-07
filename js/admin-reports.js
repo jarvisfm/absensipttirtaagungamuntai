@@ -1158,18 +1158,30 @@ const adminReports = {
             unitKerja: empRaw.unitKerja || row.department
         };
         const leaveOverride = {
-            type:         leaveRaw.type || '',
-            suratNumber:  leaveRaw.suratNumber || '',
-            reason:       row.reason,
-            duration:     row.duration,
-            startDate:    leaveRaw.startDate || row.startDate,
-            endDate:      leaveRaw.endDate   || row.startDate,
-            address:      leaveRaw.address     || '',
-            phone:        leaveRaw.phone       || '',
-            managerName:  leaveRaw.managerName || '',
-            managerNik:   leaveRaw.managerNik  || '',
-            managerNote:  leaveRaw.managerNote || '',
-            mgrUmumNote:  leaveRaw.mgrUmumNote || ''
+            type:            leaveRaw.type         || '',
+            suratNumber:     leaveRaw.suratNumber  || '',
+            reason:          row.reason,
+            duration:        row.duration,
+            startDate:       leaveRaw.startDate    || row.startDate,
+            endDate:         leaveRaw.endDate      || row.startDate,
+            address:         leaveRaw.address      || '',
+            phone:           leaveRaw.phone        || '',
+            appliedAt:       leaveRaw.appliedAt    || '',
+            bagian:          leaveRaw.bagian       || empRaw.bagian || '',
+            status:          leaveRaw.status       || row.status || '',
+            asmenName:       leaveRaw.asmenName    || '',
+            asmenNik:        leaveRaw.asmenNik     || '',
+            asmenNote:       leaveRaw.asmenNote    || '',
+            managerName:     leaveRaw.managerName  || '',
+            managerNik:      leaveRaw.managerNik   || '',
+            managerNote:     leaveRaw.managerNote  || '',
+            hrManagerName:   leaveRaw.hrManagerName|| '',
+            hrManagerNik:    leaveRaw.hrManagerNik || '',
+            hrManagerNote:   leaveRaw.hrManagerNote|| '',
+            directorName:    leaveRaw.directorName || '',
+            directorNik:     leaveRaw.directorNik  || '',
+            directorNote:    leaveRaw.directorNote || '',
+            tundaSampai:     leaveRaw.tundaSampai  || ''
         };
 
         printLetters.openCuti(row.id, emp, leaveOverride);
