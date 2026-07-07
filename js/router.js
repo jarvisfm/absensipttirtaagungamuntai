@@ -122,12 +122,15 @@ const router = {
                 break;
             case 'approval-asmen':
                 if (window.izin) izin.initApprovalPage('asmen');
+                if (window.cuti) cuti.initApprovalPage('asmen');
                 break;
             case 'approval-manajer':
                 if (window.izin) izin.initApprovalPage('manajer');
+                if (window.cuti) cuti.initApprovalPage('manajer');
                 break;
             case 'approval-direktur':
                 if (window.izin) izin.initApprovalPage('direktur');
+                if (window.cuti) cuti.initApprovalPage('direktur');
                 break;
             case 'admin-dashboard':
                 if (window.initAdminDashboard) window.initAdminDashboard();
