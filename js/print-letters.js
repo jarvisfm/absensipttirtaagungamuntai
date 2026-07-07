@@ -252,6 +252,14 @@ const printLetters = {
         `;
     },
 
+    // ── Kotak catatan read-only bergaris titik-titik (mirip kertas asli) —
+    //    KHUSUS format Staff. Pakai <div> (bukan <textarea>) supaya tidak bisa
+    //    diedit user di preview; styling garis titik-titik ada di .letter-note-lines.
+    _noteBoxStaff(text) {
+        const safeText = String(text || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        return `<div class="letter-note-lines">${safeText}</div>`;
+    },
+
     // =============================================================
     // 1. SURAT IZIN KELUAR KANTOR
     //    Dokumen ini berbeda dari Surat Permohonan Izin — cukup TTD
@@ -330,12 +338,12 @@ const printLetters = {
                     <td style="vertical-align:top;">
                         <p><strong>Pertimbangan :</strong></p>
                         <p><strong>Manager Umum &amp; Kepegawaian</strong></p>
-                        <textarea class="letter-textarea" rows="7">${pertimbangan}</textarea>
+                        ${this._noteBoxStaff(pertimbangan)}
                     </td>
                     <td style="vertical-align:top;">
                         <p><strong>Keputusan Direktur :</strong></p>
                         <p>&nbsp;</p>
-                        <textarea class="letter-textarea" rows="7">${keputusan}</textarea>
+                        ${this._noteBoxStaff(keputusan)}
                     </td>
                 </tr>
             </table>
