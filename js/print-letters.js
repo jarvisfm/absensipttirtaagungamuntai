@@ -564,10 +564,9 @@ const printLetters = {
                     <tr>
                         <td>
                             <p>MENGETAHUI :</p>
-                            <div class="letter-dotted-line" style="width:80%;"></div>
                             <div class="signature-space"></div>
                             <p style="text-align:center; margin:4px 0 2px;">
-                                <input type="text" class="letter-input letter-input-center"
+                                <input type="text" class="letter-input-plain letter-input-center"
                                     value="${leave.asmenName || ''}" placeholder="......................">
                             </p>
                             <p style="text-align:center;">NIK. ${leave.asmenNik || '63 08 ......'}</p>
