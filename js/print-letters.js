@@ -255,9 +255,12 @@ const printLetters = {
     // ── Kotak catatan read-only bergaris titik-titik (mirip kertas asli) —
     //    KHUSUS format Staff. Pakai <div> (bukan <textarea>) supaya tidak bisa
     //    diedit user di preview; styling garis titik-titik ada di .letter-note-lines.
+    //    Rata kiri secara default; kalau teksnya panjang (banyak kalimat), pakai
+    //    rata kanan-kiri (justify) supaya lebih rapi mengisi baris.
     _noteBoxStaff(text) {
         const safeText = String(text || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-        return `<div class="letter-note-lines">${safeText}</div>`;
+        const align = safeText.length > 40 ? 'justify' : 'left';
+        return `<div class="letter-note-lines" style="text-align:${align};">${safeText}</div>`;
     },
 
     // =============================================================
@@ -333,7 +336,7 @@ const printLetters = {
                 </tr>
             </table>
 
-            <table class="letter-signoff-table" style="margin-top:24px;">
+            <table class="letter-signoff-table letter-note-table" style="margin-top:24px;">
                 <tr>
                     <td style="vertical-align:top;">
                         <p><strong>Pertimbangan :</strong></p>
