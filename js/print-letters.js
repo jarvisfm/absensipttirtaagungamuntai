@@ -30,11 +30,16 @@ const printLetters = {
         return auth.getCurrentUser() || {};
     },
 
-    /** Deteksi format surat berdasarkan jabatan karyawan */
+    /** Deteksi format surat berdasarkan jabatan karyawan.
+     *  PENTING: cek 'asisten'/'asmen' DULU sebelum 'manajer' — karena jabatan
+     *  Asmen biasanya berbunyi "Asisten Manajer ..." yang JUGA mengandung kata
+     *  "manajer" sebagai substring. Kalau urutannya dibalik, semua Asmen akan
+     *  salah terdeteksi sebagai format Manajer.
+     */
     _getLetterFormat(jabatan) {
         const j = (jabatan || '').toLowerCase();
-        if (j.includes('manajer') || j.includes('manager')) return 'manajer';
         if (j.includes('asmen') || j.includes('asisten')) return 'asmen';
+        if (j.includes('manajer') || j.includes('manager')) return 'manajer';
         return 'staff';
     },
 
