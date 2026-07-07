@@ -134,7 +134,7 @@ const api = {
         return this.request('submitLeave', data);
     },
 
-    async approveLeave(id, approver) {
+    async approveLeave(id, approver, catatan) {
         if (!API_BASE_URL) {
             const all = storage.get('leaves', []);
             const leave = all.find(l => l.id === id);
@@ -150,17 +150,29 @@ const api = {
             }
             return { success: true, data: leave };
         }
-        return this.request('approveLeave', { id, approver });
+        return this.request('approveLeave', { id, approver, catatan });
     },
 
-    async rejectLeave(id, approver) {
+    async rejectLeave(id, approver, catatan) {
         if (!API_BASE_URL) {
             const all = storage.get('leaves', []);
             const leave = all.find(l => l.id === id);
             if (leave) { leave.status = 'rejected'; storage.set('leaves', all); }
             return { success: true, data: leave };
         }
-        return this.request('rejectLeave', { id, approver });
+        return this.request('rejectLeave', { id, approver, catatan });
+    },
+
+    // Direktur menunda keputusan (bukan setuju, bukan tolak) - dengan catatan
+    // dan tanggal "Sampai dengan Tanggal ..."
+    async postponeLeave(id, approver, catatan, tundaSampai) {
+        if (!API_BASE_URL) {
+            const all = storage.get('leaves', []);
+            const leave = all.find(l => l.id === id);
+            if (leave) { leave.status = 'ditunda'; storage.set('leaves', all); }
+            return { success: true, data: leave };
+        }
+        return this.request('postponeLeave', { id, approver, catatan, tundaSampai });
     },
 
     async getAllLeaves() {
