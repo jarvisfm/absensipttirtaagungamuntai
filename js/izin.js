@@ -76,7 +76,9 @@ const izin = {
 
     async loadIzinData() {
         const currentUser = auth.getCurrentUser();
-        const userId = currentUser?.id || 'demo-user';
+        // Konsisten dengan userId yang dikirim saat submit (lihat submitIzinForm):
+        // admin dual-role (mis. M. Azemi) pakai employeeId, karyawan biasa pakai id.
+        const userId = currentUser?.employeeId || currentUser?.id || 'demo-user';
         try {
             // PENTING: ini riwayat MILIK SENDIRI di halaman "Izin/Sakit", jadi selalu
             // getIzin(userId) - jangan pakai isApprover() di sini. Kalau Asmen/Manajer/
@@ -319,7 +321,13 @@ const izin = {
         }
 
         const izinEntry = {
-            userId:        currentUser?.id || 'demo-user',
+            // Admin yang dual-role (mis. M. Azemi = Admin sekaligus Asmen
+            // Kepegawaian) login dengan id dari tabel Users, sedangkan seluruh
+            // logika approval (approveIzinData, renderApprovalList) mencari
+            // data pemohon dari tabel Employees berdasarkan userId — pakai
+            // employeeId (kalau ada) supaya izin yang diajukan lewat "Mode
+            // Karyawan" tetap tercatat sebagai identitas karyawan yang benar.
+            userId:        currentUser?.employeeId || currentUser?.id || 'demo-user',
             type:          type,
             typeLabel:     typeLabels[type] || type,
             date:          isIzinHarian ? dateStart : date,
