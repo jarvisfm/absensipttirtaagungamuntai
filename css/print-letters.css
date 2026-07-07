@@ -101,6 +101,19 @@
     border-top: 1px solid #111;
     width: 70%; margin: 0 auto 4px;
 }
+/* Titik-titik di ATAS garis TTD, lebar sama persis dengan .signature-line
+   (khusus dipakai _ttdRowStaff - format Staff Surat Permohonan Izin) */
+.signature-dotted-line {
+    border-top: 1px dotted #555;
+    width: 70%; margin: 0 auto 6px;
+}
+/* Input nama tanpa garis dotted di bawahnya (dotted-nya sudah dipindah ke
+   .signature-dotted-line di atas garis TTD, bukan di bawah nama lagi) */
+.letter-input-plain {
+    border: none; width: 100%; font-family: inherit; font-size: inherit;
+    background: transparent; padding: 2px 4px; text-align: center; font-weight: bold;
+}
+.letter-input-plain:focus { outline: 1px solid #F59E0B; }
 .signature-name { font-weight: bold; text-decoration: underline; }
 .signature-name-underline {
     font-weight: bold; text-decoration: underline;
