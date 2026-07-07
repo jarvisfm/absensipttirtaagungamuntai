@@ -263,6 +263,33 @@ const printLetters = {
         return `<div class="letter-note-lines" style="text-align:${align};">${safeText}</div>`;
     },
 
+    // ── Label "Manager <Bidang>" OTOMATIS berdasarkan field `bagian` karyawan —
+    //    dipakai di kotak Pertimbangan pada format Staff, supaya tidak lagi
+    //    hardcode teks "Manager Umum & Kepegawaian" untuk semua bagian.
+    //    Peta eksplisit untuk 6 bagian yang ada di master data karyawan;
+    //    kalau ada bagian baru yang belum terdaftar, fallback ke Title Case
+    //    otomatis (kata "DAN" -> "&").
+    _MANAGER_LABEL_BY_BAGIAN: {
+        'SPI':                      'Manager SPI',
+        'UMUM DAN KEPEGAWAIAN':     'Manager Umum &amp; Kepegawaian',
+        'KEUANGAN':                 'Manager Keuangan',
+        'HUBUNGAN LANGGANAN':       'Manager Hubungan Langganan',
+        'TEKNIK DAN PENGAWASAN':    'Manager Teknik &amp; Pengawasan',
+        'OPERASI DAN JARINGAN':     'Manager Operasi &amp; Jaringan'
+    },
+    _managerLabelForBagian(bagian) {
+        const key = String(bagian || '').trim().toUpperCase();
+        if (this._MANAGER_LABEL_BY_BAGIAN[key]) {
+            return this._MANAGER_LABEL_BY_BAGIAN[key];
+        }
+        if (!key) return 'Manager Umum &amp; Kepegawaian'; // fallback kalau bagian kosong
+        // Fallback generik untuk bagian yang belum ada di peta di atas
+        const titled = key.split(/\s+/)
+            .map(w => (w === 'DAN' ? '&amp;' : w.charAt(0) + w.slice(1).toLowerCase()))
+            .join(' ');
+        return `Manager ${titled}`;
+    },
+
     // =============================================================
     // 1. SURAT IZIN KELUAR KANTOR
     //    Dokumen ini berbeda dari Surat Permohonan Izin — cukup TTD
@@ -340,7 +367,7 @@ const printLetters = {
                 <tr>
                     <td style="vertical-align:top;">
                         <p><strong>Pertimbangan :</strong></p>
-                        <p><strong>Manager Umum &amp; Kepegawaian</strong></p>
+                        <p><strong>${this._managerLabelForBagian(emp.bagian)}</strong></p>
                         ${this._noteBoxStaff(pertimbangan)}
                     </td>
                     <td style="vertical-align:top;">
@@ -371,21 +398,22 @@ const printLetters = {
 
             <table class="letter-signoff-table">
                 <tr>
-                    ${this._ttdRow('Diketahui Oleh :', 'Manager', mgrName, mgrNik)}
-                    ${this._ttdRow('Yang Memohon Izin,', '', emp.name, emp.nik)}
+                    ${this._ttdRowStaff('Diketahui Oleh :', 'Manager', mgrName, mgrNik)}
+                    ${this._ttdRowStaff('Yang Memohon Izin,', '', emp.name, emp.nik)}
                 </tr>
             </table>
 
-            <table class="letter-signoff-table" style="margin-top:24px;">
+            <table class="letter-signoff-table letter-note-table" style="margin-top:24px;">
                 <tr>
                     <td style="vertical-align:top;">
                         <p><strong>Pertimbangan :</strong></p>
                         <p><strong>Manager Umum &amp; Kepegawaian</strong></p>
-                        <textarea class="letter-textarea" rows="7">${pertimbangan}</textarea>
+                        ${this._noteBoxStaff(pertimbangan)}
                     </td>
                     <td style="vertical-align:top;">
                         <p><strong>Keputusan Direktur :</strong></p>
-                        <textarea class="letter-textarea" rows="7">${keputusan}</textarea>
+                        <p>&nbsp;</p>
+                        ${this._noteBoxStaff(keputusan)}
                     </td>
                 </tr>
             </table>
@@ -408,13 +436,13 @@ const printLetters = {
             <table class="letter-signoff-table">
                 <tr>
                     <td></td>
-                    ${this._ttdRow('Yang Memohon Izin,', '', emp.name, emp.nik)}
+                    ${this._ttdRowStaff('Yang Memohon Izin,', '', emp.name, emp.nik)}
                 </tr>
             </table>
 
-            <div style="margin-top:24px;">
+            <div style="margin-top:24px; text-align:left;">
                 <p><strong>Keputusan Direktur :</strong></p>
-                <textarea class="letter-textarea" rows="7">${keputusan}</textarea>
+                ${this._noteBoxStaff(keputusan)}
             </div>
         `;
         this._show(html);
