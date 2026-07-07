@@ -1115,7 +1115,8 @@ const adminReports = {
             jabatan:   empRaw.jabatan || row.position,
             pangkat:   empRaw.pangkat || '',
             golongan:  empRaw.golongan || '',
-            unitKerja: empRaw.unitKerja || row.department
+            unitKerja: empRaw.unitKerja || row.department,
+            bagian:    empRaw.bagian || row.bagian || ''
         };
         const izinOverride = {
             date:         row.startDate || row.dates,
