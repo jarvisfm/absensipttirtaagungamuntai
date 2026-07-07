@@ -231,6 +231,27 @@ const printLetters = {
         return Array(n).fill('<div class="letter-dotted-line"></div>').join('');
     },
 
+    // ── Baris garis tanda tangan — KHUSUS format Staff Surat Permohonan
+    //    Izin. Titik-titik diletakkan DI ATAS garis TTD (bukan di bawah nama),
+    //    dengan lebar yang sama dengan garis TTD. Sengaja dipisah dari _ttdRow()
+    //    supaya format Asmen/Manajer yang masih pakai _ttdRow() tidak ikut berubah.
+    _ttdRowStaff(label, subLabel, name, nik) {
+        return `
+            <td>
+                <p style="margin:0 0 2px;">${label}</p>
+                <p style="margin:0 0 2px; min-height:1.4em;">${subLabel || '&nbsp;'}</p>
+                <div class="signature-space"></div>
+                <div class="signature-dotted-line"></div>
+                <div class="signature-line"></div>
+                <p style="text-align:center; margin:4px 0 2px;">
+                    <input type="text" class="letter-input-plain letter-input-center"
+                        value="${name || ''}" placeholder="......................">
+                </p>
+                <p style="text-align:center;">NIK. ${nik || '63 08 ......'}</p>
+            </td>
+        `;
+    },
+
     // =============================================================
     // 1. SURAT IZIN KELUAR KANTOR
     //    Dokumen ini berbeda dari Surat Permohonan Izin — cukup TTD
@@ -299,8 +320,8 @@ const printLetters = {
 
             <table class="letter-signoff-table">
                 <tr>
-                    ${this._ttdRow('Diketahui Oleh :', 'Asmen', asmenName, asmenNik)}
-                    ${this._ttdRow('Yang Memohon Izin,', '', emp.name, emp.nik)}
+                    ${this._ttdRowStaff('Diketahui Oleh :', 'Asmen', asmenName, asmenNik)}
+                    ${this._ttdRowStaff('Yang Memohon Izin,', '', emp.name, emp.nik)}
                 </tr>
             </table>
 
@@ -313,6 +334,7 @@ const printLetters = {
                     </td>
                     <td style="vertical-align:top;">
                         <p><strong>Keputusan Direktur :</strong></p>
+                        <p>&nbsp;</p>
                         <textarea class="letter-textarea" rows="7">${keputusan}</textarea>
                     </td>
                 </tr>
