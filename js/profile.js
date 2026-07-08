@@ -298,18 +298,19 @@ const profileManager = {
         }
 
         container.innerHTML = this.docLinks.map(d => `
-            <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;border:1px solid var(--border-color);border-radius:8px;padding:0.85rem 1rem;margin-bottom:0.6rem;">
+            <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;border:1px solid var(--border-color);border-radius:8px;padding:1.25rem;margin-bottom:1rem;">
                 <div style="min-width:0;">
-                    <div style="font-weight:600;font-size:0.9rem;margin-bottom:2px;">
-                        <i class="fas fa-file-alt" style="color:var(--color-primary);"></i> ${this._esc(d.nama)}
+                    <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+                        <i class="fas fa-file-alt" style="color:var(--color-primary);font-size:1.1rem;"></i>
+                        <span style="font-weight:600;font-size:1.05rem;">${this._esc(d.nama)}</span>
                     </div>
-                    ${d.keterangan ? `<div style="font-size:0.8rem;color:var(--text-muted);margin-bottom:4px;">${this._esc(d.keterangan)}</div>` : ''}
-                    <a href="${this._esc(d.url)}" target="_blank" style="font-size:0.8rem;color:var(--color-primary);word-break:break-all;">
+                    ${d.keterangan ? `<div style="font-size:0.9rem;color:var(--text-muted);margin-bottom:8px;">${this._esc(d.keterangan)}</div>` : ''}
+                    <a href="${this._esc(d.url)}" target="_blank" style="font-size:0.9rem;color:var(--color-primary);word-break:break-all;font-weight:500;">
                         <i class="fas fa-external-link-alt"></i> Buka Tautan
                     </a>
                 </div>
                 <button type="button" onclick="profileManager.deleteDocLink('${d.id}')"
-                    style="background:#EF4444;color:#fff;border:none;padding:6px 10px;border-radius:6px;cursor:pointer;font-size:0.75rem;flex-shrink:0;">
+                    style="background:#EF4444;color:#fff;border:none;padding:10px 16px;border-radius:6px;cursor:pointer;font-size:0.9rem;flex-shrink:0;">
                     <i class="fas fa-trash"></i>
                 </button>
             </div>
