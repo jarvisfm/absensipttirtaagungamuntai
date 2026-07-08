@@ -491,6 +491,22 @@ const printLetters = {
         const isDisetujui = leave.status === 'approved';
         const isDitunda   = leave.status === 'ditunda';
 
+        // Blok tanda tangan "MENGETAHUI :" (Asmen) di bawah ini HANYA berlaku
+        // untuk pemohon Staff — karena Asmen & Manajer tidak melalui approval
+        // Asmen sesuai bidang saat mengajukan cuti untuk diri sendiri.
+        const letterFormat = this._getLetterFormat(emp.jabatan);
+        const mengetahuiCell = letterFormat === 'staff'
+            ? `<td>
+                    <p>MENGETAHUI :</p>
+                    <div class="signature-space"></div>
+                    <p style="text-align:center; margin:4px 0 2px;">
+                        <input type="text" class="letter-input-plain letter-input-center"
+                            value="${leave.asmenName || ''}" placeholder="......................">
+                    </p>
+                    <p style="text-align:center;">NIK. ${leave.asmenNik || '63 08 ......'}</p>
+                </td>`
+            : `<td></td>`;
+
         const html = `
             <h3 class="letter-title" style="margin-bottom:6px;">FORMULIR PERMOHONAN IZIN CUTI</h3>
             <p class="letter-center" style="margin:0 0 14px;">No. ${leave.suratNumber || '851/...../..../PT.TAA/....'}</p>
@@ -562,15 +578,7 @@ const printLetters = {
                              <td>Amuntai, ${this._formatTanggalIndo(leave.appliedAt || new Date().toISOString())}</td>
                          </tr>
                     <tr>
-                        <td>
-                            <p>MENGETAHUI :</p>
-                            <div class="signature-space"></div>
-                            <p style="text-align:center; margin:4px 0 2px;">
-                                <input type="text" class="letter-input-plain letter-input-center"
-                                    value="${leave.asmenName || ''}" placeholder="......................">
-                            </p>
-                            <p style="text-align:center;">NIK. ${leave.asmenNik || '63 08 ......'}</p>
-                        </td>
+                        ${mengetahuiCell}
                         <td>
                             <p>YANG MEMOHON,</p>
                             <div class="signature-space"></div>
