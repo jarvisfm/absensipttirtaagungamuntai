@@ -253,14 +253,21 @@ const printLetters = {
     },
 
     // ── Kotak catatan read-only bergaris titik-titik (mirip kertas asli) —
-    //    KHUSUS format Staff. Pakai <div> (bukan <textarea>) supaya tidak bisa
-    //    diedit user di preview; styling garis titik-titik ada di .letter-note-lines.
-    //    Rata kiri secara default; kalau teksnya panjang (banyak kalimat), pakai
-    //    rata kanan-kiri (justify) supaya lebih rapi mengisi baris.
+    //    KHUSUS format Staff/Asmen/Manajer (Pertimbangan & Keputusan Direktur).
+    //    Isi catatan ditaruh di baris pertama (rata kiri/justify), lalu garis
+    //    titik-titik kosong di bawahnya pakai _dottedLines() (border-bottom
+    //    dotted asli, BUKAN CSS background-image) — supaya tetap muncul saat
+    //    dicetak/disimpan PDF, sama persis seperti gaya di surat Cuti bagian
+    //    "Catatan/Pertimbangan" & "Manajer Umum & Kepeg" (background-image
+    //    sering hilang saat print kecuali opsi "Background graphics" di
+    //    browser dinyalakan manual oleh user).
     _noteBoxStaff(text) {
         const safeText = String(text || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
         const align = safeText.length > 40 ? 'justify' : 'left';
-        return `<div class="letter-note-lines" style="text-align:${align};">${safeText}</div>`;
+        return `
+            <div style="min-height:22px; margin-bottom:4px; text-align:${align};">${safeText || '&nbsp;'}</div>
+            ${this._dottedLines(5)}
+        `;
     },
 
     // ── Label "Manager <Bidang>" OTOMATIS berdasarkan field `bagian` karyawan —
