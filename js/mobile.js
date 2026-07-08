@@ -65,10 +65,17 @@ const mobile = {
             menuToggle.addEventListener('click', () => this.toggleSidebar());
         }
         
-        // Sidebar toggle button (collapse/expand on desktop)
+        // Tombol "<" (id sidebar-toggle) di sebelah teks "Portal Karyawan":
+        // - Desktop: collapse/expand sidebar (perilaku lama, tidak diubah)
+        // - Mobile: sebelumnya tombol ini tidak melakukan apa-apa sama sekali
+        //   kalau di mode mobile (blok if hanya jalan saat !isMobile), jadi
+        //   pengguna mengira tombol itu rusak. Sekarang di mobile tombol ini
+        //   menutup sidebar, sama seperti menekan tombol menu / overlay.
         if (sidebarToggle) {
             sidebarToggle.addEventListener('click', () => {
-                if (!this.isMobile) {
+                if (this.isMobile) {
+                    this.closeSidebar();
+                } else {
                     sidebar?.classList.toggle('collapsed');
                 }
             });
