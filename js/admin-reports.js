@@ -223,6 +223,18 @@ const adminReports = {
         const KUOTA_CUTI = 12;
         const tahunIni = new Date().getFullYear();
         this.leaveQuota = {};
+
+        // Notif "kuota cuti tahunan habis" hanya perlu ditampilkan SEKALI per
+        // sesi (bukan setiap kali halaman Rekap Cuti & Izin dibuka/refresh),
+        // supaya tidak berulang-ulang muncul. Dicatat per karyawan+tahun di
+        // sessionStorage supaya kalau login lagi (sesi baru) bisa muncul lagi.
+        let warnedSet = new Set();
+        try {
+            warnedSet = new Set(JSON.parse(sessionStorage.getItem('leaveQuotaWarned') || '[]'));
+        } catch (e) {
+            warnedSet = new Set();
+        }
+
         employees.forEach(emp => {
             const cutiTahunanTerpakai = uniqueLeaves.filter(l =>
                 String(l.userId) === String(emp.id) &&
@@ -234,10 +246,18 @@ const adminReports = {
             const sisa = KUOTA_CUTI - totalPakai;
             this.leaveQuota[String(emp.id)] = { pakai: totalPakai, sisa: Math.max(0, sisa) };
             if (totalPakai >= KUOTA_CUTI) {
-                const nama = emp.name || emp.nama || 'Karyawan';
-                toast.warning(`⚠️ Kuota cuti tahunan ${nama} sudah habis tahun ini!`);
+                const warnKey = `${emp.id}-${tahunIni}`;
+                if (!warnedSet.has(warnKey)) {
+                    const nama = emp.name || emp.nama || 'Karyawan';
+                    toast.warning(`⚠️ Kuota cuti tahunan ${nama} sudah habis tahun ini!`);
+                    warnedSet.add(warnKey);
+                }
             }
         });
+
+        try {
+            sessionStorage.setItem('leaveQuotaWarned', JSON.stringify([...warnedSet]));
+        } catch (e) { /* abaikan kalau sessionStorage penuh/tidak tersedia */ }
     },
 
     /**
@@ -695,6 +715,7 @@ const adminReports = {
 
         if (data.length === 0) {
             tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:2rem;color:var(--text-muted);">Tidak ada data</td></tr>';
+            this.renderLeaveMobileCards(data);
             return;
         }
 
@@ -720,6 +741,63 @@ const adminReports = {
                     </button>
                 </td>
             </tr>`;
+        }).join('');
+
+        this.renderLeaveMobileCards(data);
+    },
+
+    // Versi kartu (mobile) dari Rekap Cuti & Izin. Sebelumnya container
+    // #leave-mobile-cards tidak pernah diisi sama sekali, jadi di HP
+    // (yang menyembunyikan tabel dan menampilkan .mobile-cards) datanya
+    // terlihat kosong padahal di desktop tabelnya terisi.
+    renderLeaveMobileCards(data) {
+        const container = document.getElementById('leave-mobile-cards');
+        if (!container) return;
+
+        if (!data || data.length === 0) {
+            container.innerHTML = '<div style="text-align:center;padding:2rem;color:var(--text-muted);">Tidak ada data</div>';
+            return;
+        }
+
+        const statusLabels = { 'pending': 'Menunggu', 'manager_approved': 'Disetujui Manager', 'approved': 'Disetujui', 'rejected': 'Ditolak' };
+
+        container.innerHTML = data.map(row => {
+            const isKeluarKantor = row.kind === 'izin' && row.rawType === 'keluar_kantor';
+            const durasiHtml = row.duration === '-' ? '-' : (isKeluarKantor ? row.duration : row.duration + ' hari');
+            const needsAction = this._canActOnStage(row);
+
+            return `
+                <div class="mobile-card" style="margin-bottom:16px;" onclick="adminReports.viewLeaveDetail('${row.kind}', '${row.id}')">
+                    <div class="mobile-card-header">
+                        <span class="mobile-card-title">${row.name}</span>
+                        <span class="status-badge ${row.status}">${statusLabels[row.status] || row.status}</span>
+                    </div>
+                    <div class="mobile-card-row">
+                        <span class="mobile-card-label">Jabatan</span>
+                        <span class="mobile-card-value">${row.position}</span>
+                    </div>
+                    <div class="mobile-card-row">
+                        <span class="mobile-card-label">Jenis</span>
+                        <span class="mobile-card-value">${row.type}</span>
+                    </div>
+                    <div class="mobile-card-row">
+                        <span class="mobile-card-label">Tanggal</span>
+                        <span class="mobile-card-value">${row.dates}</span>
+                    </div>
+                    <div class="mobile-card-row">
+                        <span class="mobile-card-label">Durasi</span>
+                        <span class="mobile-card-value">${durasiHtml}</span>
+                    </div>
+                    <div class="mobile-card-row">
+                        <span class="mobile-card-label">Alasan</span>
+                        <span class="mobile-card-value" style="text-align:right;max-width:60%;">${row.reason}</span>
+                    </div>
+                    <div style="text-align:right;margin-top:8px;">
+                        <button class="btn-action view" onclick="event.stopPropagation();adminReports.viewLeaveDetail('${row.kind}', '${row.id}')" title="${needsAction ? 'Tinjau & putuskan' : 'Lihat detail'}">
+                            <i class="fas ${needsAction ? 'fa-stamp' : 'fa-eye'}"></i>
+                        </button>
+                    </div>
+                </div>`;
         }).join('');
     },
 
