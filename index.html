@@ -926,12 +926,12 @@
 
                         <div class="settings-card">
                             <!-- Tab Navigation -->
-                            <div style="display:flex;gap:4px;margin-bottom:1.5rem;border-bottom:2px solid var(--border-color);padding-bottom:0;flex-wrap:wrap;">
-                                <button type="button" class="tab-btn active" onclick="profileManager.switchTab('profil')" id="pf-tab-profil" style="padding:8px 16px;border:none;background:none;cursor:pointer;font-weight:600;color:var(--color-primary);border-bottom:2px solid var(--color-primary);margin-bottom:-2px;">Profil</button>
-                                <button type="button" class="tab-btn" onclick="profileManager.switchTab('kekaryawanan')" id="pf-tab-kekaryawanan" style="padding:8px 16px;border:none;background:none;cursor:pointer;font-weight:500;color:var(--text-muted);">Kekaryawanan</button>
-                                <button type="button" class="tab-btn" onclick="profileManager.switchTab('keluarga')" id="pf-tab-keluarga" style="padding:8px 16px;border:none;background:none;cursor:pointer;font-weight:500;color:var(--text-muted);">Keluarga</button>
-                                <button type="button" class="tab-btn" onclick="profileManager.switchTab('akun')" id="pf-tab-akun" style="padding:8px 16px;border:none;background:none;cursor:pointer;font-weight:500;color:var(--text-muted);">Akun</button>
-                                <button type="button" class="tab-btn" onclick="profileManager.switchTab('dokumen')" id="pf-tab-dokumen" style="padding:8px 16px;border:none;background:none;cursor:pointer;font-weight:500;color:var(--text-muted);">Dokumen</button>
+                            <div class="pf-tabs-nav" style="display:flex;gap:4px;margin-bottom:1.5rem;border-bottom:2px solid var(--border-color);padding-bottom:0;overflow-x:auto;flex-wrap:nowrap;-webkit-overflow-scrolling:touch;">
+                                <button type="button" class="tab-btn active" onclick="profileManager.switchTab('profil')" id="pf-tab-profil" style="padding:8px 16px;border:none;background:none;cursor:pointer;font-weight:600;color:var(--color-primary);border-bottom:2px solid var(--color-primary);margin-bottom:-2px;white-space:nowrap;flex-shrink:0;">Profil</button>
+                                <button type="button" class="tab-btn" onclick="profileManager.switchTab('kekaryawanan')" id="pf-tab-kekaryawanan" style="padding:8px 16px;border:none;background:none;cursor:pointer;font-weight:500;color:var(--text-muted);white-space:nowrap;flex-shrink:0;">Kekaryawanan</button>
+                                <button type="button" class="tab-btn" onclick="profileManager.switchTab('keluarga')" id="pf-tab-keluarga" style="padding:8px 16px;border:none;background:none;cursor:pointer;font-weight:500;color:var(--text-muted);white-space:nowrap;flex-shrink:0;">Keluarga</button>
+                                <button type="button" class="tab-btn" onclick="profileManager.switchTab('akun')" id="pf-tab-akun" style="padding:8px 16px;border:none;background:none;cursor:pointer;font-weight:500;color:var(--text-muted);white-space:nowrap;flex-shrink:0;">Akun</button>
+                                <button type="button" class="tab-btn" onclick="profileManager.switchTab('dokumen')" id="pf-tab-dokumen" style="padding:8px 16px;border:none;background:none;cursor:pointer;font-weight:500;color:var(--text-muted);white-space:nowrap;flex-shrink:0;">Dokumen</button>
                             </div>
 
                             <input type="hidden" id="pf-id">
@@ -2152,6 +2152,7 @@
             <a href="#" class="bottom-nav-item active" data-page="dashboard"><i class="fas fa-home"></i><span>Beranda</span></a>
             <a href="#" class="bottom-nav-item" data-page="absensi"><i class="fas fa-clock"></i><span>Absen</span></a>
             <a href="#" class="bottom-nav-item" data-page="izin"><i class="fas fa-user-clock"></i><span>Izin</span></a>
+            <a href="#" class="bottom-nav-item" data-page="cuti"><i class="fas fa-plane-departure"></i><span>Cuti</span></a>
             <a href="#" class="bottom-nav-item" id="bottom-nav-logout" onclick="auth.handleLogout()"><i class="fas fa-sign-out-alt"></i><span>Logout</span></a>
         </nav>
     </div>
