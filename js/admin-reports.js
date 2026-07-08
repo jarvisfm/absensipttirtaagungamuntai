@@ -162,8 +162,10 @@ const adminReports = {
                         : (l.typeLabel || l.type || 'Cuti'),
                     rawType: l.type || '',
                     dates: l.startDate && l.endDate
-                        ? (l.startDate === l.endDate ? l.startDate : `${l.startDate} - ${l.endDate}`)
-                        : (l.startDate || '-'),
+                        ? (l.startDate === l.endDate
+                            ? dateTime.formatDate(l.startDate, 'dmy')
+                            : `${dateTime.formatDate(l.startDate, 'dmy')} - ${dateTime.formatDate(l.endDate, 'dmy')}`)
+                        : (l.startDate ? dateTime.formatDate(l.startDate, 'dmy') : '-'),
                     duration: l.duration != null ? l.duration : '-',
                     reason: l.reason || l.alasan || '-',
                     status: l.status || 'pending',
@@ -189,7 +191,7 @@ const adminReports = {
                         : i.type === 'keluar_kantor' ? 'Izin Keluar Kantor'
                         : i.type === 'izin_harian' ? 'Izin Harian'
                         : (i.typeLabel || 'Izin'),
-                    dates: i.date || '-',
+                    dates: i.date ? dateTime.formatDate(i.date, 'dmy') : '-',
                     duration: i.type === 'keluar_kantor'
                         ? this.hitungDurasiJam(i.jamKeluar, i.jamMasuk)
                         : (i.duration != null ? i.duration : '-'),
