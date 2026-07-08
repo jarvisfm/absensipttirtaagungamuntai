@@ -458,6 +458,17 @@ const api = {
     },
     async uploadFileIzin(id, base64Data, mimeType, fileName) {
         return this.request('uploadFileIzin', { id, base64Data, mimeType, fileName });
+    },
+
+    // ========== DOKUMEN (TAUTAN DRIVE BERNAMA) ==========
+    async getDocumentLinks(employeeId) {
+        return this.request('getDocumentLinks', { employeeId });
+    },
+    async addDocumentLink(data) {
+        return this.request('addDocumentLink', data);
+    },
+    async deleteDocumentLink(id) {
+        return this.request('deleteDocumentLink', { id });
     }
 
 };  // ← penutup object api
