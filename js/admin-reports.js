@@ -217,18 +217,20 @@ const adminReports = {
             })
         ];
 
-        // Hitung kuota cuti tahunan per karyawan (12 hari/tahun)
+        // Hitung kuota cuti tahunan per karyawan (12 hari/tahun). Terpakai
+        // dihitung dari status 'approved' (disetujui final Direktur) saja.
+        // (Samakan dengan _hitungSisaCutiTahunan di Leave.gs backend)
         const KUOTA_CUTI = 12;
         const tahunIni = new Date().getFullYear();
         this.leaveQuota = {};
         employees.forEach(emp => {
-            const cutiTahunanDisetujui = uniqueLeaves.filter(l =>
+            const cutiTahunanTerpakai = uniqueLeaves.filter(l =>
                 String(l.userId) === String(emp.id) &&
                 l.status === 'approved' &&
                 l.type === 'annual' &&
                 (l.startDate || '').startsWith(String(tahunIni))
             );
-            const totalPakai = cutiTahunanDisetujui.reduce((sum, l) => sum + (parseInt(l.duration) || 0), 0);
+            const totalPakai = cutiTahunanTerpakai.reduce((sum, l) => sum + (parseInt(l.duration) || 0), 0);
             const sisa = KUOTA_CUTI - totalPakai;
             this.leaveQuota[String(emp.id)] = { pakai: totalPakai, sisa: Math.max(0, sisa) };
             if (totalPakai >= KUOTA_CUTI) {
