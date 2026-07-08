@@ -658,9 +658,11 @@
         flex-direction: column;
         align-items: center;
         gap: 2px;
-        padding: var(--spacing-xs) var(--spacing);
+        padding: var(--spacing-xs) var(--spacing-sm);
         color: var(--text-muted);
         font-size: 10px;
+        flex: 1;
+        min-width: 0;
         transition: color var(--transition-fast);
     }
     
@@ -850,4 +852,18 @@
     .page-content {
         padding: 0;
     }
+}
+
+/* Tab "Edit Profil" (Profil/Kekaryawanan/Keluarga/Akun/Dokumen): jangan wrap
+   ke baris baru di layar sempit (bisa membuat tab terakhir terlihat
+   terpotong/tidak kelihatan) - biarkan bisa digeser (scroll) horizontal. */
+.pf-tabs-nav {
+    scrollbar-width: thin;
+}
+.pf-tabs-nav::-webkit-scrollbar {
+    height: 4px;
+}
+.pf-tabs-nav::-webkit-scrollbar-thumb {
+    background: var(--border-color);
+    border-radius: 4px;
 }
