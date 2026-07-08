@@ -457,12 +457,15 @@ const auth = {
         const navApprovalDirektur = document.getElementById('nav-approval-direktur');
         if (navApprovalDirektur) navApprovalDirektur.classList.toggle('hidden', !this.isDirektur());
 
-        // Bottom nav (mobile) - item "Approval" khusus untuk Asmen & Manajer
+        // Bottom nav (mobile) - item "Approval" khusus untuk Asmen, Manajer & Direktur
         const bottomNavApprovalAsmen = document.getElementById('bottom-nav-approval-asmen');
         if (bottomNavApprovalAsmen) bottomNavApprovalAsmen.classList.toggle('hidden', !this.isAsmen());
 
         const bottomNavApprovalManajer = document.getElementById('bottom-nav-approval-manajer');
         if (bottomNavApprovalManajer) bottomNavApprovalManajer.classList.toggle('hidden', !this.isManajer());
+
+        const bottomNavApprovalDirektur = document.getElementById('bottom-nav-approval-direktur');
+        if (bottomNavApprovalDirektur) bottomNavApprovalDirektur.classList.toggle('hidden', !this.isDirektur());
     },
 
     isLoggedIn() {
