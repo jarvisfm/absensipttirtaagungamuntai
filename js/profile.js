@@ -21,7 +21,20 @@ const profileManager = {
             toast.error('Sesi tidak ditemukan, silakan login ulang');
             return;
         }
-        this.myId = user.id;
+
+        // PENTING: untuk akun Admin, `id` di sesi login adalah ID di sheet
+        // "Users" (bukan Employees) — kalau dipakai langsung sebagai ID
+        // karyawan, bisa salah nyangkut ke baris Employees lain yang
+        // kebetulan punya id sama. Admin punya baris Employees sendiri
+        // (kalau ada) lewat field `employeeId` (lihat Auth.gs, dicocokkan
+        // berdasarkan username yang sama). Untuk staff/asmen/manajer biasa,
+        // `id` di sesi memang sudah = ID Employees, jadi tidak perlu diubah.
+        this.myId = (user.role === 'admin') ? (user.employeeId || null) : user.id;
+
+        if (!this.myId) {
+            toast.error('Akun Admin ini belum terhubung ke data karyawan di menu Data Karyawan, jadi belum ada profil untuk diedit di sini.');
+            return;
+        }
 
         this.switchTab('profil');
         await this.loadMyProfile();
@@ -29,7 +42,7 @@ const profileManager = {
     },
 
     switchTab(tab) {
-        ['profil', 'kekaryawanan', 'keluarga', 'akun', 'uploadfile', 'dokumen'].forEach(t => {
+        ['profil', 'kekaryawanan', 'keluarga', 'akun', 'dokumen'].forEach(t => {
             const content = document.getElementById(`pf-tabcontent-${t}`);
             const btn     = document.getElementById(`pf-tab-${t}`);
             if (content) content.style.display = t === tab ? 'block' : 'none';
@@ -91,22 +104,10 @@ const profileManager = {
             document.getElementById('pf-tahunPensiun').value    = p.tahunPensiun || '';
             document.getElementById('pf-shift').value           = p.shift || 'Reguler (Sen-Kam)';
 
-            // Berkas SK / KTP / Ijazah / Sertifikat
-            if (p.fileSK) {
-                document.getElementById('pf-sk-link').value = p.fileSK;
-                document.getElementById('pf-sk-file-link').href = p.fileSK;
-                document.getElementById('pf-sk-file-current').style.display = 'block';
-            }
-            [['ktp', 'fileKTP'], ['ijazah', 'fileIjazah'], ['sertifikat', 'fileSertifikat']].forEach(([type, field]) => {
-                if (p[field]) {
-                    const input = document.getElementById(`pf-${type}-link`);
-                    const link  = document.getElementById(`pf-${type}-file-link`);
-                    const cur   = document.getElementById(`pf-${type}-file-current`);
-                    if (input) input.value = p[field];
-                    if (link)  link.href = p[field];
-                    if (cur)   cur.style.display = 'block';
-                }
-            });
+            // Berkas SK/KTP/Ijazah/Sertifikat: tidak lagi diedit dari halaman
+            // ini (sudah digantikan tab "Dokumen"), jadi tidak perlu dimuat
+            // ke form. Nilainya tetap tersimpan di data karyawan dan tidak
+            // disentuh sama sekali oleh halaman Edit Profil ini.
 
             // Tab Keluarga
             const keluarga = p.keluarga || [];
@@ -212,10 +213,13 @@ const profileManager = {
             tahunPensiun:     document.getElementById('pf-tahunPensiun').value.trim(),
             shift:            document.getElementById('pf-shift').value,
             username:         document.getElementById('pf-username').value.trim(),
-            fileSK:           document.getElementById('pf-sk-link')?.value.trim() || '',
-            fileKTP:          document.getElementById('pf-ktp-link')?.value.trim() || '',
-            fileIjazah:       document.getElementById('pf-ijazah-link')?.value.trim() || '',
-            fileSertifikat:   document.getElementById('pf-sertifikat-link')?.value.trim() || '',
+            // fileSK/fileKTP/fileIjazah/fileSertifikat SENGAJA tidak disertakan
+            // di sini. Field ini sudah tidak diedit dari halaman Edit Profil
+            // (tab "Upload File" dihapus, digantikan tab "Dokumen"), dan kalau
+            // dikirim kosong ('') di sini, backend akan MENIMPA nilai yang
+            // sudah tersimpan menjadi kosong. Dengan tidak menyertakan field
+            // ini, updateKaryawanData() di backend otomatis membiarkan nilai
+            // lama tetap ada (hanya field yang dikirim yang ditimpa).
             keluarga
         };
 
