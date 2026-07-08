@@ -231,17 +231,14 @@ const printLetters = {
         return Array(n).fill('<div class="letter-dotted-line"></div>').join('');
     },
 
-    // ── Baris garis tanda tangan — KHUSUS format Staff Surat Permohonan
-    //    Izin. Titik-titik diletakkan DI ATAS garis TTD (bukan di bawah nama),
-    //    dengan lebar yang sama dengan garis TTD. Sengaja dipisah dari _ttdRow()
-    //    supaya format Asmen/Manajer yang masih pakai _ttdRow() tidak ikut berubah.
+    // ── Baris garis tanda tangan — dipakai format Staff/Asmen/Manajer Surat
+    //    Permohonan Izin.
     _ttdRowStaff(label, subLabel, name, nik) {
         return `
             <td>
                 <p style="margin:0 0 2px;">${label}</p>
                 <p style="margin:0 0 2px; min-height:1.4em;">${subLabel || '&nbsp;'}</p>
                 <div class="signature-space"></div>
-                <div class="signature-dotted-line"></div>
                 <div class="signature-line"></div>
                 <p style="text-align:center; margin:4px 0 2px;">
                     <input type="text" class="letter-input-plain letter-input-center"
@@ -252,21 +249,14 @@ const printLetters = {
         `;
     },
 
-    // ── Kotak catatan read-only bergaris titik-titik (mirip kertas asli) —
-    //    KHUSUS format Staff/Asmen/Manajer (Pertimbangan & Keputusan Direktur).
-    //    Isi catatan ditaruh di baris pertama (rata kiri/justify), lalu garis
-    //    titik-titik kosong di bawahnya pakai _dottedLines() (border-bottom
-    //    dotted asli, BUKAN CSS background-image) — supaya tetap muncul saat
-    //    dicetak/disimpan PDF, sama persis seperti gaya di surat Cuti bagian
-    //    "Catatan/Pertimbangan" & "Manajer Umum & Kepeg" (background-image
-    //    sering hilang saat print kecuali opsi "Background graphics" di
-    //    browser dinyalakan manual oleh user).
+    // ── Kotak catatan read-only (Pertimbangan Manajer & Keputusan Direktur) —
+    //    dipakai format Staff/Asmen/Manajer. Isi catatan ditampilkan apa
+    //    adanya (rata kiri/justify), tanpa garis titik-titik.
     _noteBoxStaff(text) {
         const safeText = String(text || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
         const align = safeText.length > 40 ? 'justify' : 'left';
         return `
             <div style="min-height:22px; margin-bottom:4px; text-align:${align};">${safeText || '&nbsp;'}</div>
-            ${this._dottedLines(5)}
         `;
     },
 
