@@ -10,6 +10,7 @@ const cuti = {
 
     async init() {
         await this.loadLeaves();
+        await this.loadLeaveBalance();
         this.initForm();
         this.initFilters();
         this.renderLeaveList();
@@ -34,12 +35,22 @@ const cuti = {
             console.error('Error loading leaves:', error);
             this.leaves = storage.get('leaves', []);
         }
+    },
 
-        // Load balance from storage or use default
-        const savedBalance = storage.get('leaveBalance');
-        if (savedBalance !== null) {
-            this.leaveBalance = savedBalance;
+    // Sisa Cuti Tahunan dihitung di BACKEND (bukan localStorage lagi) - supaya
+    // benar-benar berkurang begitu diajukan, tidak bisa diakali, sinkron di
+    // semua device, dan otomatis reset tiap tahun (lihat Leave.gs).
+    async loadLeaveBalance() {
+        const currentUser = auth.getCurrentUser();
+        const userId = currentUser?.employeeId || currentUser?.id || 'demo-user';
+        try {
+            const result = await api.getLeaveBalance(userId);
+            this.leaveBalance = result.data ? result.data.sisa : 12;
+        } catch (error) {
+            console.error('Error loading leave balance:', error);
+            this.leaveBalance = 12;
         }
+        this.updateBalanceDisplay();
     },
 
     initForm() {
@@ -154,10 +165,18 @@ const cuti = {
             return;
         }
 
-        // Sisa cuti hanya berlaku untuk Cuti Tahunan
-        if (type.value === 'annual' && diffDays > this.leaveBalance) {
-            toast.error('Sisa cuti tidak mencukupi!');
-            return;
+        // Sisa cuti hanya berlaku untuk Cuti Tahunan. Ini cuma pre-check di
+        // frontend untuk UX cepat - validasi final & anti-akal-akalan tetap
+        // di backend (submitLeaveData di Leave.gs).
+        if (type.value === 'annual') {
+            if (this.leaveBalance <= 0) {
+                toast.error('Kuota Cuti Tahunan Anda tahun ini sudah habis!');
+                return;
+            }
+            if (diffDays > this.leaveBalance) {
+                toast.error(`Sisa Cuti Tahunan Anda cuma ${this.leaveBalance} hari!`);
+                return;
+            }
         }
 
         const typeLabels = {
@@ -196,14 +215,9 @@ const cuti = {
             const result = await api.submitLeave(leaveData);
             if (result.success) {
                 this.leaves.unshift(result.data);
-
-                // Deduct balance for annual leave saja
-                if (type.value === 'annual') {
-                    this.leaveBalance -= diffDays;
-                    storage.set('leaveBalance', this.leaveBalance);
-                    this.updateBalanceDisplay();
-                }
-
+                // Kuota Cuti Tahunan baru berkurang setelah disetujui FINAL oleh
+                // Direktur (status 'approved'), jadi sengaja tidak dikurangi di sini
+                // saat submit - lihat _hitungSisaCutiTahunan() di Leave.gs.
                 toast.success('Pengajuan cuti berhasil dikirim!');
             } else {
                 toast.error(result.error || 'Gagal mengajukan cuti');
@@ -429,13 +443,6 @@ const cuti = {
             const leave = this.leaves.find(l => l.id === id);
             if (leave) {
                 leave.status = 'rejected';
-
-                // Return balance for annual leave
-                if (leave.type === 'annual') {
-                    this.leaveBalance += leave.duration;
-                    storage.set('leaveBalance', this.leaveBalance);
-                    this.updateBalanceDisplay();
-                }
             }
             this.renderLeaveList();
             this.updateStats();
