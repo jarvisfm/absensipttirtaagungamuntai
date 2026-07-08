@@ -6,7 +6,7 @@
 const router = {
     currentPage: 'dashboard',
     routes: ['dashboard', 'absensi', 'face-recognition', 'izin', 'jurnal', 'cuti', 
-         'approval-asmen', 'approval-manajer', 'approval-direktur',
+         'approval-asmen', 'approval-manajer', 'approval-direktur', 'profile',
          'admin-dashboard', 'employees', 'karyawan', 'attendance-reports', 'jurnal-reports', 
          'leave-reports', 'shift-schedule', 'settings'],
     
@@ -57,7 +57,8 @@ const router = {
             'approval-manajer': 'Approval Manajer',
             'approval-direktur': 'Approval Direktur',
             'shift-schedule': 'Jadwal Shift',
-            settings: 'Settings'
+            settings: 'Settings',
+            profile: 'Edit Profil'
         };
         
         const company = storage.get('company', { name: 'Portal Karyawan' });
@@ -131,6 +132,9 @@ const router = {
             case 'approval-direktur':
                 if (window.izin) izin.initApprovalPage('direktur');
                 if (window.cuti) cuti.initApprovalPage('direktur');
+                break;
+            case 'profile':
+                if (window.initProfile) window.initProfile();
                 break;
             case 'admin-dashboard':
                 if (window.initAdminDashboard) window.initAdminDashboard();
