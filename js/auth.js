@@ -228,32 +228,37 @@ const auth = {
         const user = this.currentUser;
         if (!user) return;
 
-        // Set basic info
-        document.getElementById('profile-avatar').src = getAvatarUrl(user);
-        document.getElementById('profile-name').textContent = user.name || '-';
-        document.getElementById('profile-email').textContent = user.email || '-';
-        document.getElementById('profile-role').textContent = user.role === 'admin' ? 'Administrator' : 'Karyawan';
+        const contentEl = document.getElementById('profile-detail-content');
 
-        // Employee-specific fields
-        const empFields = document.getElementById('profile-employee-fields');
-        if (user.role === 'karyawan' || user.role !== 'admin') {
-            // Fetch profile from backend
+        // Sama seperti profileManager.myId di js/profile.js: untuk akun Admin,
+        // `id` di sesi login adalah ID di sheet "Users" (bukan Employees),
+        // jadi harus dipetakan lewat `employeeId`. Untuk staff/asmen/manajer
+        // biasa, `id` di sesi memang sudah = ID Employees.
+        const myId = (user.role === 'admin') ? (user.employeeId || null) : user.id;
+
+        if (!myId) {
+            if (contentEl) {
+                contentEl.innerHTML = `
+                    <div style="text-align:center;margin-bottom:1.5rem;">
+                        <img src="${getAvatarUrl(user)}" style="width:90px;height:90px;border-radius:50%;object-fit:cover;border:3px solid var(--color-primary);">
+                        <h3 style="margin-top:0.75rem;font-size:1.1rem;">${user.name || '-'}</h3>
+                        <p style="color:var(--text-muted);font-size:0.85rem;">${user.role === 'admin' ? 'Administrator' : 'Karyawan'}</p>
+                    </div>
+                    <p style="text-align:center;color:var(--text-muted);font-size:0.85rem;">Akun ini belum terhubung ke data karyawan di menu Data Karyawan.</p>
+                `;
+            }
+        } else {
             try {
-                const result = await api.getEmployeeProfile(user.id);
+                const result = await api.getKaryawanDetail(myId);
                 if (result.success && result.data) {
-                    const profile = result.data;
-                    document.getElementById('profile-department').textContent = profile.department || '-';
-                    document.getElementById('profile-position').textContent = profile.position || '-';
-                    document.getElementById('profile-shift').textContent = profile.shift || '-';
+                    if (contentEl) contentEl.innerHTML = this.renderProfileDetailHtml(result.data);
+                } else if (contentEl) {
+                    contentEl.innerHTML = '<p style="text-align:center;color:var(--text-muted);font-size:0.85rem;">Gagal memuat data profil.</p>';
                 }
             } catch (e) {
-                document.getElementById('profile-department').textContent = user.department || '-';
-                document.getElementById('profile-position').textContent = user.position || '-';
-                document.getElementById('profile-shift').textContent = user.shift || '-';
+                console.error('Error load profil:', e);
+                if (contentEl) contentEl.innerHTML = '<p style="text-align:center;color:var(--text-muted);font-size:0.85rem;">Terjadi kesalahan saat memuat profil.</p>';
             }
-            if (empFields) empFields.style.display = 'block';
-        } else {
-            if (empFields) empFields.style.display = 'none';
         }
 
         // Clear password form
@@ -262,6 +267,97 @@ const auth = {
         document.getElementById('confirm-password').value = '';
 
         modal.style.display = 'flex';
+    },
+
+    // Membangun markup detail profil, identik dengan modal "Detail Karyawan"
+    // di js/karyawan.js (karyawanManager.viewDetail), tanpa tombol "Edit Data".
+    renderProfileDetailHtml(p) {
+        const keluarga = p.keluarga || [];
+        const pasangan = keluarga.find(k => k.tipe === 'pasangan');
+        const ayah     = keluarga.find(k => k.tipe === 'ayah');
+        const ibu      = keluarga.find(k => k.tipe === 'ibu');
+        const anak     = keluarga.filter(k => k.tipe === 'anak');
+
+        const colors = ['#F59E0B','#3B82F6','#10B981','#EF4444','#8B5CF6'];
+        const color  = colors[(p.nama || '').charCodeAt(0) % colors.length];
+        const initials = (p.nama || 'P').split(' ').map(w => w[0]).join('').substring(0,2).toUpperCase();
+
+        const fotoHtml = p.foto
+            ? `<img src="${p.foto}" style="width:90px;height:90px;border-radius:50%;object-fit:cover;border:3px solid var(--color-primary);">`
+            : `<div style="width:90px;height:90px;border-radius:50%;background:${color};color:#fff;display:flex;align-items:center;justify-content:center;font-size:1.8rem;font-weight:700;margin:0 auto;">${initials}</div>`;
+
+        const field = (label, value) => value
+            ? `<div style="display:flex;padding:8px 0;border-bottom:1px solid var(--border-color);">
+                    <span style="min-width:160px;color:var(--text-muted);font-size:0.85rem;">${label}</span>
+                    <span style="font-weight:500;font-size:0.85rem;">${value}</span>
+               </div>`
+            : '';
+
+        const statusColor = p.statusKaryawan === 'AKTIF' ? '#10B981' : '#F59E0B';
+
+        return `
+            <div style="text-align:center;margin-bottom:1.5rem;">
+                ${fotoHtml}
+                <h3 style="margin-top:0.75rem;font-size:1.1rem;">${p.nama || '-'}</h3>
+                <p style="color:var(--text-muted);font-size:0.85rem;">${p.jabatan || ''} — ${p.unitKerja || ''}</p>
+                <span style="background:${statusColor}20;color:${statusColor};padding:3px 12px;border-radius:20px;font-size:0.8rem;font-weight:600;">${p.statusKaryawan || ''}</span>
+            </div>
+
+            <div style="margin-bottom:1.5rem;">
+                <div style="font-weight:600;color:var(--color-primary);margin-bottom:0.5rem;font-size:0.9rem;">
+                    <i class="fas fa-user"></i> DATA PRIBADI
+                </div>
+                ${field('NIK', p.nik)}
+                ${field('Jenis Kelamin', p.jenisKelamin)}
+                ${field('Status Pernikahan', p.statusPernikahan === 'K' ? 'Kawin' : p.statusPernikahan === 'TK' ? 'Belum Kawin' : p.statusPernikahan)}
+                ${field('Tempat, Tgl Lahir', p.tempatLahir && p.tanggalLahir ? `${p.tempatLahir}, ${p.tanggalLahir}` : '')}
+                ${field('Golongan Darah', p.golonganDarah)}
+                ${field('No. KTP', p.ktp)}
+                ${field('NPWP', p.npwp)}
+                ${field('No. Telp', p.noTelp)}
+                ${field('Email', p.email)}
+            </div>
+
+            <div style="margin-bottom:1.5rem;">
+                <div style="font-weight:600;color:var(--color-primary);margin-bottom:0.5rem;font-size:0.9rem;">
+                    <i class="fas fa-briefcase"></i> DATA KEPEGAWAIAN
+                </div>
+                ${field('Status Pekerjaan', p.statusPekerjaan)}
+                ${field('Pendidikan', p.pendidikan)}
+                ${field('Jabatan', p.jabatan)}
+                ${field('Unit Kerja', p.unitKerja)}
+                ${field('Unit Wilayah', p.unitWilayah)}
+                ${field('Pangkat', p.pangkat)}
+                ${field('Golongan', p.golongan)}
+                ${field('Gaji Pokok', p.gajiPokok ? 'Rp ' + Number(p.gajiPokok).toLocaleString('id-ID') : '')}
+                ${field('Terhitung Mulai', p.terhitungMulai)}
+                ${field('Masa Kerja', p.masaKerja)}
+                ${field('Tahun Pensiun', p.tahunPensiun)}
+                ${field('Jadwal', p.shift)}
+            </div>
+
+            ${(p.fileSK || p.fileKTP || p.fileIjazah || p.fileSertifikat) ? `
+            <div style="margin-bottom:1.5rem;">
+                <div style="font-weight:600;color:var(--color-primary);margin-bottom:0.5rem;font-size:0.9rem;">
+                    <i class="fas fa-folder-open"></i> BERKAS DOKUMEN
+                </div>
+                ${p.fileSK ? field('Surat SK', `<a href="${p.fileSK}" target="_blank" style="color:var(--color-primary);"><i class="fas fa-file-pdf"></i> Lihat Berkas</a>`) : ''}
+                ${p.fileKTP ? field('KTP', `<a href="${p.fileKTP}" target="_blank" style="color:#3B82F6;"><i class="fas fa-id-card"></i> Lihat Berkas</a>`) : ''}
+                ${p.fileIjazah ? field('Ijazah', `<a href="${p.fileIjazah}" target="_blank" style="color:#10B981;"><i class="fas fa-graduation-cap"></i> Lihat Berkas</a>`) : ''}
+                ${p.fileSertifikat ? field('Sertifikat', `<a href="${p.fileSertifikat}" target="_blank" style="color:#F59E0B;"><i class="fas fa-certificate"></i> Lihat Berkas</a>`) : ''}
+            </div>` : ''}
+
+            ${keluarga.length > 0 ? `
+            <div style="margin-bottom:1.5rem;">
+                <div style="font-weight:600;color:var(--color-primary);margin-bottom:0.5rem;font-size:0.9rem;">
+                    <i class="fas fa-users"></i> DATA KELUARGA
+                </div>
+                ${field('Pasangan', pasangan?.nama)}
+                ${anak.map((a, i) => field(`Anak ke-${i+1}`, a.nama)).join('')}
+                ${field('Nama Ayah', ayah?.nama)}
+                ${field('Nama Ibu', ibu?.nama)}
+            </div>` : ''}
+        `;
     },
 
     async handleChangePassword() {
