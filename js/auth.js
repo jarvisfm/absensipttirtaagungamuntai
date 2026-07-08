@@ -60,7 +60,11 @@ const auth = {
     async handleLogin(e) {
         e.preventDefault();
 
-        const username = document.getElementById('login-email').value;
+        // .trim() penting khusus di HP - keyboard mobile (terutama Android/
+        // Gboard) kadang otomatis menambah spasi tersembunyi di akhir kata
+        // saat mengetik/memilih saran kata, yang bikin username tidak match
+        // walau kelihatannya sama persis di layar.
+        const username = document.getElementById('login-email').value.trim();
         const password = document.getElementById('login-password').value;
 
         // Validate
