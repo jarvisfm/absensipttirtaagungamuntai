@@ -1,0 +1,247 @@
+/* === Print Letter Overlay === */
+.print-letter-overlay {
+    display: none; position: fixed; inset: 0;
+    background: #e5e7eb; z-index: 9999; overflow-y: auto;
+}
+.print-letter-overlay.active { display: block; }
+
+.print-letter-toolbar {
+    position: sticky; top: 0; background: #1f2937;
+    padding: 10px 20px; display: flex; gap: 10px;
+    justify-content: flex-end; z-index: 10;
+}
+.print-letter-toolbar button {
+    padding: 8px 16px; border-radius: 6px;
+    border: none; cursor: pointer; font-size: 0.85rem;
+}
+.print-letter-toolbar .btn-primary { background: #F59E0B; color: #fff; }
+
+/* === Page wrapper === */
+.print-letter-page {
+    max-width: 800px; margin: 20px auto 60px; background: #fff;
+    font-family: 'Times New Roman', serif; font-size: 14px; color: #111;
+    box-shadow: 0 0 10px rgba(0,0,0,0.15);
+    display: flex; flex-direction: column; min-height: 1050px;
+}
+
+/* === Kop image === */
+.letter-kop-img-wrap { width: 100%; line-height: 0; }
+.letter-kop-img { width: 100%; height: auto; display: block; }
+
+/* === Kop teks sederhana (khusus Surat Izin Keluar Kantor) === */
+.letter-kop { display: flex; align-items: center; gap: 12px; margin-bottom: 6px; width: 70%;}
+.letter-kop-logo { width: 56px; height: 56px; object-fit: contain; }
+.letter-kop-left { flex: 1; }
+.letter-kop-title { font-weight: bold; font-size: 16px; letter-spacing: 0.5px; }
+.letter-kop-divider { border-top: 2px solid #111; margin-bottom: 14px; width: 70%; }
+.letter-kop-center-title { text-align: center; font-weight: bold; font-size: 15px; margin-bottom: 16px; }
+
+/* === Body === */
+.letter-body { flex: 1; padding: 20px 48px 28px; }
+
+/* === Footer image === */
+.letter-footer-img-wrap { width: 100%; line-height: 0; margin-top: auto; }
+.letter-footer-img { width: 100%; height: auto; display: block; }
+
+/* === Typography === */
+.letter-title {
+    text-align: center; text-decoration: underline;
+    font-weight: bold; margin: 0 0 18px; font-size: 15px;
+}
+.letter-center { text-align: center; }
+.letter-p { margin: 0 0 10px; }
+.letter-justify { text-align: justify; }
+
+/* === Field Tables === */
+.letter-field-table { width: 100%; border-collapse: collapse; margin-bottom: 6px; }
+.letter-field-table td { padding: 4px 2px; vertical-align: top; }
+.letter-field-table .lbl { width: 120px; white-space: nowrap; }
+.letter-field-table .sep { width: 16px; }
+.letter-indent { margin-left: 24px; width: calc(100% - 24px); }
+
+/* === Checkbox table === */
+.letter-checkbox-table { margin: 6px 0 12px; }
+.letter-checkbox-table td { padding: 3px 20px 3px 0; }
+
+/* === Inputs === */
+.letter-input {
+    border: none; border-bottom: 1px dotted #555;
+    width: 100%; font-family: inherit; font-size: inherit;
+    background: transparent; padding: 2px 4px;
+}
+.letter-input:focus { outline: 1px solid #F59E0B; border-bottom-style: solid; }
+.letter-input-inline {
+    border: none; border-bottom: 1px dotted #555;
+    background: transparent; font-family: inherit;
+    font-size: inherit; padding: 0 4px;
+}
+.letter-input-center { text-align: center; font-weight: bold; }
+.letter-textarea {
+    border: none; border-bottom: 1px dotted #555;
+    width: 100%; font-family: inherit; font-size: inherit;
+    background: transparent; resize: vertical; padding: 2px 4px;
+}
+
+/* === Dotted filler lines === */
+.letter-dotted-line {
+    border-bottom: 1px dotted #555;
+    margin-bottom: 11px; height: 10px;
+}
+
+/* Kotak catatan non-editable bergaris titik-titik berlapis, meniru form asli
+   (khusus dipakai _openIzinPermohonanStaff - Pertimbangan Manajer & Keputusan
+   Direktur). Pakai <div>, bukan <textarea>, jadi tidak bisa diedit saat print. */
+.letter-note-lines {
+    min-height: 150px;
+    line-height: 24px;
+    padding: 2px 4px;
+    font-family: inherit; font-size: inherit;
+    white-space: pre-wrap; word-wrap: break-word;
+    background-image: radial-gradient(circle, #555 0.6px, transparent 1px);
+    background-size: 5px 24px;
+    background-position: 0 23px;
+    background-repeat: repeat;
+}
+
+/* === Signoff / TTD === */
+.letter-signoff-block {
+    float: right; text-align: center;
+    margin-top: 2rem; min-width: 220px;
+}
+.letter-signoff-block p { margin: 0 0 2px; }
+.letter-signoff-block::after { content: ''; display: table; clear: both; }
+
+.signature-space { height: 65px; }
+.signature-line {
+    border-top: 1px solid #111;
+    width: 70%; margin: 0 auto 4px;
+}
+/* Titik-titik di ATAS garis TTD, lebar sama persis dengan .signature-line
+   (khusus dipakai _ttdRowStaff - format Staff Surat Permohonan Izin) */
+.signature-dotted-line {
+    border-top: 1px dotted #555;
+    width: 70%; margin: 0 auto 6px;
+}
+/* Input nama tanpa garis dotted di bawahnya (dotted-nya sudah dipindah ke
+   .signature-dotted-line di atas garis TTD, bukan di bawah nama lagi) */
+.letter-input-plain {
+    border: none; width: 100%; font-family: inherit; font-size: inherit;
+    background: transparent; padding: 2px 4px; text-align: center; font-weight: bold;
+}
+.letter-input-plain:focus { outline: 1px solid #F59E0B; }
+.signature-name { font-weight: bold; text-decoration: underline; }
+.signature-name-underline {
+    font-weight: bold; text-decoration: underline;
+    display: inline-block; margin-top: 2px;
+}
+
+/* === TTD Table (Diketahui / Yang Memohon) === */
+.letter-signoff-table {
+    width: 100%; border-collapse: collapse; margin-top: 12px;
+}
+.letter-signoff-table td {
+    width: 50%; text-align: center;
+    vertical-align: top; padding: 0 8px;
+}
+/* Override khusus tabel Pertimbangan Manajer / Keputusan Direktur - labelnya
+   rata kiri, BUKAN center seperti tabel TTD di atas (_openIzinPermohonanStaff) */
+.letter-note-table td { text-align: left; }
+
+/* === Formulir Permohonan Izin Cuti — kotak & layout khusus === */
+.cuti-box {
+    border: 1.3px solid #111;
+    padding: 8px 16px;
+    margin-bottom: -1px; /* antar kotak menyatu, tanpa border dobel */
+}
+.cuti-box:last-of-type { margin-bottom: 12px; }
+.cuti-box p { margin: 0; } /* reset margin default browser, biar tidak makan tempat & bikin surat lebih dari 1 halaman saat print */
+
+.cuti-field-table { width: 100%; border-collapse: collapse; }
+.cuti-field-table td { padding: 3px 2px; vertical-align: top; }
+.cuti-field-table .lbl { width: 190px; white-space: nowrap; }
+.cuti-field-table .sep { width: 14px; }
+
+.cuti-field-lbl { display: inline-block; width: 176px; }
+
+.cuti-checkbox-cols { display: flex; gap: 40px; margin-bottom: 10px; }
+.cuti-checkbox-cols .col { flex: 1; }
+.cuti-checkbox-cols label {
+    display: flex; align-items: center; gap: 10px;
+    margin-bottom: 8px;
+}
+.cuti-chk {
+    width: 13px; height: 13px; border: 1.3px solid #111;
+    display: inline-block; flex-shrink: 0; position: relative;
+}
+.cuti-chk.checked::after {
+    content: '✓'; position: absolute; top: -5px; left: 1px;
+    font-size: 13px; font-weight: bold; line-height: 1;
+}
+
+.cuti-keputusan-table { width: 100%; border-collapse: collapse; }
+.cuti-keputusan-table td { vertical-align: top; padding: 3px 2px; white-space: nowrap; }
+.cuti-keputusan-table td:first-child { width: 55%; }
+.cuti-keputusan-table td:last-child { width: 45%; }
+
+/* Spacer lebar tetap agar checkbox DISETUJUI & DITUNDA sejajar persis,
+   tidak tergantung lebar teks "DIREKTUR PT.TAA :" */
+.keputusan-lbl {
+    display: inline-block;
+    width: 150px;
+}
+
+/* Baris "SAMPAI DENGAN : ....." sejajar 1 baris, tidak wrap ke bawah */
+.cuti-sampai-dengan {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+}
+
+/* === Print === */
+@media print {
+    html, body { height: auto; overflow: visible; }
+    /* display:none (bukan hanya visibility:hidden) supaya elemen ini benar-benar
+       tidak memakan ruang tinggi dokumen -> mencegah halaman kosong ekstra saat print */
+    #login-container,
+    #app-container { display: none !important; }
+
+    body * { visibility: hidden; }
+    .print-letter-overlay,
+    .print-letter-overlay * { visibility: visible; }
+    .print-letter-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        background: #fff;
+        overflow: visible;
+        height: auto;
+    }
+    .no-print { display: none !important; }
+    .print-letter-page {
+        box-shadow: none; margin: 0;
+        max-width: 100%;
+        min-height: 297mm;
+        height: 297mm;
+        overflow: hidden;
+        page-break-after: avoid;
+        page-break-inside: avoid;
+    }
+    .letter-footer-img-wrap { margin-top: auto; }
+    .letter-input,
+    .letter-input-inline { border-bottom: 1px dotted #555 !important; }
+    .letter-kop-img,
+    .letter-footer-img {
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+    @page { margin: 0; size: A4 portrait; }
+    /* Formulir Cuti lebih panjang dari surat lain -> perketat spacing biar muat 1 halaman */
+    .letter-body { padding: 10px 40px 14px; }
+    .cuti-box { padding: 4px 12px; }
+    .cuti-field-table td { padding: 1px 2px; }
+    .cuti-checkbox-cols { margin-bottom: 4px; }
+    .cuti-checkbox-cols label { margin-bottom: 3px; }
+    .signature-space { height: 40px; }
+}
