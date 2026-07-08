@@ -182,6 +182,15 @@ const api = {
         return this.request('getAllLeaves');
     },
 
+    // Sisa kuota Cuti Tahunan (dihitung server-side dari total cuti tahunan
+    // yang sudah disetujui tahun berjalan)
+    async getLeaveBalance(userId) {
+        if (!API_BASE_URL) {
+            return { success: true, data: { tahun: new Date().getFullYear(), kuota: 12, terpakai: 0, sisa: 12 } };
+        }
+        return this.request('getLeaveBalance', { userId });
+    },
+
     // ========== IZIN / PERMISSION ==========
 
     async getIzin(userId) {
