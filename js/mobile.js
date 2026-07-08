@@ -176,38 +176,52 @@ const mobile = {
 // Touch swipe support for sidebar
 document.addEventListener('touchstart', handleTouchStart, { passive: true });
 document.addEventListener('touchmove', handleTouchMove, { passive: true });
+document.addEventListener('touchend', handleTouchEnd, { passive: true });
 
 let xDown = null;
 let yDown = null;
+let swipeHandled = false;
 
 function handleTouchStart(evt) {
     xDown = evt.touches[0].clientX;
     yDown = evt.touches[0].clientY;
+    swipeHandled = false;
 }
 
 function handleTouchMove(evt) {
-    if (!xDown || !yDown) return;
-    
+    // BUG LAMA: xDown/yDown direset jadi null di akhir fungsi ini, padahal
+    // "touchmove" terpicu berkali-kali selama satu gerakan geser jari — jadi
+    // jarak yang kehitung cuma dari gerakan super kecil di awal sentuhan,
+    // hampir tidak pernah sampai ambang 50px. Sekarang xDown/yDown tetap
+    // dipertahankan dari titik sentuh AWAL sampai jari diangkat (touchend),
+    // dan `swipeHandled` mencegah aksi ke-trigger berkali-kali dalam 1 geseran.
+    if (xDown === null || yDown === null || swipeHandled) return;
+
     const xUp = evt.touches[0].clientX;
     const yUp = evt.touches[0].clientY;
-    
+
     const xDiff = xDown - xUp;
     const yDiff = yDown - yUp;
-    
+
     // Horizontal swipe
     if (Math.abs(xDiff) > Math.abs(yDiff)) {
-        // Swipe right - open sidebar (from left edge)
-        if (xDiff < -50 && xDown < 50 && mobile.isMobile) {
+        // Swipe right - open sidebar (dari tepi kiri layar)
+        if (xDiff < -50 && xDown < 50 && mobile.isMobile && !mobile.sidebarOpen) {
             mobile.toggleSidebar();
+            swipeHandled = true;
         }
         // Swipe left - close sidebar
         if (xDiff > 50 && mobile.sidebarOpen) {
             mobile.closeSidebar();
+            swipeHandled = true;
         }
     }
-    
+}
+
+function handleTouchEnd() {
     xDown = null;
     yDown = null;
+    swipeHandled = false;
 }
 
 // Initialize on DOM ready
