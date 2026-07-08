@@ -2153,8 +2153,33 @@
             <a href="#" class="bottom-nav-item" data-page="absensi"><i class="fas fa-clock"></i><span>Absen</span></a>
             <a href="#" class="bottom-nav-item" data-page="izin"><i class="fas fa-user-clock"></i><span>Izin</span></a>
             <a href="#" class="bottom-nav-item" data-page="cuti"><i class="fas fa-plane-departure"></i><span>Cuti</span></a>
+            <a href="#" class="bottom-nav-item hidden" id="bottom-nav-approval-asmen" data-page="approval-asmen"><i class="fas fa-user-check"></i><span>Approval</span></a>
+            <a href="#" class="bottom-nav-item hidden" id="bottom-nav-approval-manajer" data-page="approval-manajer"><i class="fas fa-user-check"></i><span>Approval</span></a>
             <a href="#" class="bottom-nav-item" id="bottom-nav-logout" onclick="auth.handleLogout()"><i class="fas fa-sign-out-alt"></i><span>Logout</span></a>
         </nav>
+    </div>
+
+    <!-- Modal Konfirmasi Logout -->
+    <div class="modal-overlay" id="modal-logout-confirm" style="display:none;">
+        <div class="modal-container" style="max-width:380px;">
+            <div style="padding:2rem 1.5rem 1.5rem; text-align:center;">
+                <div style="width:72px;height:72px;border-radius:50%;background:rgba(239,68,68,0.1);display:flex;align-items:center;justify-content:center;margin:0 auto 1.25rem;">
+                    <i class="fas fa-sign-out-alt" style="font-size:1.9rem;color:var(--color-danger);"></i>
+                </div>
+                <h3 style="font-size:1.15rem;font-weight:700;margin-bottom:0.4rem;color:var(--text-primary);">Keluar dari akun?</h3>
+                <p style="color:var(--text-muted);font-size:0.9rem;margin-bottom:1.75rem;">Anda perlu login kembali untuk mengakses Portal Karyawan.</p>
+                <div style="display:flex;gap:0.75rem;">
+                    <button type="button" onclick="auth.cancelLogoutModal()"
+                        style="flex:1;padding:0.75rem;border-radius:8px;border:1px solid var(--border-color);background:var(--bg-secondary);color:var(--text-primary);font-weight:600;cursor:pointer;">
+                        Batal
+                    </button>
+                    <button type="button" onclick="auth.confirmLogout()"
+                        style="flex:1;padding:0.75rem;border-radius:8px;border:none;background:var(--color-danger);color:#fff;font-weight:600;cursor:pointer;">
+                        <i class="fas fa-sign-out-alt"></i> Logout
+                    </button>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- Modal Tambah Karyawan -->
