@@ -127,16 +127,37 @@ const auth = {
         }
     },
 
+    // Sebelumnya pakai confirm() bawaan browser (tampilannya polos/kaku).
+    // Sekarang menampilkan modal konfirmasi custom (#modal-logout-confirm)
+    // supaya lebih menarik dan konsisten dengan gaya modal lain di aplikasi.
     handleLogout() {
-    if (confirm('Apakah Anda yakin ingin logout?')) {
+        const modal = document.getElementById('modal-logout-confirm');
+        if (modal) {
+            modal.style.display = 'flex';
+        } else {
+            // Fallback kalau elemen modal tidak ada di halaman ini
+            if (confirm('Apakah Anda yakin ingin logout?')) this._doLogout();
+        }
+    },
+
+    cancelLogoutModal() {
+        const modal = document.getElementById('modal-logout-confirm');
+        if (modal) modal.style.display = 'none';
+    },
+
+    confirmLogout() {
+        this.cancelLogoutModal();
+        this._doLogout();
+    },
+
+    _doLogout() {
         this.currentUser = null;
         storage.remove('session');
         storage.remove('currentPage');
-        sessionStorage.removeItem('adminSwitchMode'); 
+        sessionStorage.removeItem('adminSwitchMode');
 
-            this.showLogin();
-            toast.info('Anda telah logout');
-        }
+        this.showLogin();
+        toast.info('Anda telah logout');
     },
 
     showApp() {
@@ -435,6 +456,13 @@ const auth = {
 
         const navApprovalDirektur = document.getElementById('nav-approval-direktur');
         if (navApprovalDirektur) navApprovalDirektur.classList.toggle('hidden', !this.isDirektur());
+
+        // Bottom nav (mobile) - item "Approval" khusus untuk Asmen & Manajer
+        const bottomNavApprovalAsmen = document.getElementById('bottom-nav-approval-asmen');
+        if (bottomNavApprovalAsmen) bottomNavApprovalAsmen.classList.toggle('hidden', !this.isAsmen());
+
+        const bottomNavApprovalManajer = document.getElementById('bottom-nav-approval-manajer');
+        if (bottomNavApprovalManajer) bottomNavApprovalManajer.classList.toggle('hidden', !this.isManajer());
     },
 
     isLoggedIn() {
