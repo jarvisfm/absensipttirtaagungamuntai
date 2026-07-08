@@ -931,7 +931,6 @@
                                 <button type="button" class="tab-btn" onclick="profileManager.switchTab('kekaryawanan')" id="pf-tab-kekaryawanan" style="padding:8px 16px;border:none;background:none;cursor:pointer;font-weight:500;color:var(--text-muted);">Kekaryawanan</button>
                                 <button type="button" class="tab-btn" onclick="profileManager.switchTab('keluarga')" id="pf-tab-keluarga" style="padding:8px 16px;border:none;background:none;cursor:pointer;font-weight:500;color:var(--text-muted);">Keluarga</button>
                                 <button type="button" class="tab-btn" onclick="profileManager.switchTab('akun')" id="pf-tab-akun" style="padding:8px 16px;border:none;background:none;cursor:pointer;font-weight:500;color:var(--text-muted);">Akun</button>
-                                <button type="button" class="tab-btn" onclick="profileManager.switchTab('uploadfile')" id="pf-tab-uploadfile" style="padding:8px 16px;border:none;background:none;cursor:pointer;font-weight:500;color:var(--text-muted);">Upload File</button>
                                 <button type="button" class="tab-btn" onclick="profileManager.switchTab('dokumen')" id="pf-tab-dokumen" style="padding:8px 16px;border:none;background:none;cursor:pointer;font-weight:500;color:var(--text-muted);">Dokumen</button>
                             </div>
 
@@ -1166,70 +1165,6 @@
                                     <label>Password</label>
                                     <input type="password" id="pf-password" placeholder="Kosongkan jika tidak ingin mengubah">
                                     <small style="color:var(--text-muted);">Kosongkan jika tidak ingin mengubah password</small>
-                                </div>
-                            </div>
-
-                            <!-- Tab Upload File (Link Google Drive - berkas tetap: SK/KTP/Ijazah/Sertifikat) -->
-                            <div id="pf-tabcontent-uploadfile" style="display:none;">
-                                <p style="font-size:0.85rem;color:var(--text-muted);margin-bottom:1.5rem;">
-                                    Tempel link Google Drive untuk dokumen Anda. Pastikan sharing file diset ke
-                                    <strong>"Anyone with the link"</strong> agar bisa dibuka.
-                                </p>
-
-                                <div class="form-group" style="border:1px solid var(--border-color);border-radius:8px;padding:1rem;margin-bottom:1rem;">
-                                    <div style="display:flex;align-items:center;gap:8px;margin-bottom:0.75rem;">
-                                        <i class="fas fa-file-alt" style="color:var(--color-primary);font-size:1.1rem;"></i>
-                                        <label style="font-weight:600;margin:0;">Surat Keputusan (SK)</label>
-                                    </div>
-                                    <input type="url" id="pf-sk-link" placeholder="https://drive.google.com/file/d/..."
-                                        style="width:100%;padding:8px 10px;border:1px solid var(--border-color);border-radius:6px;font-family:inherit;">
-                                    <div id="pf-sk-file-current" style="margin-top:8px;display:none;">
-                                        <a href="#" id="pf-sk-file-link" target="_blank" style="color:var(--color-primary);font-size:0.85rem;">
-                                            <i class="fas fa-external-link-alt"></i> Buka file SK saat ini
-                                        </a>
-                                    </div>
-                                </div>
-
-                                <div class="form-group" style="border:1px solid var(--border-color);border-radius:8px;padding:1rem;margin-bottom:1rem;">
-                                    <div style="display:flex;align-items:center;gap:8px;margin-bottom:0.75rem;">
-                                        <i class="fas fa-id-card" style="color:#3B82F6;font-size:1.1rem;"></i>
-                                        <label style="font-weight:600;margin:0;">KTP</label>
-                                    </div>
-                                    <input type="url" id="pf-ktp-link" placeholder="https://drive.google.com/file/d/..."
-                                        style="width:100%;padding:8px 10px;border:1px solid var(--border-color);border-radius:6px;font-family:inherit;">
-                                    <div id="pf-ktp-file-current" style="margin-top:8px;display:none;">
-                                        <a href="#" id="pf-ktp-file-link" target="_blank" style="color:var(--color-primary);font-size:0.85rem;">
-                                            <i class="fas fa-external-link-alt"></i> Buka file KTP saat ini
-                                        </a>
-                                    </div>
-                                </div>
-
-                                <div class="form-group" style="border:1px solid var(--border-color);border-radius:8px;padding:1rem;margin-bottom:1rem;">
-                                    <div style="display:flex;align-items:center;gap:8px;margin-bottom:0.75rem;">
-                                        <i class="fas fa-graduation-cap" style="color:#10B981;font-size:1.1rem;"></i>
-                                        <label style="font-weight:600;margin:0;">Ijazah</label>
-                                    </div>
-                                    <input type="url" id="pf-ijazah-link" placeholder="https://drive.google.com/file/d/..."
-                                        style="width:100%;padding:8px 10px;border:1px solid var(--border-color);border-radius:6px;font-family:inherit;">
-                                    <div id="pf-ijazah-file-current" style="margin-top:8px;display:none;">
-                                        <a href="#" id="pf-ijazah-file-link" target="_blank" style="color:var(--color-primary);font-size:0.85rem;">
-                                            <i class="fas fa-external-link-alt"></i> Buka file Ijazah saat ini
-                                        </a>
-                                    </div>
-                                </div>
-
-                                <div class="form-group" style="border:1px solid var(--border-color);border-radius:8px;padding:1rem;margin-bottom:1rem;">
-                                    <div style="display:flex;align-items:center;gap:8px;margin-bottom:0.75rem;">
-                                        <i class="fas fa-certificate" style="color:#F59E0B;font-size:1.1rem;"></i>
-                                        <label style="font-weight:600;margin:0;">Sertifikat / Dokumen Lain</label>
-                                    </div>
-                                    <input type="url" id="pf-sertifikat-link" placeholder="https://drive.google.com/file/d/..."
-                                        style="width:100%;padding:8px 10px;border:1px solid var(--border-color);border-radius:6px;font-family:inherit;">
-                                    <div id="pf-sertifikat-file-current" style="margin-top:8px;display:none;">
-                                        <a href="#" id="pf-sertifikat-file-link" target="_blank" style="color:var(--color-primary);font-size:0.85rem;">
-                                            <i class="fas fa-external-link-alt"></i> Buka file Sertifikat saat ini
-                                        </a>
-                                    </div>
                                 </div>
                             </div>
 
