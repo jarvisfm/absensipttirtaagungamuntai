@@ -6,9 +6,14 @@
 const auth = {
     currentUser: null,
 
+    // Sesi login otomatis dianggap habis setelah durasi ini (ms), supaya
+    // perangkat yang pernah dipakai login (mis. HP) tidak selamanya langsung
+    // masuk dashboard tanpa login ulang. 12 jam.
+    SESSION_DURATION_MS: 12 * 60 * 60 * 1000,
+
     init() {
     const session = storage.get('session');
-    if (session && session.id && session.role) {
+    if (session && session.id && session.role && !this.isSessionExpired(session)) {
         this.currentUser = session;
         this.showApp();
     } else {
@@ -35,6 +40,7 @@ const auth = {
         }
 
         // Profile click - open profile modal
+        // (helper isSessionExpired ada di bawah, dipakai oleh init() di atas)
         const userProfile = document.querySelector('.user-profile');
         if (userProfile) {
             // Make the user info area clickable (not the logout button)
@@ -91,7 +97,8 @@ const auth = {
                     bagian: result.data.bagian || '',
                     pangkat: result.data.pangkat || '',
                     golongan: result.data.golongan || '',
-                    loginTime: new Date().toISOString()
+                    loginTime: new Date().toISOString(),
+                    expiresAt: Date.now() + this.SESSION_DURATION_MS
                 };
     
             } else {
@@ -204,6 +211,12 @@ const auth = {
             const loginForm = document.getElementById('login-form');
             if (loginForm) loginForm.reset();
         }
+    },
+
+    // Sesi dianggap kedaluwarsa kalau tidak punya expiresAt (data lama sebelum
+    // fitur ini ada) atau waktunya sudah lewat.
+    isSessionExpired(session) {
+        return !session.expiresAt || Date.now() > session.expiresAt;
     },
 
     updateUserUI() {
