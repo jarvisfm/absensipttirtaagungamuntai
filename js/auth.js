@@ -1,0 +1,395 @@
+/**
+ * Portal Karyawan - Authentication
+ * Handle login/logout and session management
+ */
+
+const auth = {
+    currentUser: null,
+
+    init() {
+    const session = storage.get('session');
+    if (session && session.id && session.role) {
+        this.currentUser = session;
+        this.showApp();
+    } else {
+        storage.remove('session');
+        this.showLogin();
+    }
+
+        // Login form handler
+        const loginForm = document.getElementById('login-form');
+        if (loginForm) {
+            loginForm.addEventListener('submit', (e) => this.handleLogin(e));
+        }
+
+        // Toggle password visibility
+        const togglePassword = document.getElementById('toggle-password');
+        if (togglePassword) {
+            togglePassword.addEventListener('click', () => this.togglePasswordVisibility());
+        }
+
+        // Logout button
+        const logoutBtn = document.getElementById('btn-logout');
+        if (logoutBtn) {
+            logoutBtn.addEventListener('click', () => this.handleLogout());
+        }
+
+        // Profile click - open profile modal
+        const userProfile = document.querySelector('.user-profile');
+        if (userProfile) {
+            // Make the user info area clickable (not the logout button)
+            const userInfoArea = userProfile.querySelector('.user-info');
+            const userAvatarArea = userProfile.querySelector('.user-avatar');
+            if (userInfoArea) {
+                userInfoArea.style.cursor = 'pointer';
+                userInfoArea.addEventListener('click', () => this.openProfileModal());
+            }
+            if (userAvatarArea) {
+                userAvatarArea.style.cursor = 'pointer';
+                userAvatarArea.addEventListener('click', () => this.openProfileModal());
+            }
+        }
+    },
+
+    async handleLogin(e) {
+        e.preventDefault();
+
+        const username = document.getElementById('login-email').value;
+        const password = document.getElementById('login-password').value;
+
+        // Validate
+        if (!username || !password) {
+            toast.error('Username dan password harus diisi!');
+            return;
+        }    
+
+        // Show loading
+        const submitBtn = e.target.querySelector('.btn-login');
+        submitBtn.classList.add('loading');
+        submitBtn.disabled = true;
+
+        try {
+            const result = await api.login(username, password);
+
+            let user;
+            if (result.success && result.data) {
+                // Backend mode - user from API (Employees or Users sheet)
+                user = {
+                    id: result.data.id,
+                    employeeId: result.data.employeeId || null, 
+                    username: result.data.username,
+                    name: result.data.name,
+                    role: result.data.role,
+                    employeeRole: result.data.employeeRole || '',
+                    department: result.data.department || '',
+                    position: result.data.position || '',
+                    shift: result.data.shift || '',
+                    avatar: result.data.avatar || '',
+                    nik: result.data.nik || '',
+                    jabatan: result.data.jabatan || '',
+                    unitKerja: result.data.unitKerja || '',
+                    bagian: result.data.bagian || '',
+                    pangkat: result.data.pangkat || '',
+                    golongan: result.data.golongan || '',
+                    loginTime: new Date().toISOString()
+                };
+    
+            } else {
+                toast.error(result.error || 'Email atau password salah!');
+                submitBtn.classList.remove('loading');
+                submitBtn.disabled = false;
+                return;
+            }
+
+            this.currentUser = user;
+            storage.set('session', user);
+
+            // Update UI
+            this.updateUserUI();
+
+            // Show app
+            this.showApp();
+
+            toast.success(`Selamat datang, ${user.name}!`);
+        } catch (error) {
+            console.error('Login error:', error);
+            toast.error('Terjadi kesalahan saat login');
+        } finally {
+            submitBtn.classList.remove('loading');
+            submitBtn.disabled = false;
+        }
+    },
+
+    handleLogout() {
+    if (confirm('Apakah Anda yakin ingin logout?')) {
+        this.currentUser = null;
+        storage.remove('session');
+        storage.remove('currentPage');
+        sessionStorage.removeItem('adminSwitchMode'); 
+
+            this.showLogin();
+            toast.info('Anda telah logout');
+        }
+    },
+
+    showApp() {
+        const loginContainer = document.getElementById('login-container');
+        const appContainer = document.getElementById('app-container');
+
+        if (loginContainer && appContainer) {
+            loginContainer.style.display = 'none';
+            appContainer.classList.remove('hidden');
+
+            // Update user UI first
+            this.updateUserUI();
+
+            // Isi notifikasi dengan data nyata
+            if (window.notifications) notifications.init();
+
+            // Selalu reset mode karyawan saat showApp (login baru)
+            sessionStorage.removeItem('adminSwitchMode');
+            const banner = document.getElementById('admin-switch-banner');
+            const switchBtn = document.getElementById('btn-switch-to-employee');
+            if (banner) banner.style.display = 'none';
+            if (switchBtn) switchBtn.style.display = '';
+                        
+            // Show appropriate menu based on role
+            const employeeMenu = document.getElementById('employee-menu');
+            const adminMenu = document.getElementById('admin-menu-nav');
+            const bottomNav = document.getElementById('bottom-nav');
+
+            if (this.currentUser && this.currentUser.role === 'admin') {
+                // Show admin menu, hide employee menu
+                if (employeeMenu) employeeMenu.classList.add('hidden');
+                if (adminMenu) adminMenu.classList.remove('hidden');
+                if (bottomNav) bottomNav.style.display = 'none';
+
+                // Navigate to admin dashboard
+                router.navigate('admin-dashboard');
+            } else {
+                // Show employee menu, hide admin menu
+                if (employeeMenu) employeeMenu.classList.remove('hidden');
+                if (adminMenu) adminMenu.classList.add('hidden');
+                if (bottomNav) bottomNav.style.display = window.innerWidth <= 768 ? 'flex' : 'none';
+
+                // Navigate to employee dashboard
+                router.navigate('dashboard');
+            }
+
+            // Menu approval terpisah untuk tiap tahap: Asmen, Manajer, Direktur.
+            // Dipanggil di LUAR if/else di atas (bukan cuma di cabang employee),
+            // karena akun rangkap seperti Admin yang juga Asmen/Manajer punya
+            // currentUser.role === 'admin' di level atas - employeeRole-nya baru
+            // kepakai lewat isAsmen()/isManajer()/isDirektur() begitu masuk Mode
+            // Karyawan. Fungsi ini juga dipanggil ulang oleh admin-switch.js
+            // setiap kali Mode Karyawan diaktifkan/dinonaktifkan.
+            this.updateApprovalNav();
+
+            // Initialize mobile
+            if (window.mobile) {
+                window.mobile.handleResize();
+            }
+        }
+    },
+
+    showLogin() {
+        const loginContainer = document.getElementById('login-container');
+        const appContainer = document.getElementById('app-container');
+
+        if (loginContainer && appContainer) {
+            appContainer.classList.add('hidden');
+            loginContainer.style.display = 'flex';
+
+            // Reset form
+            const loginForm = document.getElementById('login-form');
+            if (loginForm) loginForm.reset();
+        }
+    },
+
+    updateUserUI() {
+        if (!this.currentUser) return;
+
+        // Update user info in sidebar
+        const userNameEl = document.getElementById('user-name');
+        const userRoleEl = document.getElementById('user-role');
+        const userAvatarEl = document.getElementById('user-avatar');
+        const welcomeNameEl = document.getElementById('welcome-name');
+
+        if (userNameEl) userNameEl.textContent = this.currentUser.name;
+        if (userRoleEl) userRoleEl.textContent = this.currentUser.role === 'admin' ? 'Administrator' : 'Karyawan';
+        if (userAvatarEl) userAvatarEl.src = getAvatarUrl(this.currentUser);
+        if (welcomeNameEl) welcomeNameEl.textContent = this.currentUser.name.split(' ')[0];
+    },
+
+    async openProfileModal() {
+        const modal = document.getElementById('modal-profile');
+        if (!modal) return;
+
+        const user = this.currentUser;
+        if (!user) return;
+
+        // Set basic info
+        document.getElementById('profile-avatar').src = getAvatarUrl(user);
+        document.getElementById('profile-name').textContent = user.name || '-';
+        document.getElementById('profile-email').textContent = user.email || '-';
+        document.getElementById('profile-role').textContent = user.role === 'admin' ? 'Administrator' : 'Karyawan';
+
+        // Employee-specific fields
+        const empFields = document.getElementById('profile-employee-fields');
+        if (user.role === 'karyawan' || user.role !== 'admin') {
+            // Fetch profile from backend
+            try {
+                const result = await api.getEmployeeProfile(user.id);
+                if (result.success && result.data) {
+                    const profile = result.data;
+                    document.getElementById('profile-department').textContent = profile.department || '-';
+                    document.getElementById('profile-position').textContent = profile.position || '-';
+                    document.getElementById('profile-shift').textContent = profile.shift || '-';
+                }
+            } catch (e) {
+                document.getElementById('profile-department').textContent = user.department || '-';
+                document.getElementById('profile-position').textContent = user.position || '-';
+                document.getElementById('profile-shift').textContent = user.shift || '-';
+            }
+            if (empFields) empFields.style.display = 'block';
+        } else {
+            if (empFields) empFields.style.display = 'none';
+        }
+
+        // Clear password form
+        document.getElementById('old-password').value = '';
+        document.getElementById('new-password').value = '';
+        document.getElementById('confirm-password').value = '';
+
+        modal.style.display = 'flex';
+    },
+
+    async handleChangePassword() {
+        const oldPwd = document.getElementById('old-password').value;
+        const newPwd = document.getElementById('new-password').value;
+        const confirmPwd = document.getElementById('confirm-password').value;
+
+        if (!oldPwd || !newPwd || !confirmPwd) {
+            toast.error('Semua field password harus diisi!');
+            return;
+        }
+        if (newPwd !== confirmPwd) {
+            toast.error('Password baru dan konfirmasi tidak cocok!');
+            return;
+        }
+        if (newPwd.length < 4) {
+            toast.error('Password minimal 4 karakter!');
+            return;
+        }
+
+        try {
+            const result = await api.changePassword(this.currentUser.id, oldPwd, newPwd);
+            if (result.success) {
+                toast.success('Password berhasil diubah!');
+                document.getElementById('old-password').value = '';
+                document.getElementById('new-password').value = '';
+                document.getElementById('confirm-password').value = '';
+            } else {
+                toast.error(result.error || 'Gagal mengubah password');
+            }
+        } catch (error) {
+            console.error('Error changing password:', error);
+            toast.error('Terjadi kesalahan');
+        }
+    },
+
+    togglePasswordVisibility() {
+        const passwordInput = document.getElementById('login-password');
+        const toggleBtn = document.getElementById('toggle-password');
+
+        if (passwordInput.type === 'password') {
+            passwordInput.type = 'text';
+            toggleBtn.innerHTML = '<i class="fas fa-eye-slash"></i>';
+        } else {
+            passwordInput.type = 'password';
+            toggleBtn.innerHTML = '<i class="fas fa-eye"></i>';
+        }
+    },
+
+    // Menu approval terpisah untuk tiap tahap: Asmen, Manajer, Direktur.
+    // Masing-masing hanya muncul untuk role yang sesuai (lihat isAsmen/isManajer/
+    // isDirektur - keduanya sadar soal Mode Karyawan untuk akun rangkap admin).
+    // Dipanggil dari showApp() (login) dan dari admin-switch.js (tiap kali Mode
+    // Karyawan diaktifkan/dinonaktifkan), karena hasil isAsmen() dkk. bisa berubah
+    // begitu adminSwitchMode berubah.
+    updateApprovalNav() {
+        const navApprovalAsmen = document.getElementById('nav-approval-asmen');
+        if (navApprovalAsmen) navApprovalAsmen.classList.toggle('hidden', !this.isAsmen());
+
+        const navApprovalManajer = document.getElementById('nav-approval-manajer');
+        if (navApprovalManajer) navApprovalManajer.classList.toggle('hidden', !this.isManajer());
+
+        const navApprovalDirektur = document.getElementById('nav-approval-direktur');
+        if (navApprovalDirektur) navApprovalDirektur.classList.toggle('hidden', !this.isDirektur());
+    },
+
+    isLoggedIn() {
+        return this.currentUser !== null;
+    },
+
+    isAdmin() {
+        // Jika sedang dalam mode karyawan, kembalikan false
+        // agar semua fitur karyawan berjalan normal untuk admin
+        if (sessionStorage.getItem('adminSwitchMode') === 'true') return false;
+        return this.currentUser && this.currentUser.role === 'admin';
+    },
+
+    isManager() {
+        if (sessionStorage.getItem('adminSwitchMode') === 'true') return false;
+        return this.currentUser && this.currentUser.role === 'manager';
+    },
+
+    // Role Bahasa Indonesia yang dipakai alur approval Izin bertingkat
+    // (Asmen -> Manajer -> Direktur). Terpisah dari isManager() lama
+    // ('manager' bahasa Inggris) yang masih dipakai skema Cuti.
+    //
+    // Catatan khusus akun rangkap (misal admin yang juga Asmen/Manajer,
+    // seperti M. Azemi): saat login sebagai Admin, currentUser.role selalu
+    // 'admin'. Jabatan aslinya (asmen/manajer/direktur) disimpan terpisah di
+    // currentUser.employeeRole (lihat Auth.gs). Begitu admin masuk "Mode
+    // Karyawan", kita cek employeeRole itu - BUKAN role - supaya menu
+    // approval yang sesuai muncul.
+    isAsmen() {
+        if (sessionStorage.getItem('adminSwitchMode') === 'true') {
+            return this.currentUser && this.currentUser.employeeRole === 'asmen';
+        }
+        return this.currentUser && this.currentUser.role === 'asmen';
+    },
+
+    isManajer() {
+        if (sessionStorage.getItem('adminSwitchMode') === 'true') {
+            return this.currentUser && this.currentUser.employeeRole === 'manajer';
+        }
+        return this.currentUser && this.currentUser.role === 'manajer';
+    },
+
+    isDirektur() {
+        if (sessionStorage.getItem('adminSwitchMode') === 'true') {
+            return this.currentUser && this.currentUser.employeeRole === 'direktur';
+        }
+        return this.currentUser && this.currentUser.role === 'direktur';
+    },
+
+    // Admin, Manager, Asmen, Manajer, atau Direktur - semua bisa approve
+    // Izin/Cuti (tahap berbeda-beda sesuai role masing-masing)
+    isApprover() {
+        return this.isAdmin() || this.isManager() || this.isAsmen() || this.isManajer() || this.isDirektur();
+    },
+
+    getCurrentUser() {
+        return this.currentUser;
+    }
+};
+
+// Initialize auth on DOM ready
+document.addEventListener('DOMContentLoaded', () => {
+    auth.init();
+});
+
+// Expose to global
+window.auth = auth;
