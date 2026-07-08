@@ -10,6 +10,23 @@ const absensi = {
     liveClockInterval: null,
 
     async init() {
+    // Fitur Absensi untuk sementara "Coming Soon" bagi Staff/Asmen/Manajer —
+    // yang dipakai sekarang cuma Izin & Cuti. Khusus Admin (termasuk saat
+    // Mode Karyawan) tetap bisa melihat halaman Absensi yang asli, makanya
+    // dicek dari `auth.currentUser.role` langsung (BUKAN auth.isAdmin(),
+    // karena isAdmin() sengaja balik false saat Mode Karyawan aktif).
+    const isRealAdmin = auth.currentUser && auth.currentUser.role === 'admin';
+    const comingSoonEl = document.getElementById('absensi-coming-soon');
+    const realContentEl = document.getElementById('absensi-real-content');
+
+    if (!isRealAdmin) {
+        if (comingSoonEl) comingSoonEl.style.display = 'flex';
+        if (realContentEl) realContentEl.style.display = 'none';
+        return; // jangan load data/fitur absensi asli untuk role selain admin
+    }
+    if (comingSoonEl) comingSoonEl.style.display = 'none';
+    if (realContentEl) realContentEl.style.display = '';
+
     // Reset state dulu sebelum load data baru
     this.currentState = 'waiting';
     this.attendanceData = {};
