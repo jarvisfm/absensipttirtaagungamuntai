@@ -57,14 +57,33 @@ const notifications = {
         // dihitung ulang tiap kali dibuka (lihat openPanel()) berdasarkan
         // posisi asli tombol lonceng di layar - jadi tidak lagi kena efek
         // kepotong oleh parent/header yang membatasi lebar/overflow-nya.
+        //
+        // Panel dibuat 2 lapis: elemen luar (panel) transparan & TANPA
+        // overflow, isinya cuma "caret" (segitiga kecil penunjuk ke arah
+        // tombol lonceng) + kotak konten (notif-panel-inner) yang baru
+        // punya background/shadow/scroll. Ini supaya caret-nya tidak
+        // kepotong oleh overflow:hidden/auto milik kotak konten, dan panel
+        // kelihatan jelas "muncul dari" tombol lonceng - bukan kotak
+        // terpisah yang melayang di tempat lain. Animasi scale+fade dengan
+        // transform-origin di kanan-atas juga bikin efeknya seperti
+        // membuka/minimize dari tombol, bukan tiba-tiba muncul dari 0.
         panel.style.cssText = `
-            position:fixed; width:min(340px, calc(100vw - 24px)); max-height:420px;
-            overflow-y:auto; background:#fff; border-radius:10px;
-            box-shadow:0 8px 24px rgba(0,0,0,0.15); z-index:2000; display:none;
+            position:fixed; width:min(300px, calc(100vw - 32px));
+            z-index:2000; display:none;
+            transform-origin: top right;
+            opacity:0; transform: scale(0.92) translateY(-6px);
+            transition: opacity 0.15s ease, transform 0.15s ease;
         `;
         panel.innerHTML = `
-            <div style="padding:14px 16px;border-bottom:1px solid #eee;font-weight:600;">Notifikasi</div>
-            <div id="notif-list" style="padding:8px;"></div>
+            <div style="position:absolute; top:-6px; right:18px; width:12px; height:12px;
+                background:#fff; transform:rotate(45deg); border-radius:2px;
+                box-shadow:-2px -2px 4px rgba(0,0,0,0.04);"></div>
+            <div style="position:relative; background:#fff; border-radius:12px;
+                box-shadow:0 8px 24px rgba(0,0,0,0.15); max-height:420px;
+                overflow-y:auto;">
+                <div style="padding:14px 16px;border-bottom:1px solid #eee;font-weight:600;">Notifikasi</div>
+                <div id="notif-list" style="padding:8px;"></div>
+            </div>
         `;
         // Ditaruh langsung di <body>, bukan di dalam wrapper header - supaya
         // tidak kena batasi/overflow dari container header sama sekali.
@@ -84,16 +103,31 @@ const notifications = {
             // Jarak dari tepi KANAN layar ke tepi kanan tombol lonceng,
             // minimal `margin` px supaya panel tidak nempel/kepotong di tepi.
             const rightGap = Math.max(margin, window.innerWidth - rect.right);
-            panel.style.top = (rect.bottom + 8) + 'px';
+            panel.style.top = (rect.bottom + 10) + 'px';
             panel.style.right = rightGap + 'px';
             panel.style.display = 'block';
+            // Set posisi awal (kecil & transparan) dulu, baru di frame
+            // berikutnya animasikan ke ukuran penuh - efeknya jadi "muncul/
+            // membesar dari tombol lonceng", bukan langsung nongol utuh.
+            panel.style.opacity = '0';
+            panel.style.transform = 'scale(0.92) translateY(-6px)';
+            requestAnimationFrame(() => {
+                panel.style.opacity = '1';
+                panel.style.transform = 'scale(1) translateY(0)';
+            });
         }
         this.panelOpen = true;
     },
 
     closePanel() {
         const panel = document.getElementById('notif-panel');
-        if (panel) panel.style.display = 'none';
+        if (panel) {
+            // Animasikan dulu balik ke kecil/transparan (seperti minimize),
+            // baru display:none setelah transisinya selesai.
+            panel.style.opacity = '0';
+            panel.style.transform = 'scale(0.92) translateY(-6px)';
+            setTimeout(() => { panel.style.display = 'none'; }, 150);
+        }
         this.panelOpen = false;
     },
 
