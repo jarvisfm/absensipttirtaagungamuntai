@@ -276,6 +276,8 @@ img {
     font-size: var(--font-size-xl);
     font-weight: 700;
     color: var(--color-primary);
+    min-width: 0;
+    flex: 1;
 }
 
 .sidebar-logo i {
@@ -284,6 +286,10 @@ img {
 
 .sidebar-brand {
     transition: opacity var(--transition);
+    font-size: 0.95rem;
+    line-height: 1.2;
+    white-space: normal;
+    word-break: break-word;
 }
 
 .sidebar.collapsed .sidebar-brand {
