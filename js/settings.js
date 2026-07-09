@@ -35,12 +35,6 @@ const settings = {
 
             const allSettings = settingsResult.data || {};
 
-            // Company info
-            const companyName = document.getElementById('company-name');
-            const companyLogo = document.getElementById('company-logo');
-            if (companyName) companyName.value = allSettings.company_name || '';
-            if (companyLogo) companyLogo.value = allSettings.company_logo || '';
-
             // Working days
             const workdays = allSettings.working_days ? JSON.parse(allSettings.working_days) : null;
             if (workdays) {
@@ -86,11 +80,6 @@ const settings = {
         } catch (error) {
             console.error('Error loading settings:', error);
             this.shifts = storage.get('shifts', []);
-            const company = storage.get('company', { name: '', logo: '' });
-            const companyName = document.getElementById('company-name');
-            const companyLogo = document.getElementById('company-logo');
-            if (companyName) companyName.value = company.name;
-            if (companyLogo) companyLogo.value = company.logo;
         }
     },
 
@@ -122,12 +111,6 @@ const settings = {
     },
 
     initForms() {
-        // Company form
-        const companyForm = document.getElementById('company-form');
-        if (companyForm) {
-            companyForm.addEventListener('submit', (e) => this.saveCompany(e));
-        }
-
         // Add shift button
         const addShiftBtn = document.getElementById('btn-add-shift');
         if (addShiftBtn) {
@@ -144,27 +127,6 @@ const settings = {
         const saveSystemBtn = document.getElementById('btn-save-system');
         if (saveSystemBtn) {
             saveSystemBtn.addEventListener('click', () => this.saveSystemSettings());
-        }
-    },
-
-    async saveCompany(e) {
-        e.preventDefault();
-
-        const name = document.getElementById('company-name').value;
-        const logo = document.getElementById('company-logo').value;
-
-        try {
-            await Promise.all([
-                api.saveSetting('company_name', name),
-                api.saveSetting('company_logo', logo)
-            ]);
-            // Also update localStorage for immediate UI update
-            storage.set('company', { name, logo });
-            updateCompanyUI();
-            toast.success('Informasi perusahaan berhasil disimpan!');
-        } catch (error) {
-            console.error('Error saving company:', error);
-            toast.error('Gagal menyimpan');
         }
     },
 
