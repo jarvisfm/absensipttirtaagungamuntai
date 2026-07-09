@@ -329,7 +329,17 @@ function initializeData() {
 
 // Update company name in UI
 function updateCompanyUI() {
-    const company = storage.get('company', { name: 'Portal Karyawan', logo: '' });
+    // Kalau localStorage belum punya data 'company' sama sekali (device/sesi
+    // browser baru, sebelum syncCompanyFromServer() berhasil), JANGAN timpa
+    // teks & ikon default yang sudah ada di HTML (nama perusahaan asli +
+    // ikon fa-building/fa-infinity) dengan fallback generik "Portal Karyawan".
+    // Inilah penyebab logo & judul kelihatan beda antara HP & komputer:
+    // di HP, sync ke server (Apps Script) belum selesai saat halaman dibuka,
+    // jadi sempat kelihatan versi generik ini. Dengan dibiarkan, tampilan
+    // awal akan selalu konsisten dengan HTML sampai data asli datang.
+    const cached = storage.get('company', null);
+    if (!cached) return;
+    const company = cached;
 
     const elements = {
         'login-company-name': company.name,
