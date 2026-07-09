@@ -63,7 +63,7 @@ const printLetters = {
                 <button class="btn-small" onclick="printLetters.close()">
                     <i class="fas fa-times"></i> Tutup
                 </button>
-                <button class="btn-small btn-primary" onclick="window.print()">
+                <button class="btn-small btn-primary" onclick="printLetters.printNow()">
                     <i class="fas fa-print"></i> Cetak / Simpan PDF
                 </button>
             </div>
@@ -93,6 +93,23 @@ const printLetters = {
         document.body.style.overflow = '';
     },
 
+    // ── Cetak / Simpan PDF ───────────────────────────────────────
+    // Dipisah dari onclick="window.print()" langsung karena di sebagian HP
+    // (terutama Android) dialog cetak gagal muncul kalau window.print()
+    // dipanggil persis di saat konten baru selesai di-render — perlu jeda
+    // sedikit dulu. try/catch juga menampilkan pesan yang jelas kalau
+    // browser/aplikasi yang dipakai memang tidak mendukung cetak (mis.
+    // dibuka dari dalam aplikasi lain, bukan browser seperti Chrome/Safari).
+    printNow() {
+        setTimeout(() => {
+            try {
+                window.print();
+            } catch (e) {
+                alert('Gagal membuka dialog Cetak / Simpan PDF. Coba buka halaman ini di aplikasi browser (Chrome/Safari), lalu tekan tombol ini lagi.');
+            }
+        }, 150);
+    },
+
     // ── Kop teks sederhana (khusus Surat Izin Keluar Kantor) ──────
     _letterHeaderPlain() {
         return `
@@ -115,7 +132,7 @@ const printLetters = {
                 <button class="btn-small" onclick="printLetters.close()">
                     <i class="fas fa-times"></i> Tutup
                 </button>
-                <button class="btn-small btn-primary" onclick="window.print()">
+                <button class="btn-small btn-primary" onclick="printLetters.printNow()">
                     <i class="fas fa-print"></i> Cetak / Simpan PDF
                 </button>
             </div>
