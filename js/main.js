@@ -422,8 +422,9 @@ function onDOMReady(callback) {
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
     initializeData();
-    updateCompanyUI();
-    syncCompanyFromServer();
+    // Nama & logo perusahaan sekarang hardcode langsung di index.html,
+    // jadi updateCompanyUI()/syncCompanyFromServer() sengaja tidak dipanggil
+    // lagi di sini supaya tidak menimpanya dengan data dari Settings.
 
     // Update time display
     const timeEl = document.getElementById('current-time');
