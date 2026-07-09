@@ -16,17 +16,28 @@ const notifications = {
 
         this._ensurePanel();
 
-        btn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            this.togglePanel();
-        });
+        // PENTING: init() bisa terpanggil lebih dari sekali dalam 1 sesi
+        // (misal tiap kali showApp() jalan lagi). Tanpa guard ini, listener
+        // klik akan numpuk setiap kali init() dipanggil, jadi 1 klik bisa
+        // memicu togglePanel() beberapa kali sekaligus dan saling
+        // membatalkan (buka-tutup dalam sekejap) - inilah penyebab
+        // notifikasi "kadang bisa dibuka, kadang tidak". Dengan guard ini,
+        // listener cuma dipasang SEKALI seumur hidup halaman.
+        if (!this._listenersAttached) {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.togglePanel();
+            });
 
-        document.addEventListener('click', (e) => {
-            const panel = document.getElementById('notif-panel');
-            if (this.panelOpen && panel && !panel.contains(e.target) && e.target !== btn && !btn.contains(e.target)) {
-                this.closePanel();
-            }
-        });
+            document.addEventListener('click', (e) => {
+                const panel = document.getElementById('notif-panel');
+                if (this.panelOpen && panel && !panel.contains(e.target) && e.target !== btn && !btn.contains(e.target)) {
+                    this.closePanel();
+                }
+            });
+
+            this._listenersAttached = true;
+        }
 
         await this.load();
     },
