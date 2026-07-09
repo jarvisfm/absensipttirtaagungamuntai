@@ -41,16 +41,23 @@ const notifications = {
 
         const panel = document.createElement('div');
         panel.id = 'notif-panel';
+        // PENTING: position:fixed (bukan absolute) + lebar responsif supaya
+        // panel tidak "kepotong" di layar HP yang sempit. Posisi top/right
+        // dihitung ulang tiap kali dibuka (lihat openPanel()) berdasarkan
+        // posisi asli tombol lonceng di layar - jadi tidak lagi kena efek
+        // kepotong oleh parent/header yang membatasi lebar/overflow-nya.
         panel.style.cssText = `
-            position:absolute; top:48px; right:0; width:340px; max-height:420px;
+            position:fixed; width:min(340px, calc(100vw - 24px)); max-height:420px;
             overflow-y:auto; background:#fff; border-radius:10px;
-            box-shadow:0 8px 24px rgba(0,0,0,0.15); z-index:999; display:none;
+            box-shadow:0 8px 24px rgba(0,0,0,0.15); z-index:2000; display:none;
         `;
         panel.innerHTML = `
             <div style="padding:14px 16px;border-bottom:1px solid #eee;font-weight:600;">Notifikasi</div>
             <div id="notif-list" style="padding:8px;"></div>
         `;
-        wrapper.appendChild(panel);
+        // Ditaruh langsung di <body>, bukan di dalam wrapper header - supaya
+        // tidak kena batasi/overflow dari container header sama sekali.
+        document.body.appendChild(panel);
     },
 
     togglePanel() {
@@ -59,7 +66,17 @@ const notifications = {
 
     openPanel() {
         const panel = document.getElementById('notif-panel');
-        if (panel) panel.style.display = 'block';
+        const btn = document.getElementById('btn-notifications');
+        if (panel && btn) {
+            const rect = btn.getBoundingClientRect();
+            const margin = 12;
+            // Jarak dari tepi KANAN layar ke tepi kanan tombol lonceng,
+            // minimal `margin` px supaya panel tidak nempel/kepotong di tepi.
+            const rightGap = Math.max(margin, window.innerWidth - rect.right);
+            panel.style.top = (rect.bottom + 8) + 'px';
+            panel.style.right = rightGap + 'px';
+            panel.style.display = 'block';
+        }
         this.panelOpen = true;
     },
 
