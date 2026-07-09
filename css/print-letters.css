@@ -1,12 +1,20 @@
 /* === Print Letter Overlay === */
 .print-letter-overlay {
     display: none; position: fixed; inset: 0;
-    background: #e5e7eb; z-index: 9999; overflow-y: auto;
+    /* background ditulis sebagai gradient (bukan warna solid) supaya TIDAK
+       ikut dibalik oleh fitur "force dark" / "Simplify pages" di Chrome
+       Android — fitur itu membalik warna elemen yang punya background-color
+       solid, tapi mengabaikan elemen dengan background-image/gradient.
+       Efeknya: di sebagian HP, overlay ini sebelumnya berubah jadi gelap
+       walau CSS aslinya sudah menyatakan warna terang. */
+    background: linear-gradient(#e5e7eb, #e5e7eb);
+    color-scheme: light;
+    z-index: 9999; overflow-y: auto; overflow-x: hidden;
 }
 .print-letter-overlay.active { display: block; }
 
 .print-letter-toolbar {
-    position: sticky; top: 0; background: #1f2937;
+    position: sticky; top: 0; background: linear-gradient(#1f2937, #1f2937);
     padding: 10px 20px; display: flex; gap: 10px;
     justify-content: flex-end; z-index: 10;
 }
@@ -14,12 +22,14 @@
     padding: 8px 16px; border-radius: 6px;
     border: none; cursor: pointer; font-size: 0.85rem;
 }
-.print-letter-toolbar .btn-primary { background: #F59E0B; color: #fff; }
+.print-letter-toolbar .btn-primary { background: linear-gradient(#F59E0B, #F59E0B); color: #fff; }
 
 /* === Page wrapper === */
 .print-letter-page {
-    max-width: 800px; margin: 20px auto 60px; background: #fff;
-    font-family: 'Times New Roman', serif; font-size: 14px; color: #111;
+    max-width: 800px; margin: 20px auto 60px;
+    background: linear-gradient(#fff, #fff);
+    color: #111; color-scheme: light;
+    font-family: 'Times New Roman', serif; font-size: 14px;
     box-shadow: 0 0 10px rgba(0,0,0,0.15);
     display: flex; flex-direction: column; min-height: 1050px;
 }
@@ -196,6 +206,36 @@
     align-items: center;
     gap: 6px;
     white-space: nowrap;
+}
+
+/* === Mobile (HP) === */
+/* Sebelumnya label kolom (mis. "Alamat yang dapat dihubungi selama cuti")
+   dipaksa 1 baris (white-space:nowrap) dengan lebar tetap yang cukup lega
+   di layar desktop, tapi di layar HP itu menyita hampir semua ruang
+   sehingga kolom isian (input) jadi sangat sempit dan teksnya kepotong.
+   !important dipakai di sini karena sebagian lebar kolom ditulis sebagai
+   inline style langsung di HTML (mis. style="width:120px") — !important
+   pada stylesheet tetap bisa menimpa inline style biasa. */
+@media (max-width: 600px) {
+    .print-letter-page { font-size: 12px; }
+    .letter-body { padding: 12px 14px 16px !important; }
+    .cuti-box { padding: 5px 8px !important; }
+    .letter-field-table .lbl,
+    .cuti-field-table .lbl {
+        width: auto !important;
+        min-width: 0 !important;
+        white-space: normal !important;
+        padding-left: 0 !important;
+        line-height: 1.25;
+    }
+    .letter-field-table .sep,
+    .cuti-field-table .sep { width: 8px !important; padding: 3px 0 !important; }
+    .keputusan-lbl { width: auto !important; display: block; }
+    .cuti-checkbox-cols { gap: 14px !important; }
+    .letter-signoff-table td { padding: 0 4px !important; }
+    .cuti-keputusan-table td { white-space: normal !important; }
+    .cuti-sampai-dengan { flex-wrap: wrap; }
+    .signature-space { height: 40px; }
 }
 
 /* === Print === */
