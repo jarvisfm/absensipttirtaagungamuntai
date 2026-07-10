@@ -42,7 +42,7 @@ const printLetters = {
      *  semua Asmen akan salah terdeteksi sebagai format Manajer.
      */
     _getLetterFormat(jabatan, role) {
-        const r = (role || '').toLowerCase();
+        const r = (role || '').toLowerCase().trim();
         if (r === 'asmen') return 'asmen';
         if (r === 'manajer') return 'manajer';
         if (r === 'staff' || r === 'direktur' || r === 'admin') return 'staff';
