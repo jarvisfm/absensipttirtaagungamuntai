@@ -421,8 +421,14 @@ const printLetters = {
         // kosong karena tidak dipakai - lihat approveIzinData di Izin.gs).
         const pertimbangan = izin.hrManagerNote || izin.managerNote || '';
         const keputusan    = izin.directorNote   || '';
-        const mgrName      = izin.managerName    || '';
-        const mgrNik       = izin.managerNik     || '';
+        // Sama seperti fallback catatan di atas: nama/NIK penyetuju bisa
+        // tersimpan di hrManagerName (tahap 2, Asmen bagian lain) ATAU di
+        // managerName (Asmen dari Umum & Kepegawaian sendiri, 1 tahap saja).
+        // Sebelumnya di sini cuma baca izin.managerName - jadi kalau datanya
+        // tersimpan di hrManagerName, kotak "Diketahui Oleh" jadi kosong
+        // padahal catatannya sudah muncul.
+        const mgrName      = izin.hrManagerName  || izin.managerName || '';
+        const mgrNik       = izin.hrManagerNik   || izin.managerNik  || '';
 
         const html = `
             ${this._izinPermohonanTop(emp, izin)}
