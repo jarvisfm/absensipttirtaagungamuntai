@@ -349,6 +349,15 @@ const cuti = {
                             </span>
                         </div>
                         <p class="leave-reason">${leave.reason}</p>
+                        ${leave.directorNote ? `
+                            <div class="leave-director-note ${leave.status === 'ditunda' ? 'ditunda' : ''}">
+                                <i class="fas fa-quote-left"></i>
+                                <div>
+                                    <span class="leave-director-note-label">Catatan Direktur</span>
+                                    <p class="leave-director-note-text">${leave.directorNote}</p>
+                                </div>
+                            </div>
+                        ` : ''}
                         ${(leave.status === 'approved' || leave.status === 'ditunda') ? `
                             <div style="margin-top:8px;">
                                 <button class="btn-small btn-outline" onclick="printLetters.openCuti(${leave.id})">
