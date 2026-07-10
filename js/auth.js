@@ -254,7 +254,7 @@ const auth = {
         const welcomeNameEl = document.getElementById('welcome-name');
 
         if (userNameEl) userNameEl.textContent = this.currentUser.name;
-        if (userRoleEl) userRoleEl.textContent = this.currentUser.role === 'admin' ? 'Administrator' : 'Karyawan';
+        if (userRoleEl) userRoleEl.textContent = this.currentUser.role === 'admin' ? 'Administrator' : (this.currentUser.jabatan || 'Karyawan');
         if (userAvatarEl) userAvatarEl.src = getAvatarUrl(this.currentUser);
         if (welcomeNameEl) welcomeNameEl.textContent = this.currentUser.name.split(' ')[0];
     },
@@ -280,7 +280,7 @@ const auth = {
                     <div style="text-align:center;margin-bottom:1.5rem;">
                         <img src="${getAvatarUrl(user)}" style="width:90px;height:90px;border-radius:50%;object-fit:cover;border:3px solid var(--color-primary);">
                         <h3 style="margin-top:0.75rem;font-size:1.1rem;">${user.name || '-'}</h3>
-                        <p style="color:var(--text-muted);font-size:0.85rem;">${user.role === 'admin' ? 'Administrator' : 'Karyawan'}</p>
+                        <p style="color:var(--text-muted);font-size:0.85rem;">${user.role === 'admin' ? 'Administrator' : (user.jabatan || 'Karyawan')}</p>
                     </div>
                     <p style="text-align:center;color:var(--text-muted);font-size:0.85rem;">Akun ini belum terhubung ke data karyawan di menu Data Karyawan.</p>
                 `;
