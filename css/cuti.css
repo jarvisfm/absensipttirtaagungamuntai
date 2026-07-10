@@ -268,6 +268,52 @@
     color: var(--text-muted);
 }
 
+/* Catatan Direktur - ditampilkan sebagai kutipan kecil supaya tidak
+   terlihat seperti teks biasa, warna menyesuaikan status (hijau untuk
+   Disetujui, kuning untuk Ditunda) senada dengan .leave-status di atas. */
+.leave-director-note {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    margin-top: var(--spacing-xs);
+    padding: 8px 12px;
+    border-radius: 8px;
+    background: rgba(16, 185, 129, 0.06);
+    border-left: 3px solid var(--color-success);
+}
+
+.leave-director-note.ditunda {
+    background: rgba(245, 158, 11, 0.06);
+    border-left-color: var(--color-warning);
+}
+
+.leave-director-note i {
+    color: var(--color-success);
+    font-size: 0.7rem;
+    margin-top: 4px;
+}
+
+.leave-director-note.ditunda i {
+    color: var(--color-warning);
+}
+
+.leave-director-note-label {
+    display: block;
+    font-size: var(--font-size-xs);
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    margin-bottom: 2px;
+}
+
+.leave-director-note-text {
+    font-size: var(--font-size-sm);
+    color: var(--text-secondary);
+    font-style: italic;
+    margin: 0;
+}
+
 /* Responsive */
 @media (max-width: 992px) {
     .cuti-grid {
