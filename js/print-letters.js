@@ -402,7 +402,13 @@ const printLetters = {
     //     Bawah: Pertimbangan Man. Umum & Kepeg | Keputusan Direktur
     // =============================================================
     _openIzinPermohonanAsmen(emp, izin) {
-        const pertimbangan = izin.managerNote    || '';
+        // Kotak "Pertimbangan: Manager Umum & Kepegawaian" HARUS isi catatan
+        // Manajer Umum & Kepegawaian (hrManagerNote, tahap 2 untuk Asmen bagian
+        // lain) - BUKAN catatan Manajer Bidang (managerNote, tahap 1). Fallback
+        // ke managerNote hanya untuk kasus Asmen dari Umum & Kepegawaian sendiri,
+        // yang cuma 1 tahap approval (disimpan di managerNote, hrManagerNote
+        // kosong karena tidak dipakai - lihat approveIzinData di Izin.gs).
+        const pertimbangan = izin.hrManagerNote || izin.managerNote || '';
         const keputusan    = izin.directorNote   || '';
         const mgrName      = izin.managerName    || '';
         const mgrNik       = izin.managerNik     || '';
