@@ -210,6 +210,9 @@ const adminReports = {
                     managerName:    i.managerName    || '',
                     managerNik:     i.managerNik     || '',
                     managerNote:    i.managerNote    || '',
+                    hrManagerName:  i.hrManagerName  || '',
+                    hrManagerNik:   i.hrManagerNik   || '',
+                    hrManagerNote:  i.hrManagerNote  || '',
                     directorName:   i.directorName   || '',
                     directorNik:    i.directorNik    || '',
                     directorNote:   i.directorNote   || ''
@@ -1212,6 +1215,9 @@ const adminReports = {
             managerName:  row.managerName  || '',
             managerNik:   row.managerNik   || '',
             managerNote:  row.managerNote  || '',
+            hrManagerName: row.hrManagerName || '',
+            hrManagerNik:  row.hrManagerNik  || '',
+            hrManagerNote: row.hrManagerNote || '',
             directorNote: row.directorNote || ''
         };
 
