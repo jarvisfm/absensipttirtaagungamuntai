@@ -30,13 +30,24 @@ const printLetters = {
         return auth.getCurrentUser() || {};
     },
 
-    /** Deteksi format surat berdasarkan jabatan karyawan.
-     *  PENTING: cek 'asisten'/'asmen' DULU sebelum 'manajer' — karena jabatan
-     *  Asmen biasanya berbunyi "Asisten Manajer ..." yang JUGA mengandung kata
-     *  "manajer" sebagai substring. Kalau urutannya dibalik, semua Asmen akan
-     *  salah terdeteksi sebagai format Manajer.
+    /** Deteksi format surat. UTAMAKAN field `role` asli (staff/asmen/manajer/
+     *  direktur) karena itu yang benar-benar dipakai alur approval - teks
+     *  jabatan cuma fallback untuk kasus emp.role tidak tersedia. Ini penting
+     *  untuk jabatan seperti "Jabatan Fungsional Kehilangan Air (NRW)..." yang
+     *  tidak mengandung kata "asmen"/"asisten" sama sekali walau orangnya
+     *  memang ber-role Asmen di sistem.
+     *  PENTING (fallback teks): cek 'asisten'/'asmen' DULU sebelum 'manajer' —
+     *  karena jabatan Asmen biasanya berbunyi "Asisten Manajer ..." yang JUGA
+     *  mengandung kata "manajer" sebagai substring. Kalau urutannya dibalik,
+     *  semua Asmen akan salah terdeteksi sebagai format Manajer.
      */
-    _getLetterFormat(jabatan) {
+    _getLetterFormat(jabatan, role) {
+        const r = (role || '').toLowerCase();
+        if (r === 'asmen') return 'asmen';
+        if (r === 'manajer') return 'manajer';
+        if (r === 'staff' || r === 'direktur' || r === 'admin') return 'staff';
+
+        // Fallback teks jabatan (role tidak tersedia/tidak dikenali)
         const j = (jabatan || '').toLowerCase();
         if (j.includes('asmen') || j.includes('asisten')) return 'asmen';
         if (j.includes('manajer') || j.includes('manager')) return 'manajer';
@@ -478,7 +489,7 @@ const printLetters = {
         const emp  = empOverride || this._getEmployee();
         const izin = izinOverride || window.izin?.izinData?.find(i => i.id == izinId) || {};
 
-        const format = this._getLetterFormat(emp.jabatan);
+        const format = this._getLetterFormat(emp.jabatan, emp.role);
 
         if (format === 'manajer') {
             this._openIzinPermohonanManajer(emp, izin);
@@ -514,7 +525,7 @@ const printLetters = {
         // Blok tanda tangan "MENGETAHUI :" (Asmen) di bawah ini HANYA berlaku
         // untuk pemohon Staff — karena Asmen & Manajer tidak melalui approval
         // Asmen sesuai bidang saat mengajukan cuti untuk diri sendiri.
-        const letterFormat = this._getLetterFormat(emp.jabatan);
+        const letterFormat = this._getLetterFormat(emp.jabatan, emp.role);
         const mengetahuiCell = letterFormat === 'staff'
             ? `<td>
                     <p>MENGETAHUI :</p>
