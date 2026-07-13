@@ -795,6 +795,14 @@ const izin = {
             this.closeApprovalModal();
             this.renderApprovalList(role);
             toast.success(decision === 'approve' ? 'Pengajuan disetujui' : 'Pengajuan ditolak');
+
+            // Kalau approval ini adalah TAHAP TERAKHIR (status jadi 'approved'
+            // sepenuhnya), otomatis generate PDF surat (persis tampilan
+            // "Cetak Surat") dan kirim ke email pemohon. Berjalan di
+            // belakang layar, tidak memblokir/mengganggu UI approver.
+            if (decision === 'approve' && result.data && result.data.status === 'approved' && window.printLetters) {
+                printLetters.sendSuratEmailIfApproved('izin', result.data);
+            }
         } catch (error) {
             console.error('Error submitApproval:', error);
             toast.error('Terjadi kesalahan, silakan coba lagi.');
