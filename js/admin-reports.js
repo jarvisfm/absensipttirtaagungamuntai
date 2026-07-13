@@ -11,7 +11,7 @@ const adminReports = {
     filters: {
         attendance: { month: '', dept: '', status: '' },
         jurnal: { month: '', employee: '', status: '' },
-        leave: { month: '', type: '', status: '' }
+        leave: { month: '', type: '', status: '', bagian: '' }
     },
 
     async initAttendanceReports() {
@@ -152,6 +152,7 @@ const adminReports = {
                     userId: l.userId,
                     name: emp.name || emp.nama || l.userId,
                     department: emp.department || emp.unitKerja || '-',
+                    bagian: emp.bagian || '-',
                     position: emp.position || emp.jabatan || '-',
                     type: l.type === 'annual' ? 'Cuti Tahunan'
                         : l.type === 'important' ? 'Cuti Alasan Penting'
@@ -183,6 +184,7 @@ const adminReports = {
                     userId: i.userId,
                     name: emp.name || emp.nama || i.userId,
                     department: emp.department || emp.unitKerja || '-',
+                    bagian: emp.bagian || '-',
                     position: emp.position || emp.jabatan || '-',
                     rawType: i.type || '',
                     type: i.type === 'sick' ? 'Sakit'
@@ -369,6 +371,30 @@ const adminReports = {
             this.filters.leave.status = e.target.value;
             this.renderLeaveReports();
         });
+
+        const bagianFilter = document.getElementById('leave-bagian-filter');
+        if (bagianFilter) {
+            // Isi opsi "Bagian" secara dinamis dari data karyawan yang ada,
+            // supaya selalu sinkron kalau daftar bagian berubah - tanpa
+            // hardcode daftar bagian di sini.
+            const existingValues = Array.from(bagianFilter.options).map(o => o.value);
+            const uniqueBagian = [...new Set((this.rawEmployees || [])
+                .map(e => e.bagian)
+                .filter(b => b && b.trim()))].sort();
+            uniqueBagian.forEach(b => {
+                if (!existingValues.includes(b)) {
+                    const opt = document.createElement('option');
+                    opt.value = b;
+                    opt.textContent = b;
+                    bagianFilter.appendChild(opt);
+                }
+            });
+
+            bagianFilter.addEventListener('change', (e) => {
+                this.filters.leave.bagian = e.target.value;
+                this.renderLeaveReports();
+            });
+        }
     },
 
     getFilteredAttendance() {
@@ -397,7 +423,7 @@ const adminReports = {
     },
 
     getFilteredLeave() {
-        const { month, type, status } = this.filters.leave;
+        const { month, type, status, bagian } = this.filters.leave;
         return this.leaveData.filter(row => {
             const matchesMonth = !month || (row.startDate && row.startDate.startsWith(month));
             const matchesType = !type ||
@@ -405,7 +431,8 @@ const adminReports = {
                 (type === 'izin' && row.kind === 'izin') ||
                 (type === 'sakit' && row.type.toLowerCase().includes('sakit'));
             const matchesStatus = !status || row.status === status;
-            return matchesMonth && matchesType && matchesStatus;
+            const matchesBagian = !bagian || row.bagian === bagian;
+            return matchesMonth && matchesType && matchesStatus && matchesBagian;
         });
     },
 
