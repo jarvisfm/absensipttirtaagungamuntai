@@ -789,6 +789,11 @@ const izin = {
             this.closeApprovalModal();
             this.renderApprovalList(role);
             toast.success(decision === 'approve' ? 'Pengajuan disetujui' : 'Pengajuan ditolak');
+            // Muncul HANYA saat disetujui final oleh Direktur & email pemohon
+            // belum diisi di profil - PDF surat tidak jadi dikirim otomatis.
+            if (result.emailWarning) {
+                toast.error(result.emailWarning);
+            }
         } catch (error) {
             console.error('Error submitApproval:', error);
             toast.error('Terjadi kesalahan, silakan coba lagi.');
