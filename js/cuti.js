@@ -356,6 +356,12 @@ const cuti = {
                                 </button>
                             </div>
                         ` : ''}
+                        ${leave.status === 'approved' && (leave.emailSent === false || leave.emailSent === 'false') ? `
+                            <div style="margin-top:8px;padding:8px 12px;border-radius:8px;background:rgba(245,158,11,0.08);border-left:3px solid var(--color-warning);font-size:var(--font-size-sm);color:var(--text-secondary);">
+                                <i class="fas fa-triangle-exclamation" style="color:var(--color-warning);margin-right:6px;"></i>
+                                ${leave.emailError || 'Isi email supaya surat dikirimkan'}
+                            </div>
+                        ` : ''}
                     </div>
                 </div>
             `;
@@ -419,11 +425,6 @@ const cuti = {
             toast.success(approver.role === 'manager'
                 ? 'Disetujui sebagai Manager! Menunggu persetujuan Direktur.'
                 : 'Pengajuan cuti disetujui final!');
-            // Muncul HANYA saat disetujui final oleh Direktur & email pemohon
-            // belum diisi di profil - PDF surat tidak jadi dikirim otomatis.
-            if (result.emailWarning) {
-                toast.error(result.emailWarning);
-            }
         } catch (error) {
             console.error('Error approving leave:', error);
         }
@@ -760,11 +761,6 @@ const cuti = {
 
             const messages = { approve: 'Pengajuan cuti disetujui', reject: 'Pengajuan cuti ditolak', postpone: 'Pengajuan cuti ditunda' };
             toast.success(messages[decision] || 'Berhasil diproses');
-            // Muncul HANYA saat disetujui final oleh Direktur & email pemohon
-            // belum diisi di profil - PDF surat tidak jadi dikirim otomatis.
-            if (result.emailWarning) {
-                toast.error(result.emailWarning);
-            }
         } catch (error) {
             console.error('Error submitApproval (cuti):', error);
             toast.error('Terjadi kesalahan, silakan coba lagi.');
