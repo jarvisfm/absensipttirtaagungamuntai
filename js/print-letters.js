@@ -823,6 +823,13 @@ const printLetters = {
             // seluruh surat PDF (NIK/Jabatan tetap muncul karena nama field-
             // nya kebetulan sama di kedua sisi).
             emp.name = emp.name || emp.nama || '';
+            // Log diagnostik - buka Console browser (F12) di device yang
+            // dipakai approve, kalau nama masih kosong di PDF setelah ini,
+            // cek angka yang tercetak di sini: kalau emp.nama juga kosong,
+            // berarti datanya memang kosong di sheet Employees (bukan bug
+            // kode) - kalau emp.nama ada isinya tapi PDF tetap kosong,
+            // berarti masih ada cache lama, bukan masalah data.
+            console.log('[sendSuratEmailIfApproved] emp:', emp.name, '| emp.nama (raw):', emp.nama, '| userId:', record.userId);
 
             // Kalau belum isi email di profil, jangan lanjut generate PDF
             // sama sekali (hemat proses) - peringatan "Isi email supaya
