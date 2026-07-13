@@ -293,6 +293,15 @@ const adminReports = {
     },
 
     bindAttendanceEvents() {
+        // PENTING: fungsi ini terpanggil lagi setiap kali halaman Rekap
+        // Absensi dibuka (bukan cuma sekali), padahal tombol-tombolnya
+        // adalah elemen statis yang sama (tidak dibuat ulang oleh router).
+        // Tanpa guard ini, listener numpuk tiap kali halaman dibuka lagi,
+        // jadi 1 klik bisa memicu export/print berkali-kali sekaligus -
+        // sama persis seperti bug notifikasi kemarin.
+        if (this._attendanceListenersAttached) return;
+        this._attendanceListenersAttached = true;
+
         const exportBtn = document.getElementById('btn-export-attendance');
         if (exportBtn) exportBtn.addEventListener('click', () => this.exportToExcel('attendance'));
 
@@ -324,6 +333,10 @@ const adminReports = {
     },
 
     bindJurnalEvents() {
+        // Sama seperti bindAttendanceEvents() - cegah listener numpuk.
+        if (this._jurnalListenersAttached) return;
+        this._jurnalListenersAttached = true;
+
         const exportBtn = document.getElementById('btn-export-jurnal');
         const printBtn = document.getElementById('btn-print-jurnal');
         if (exportBtn) exportBtn.addEventListener('click', () => this.exportToExcel('jurnal'));
@@ -349,6 +362,10 @@ const adminReports = {
     },
 
     bindLeaveEvents() {
+        // Sama seperti bindAttendanceEvents() - cegah listener numpuk.
+        if (this._leaveListenersAttached) return;
+        this._leaveListenersAttached = true;
+
         const exportBtn = document.getElementById('btn-export-leave');
         const printBtn = document.getElementById('btn-print-leave');
         if (exportBtn) exportBtn.addEventListener('click', () => this.exportToExcel('leave'));
