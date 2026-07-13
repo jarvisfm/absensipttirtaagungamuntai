@@ -140,6 +140,8 @@ const notifications = {
         try {
             if (auth.isAdmin && auth.isAdmin()) {
                 await this._loadAdminNotifications();
+            } else if ((auth.isAsmen && auth.isAsmen()) || (auth.isManajer && auth.isManajer())) {
+                await this._loadApproverNotifications(user);
             } else {
                 await this._loadKaryawanNotifications(user);
             }
@@ -148,6 +150,86 @@ const notifications = {
         }
 
         this._render();
+    },
+
+    // Asmen & Manajer punya menu Approval sendiri (approval-asmen /
+    // approval-manajer) - notifikasi mereka gabungan dari 2 hal:
+    // (1) notifikasi pribadi seperti karyawan biasa (status izin/cuti
+    //     mereka sendiri, reminder belum absen), DAN
+    // (2) pengajuan staff/asmen lain yang lagi MENUNGGU PERSETUJUAN MEREKA
+    //     di tahap ini. Logika tahapan di bawah SENGAJA disamakan persis
+    //     dengan izin.js/cuti.js (renderApprovalList) supaya jumlah & isi
+    //     notifikasi konsisten dengan yang tampil di halaman Approval-nya.
+    async _loadApproverNotifications(user) {
+        // (1) Notifikasi pribadi dulu (ini juga sudah panggil _sortByTime()
+        // di akhir - tidak masalah, nanti di-sort ulang lagi di akhir sini
+        // setelah item approval ditambahkan).
+        await this._loadKaryawanNotifications(user);
+
+        const role = (auth.isAsmen && auth.isAsmen()) ? 'asmen' : 'manajer';
+
+        const [izinRes, leaveRes, empRes] = await Promise.all([
+            api.getAllIzin().catch(() => ({ success: false })),
+            api.getAllLeaves().catch(() => ({ success: false })),
+            api.getEmployees().catch(() => ({ success: false }))
+        ]);
+
+        const employees = empRes.success ? empRes.data : [];
+        const findEmp = (userId) => employees.find(e => String(e.id) === String(userId)) || {};
+        const pemohonInfo = (userId) => {
+            const emp = findEmp(userId);
+            const empName = emp.name || emp.nama || 'Karyawan';
+            const empBagian = emp.bagian || '-';
+            return `${empName} — ${empBagian}`;
+        };
+
+        const myEmployeeId = user.employeeId || user.id;
+        const myBagian = String(user.bagian || '').toUpperCase().trim();
+        const isHrManajer = myBagian === 'UMUM DAN KEPEGAWAIAN';
+
+        // Cek apakah 1 item (izin/cuti) sedang menunggu persetujuan SAYA
+        // di tahap ini - sama persis dengan filter di renderApprovalList().
+        const isPendingForMe = (item) => {
+            if (role === 'asmen') {
+                return item.status === 'pending' && String(item.asmenId) === String(myEmployeeId);
+            }
+            // role === 'manajer'
+            const pemohon = findEmp(item.userId);
+            const pemohonRole = pemohon.role || 'staff';
+            const pemohonBagian = String(pemohon.bagian || '').toUpperCase().trim();
+            const isPemohonHr = pemohonBagian === 'UMUM DAN KEPEGAWAIAN';
+            const gateStatus = pemohonRole === 'staff' ? 'asmen_approved' : 'pending';
+
+            if (pemohonRole === 'manajer') return false; // tahap ini dilewati sama sekali
+            if (isPemohonHr) return isHrManajer && item.status === gateStatus;
+            if (item.status === gateStatus && pemohonBagian === myBagian) return true;
+            if (item.status === 'manajer_bidang_approved' && isHrManajer) return true;
+            return false;
+        };
+
+        const izinPending = (izinRes.success ? izinRes.data : []).filter(isPendingForMe);
+        const leavePending = (leaveRes.success ? leaveRes.data : []).filter(isPendingForMe);
+        const approvalLink = role === 'asmen' ? 'approval-asmen' : 'approval-manajer';
+
+        izinPending.forEach(i => this.items.push({
+            icon: 'fa-user-clock',
+            color: '#F59E0B',
+            title: `Pengajuan ${i.typeLabel || 'Izin'} menunggu persetujuan`,
+            desc: pemohonInfo(i.userId),
+            time: i.appliedAt || i.date,
+            link: approvalLink
+        }));
+
+        leavePending.forEach(l => this.items.push({
+            icon: 'fa-calendar-alt',
+            color: '#F59E0B',
+            title: `Pengajuan Cuti (${l.typeLabel || ''}) menunggu persetujuan`,
+            desc: pemohonInfo(l.userId),
+            time: l.appliedAt || l.startDate,
+            link: approvalLink
+        }));
+
+        this._sortByTime();
     },
 
     async _loadAdminNotifications() {
