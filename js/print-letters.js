@@ -158,17 +158,33 @@ const printLetters = {
             await this._waitForImages(container);
 
             const pageEl = container.querySelector('.print-letter-page');
-            const pdfBlob = await html2pdf()
-                .set({
-                    margin: 0,
-                    image: { type: 'jpeg', quality: 0.98 },
-                    html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff' },
-                    jsPDF: { unit: 'px', format: [800, Math.max(pageEl.scrollHeight, 600)], orientation: 'portrait' }
-                })
-                .from(pageEl)
-                .outputPdf('blob');
 
-            return pdfBlob;
+            // Pakai html2canvas + jsPDF LANGSUNG (bukan lewat wrapper
+            // html2pdf().set({...}).from(...)). Wrapper-nya kalau dipakai
+            // bareng scale>1 + custom format, ukurannya suka tidak sinkron -
+            // itu yang bikin footer surat "meluber" ke halaman ke-2 padahal
+            // isinya cuma 1 halaman. Dengan cara ini, ukuran halaman PDF
+            // dihitung PERSIS dari ukuran canvas hasil render, jadi dijamin
+            // selalu 1 halaman utuh (termasuk footer-nya).
+            const canvas = await html2canvas(pageEl, {
+                scale: 2,
+                useCORS: true,
+                backgroundColor: '#ffffff'
+            });
+
+            const jsPDFCtor = (window.jspdf && window.jspdf.jsPDF) || window.jsPDF;
+            if (!jsPDFCtor) throw new Error('jsPDF tidak tersedia (cek pemuatan library html2pdf.js)');
+
+            const pdfWidth = canvas.width / 2;   // balik ke ukuran CSS px (scale 2x tadi -> bagi 2)
+            const pdfHeight = canvas.height / 2;
+            const pdf = new jsPDFCtor({
+                unit: 'px',
+                format: [pdfWidth, pdfHeight],
+                orientation: pdfWidth > pdfHeight ? 'landscape' : 'portrait'
+            });
+            pdf.addImage(canvas.toDataURL('image/jpeg', 0.98), 'JPEG', 0, 0, pdfWidth, pdfHeight);
+
+            return pdf.output('blob');
         } finally {
             if (this._captureContainer) {
                 this._captureContainer.remove();
@@ -799,6 +815,14 @@ const printLetters = {
             const empRes = await api.getKaryawanDetail(record.userId);
             if (!empRes || !empRes.success || !empRes.data) return;
             const emp = empRes.data;
+            // PENTING: api.getKaryawanDetail() mengembalikan field MENTAH
+            // sesuai kolom sheet ("nama"), sedangkan semua template surat di
+            // atas (_izinPermohonanTop, _ttdRowStaff, dst) membaca "emp.name"
+            // (field ini biasanya sudah dinormalisasi di tempat lain, mis.
+            // auth.getCurrentUser()). Tanpa baris ini, nama akan kosong di
+            // seluruh surat PDF (NIK/Jabatan tetap muncul karena nama field-
+            // nya kebetulan sama di kedua sisi).
+            emp.name = emp.name || emp.nama || '';
 
             // Kalau belum isi email di profil, jangan lanjut generate PDF
             // sama sekali (hemat proses) - peringatan "Isi email supaya
