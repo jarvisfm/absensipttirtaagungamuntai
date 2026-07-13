@@ -372,10 +372,19 @@ const adminReports = {
         if (printBtn) printBtn.addEventListener('click', () => this.printReport('leave'));
 
         const monthFilter = document.getElementById('leave-month');
-        if (monthFilter) monthFilter.addEventListener('change', (e) => {
-            this.filters.leave.month = e.target.value;
-            this.renderLeaveReports();
-        });
+        if (monthFilter) {
+            // Default ke BULAN BERJALAN (dinamis), sebelumnya hardcode
+            // "2026-03" (Maret) di HTML jadi ketinggalan terus tiap bulan.
+            const now = new Date();
+            const currentYearMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+            monthFilter.value = currentYearMonth;
+            this.filters.leave.month = currentYearMonth;
+
+            monthFilter.addEventListener('change', (e) => {
+                this.filters.leave.month = e.target.value;
+                this.renderLeaveReports();
+            });
+        }
 
         const typeFilter = document.getElementById('leave-type-filter');
         if (typeFilter) typeFilter.addEventListener('change', (e) => {
