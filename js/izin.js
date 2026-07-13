@@ -468,6 +468,12 @@ const izin = {
                             </span>
                         </div>
                         <p class="izin-reason">${izin.reason}</p>
+                        ${izin.status === 'approved' && (izin.emailSent === false || izin.emailSent === 'false') ? `
+                            <div style="margin-top:8px;padding:8px 12px;border-radius:8px;background:rgba(245,158,11,0.08);border-left:3px solid var(--color-warning);font-size:var(--font-size-sm);color:var(--text-secondary);">
+                                <i class="fas fa-triangle-exclamation" style="color:var(--color-warning);margin-right:6px;"></i>
+                                ${izin.emailError || 'Isi email supaya surat dikirimkan'}
+                            </div>
+                        ` : ''}
                         ${izin.hasAttachment ? `
                             <span class="izin-attachment">
                                 <i class="fas fa-paperclip"></i>
@@ -789,11 +795,6 @@ const izin = {
             this.closeApprovalModal();
             this.renderApprovalList(role);
             toast.success(decision === 'approve' ? 'Pengajuan disetujui' : 'Pengajuan ditolak');
-            // Muncul HANYA saat disetujui final oleh Direktur & email pemohon
-            // belum diisi di profil - PDF surat tidak jadi dikirim otomatis.
-            if (result.emailWarning) {
-                toast.error(result.emailWarning);
-            }
         } catch (error) {
             console.error('Error submitApproval:', error);
             toast.error('Terjadi kesalahan, silakan coba lagi.');
