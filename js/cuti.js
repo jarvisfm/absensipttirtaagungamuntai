@@ -349,15 +349,6 @@ const cuti = {
                             </span>
                         </div>
                         <p class="leave-reason">${leave.reason}</p>
-                        ${leave.directorNote ? `
-                            <div class="leave-director-note ${leave.status === 'ditunda' ? 'ditunda' : ''}">
-                                <i class="fas fa-quote-left"></i>
-                                <div>
-                                    <span class="leave-director-note-label">Catatan Direktur</span>
-                                    <p class="leave-director-note-text">${leave.directorNote}</p>
-                                </div>
-                            </div>
-                        ` : ''}
                         ${(leave.status === 'approved' || leave.status === 'ditunda') ? `
                             <div style="margin-top:8px;">
                                 <button class="btn-small btn-outline" onclick="printLetters.openCuti(${leave.id})">
@@ -428,6 +419,11 @@ const cuti = {
             toast.success(approver.role === 'manager'
                 ? 'Disetujui sebagai Manager! Menunggu persetujuan Direktur.'
                 : 'Pengajuan cuti disetujui final!');
+            // Muncul HANYA saat disetujui final oleh Direktur & email pemohon
+            // belum diisi di profil - PDF surat tidak jadi dikirim otomatis.
+            if (result.emailWarning) {
+                toast.error(result.emailWarning);
+            }
         } catch (error) {
             console.error('Error approving leave:', error);
         }
@@ -764,6 +760,11 @@ const cuti = {
 
             const messages = { approve: 'Pengajuan cuti disetujui', reject: 'Pengajuan cuti ditolak', postpone: 'Pengajuan cuti ditunda' };
             toast.success(messages[decision] || 'Berhasil diproses');
+            // Muncul HANYA saat disetujui final oleh Direktur & email pemohon
+            // belum diisi di profil - PDF surat tidak jadi dikirim otomatis.
+            if (result.emailWarning) {
+                toast.error(result.emailWarning);
+            }
         } catch (error) {
             console.error('Error submitApproval (cuti):', error);
             toast.error('Terjadi kesalahan, silakan coba lagi.');
