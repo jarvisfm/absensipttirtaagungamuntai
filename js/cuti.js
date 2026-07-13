@@ -761,6 +761,13 @@ const cuti = {
 
             const messages = { approve: 'Pengajuan cuti disetujui', reject: 'Pengajuan cuti ditolak', postpone: 'Pengajuan cuti ditunda' };
             toast.success(messages[decision] || 'Berhasil diproses');
+
+            // Sama seperti di izin.js: kalau ini approval TAHAP TERAKHIR
+            // (status jadi 'approved' sepenuhnya), otomatis generate PDF
+            // (persis tampilan "Cetak Surat") dan kirim ke email pemohon.
+            if (decision === 'approve' && result.data && result.data.status === 'approved' && window.printLetters) {
+                printLetters.sendSuratEmailIfApproved('cuti', result.data);
+            }
         } catch (error) {
             console.error('Error submitApproval (cuti):', error);
             toast.error('Terjadi kesalahan, silakan coba lagi.');
