@@ -55,6 +55,16 @@ const printLetters = {
     },
 
     // ── Overlay / Render ─────────────────────────────────────────
+    // ── Mode "silent capture" untuk kirim PDF email ────────────────
+    // Saat true, _show() TIDAK menampilkan overlay ke layar - alih-alih
+    // merender ke elemen tersembunyi (offscreen) yang nanti diambil oleh
+    // captureAsPdfBlob() dan diubah jadi PDF lewat html2pdf.js.
+    // PENTING: ini SENGAJA tidak mengubah satupun fungsi _openXxx (format
+    // suratnya) - jadi PDF yang dihasilkan dijamin identik dengan tampilan
+    // "Cetak Surat" yang biasa dilihat user, bukan format terpisah.
+    _captureMode: false,
+    _captureContainer: null,
+
     _ensureOverlay() {
         let overlay = document.getElementById('print-letter-overlay');
         if (!overlay) {
@@ -68,16 +78,7 @@ const printLetters = {
 
     _show(contentHtml, options = {}) {
         const showFooter = options.showFooter !== false; // default true, kecuali di-set false
-        const overlay = this._ensureOverlay();
-        overlay.innerHTML = `
-            <div class="print-letter-toolbar no-print">
-                <button class="btn-small" onclick="printLetters.close()">
-                    <i class="fas fa-times"></i> Tutup
-                </button>
-                <button class="btn-small btn-primary" onclick="printLetters.printNow()">
-                    <i class="fas fa-print"></i> Cetak / Simpan PDF
-                </button>
-            </div>
+        const pageHtml = `
             <div class="print-letter-page">
                 <div class="letter-kop-img-wrap">
                     <img src="assets/kop-surat.jpeg" alt="Kop Surat" class="letter-kop-img">
@@ -91,8 +92,90 @@ const printLetters = {
                 </div>` : ''}
             </div>
         `;
+
+        if (this._captureMode) {
+            // Render offscreen (bukan ke overlay), supaya tidak kelihatan
+            // berkedip di layar approver saat proses kirim email berjalan
+            // di belakang layar.
+            const container = document.createElement('div');
+            container.style.cssText = 'position:fixed; left:-9999px; top:0; background:#fff; width:800px;';
+            container.innerHTML = pageHtml;
+            document.body.appendChild(container);
+            this._captureContainer = container;
+            return;
+        }
+
+        const overlay = this._ensureOverlay();
+        overlay.innerHTML = `
+            <div class="print-letter-toolbar no-print">
+                <button class="btn-small" onclick="printLetters.close()">
+                    <i class="fas fa-times"></i> Tutup
+                </button>
+                <button class="btn-small btn-primary" onclick="printLetters.printNow()">
+                    <i class="fas fa-print"></i> Cetak / Simpan PDF
+                </button>
+            </div>
+            ${pageHtml}
+        `;
         overlay.classList.add('active');
         document.body.style.overflow = 'hidden';
+    },
+
+    // ── Tunggu semua <img> di dalam elemen selesai loading ─────────
+    // Perlu ditunggu manual karena elemen capture-nya offscreen dan baru
+    // saja disisipkan ke DOM - html2canvas bisa saja mulai "memotret"
+    // sebelum gambar kop/footer selesai dimuat kalau tidak ditunggu dulu.
+    _waitForImages(container) {
+        const imgs = Array.from(container.querySelectorAll('img'));
+        return Promise.all(imgs.map(img => {
+            if (img.complete) return Promise.resolve();
+            return new Promise(resolve => {
+                img.addEventListener('load', resolve, { once: true });
+                img.addEventListener('error', resolve, { once: true }); // tetap lanjut walau 1 gambar gagal
+            });
+        }));
+    },
+
+    /**
+     * Jalankan salah satu fungsi open*() (mis. openIzinPermohonan atau
+     * openCuti) dalam mode silent, lalu ambil hasilnya sebagai PDF Blob.
+     * Dipakai untuk lampiran email - PDF-nya PERSIS sama dengan yang
+     * muncul kalau user klik tombol "Cetak Surat" secara manual.
+     */
+    async captureAsPdfBlob(renderFn) {
+        this._captureMode = true;
+        this._captureContainer = null;
+        try {
+            renderFn();
+
+            // Kasih waktu 1 frame supaya browser selesai reflow dulu sebelum
+            // dicek - _show() di atas sudah synchronous, tapi jaga-jaga.
+            await new Promise(r => setTimeout(r, 50));
+
+            const container = this._captureContainer;
+            if (!container) throw new Error('Gagal membuat tampilan surat untuk PDF');
+
+            await this._waitForImages(container);
+
+            const pageEl = container.querySelector('.print-letter-page');
+            const pdfBlob = await html2pdf()
+                .set({
+                    margin: 0,
+                    image: { type: 'jpeg', quality: 0.98 },
+                    html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff' },
+                    jsPDF: { unit: 'px', format: [800, Math.max(pageEl.scrollHeight, 600)], orientation: 'portrait' }
+                })
+                .from(pageEl)
+                .outputPdf('blob');
+
+            return pdfBlob;
+        } finally {
+            if (this._captureContainer) {
+                this._captureContainer.remove();
+                this._captureContainer = null;
+            }
+            this._captureMode = false;
+        }
     },
 
     close() {
@@ -666,6 +749,92 @@ const printLetters = {
              </div>
         `;
         this._show(html, { showFooter: false });
+    },
+
+    // =============================================================
+    // 4. KIRIM PDF SURAT VIA EMAIL (setelah approval final)
+    //    PDF yang dikirim adalah HASIL TANGKAPAN LANGSUNG dari tampilan
+    //    "Cetak Surat" di atas (lewat captureAsPdfBlob) - BUKAN format
+    //    terpisah yang dibuat ulang di backend. Backend cuma jadi
+    //    "tukang kirim" (terima PDF base64, kirim via Gmail).
+    // =============================================================
+    _blobToBase64(blob) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(String(reader.result).split(',')[1] || '');
+            reader.onerror = reject;
+            reader.readAsDataURL(blob);
+        });
+    },
+
+    _suratJenisLabel(kind, type) {
+        if (kind === 'cuti') {
+            const map = {
+                annual: 'Cuti Tahunan', important: 'Cuti Alasan Penting', sick: 'Cuti Sakit',
+                besar: 'Cuti Besar', maternity: 'Cuti Bersalin', other: 'Keterangan Lain-lain'
+            };
+            return map[type] || 'Cuti';
+        }
+        const map = {
+            sick: 'Surat Keterangan Sakit', izin_harian: 'Surat Permohonan Izin',
+            keluar_kantor: 'Surat Izin Keluar Kantor'
+        };
+        return map[type] || 'Izin';
+    },
+
+    /**
+     * Dipanggil dari izin.js/cuti.js SETELAH approval berhasil DAN status
+     * hasilnya sudah 'approved' (tuntas/final - bukan tahap tengah seperti
+     * asmen_approved/manajer_approved). Berjalan diam-diam di belakang layar
+     * (mode capture, tidak nongol ke layar approver).
+     *
+     * kind: 'izin' | 'cuti'
+     * record: data Izin/Leave hasil approve (result.data dari api.approveIzin/
+     *         api.approveLeave), status-nya harus sudah 'approved'.
+     */
+    async sendSuratEmailIfApproved(kind, record) {
+        if (!record || record.status !== 'approved') return;
+
+        try {
+            const empRes = await api.getKaryawanDetail(record.userId);
+            if (!empRes || !empRes.success || !empRes.data) return;
+            const emp = empRes.data;
+
+            // Kalau belum isi email di profil, jangan lanjut generate PDF
+            // sama sekali (hemat proses) - peringatan "Isi email supaya
+            // surat dikirimkan" ditampilkan di halaman Edit Profil milik
+            // pemohon sendiri, bukan di sini (approver bukan pemiliknya).
+            if (!emp.email || !String(emp.email).trim()) return;
+
+            let pdfBlob;
+            if (kind === 'cuti') {
+                pdfBlob = await this.captureAsPdfBlob(() => this.openCuti(record.id, emp, record));
+            } else if (record.type === 'keluar_kantor') {
+                pdfBlob = await this.captureAsPdfBlob(() => this.openIzinKeluarKantor(record.id, emp, record));
+            } else {
+                pdfBlob = await this.captureAsPdfBlob(() => this.openIzinPermohonan(record.id, emp, record));
+            }
+
+            const pdfBase64 = await this._blobToBase64(pdfBlob);
+            const jenisLabel = this._suratJenisLabel(kind, record.type);
+            const fileName = `${jenisLabel} - ${emp.name || emp.nama || 'Karyawan'}`.replace(/[\\/:*?"<>|]/g, '-');
+
+            await api.sendSuratEmail({
+                id: record.id,
+                sheet: kind === 'cuti' ? 'Leaves' : 'Izin',
+                email: emp.email,
+                namaPemohon: emp.name || emp.nama || 'Karyawan',
+                jenisLabel,
+                kind,
+                fileName,
+                pdfBase64
+            });
+        } catch (e) {
+            // Sengaja tidak ditampilkan sebagai error ke approver - approval-
+            // nya sendiri SUDAH BERHASIL tersimpan, ini cuma proses tambahan
+            // (kirim email) yang berjalan di belakang layar.
+            console.error('Gagal generate/kirim PDF surat:', e);
+        }
     }
 };
 
