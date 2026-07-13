@@ -151,10 +151,22 @@ const notifications = {
     },
 
     async _loadAdminNotifications() {
-        const [izinRes, leaveRes] = await Promise.all([
+        const [izinRes, leaveRes, empRes] = await Promise.all([
             api.getAllIzin().catch(() => ({ success: false })),
-            api.getAllLeaves().catch(() => ({ success: false }))
+            api.getAllLeaves().catch(() => ({ success: false })),
+            api.getEmployees().catch(() => ({ success: false }))
         ]);
+
+        const employees = empRes.success ? empRes.data : [];
+        const findEmp = (userId) => employees.find(e => String(e.id) === String(userId));
+        // Format "Nama — Bagian" supaya notifikasi langsung jelas siapa yang
+        // mengajukan dan dari bagian mana, tanpa perlu buka detailnya dulu.
+        const pemohonInfo = (userId) => {
+            const emp = findEmp(userId);
+            const empName = emp?.name || emp?.nama || 'Karyawan';
+            const empBagian = emp?.bagian || '-';
+            return `${empName} — ${empBagian}`;
+        };
 
         const izinPending = (izinRes.success ? izinRes.data : []).filter(i => i.status === 'pending');
         const leavePending = (leaveRes.success ? leaveRes.data : []).filter(l => l.status === 'pending');
@@ -163,7 +175,7 @@ const notifications = {
             icon: 'fa-user-clock',
             color: '#F59E0B',
             title: `Pengajuan ${i.typeLabel || 'Izin'} menunggu persetujuan`,
-            desc: i.reason || '',
+            desc: pemohonInfo(i.userId),
             time: i.appliedAt || i.date,
             link: 'leave-reports'
         }));
@@ -172,7 +184,7 @@ const notifications = {
             icon: 'fa-calendar-alt',
             color: '#F59E0B',
             title: `Pengajuan Cuti (${l.typeLabel || ''}) menunggu persetujuan`,
-            desc: l.reason || '',
+            desc: pemohonInfo(l.userId),
             time: l.appliedAt || l.startDate,
             link: 'leave-reports'
         }));
