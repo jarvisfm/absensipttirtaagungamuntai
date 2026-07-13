@@ -478,6 +478,13 @@ const api = {
     },
     async deleteDocumentLink(id) {
         return this.request('deleteDocumentLink', { id });
+    },
+
+    // ========== KIRIM PDF SURAT VIA EMAIL ==========
+    // PDF-nya sudah di-generate di frontend (persis tampilan "Cetak Surat"),
+    // backend di sini cuma menerima base64-nya dan mengirim lewat Gmail.
+    async sendSuratEmail(data) {
+        return this.request('sendSuratEmail', data);
     }
 
 };  // ← penutup object api
