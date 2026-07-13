@@ -489,7 +489,11 @@ const printLetters = {
         const emp  = empOverride || this._getEmployee();
         const izin = izinOverride || window.izin?.izinData?.find(i => i.id == izinId) || {};
 
-        const format = this._getLetterFormat(emp.jabatan, emp.role);
+        // Akun rangkap (mis. M. Azemi = Admin sekaligus Asmen) punya emp.role
+        // selalu 'admin' di level atas; identitas karyawan aslinya ada di
+        // emp.employeeRole (lihat Auth.gs/auth.js). Utamakan employeeRole kalau
+        // ada, supaya cetak surat MILIK SENDIRI lewat Mode Karyawan tetap benar.
+        const format = this._getLetterFormat(emp.jabatan, emp.employeeRole || emp.role);
 
         if (format === 'manajer') {
             this._openIzinPermohonanManajer(emp, izin);
@@ -525,7 +529,10 @@ const printLetters = {
         // Blok tanda tangan "MENGETAHUI :" (Asmen) di bawah ini HANYA berlaku
         // untuk pemohon Staff — karena Asmen & Manajer tidak melalui approval
         // Asmen sesuai bidang saat mengajukan cuti untuk diri sendiri.
-        const letterFormat = this._getLetterFormat(emp.jabatan, emp.role);
+        // Sama seperti di openIzinPermohonan: utamakan employeeRole untuk akun
+        // rangkap Admin+Karyawan (mis. M. Azemi) supaya cetak surat sendiri
+        // lewat Mode Karyawan tetap benar.
+        const letterFormat = this._getLetterFormat(emp.jabatan, emp.employeeRole || emp.role);
         const mengetahuiCell = letterFormat === 'staff'
             ? `<td>
                     <p>MENGETAHUI :</p>
