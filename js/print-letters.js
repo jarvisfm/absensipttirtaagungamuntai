@@ -698,17 +698,16 @@ const printLetters = {
                     <tr>
                         <td class="lbl" style="width:70px;">NIK</td><td class="sep">:</td>
                         <td><input type="text" class="letter-input" value="${emp.nik || ''}"></td>
-                        <td class="lbl" style="padding-left:1.5rem; width:120px;">UNIT/BAGIAN</td><td class="sep">:</td>
-                        <td><input type="text" class="letter-input" value="${emp.jabatan || ''}"></td>
-                    </tr>
-                    <tr>
-                        <td colspan="3"></td>
-                        <td class="lbl" style="padding-left:1.5rem; width:120px;">UNIT KERJA</td><td class="sep">:</td>
-                        <td><input type="text" class="letter-input" value="${emp.unitKerja || ''}"></td>
-                    </tr>
-                    <tr>
-                        <td class="lbl" style="width:70px;">NAMA</td><td class="sep">:</td>
+                        <td class="lbl" style="padding-left:1.5rem; width:120px;">NAMA</td><td class="sep">:</td>
                         <td><input type="text" class="letter-input" value="${emp.name || ''}"></td>
+                    </tr>
+                    <tr>
+                        <td class="lbl" style="width:70px;">UNIT/BAGIAN</td><td class="sep">:</td>
+                        <td colspan="4"><input type="text" class="letter-input" style="width:100%;" value="${emp.jabatan || ''}"></td>
+                    </tr>
+                    <tr>
+                        <td class="lbl" style="width:70px;">UNIT KERJA</td><td class="sep">:</td>
+                        <td><input type="text" class="letter-input" value="${emp.unitKerja || ''}"></td>
                         <td class="lbl" style="padding-left:1.5rem; width:120px;">PANGKAT/GOL</td><td class="sep">:</td>
                         <td><input type="text" class="letter-input"
                             value="${emp.pangkat || ''} / ${emp.golongan || ''}"></td>
