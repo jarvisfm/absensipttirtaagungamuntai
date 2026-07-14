@@ -702,12 +702,24 @@ const printLetters = {
                         <td><input type="text" class="letter-input" value="${emp.name || ''}"></td>
                     </tr>
                     <tr>
-                        <td class="lbl" style="width:70px;">UNIT/BAGIAN</td><td class="sep">:</td>
-                        <td colspan="4"><input type="text" class="letter-input" style="width:100%;" value="${emp.jabatan || ''}"></td>
+                        <td colspan="3"></td>
+                        <td class="lbl" style="padding-left:1.5rem; width:120px; vertical-align:top;">UNIT/BAGIAN</td>
+                        <td class="sep" style="vertical-align:top;">:</td>
+                        <td>
+                            <!-- <div>, BUKAN <input> - supaya teks panjang bisa
+                                 turun ke baris ke-2 di dalam kotak yang sama
+                                 (wrap), karena <input> tidak pernah bisa
+                                 multi-baris walau CSS-nya diapain juga. -->
+                            <div class="letter-input" style="white-space:normal; word-wrap:break-word; line-height:1.4; min-height:1.4em;">${emp.jabatan || ''}</div>
+                        </td>
                     </tr>
                     <tr>
-                        <td class="lbl" style="width:70px;">UNIT KERJA</td><td class="sep">:</td>
+                        <td colspan="3"></td>
+                        <td class="lbl" style="padding-left:1.5rem; width:120px;">UNIT KERJA</td><td class="sep">:</td>
                         <td><input type="text" class="letter-input" value="${emp.unitKerja || ''}"></td>
+                    </tr>
+                    <tr>
+                        <td colspan="3"></td>
                         <td class="lbl" style="padding-left:1.5rem; width:120px;">PANGKAT/GOL</td><td class="sep">:</td>
                         <td><input type="text" class="letter-input"
                             value="${emp.pangkat || ''} / ${emp.golongan || ''}"></td>
