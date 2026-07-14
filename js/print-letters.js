@@ -166,10 +166,38 @@ const printLetters = {
             // isinya cuma 1 halaman. Dengan cara ini, ukuran halaman PDF
             // dihitung PERSIS dari ukuran canvas hasil render, jadi dijamin
             // selalu 1 halaman utuh (termasuk footer-nya).
+            //
+            // id unik supaya bisa ditemukan lagi di dalam onclone() di bawah
+            // (onclone menerima DOKUMEN HASIL KLON, bukan elemen yang sama).
+            pageEl.id = 'pdf-capture-target';
+
             const canvas = await html2canvas(pageEl, {
                 scale: 2,
                 useCORS: true,
-                backgroundColor: '#ffffff'
+                backgroundColor: '#ffffff',
+                onclone: (clonedDoc) => {
+                    // WORKAROUND bug lama html2canvas: nilai (value) elemen
+                    // <input>/<textarea> (Nama, NIK, Jabatan, Tanggal, TTD,
+                    // dst - semua field surat di sini pakai <input>) TIDAK
+                    // ikut tersalin secara otomatis ke elemen hasil klon,
+                    // jadi hasil screenshot-nya kotak-kotak isinya kosong
+                    // walau di layar aslinya kelihatan terisi. Makanya
+                    // di sini nilainya disalin manual sebelum di-screenshot.
+                    const cloneRoot = clonedDoc.getElementById('pdf-capture-target');
+                    if (!cloneRoot) return;
+                    const originalFields = pageEl.querySelectorAll('input, textarea');
+                    const clonedFields = cloneRoot.querySelectorAll('input, textarea');
+                    originalFields.forEach((origEl, i) => {
+                        const cloneEl = clonedFields[i];
+                        if (!cloneEl) return;
+                        if (origEl.tagName === 'TEXTAREA') {
+                            cloneEl.textContent = origEl.value;
+                        } else {
+                            cloneEl.setAttribute('value', origEl.value);
+                            cloneEl.value = origEl.value;
+                        }
+                    });
+                }
             });
 
             const jsPDFCtor = (window.jspdf && window.jspdf.jsPDF) || window.jsPDF;
