@@ -142,6 +142,31 @@ const printLetters = {
      * Dipakai untuk lampiran email - PDF-nya PERSIS sama dengan yang
      * muncul kalau user klik tombol "Cetak Surat" secara manual.
      */
+    // Ganti semua <input>/<textarea> di CONTAINER OFFSCREEN (yang mau
+    // di-screenshot) jadi <span> teks biasa. html2canvas terbukti tidak bisa
+    // diandalkan untuk merender value input (baik langsung maupun lewat
+    // onclone), sedangkan teks biasa (div/span) sudah terbukti render benar
+    // (kotak Pertimbangan/Keputusan Direktur dari awal memang pakai <div>,
+    // dan itu selalu muncul dengan benar). Ini SENGAJA cuma diterapkan ke
+    // container offscreen, BUKAN ke modal "Cetak Surat" yang biasa dilihat
+    // user - jadi tampilan/interaktivitas preview aslinya tidak berubah.
+    _replaceInputsWithText(container) {
+        container.querySelectorAll('input, textarea').forEach(el => {
+            const cs = window.getComputedStyle(el);
+            const span = document.createElement('span');
+            span.textContent = el.value || '';
+            span.style.display = 'inline-block';
+            span.style.width = cs.width;
+            span.style.font = cs.font;
+            span.style.color = cs.color;
+            span.style.textAlign = cs.textAlign;
+            span.style.borderBottom = cs.borderBottom;
+            span.style.paddingBottom = cs.paddingBottom;
+            span.style.whiteSpace = 'pre';
+            el.replaceWith(span);
+        });
+    },
+
     async captureAsPdfBlob(renderFn) {
         this._captureMode = true;
         this._captureContainer = null;
@@ -156,6 +181,7 @@ const printLetters = {
             if (!container) throw new Error('Gagal membuat tampilan surat untuk PDF');
 
             await this._waitForImages(container);
+            this._replaceInputsWithText(container);
 
             const pageEl = container.querySelector('.print-letter-page');
 
@@ -166,38 +192,10 @@ const printLetters = {
             // isinya cuma 1 halaman. Dengan cara ini, ukuran halaman PDF
             // dihitung PERSIS dari ukuran canvas hasil render, jadi dijamin
             // selalu 1 halaman utuh (termasuk footer-nya).
-            //
-            // id unik supaya bisa ditemukan lagi di dalam onclone() di bawah
-            // (onclone menerima DOKUMEN HASIL KLON, bukan elemen yang sama).
-            pageEl.id = 'pdf-capture-target';
-
             const canvas = await html2canvas(pageEl, {
                 scale: 2,
                 useCORS: true,
-                backgroundColor: '#ffffff',
-                onclone: (clonedDoc) => {
-                    // WORKAROUND bug lama html2canvas: nilai (value) elemen
-                    // <input>/<textarea> (Nama, NIK, Jabatan, Tanggal, TTD,
-                    // dst - semua field surat di sini pakai <input>) TIDAK
-                    // ikut tersalin secara otomatis ke elemen hasil klon,
-                    // jadi hasil screenshot-nya kotak-kotak isinya kosong
-                    // walau di layar aslinya kelihatan terisi. Makanya
-                    // di sini nilainya disalin manual sebelum di-screenshot.
-                    const cloneRoot = clonedDoc.getElementById('pdf-capture-target');
-                    if (!cloneRoot) return;
-                    const originalFields = pageEl.querySelectorAll('input, textarea');
-                    const clonedFields = cloneRoot.querySelectorAll('input, textarea');
-                    originalFields.forEach((origEl, i) => {
-                        const cloneEl = clonedFields[i];
-                        if (!cloneEl) return;
-                        if (origEl.tagName === 'TEXTAREA') {
-                            cloneEl.textContent = origEl.value;
-                        } else {
-                            cloneEl.setAttribute('value', origEl.value);
-                            cloneEl.value = origEl.value;
-                        }
-                    });
-                }
+                backgroundColor: '#ffffff'
             });
 
             const jsPDFCtor = (window.jspdf && window.jspdf.jsPDF) || window.jsPDF;
