@@ -698,11 +698,6 @@ const printLetters = {
                     <tr>
                         <td class="lbl" style="width:70px;">NIK</td><td class="sep">:</td>
                         <td><input type="text" class="letter-input" value="${emp.nik || ''}"></td>
-                        <td class="lbl" style="padding-left:1.5rem; width:120px;">NAMA</td><td class="sep">:</td>
-                        <td><input type="text" class="letter-input" value="${emp.name || ''}"></td>
-                    </tr>
-                    <tr>
-                        <td colspan="3"></td>
                         <td class="lbl" style="padding-left:1.5rem; width:120px; vertical-align:top;">UNIT/BAGIAN</td>
                         <td class="sep" style="vertical-align:top;">:</td>
                         <td>
@@ -714,7 +709,8 @@ const printLetters = {
                         </td>
                     </tr>
                     <tr>
-                        <td colspan="3"></td>
+                        <td class="lbl" style="width:70px;">NAMA</td><td class="sep">:</td>
+                        <td><input type="text" class="letter-input" value="${emp.name || ''}"></td>
                         <td class="lbl" style="padding-left:1.5rem; width:120px;">UNIT KERJA</td><td class="sep">:</td>
                         <td><input type="text" class="letter-input" value="${emp.unitKerja || ''}"></td>
                     </tr>
