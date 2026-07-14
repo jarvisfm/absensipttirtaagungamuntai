@@ -173,7 +173,7 @@ const printLetters = {
             });
 
             const jsPDFCtor = (window.jspdf && window.jspdf.jsPDF) || window.jsPDF;
-            if (!jsPDFCtor) throw new Error('jsPDF tidak tersedia (cek pemuatan library html2pdf.js)');
+            if (!jsPDFCtor) throw new Error('jsPDF tidak tersedia (cek pemuatan library jspdf.umd.min.js)');
 
             const pdfWidth = canvas.width / 2;   // balik ke ukuran CSS px (scale 2x tadi -> bagi 2)
             const pdfHeight = canvas.height / 2;
