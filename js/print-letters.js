@@ -262,6 +262,30 @@ const printLetters = {
 
     // Render tanpa banner jpeg — hanya kop teks polos di atas isi surat
     _showPlain(contentHtml) {
+        const pageHtml = `
+            <div class="print-letter-page">
+                <div class="letter-body" style="padding-top:28px;">
+                    ${this._letterHeaderPlain()}
+                    ${contentHtml}
+                </div>
+            </div>
+        `;
+
+        // Sama seperti _show() - kalau lagi mode silent capture (dipakai
+        // waktu generate PDF buat email otomatis setelah approval final),
+        // JANGAN tampilkan overlay ke layar approver. Render ke elemen
+        // offscreen saja. Sebelumnya fungsi ini tidak mengecek _captureMode
+        // sama sekali, makanya khusus Surat Izin Keluar Kantor selalu nongol
+        // ke layar Direktur walau proses lain sudah jalan diam-diam.
+        if (this._captureMode) {
+            const container = document.createElement('div');
+            container.style.cssText = 'position:fixed; left:-9999px; top:0; background:#fff; width:800px;';
+            container.innerHTML = pageHtml;
+            document.body.appendChild(container);
+            this._captureContainer = container;
+            return;
+        }
+
         const overlay = this._ensureOverlay();
         overlay.innerHTML = `
             <div class="print-letter-toolbar no-print">
@@ -272,12 +296,7 @@ const printLetters = {
                     <i class="fas fa-print"></i> Cetak / Simpan PDF
                 </button>
             </div>
-            <div class="print-letter-page">
-                <div class="letter-body" style="padding-top:28px;">
-                    ${this._letterHeaderPlain()}
-                    ${contentHtml}
-                </div>
-            </div>
+            ${pageHtml}
         `;
         overlay.classList.add('active');
         document.body.style.overflow = 'hidden';
