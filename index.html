@@ -2428,11 +2428,17 @@
 
     <!-- Scripts -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
-    <!-- html2pdf.js (bundle html2canvas + jsPDF) - dipakai untuk convert
-         tampilan "Cetak Surat" (print-letters.js) PERSIS APA ADANYA jadi
-         file PDF, supaya PDF yang dikirim email sama persis dengan yang
-         dilihat user waktu klik "Cetak / Simpan PDF". -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <!-- html2canvas + jsPDF (TERPISAH, bukan bundle html2pdf.js) - dipakai
+         untuk convert tampilan "Cetak Surat" (print-letters.js) PERSIS APA
+         ADANYA jadi file PDF, supaya PDF yang dikirim email sama persis
+         dengan yang dilihat user waktu klik "Cetak / Simpan PDF".
+         CATATAN: sebelumnya pakai html2pdf.bundle.min.js (versi gabungan),
+         tapi versi itu TIDAK meng-expose variabel global `html2canvas`,
+         jadi errornya "html2canvas is not defined". Kedua library standalone
+         di bawah ini sudah pasti expose window.html2canvas dan
+         window.jspdf.jsPDF secara langsung. -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="js/api.js"></script>
     <script src="js/main.js"></script>
     <script src="js/router.js"></script>
@@ -2443,7 +2449,7 @@
     <script src="js/face-recognition.js"></script>
     <script src="js/izin.js"></script>
     <script src="js/cuti.js"></script>
-    <script src="js/print-letters.js?v=2"></script>
+    <script src="js/print-letters.js?v=3"></script>
     <script src="js/admin-dashboard.js"></script>
     <script src="js/admin-employees.js"></script>
     <script src="js/karyawan.js"></script>
