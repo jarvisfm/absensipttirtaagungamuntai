@@ -1292,14 +1292,14 @@
 
                                     <div class="form-row two-col">
                                         <div class="form-group">
-                                            <label>Upload Ijazah (PDF/JPG/PNG)</label>
-                                            <input type="file" id="pf-pdk-fileIjazah" accept="application/pdf,image/jpeg,image/png" onchange="profileManager.previewPendidikanFileName(this,'pf-pdk-ijazah-filename')">
-                                            <small id="pf-pdk-ijazah-filename" style="color:var(--text-muted);"></small>
+                                            <label>Link Google Drive - Ijazah</label>
+                                            <input type="url" id="pf-pdk-ijazah-url" placeholder="Tempel link share Google Drive Ijazah di sini">
+                                            <small style="color:var(--text-muted);">Upload file Ijazah ke Google Drive Anda, atur akses "Anyone with the link", lalu tempel link-nya di sini.</small>
                                         </div>
                                         <div class="form-group">
-                                            <label>Upload Transkrip Nilai (PDF/JPG/PNG)</label>
-                                            <input type="file" id="pf-pdk-fileTranskrip" accept="application/pdf,image/jpeg,image/png" onchange="profileManager.previewPendidikanFileName(this,'pf-pdk-transkrip-filename')">
-                                            <small id="pf-pdk-transkrip-filename" style="color:var(--text-muted);"></small>
+                                            <label>Link Google Drive - Transkrip Nilai</label>
+                                            <input type="url" id="pf-pdk-transkrip-url" placeholder="Tempel link share Google Drive Transkrip Nilai di sini">
+                                            <small style="color:var(--text-muted);">Upload file Transkrip ke Google Drive Anda, atur akses "Anyone with the link", lalu tempel link-nya di sini.</small>
                                         </div>
                                     </div>
 
@@ -1835,17 +1835,38 @@
     </div>
 </div>
 
-<!-- Modal Preview File (Ijazah/Transkrip Nilai) - tab Pendidikan di Edit Profil -->
-<div class="modal-overlay" id="modal-preview-file" style="display:none;">
-    <div class="modal-container" style="max-width:800px;width:95%;max-height:90vh;">
+<!-- Modal Preview Dokumen (Ijazah/Transkrip Nilai) - tab Pendidikan di Edit Profil -->
+<div class="modal-overlay" id="modal-preview-pendidikan" style="display:none;">
+    <div class="modal-container" style="max-width:1200px;width:97%;max-height:92vh;">
         <div class="modal-header">
-            <h3 id="modal-preview-file-title">Dokumen</h3>
-            <button class="btn-close-modal" onclick="profileManager.closePreviewFile()">
+            <h3 id="modal-preview-pendidikan-title">Dokumen</h3>
+            <button class="btn-close-modal" onclick="profileManager.closePreviewPendidikan()">
                 <i class="fas fa-times"></i>
             </button>
         </div>
         <div style="padding:0 1rem 1rem;">
-            <iframe id="modal-preview-file-iframe" src="" style="width:100%;height:70vh;border:1px solid var(--border-color);border-radius:8px;"></iframe>
+            <div class="form-row two-col" style="align-items:stretch;">
+                <div class="form-group" style="margin-bottom:0;">
+                    <label style="font-weight:600;">Dokumen Ijazah</label>
+                    <div style="position:relative;height:70vh;border:1px solid var(--border-color);border-radius:8px;overflow:hidden;background:var(--bg-secondary,#f8f9fa);">
+                        <iframe id="modal-preview-pendidikan-ijazah" src="" style="width:100%;height:100%;border:none;display:none;"></iframe>
+                        <div id="modal-preview-pendidikan-ijazah-empty" style="display:none;position:absolute;inset:0;align-items:center;justify-content:center;flex-direction:column;gap:8px;color:var(--text-muted);">
+                            <i class="fas fa-file-circle-xmark" style="font-size:2rem;"></i>
+                            <span style="font-size:0.85rem;">Belum ada link Ijazah</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="form-group" style="margin-bottom:0;">
+                    <label style="font-weight:600;">Dokumen Transkrip Nilai</label>
+                    <div style="position:relative;height:70vh;border:1px solid var(--border-color);border-radius:8px;overflow:hidden;background:var(--bg-secondary,#f8f9fa);">
+                        <iframe id="modal-preview-pendidikan-transkrip" src="" style="width:100%;height:100%;border:none;display:none;"></iframe>
+                        <div id="modal-preview-pendidikan-transkrip-empty" style="display:none;position:absolute;inset:0;align-items:center;justify-content:center;flex-direction:column;gap:8px;color:var(--text-muted);">
+                            <i class="fas fa-file-circle-xmark" style="font-size:2rem;"></i>
+                            <span style="font-size:0.85rem;">Belum ada link Transkrip Nilai</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 </div>
@@ -2011,6 +2032,9 @@
                                         <option value="pending">Menunggu</option>
                                         <option value="approved">Disetujui</option>
                                         <option value="rejected">Ditolak</option>
+                                    </select></div>
+                                <div class="filter-group"><label>Bagian</label><select id="leave-bagian-filter">
+                                        <option value="">Semua</option>
                                     </select></div>
                             </div>
                         </div>
