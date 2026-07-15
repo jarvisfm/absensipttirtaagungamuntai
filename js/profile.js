@@ -408,9 +408,6 @@ const profileManager = {
                             ${r.jurusan ? this._esc(r.jurusan) + ' &middot; ' : ''}Lulus ${this._esc(r.tahunLulus || '-')}
                             ${r.nomorIjazah ? ' &middot; No. Ijazah: ' + this._esc(r.nomorIjazah) : ''}
                         </div>
-                        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;">
-                            ${(r.fileIjazahUrl || r.fileTranskripUrl) ? `<button type="button" onclick="profileManager.openPreviewPendidikan('${r.id}')" style="background:var(--color-primary);color:#fff;border:none;padding:6px 12px;border-radius:6px;cursor:pointer;font-size:0.8rem;"><i class="fas fa-eye"></i> Review Dokumen</button>` : `<span style="color:var(--text-muted);font-size:0.8rem;font-style:italic;">Belum ada link Ijazah/Transkrip</span>`}
-                        </div>
                     </div>
                     <div style="display:flex;flex-direction:column;gap:6px;flex-shrink:0;">
                         <button type="button" onclick="profileManager.editRiwayatPendidikan('${r.id}')"
@@ -423,6 +420,29 @@ const profileManager = {
                         </button>
                     </div>
                 </div>
+                ${(r.fileIjazahUrl || r.fileTranskripUrl) ? `
+                <div style="margin-top:1rem;padding-top:1rem;border-top:1px solid var(--border-color);">
+                    <div style="font-weight:600;font-size:0.85rem;margin-bottom:8px;">Review Dokumen - ${this._esc(r.jenjang)} ${this._esc(r.namaSekolah)}</div>
+                    <div style="display:flex;gap:12px;flex-wrap:wrap;">
+                        <div style="flex:1;min-width:260px;">
+                            <label style="font-size:0.8rem;color:var(--text-muted);display:block;margin-bottom:4px;">Dokumen Ijazah</label>
+                            <div style="position:relative;height:340px;border:1px solid var(--border-color);border-radius:8px;overflow:hidden;background:var(--bg-secondary,#f8f9fa);">
+                                ${r.fileIjazahUrl
+                                    ? `<iframe src="${this._esc(r.fileIjazahUrl)}" style="width:100%;height:100%;border:none;"></iframe>`
+                                    : `<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:8px;color:var(--text-muted);"><i class="fas fa-file-circle-xmark" style="font-size:1.5rem;"></i><span style="font-size:0.8rem;">Belum ada link Ijazah</span></div>`}
+                            </div>
+                        </div>
+                        <div style="flex:1;min-width:260px;">
+                            <label style="font-size:0.8rem;color:var(--text-muted);display:block;margin-bottom:4px;">Dokumen Transkrip Nilai</label>
+                            <div style="position:relative;height:340px;border:1px solid var(--border-color);border-radius:8px;overflow:hidden;background:var(--bg-secondary,#f8f9fa);">
+                                ${r.fileTranskripUrl
+                                    ? `<iframe src="${this._esc(r.fileTranskripUrl)}" style="width:100%;height:100%;border:none;"></iframe>`
+                                    : `<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:8px;color:var(--text-muted);"><i class="fas fa-file-circle-xmark" style="font-size:1.5rem;"></i><span style="font-size:0.8rem;">Belum ada link Transkrip Nilai</span></div>`}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                ` : `<div style="margin-top:8px;"><span style="color:var(--text-muted);font-size:0.8rem;font-style:italic;">Belum ada link Ijazah/Transkrip</span></div>`}
             </div>
         `).join('');
     },
@@ -449,7 +469,16 @@ const profileManager = {
         document.getElementById('pf-pendidikan-form-title').innerHTML = '<i class="fas fa-graduation-cap"></i> Edit Riwayat Pendidikan';
         document.getElementById('pf-pdk-btn-batal').style.display = 'inline-flex';
 
-        document.getElementById('pf-pdk-jenjang').scrollIntoView({ behavior: 'smooth', block: 'center' });
+        document.getElementById('modal-pendidikan-form').style.display = 'flex';
+    },
+
+    openPendidikanModal() {
+        this.resetPendidikanForm();
+        document.getElementById('modal-pendidikan-form').style.display = 'flex';
+    },
+
+    closePendidikanModal() {
+        document.getElementById('modal-pendidikan-form').style.display = 'none';
     },
 
     resetPendidikanForm() {
@@ -513,14 +542,9 @@ const profileManager = {
             }
 
             toast.success('Riwayat pendidikan berhasil disimpan!');
-            const savedId = result.data && result.data.id ? result.data.id : null;
             this.resetPendidikanForm();
+            this.closePendidikanModal();
             await this.loadRiwayatPendidikan();
-
-            // Auto-buka review dokumen kalau ada minimal 1 link tersimpan
-            if (savedId && (fileIjazahUrl || fileTranskripUrl)) {
-                this.openPreviewPendidikan(savedId);
-            }
         } catch (e) {
             console.error('Error simpan riwayat pendidikan:', e);
             toast.error('Terjadi kesalahan saat menyimpan riwayat pendidikan');
@@ -540,39 +564,6 @@ const profileManager = {
         } catch (e) {
             toast.error('Terjadi kesalahan');
         }
-    },
-
-    openPreviewPendidikan(id) {
-        const r = this.riwayatPendidikan.find(x => String(x.id) === String(id));
-        if (!r) return;
-
-        document.getElementById('modal-preview-pendidikan-title').textContent =
-            `Review Dokumen - ${r.jenjang} ${r.namaSekolah}`;
-
-        this._togglePreviewPane('ijazah', r.fileIjazahUrl);
-        this._togglePreviewPane('transkrip', r.fileTranskripUrl);
-
-        document.getElementById('modal-preview-pendidikan').style.display = 'flex';
-    },
-
-    _togglePreviewPane(key, url) {
-        const iframe = document.getElementById(`modal-preview-pendidikan-${key}`);
-        const empty  = document.getElementById(`modal-preview-pendidikan-${key}-empty`);
-        if (url) {
-            iframe.src = url;
-            iframe.style.display = '';
-            empty.style.display = 'none';
-        } else {
-            iframe.src = '';
-            iframe.style.display = 'none';
-            empty.style.display = 'block';
-        }
-    },
-
-    closePreviewPendidikan() {
-        document.getElementById('modal-preview-pendidikan').style.display = 'none';
-        document.getElementById('modal-preview-pendidikan-ijazah').src = '';
-        document.getElementById('modal-preview-pendidikan-transkrip').src = '';
     },
 
     /**
