@@ -496,6 +496,17 @@ const api = {
     },
     async deleteRiwayatPendidikan(id) {
         return this.request('deleteRiwayatPendidikan', { id });
+    },
+
+    // ========== RIWAYAT MUTASI (link Google Drive Dokumen SK Mutasi) ==========
+    async getRiwayatMutasi(userId) {
+        return this.request('getRiwayatMutasi', { userId });
+    },
+    async saveRiwayatMutasi(data) {
+        return this.request('saveRiwayatMutasi', data);
+    },
+    async deleteRiwayatMutasi(id) {
+        return this.request('deleteRiwayatMutasi', { id });
     }
 
 };  // ← penutup object api
