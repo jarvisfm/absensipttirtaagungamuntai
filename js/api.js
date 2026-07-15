@@ -485,6 +485,17 @@ const api = {
     // backend di sini cuma menerima base64-nya dan mengirim lewat Gmail.
     async sendSuratEmail(data) {
         return this.request('sendSuratEmail', data);
+    },
+
+    // ========== RIWAYAT PENDIDIKAN (link Google Drive Ijazah/Transkrip) ==========
+    async getRiwayatPendidikan(userId) {
+        return this.request('getRiwayatPendidikan', { userId });
+    },
+    async saveRiwayatPendidikan(data) {
+        return this.request('saveRiwayatPendidikan', data);
+    },
+    async deleteRiwayatPendidikan(id) {
+        return this.request('deleteRiwayatPendidikan', { id });
     }
 
 };  // ← penutup object api
