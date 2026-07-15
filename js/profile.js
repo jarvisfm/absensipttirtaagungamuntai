@@ -14,6 +14,9 @@ const profileManager = {
     myId: null,
     anakCount: 0,
     docLinks: [],
+    riwayatPendidikan: [],
+    _pdkFileIjazahBase64: null,
+    _pdkFileTranskripBase64: null,
 
     async init() {
         const user = auth.getCurrentUser ? auth.getCurrentUser() : null;
@@ -39,10 +42,11 @@ const profileManager = {
         this.switchTab('profil');
         await this.loadMyProfile();
         await this.loadDocLinks();
+        await this.loadRiwayatPendidikan();
     },
 
     switchTab(tab) {
-        ['profil', 'kekaryawanan', 'keluarga', 'akun', 'dokumen'].forEach(t => {
+        ['profil', 'kekaryawanan', 'keluarga', 'akun', 'dokumen', 'pendidikan'].forEach(t => {
             const content = document.getElementById(`pf-tabcontent-${t}`);
             const btn     = document.getElementById(`pf-tab-${t}`);
             if (content) content.style.display = t === tab ? 'block' : 'none';
@@ -365,6 +369,211 @@ const profileManager = {
         } catch (e) {
             toast.error('Terjadi kesalahan');
         }
+    },
+
+    // ========== TAB PENDIDIKAN (Riwayat SD/SMP/SMA/S1/S2 + upload file) ==========
+
+    async loadRiwayatPendidikan() {
+        try {
+            const result = await api.getRiwayatPendidikan(this.myId);
+            this.riwayatPendidikan = (result.success && result.data) ? result.data : [];
+        } catch (e) {
+            console.error('Error load riwayat pendidikan:', e);
+            this.riwayatPendidikan = [];
+        }
+        this.renderRiwayatPendidikan();
+    },
+
+    renderRiwayatPendidikan() {
+        const container = document.getElementById('pf-pendidikan-list');
+        if (!container) return;
+
+        if (this.riwayatPendidikan.length === 0) {
+            container.innerHTML = '<p style="color:var(--text-muted);font-size:0.85rem;">Belum ada riwayat pendidikan yang disimpan.</p>';
+            return;
+        }
+
+        container.innerHTML = this.riwayatPendidikan.map(r => `
+            <div style="border:1px solid var(--border-color);border-radius:8px;padding:1.25rem;margin-bottom:1rem;">
+                <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;">
+                    <div style="min-width:0;">
+                        <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;flex-wrap:wrap;">
+                            <span style="background:var(--color-primary);color:#fff;font-size:0.75rem;font-weight:700;padding:2px 10px;border-radius:20px;">${this._esc(r.jenjang)}</span>
+                            <span style="font-weight:600;font-size:1.05rem;">${this._esc(r.namaSekolah)}</span>
+                        </div>
+                        <div style="font-size:0.85rem;color:var(--text-muted);margin-bottom:4px;">
+                            ${r.jurusan ? this._esc(r.jurusan) + ' &middot; ' : ''}Lulus ${this._esc(r.tahunLulus || '-')}
+                            ${r.nomorIjazah ? ' &middot; No. Ijazah: ' + this._esc(r.nomorIjazah) : ''}
+                        </div>
+                        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;">
+                            ${r.fileIjazahUrl ? `<button type="button" onclick="profileManager.openPreviewFile('${this._esc(r.fileIjazahUrl)}','Ijazah - ${this._esc(r.namaSekolah)}')" style="background:var(--color-primary);color:#fff;border:none;padding:6px 12px;border-radius:6px;cursor:pointer;font-size:0.8rem;"><i class="fas fa-eye"></i> Lihat Ijazah</button>` : ''}
+                            ${r.fileTranskripUrl ? `<button type="button" onclick="profileManager.openPreviewFile('${this._esc(r.fileTranskripUrl)}','Transkrip Nilai - ${this._esc(r.namaSekolah)}')" style="background:var(--color-primary);color:#fff;border:none;padding:6px 12px;border-radius:6px;cursor:pointer;font-size:0.8rem;"><i class="fas fa-eye"></i> Lihat Transkrip</button>` : ''}
+                        </div>
+                    </div>
+                    <div style="display:flex;flex-direction:column;gap:6px;flex-shrink:0;">
+                        <button type="button" onclick="profileManager.editRiwayatPendidikan('${r.id}')"
+                            style="background:none;border:1px solid var(--border-color);color:var(--text-muted);padding:8px 12px;border-radius:6px;cursor:pointer;font-size:0.85rem;">
+                            <i class="fas fa-pen"></i>
+                        </button>
+                        <button type="button" onclick="profileManager.deleteRiwayatPendidikan('${r.id}')"
+                            style="background:#EF4444;color:#fff;border:none;padding:8px 12px;border-radius:6px;cursor:pointer;font-size:0.85rem;">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `).join('');
+    },
+
+    previewPendidikanFileName(input, targetElId) {
+        const target = document.getElementById(targetElId);
+        if (input.files && input.files[0]) {
+            const file = input.files[0];
+            const allowedTypes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png'];
+            if (allowedTypes.indexOf(file.type) === -1) {
+                toast.error('Format file harus PDF, JPG, atau PNG.');
+                input.value = '';
+                if (target) target.textContent = '';
+                return;
+            }
+            if (target) target.textContent = file.name;
+
+            const reader = new FileReader();
+            reader.onload = e => {
+                if (targetElId === 'pf-pdk-ijazah-filename') {
+                    this._pdkFileIjazahBase64 = e.target.result;
+                } else {
+                    this._pdkFileTranskripBase64 = e.target.result;
+                }
+            };
+            reader.readAsDataURL(file);
+        } else {
+            if (target) target.textContent = '';
+        }
+    },
+
+    editRiwayatPendidikan(id) {
+        const r = this.riwayatPendidikan.find(x => String(x.id) === String(id));
+        if (!r) return;
+
+        document.getElementById('pf-pdk-id').value               = r.id;
+        document.getElementById('pf-pdk-jenjang').value           = r.jenjang || '';
+        document.getElementById('pf-pdk-jurusan').value           = r.jurusan || '';
+        document.getElementById('pf-pdk-namaSekolah').value       = r.namaSekolah || '';
+        document.getElementById('pf-pdk-nomorIjazah').value       = r.nomorIjazah || '';
+        document.getElementById('pf-pdk-tahunLulus').value        = r.tahunLulus || '';
+        document.getElementById('pf-pdk-tanggalLulus').value      = r.tanggalLulus || '';
+        document.getElementById('pf-pdk-gelarDepan').value        = r.gelarDepan || '';
+        document.getElementById('pf-pdk-gelarBelakang').value     = r.gelarBelakang || '';
+        document.getElementById('pf-pdk-pendidikanPertama').checked  = r.pendidikanPertama === 'true';
+        document.getElementById('pf-pdk-pendidikanTerakhir').checked = r.pendidikanTerakhir === 'true';
+
+        document.getElementById('pf-pdk-fileIjazah').value = '';
+        document.getElementById('pf-pdk-fileTranskrip').value = '';
+        document.getElementById('pf-pdk-ijazah-filename').textContent = r.fileIjazahUrl ? 'Sudah ada file tersimpan (biarkan kosong jika tidak ingin mengganti)' : '';
+        document.getElementById('pf-pdk-transkrip-filename').textContent = r.fileTranskripUrl ? 'Sudah ada file tersimpan (biarkan kosong jika tidak ingin mengganti)' : '';
+        this._pdkFileIjazahBase64 = null;
+        this._pdkFileTranskripBase64 = null;
+
+        document.getElementById('pf-pendidikan-form-title').innerHTML = '<i class="fas fa-graduation-cap"></i> Edit Riwayat Pendidikan';
+        document.getElementById('pf-pdk-btn-batal').style.display = 'inline-flex';
+
+        document.getElementById('pf-pdk-jenjang').scrollIntoView({ behavior: 'smooth', block: 'center' });
+    },
+
+    resetPendidikanForm() {
+        document.getElementById('pf-pdk-id').value = '';
+        document.getElementById('pf-pdk-jenjang').value = '';
+        document.getElementById('pf-pdk-jurusan').value = '';
+        document.getElementById('pf-pdk-namaSekolah').value = '';
+        document.getElementById('pf-pdk-nomorIjazah').value = '';
+        document.getElementById('pf-pdk-tahunLulus').value = '';
+        document.getElementById('pf-pdk-tanggalLulus').value = '';
+        document.getElementById('pf-pdk-gelarDepan').value = '';
+        document.getElementById('pf-pdk-gelarBelakang').value = '';
+        document.getElementById('pf-pdk-pendidikanPertama').checked = false;
+        document.getElementById('pf-pdk-pendidikanTerakhir').checked = false;
+        document.getElementById('pf-pdk-fileIjazah').value = '';
+        document.getElementById('pf-pdk-fileTranskrip').value = '';
+        document.getElementById('pf-pdk-ijazah-filename').textContent = '';
+        document.getElementById('pf-pdk-transkrip-filename').textContent = '';
+        this._pdkFileIjazahBase64 = null;
+        this._pdkFileTranskripBase64 = null;
+
+        document.getElementById('pf-pendidikan-form-title').innerHTML = '<i class="fas fa-graduation-cap"></i> Tambah Riwayat Pendidikan';
+        document.getElementById('pf-pdk-btn-batal').style.display = 'none';
+    },
+
+    async saveRiwayatPendidikan() {
+        const id           = document.getElementById('pf-pdk-id').value;
+        const jenjang       = document.getElementById('pf-pdk-jenjang').value;
+        const namaSekolah   = document.getElementById('pf-pdk-namaSekolah').value.trim();
+
+        if (!jenjang) { toast.error('Pilih jenjang pendidikan terlebih dahulu!'); return; }
+        if (!namaSekolah) { toast.error('Nama sekolah/institusi wajib diisi!'); return; }
+
+        const existing = id ? this.riwayatPendidikan.find(x => String(x.id) === String(id)) : null;
+
+        const data = {
+            id:                 id || undefined,
+            userId:             this.myId,
+            jenjang,
+            jurusan:            document.getElementById('pf-pdk-jurusan').value.trim(),
+            namaSekolah,
+            nomorIjazah:        document.getElementById('pf-pdk-nomorIjazah').value.trim(),
+            tahunLulus:         document.getElementById('pf-pdk-tahunLulus').value.trim(),
+            tanggalLulus:       document.getElementById('pf-pdk-tanggalLulus').value,
+            gelarDepan:         document.getElementById('pf-pdk-gelarDepan').value.trim(),
+            gelarBelakang:      document.getElementById('pf-pdk-gelarBelakang').value.trim(),
+            pendidikanPertama:  document.getElementById('pf-pdk-pendidikanPertama').checked,
+            pendidikanTerakhir: document.getElementById('pf-pdk-pendidikanTerakhir').checked,
+            fileIjazahUrl:      existing ? existing.fileIjazahUrl : '',
+            fileTranskripUrl:   existing ? existing.fileTranskripUrl : ''
+        };
+
+        if (this._pdkFileIjazahBase64) data.fileIjazahBase64 = this._pdkFileIjazahBase64;
+        if (this._pdkFileTranskripBase64) data.fileTranskripBase64 = this._pdkFileTranskripBase64;
+
+        try {
+            const result = await api.saveRiwayatPendidikan(data);
+            if (!result.success) {
+                toast.error(result.error || 'Gagal menyimpan riwayat pendidikan');
+                return;
+            }
+
+            toast.success('Riwayat pendidikan berhasil disimpan!');
+            this.resetPendidikanForm();
+            await this.loadRiwayatPendidikan();
+        } catch (e) {
+            console.error('Error simpan riwayat pendidikan:', e);
+            toast.error('Terjadi kesalahan saat menyimpan riwayat pendidikan');
+        }
+    },
+
+    async deleteRiwayatPendidikan(id) {
+        if (!confirm('Hapus riwayat pendidikan ini beserta berkas Ijazah & Transkrip yang tersimpan?')) return;
+        try {
+            const result = await api.deleteRiwayatPendidikan(id);
+            if (result.success) {
+                toast.success('Riwayat pendidikan dihapus');
+                await this.loadRiwayatPendidikan();
+            } else {
+                toast.error(result.error || 'Gagal menghapus');
+            }
+        } catch (e) {
+            toast.error('Terjadi kesalahan');
+        }
+    },
+
+    openPreviewFile(url, title) {
+        document.getElementById('modal-preview-file-title').textContent = title || 'Dokumen';
+        document.getElementById('modal-preview-file-iframe').src = url;
+        document.getElementById('modal-preview-file').style.display = 'flex';
+    },
+
+    closePreviewFile() {
+        document.getElementById('modal-preview-file').style.display = 'none';
+        document.getElementById('modal-preview-file-iframe').src = '';
     },
 
     _esc(str) {
