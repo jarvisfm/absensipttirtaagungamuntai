@@ -40,10 +40,11 @@ const profileManager = {
         await this.loadMyProfile();
         await this.loadDocLinks();
         await this.loadRiwayatPendidikan();
+        await this.loadRiwayatMutasi();
     },
 
     switchTab(tab) {
-        ['profil', 'kekaryawanan', 'keluarga', 'akun', 'dokumen', 'pendidikan'].forEach(t => {
+        ['profil', 'kekaryawanan', 'keluarga', 'akun', 'dokumen', 'pendidikan', 'mutasi'].forEach(t => {
             const content = document.getElementById(`pf-tabcontent-${t}`);
             const btn     = document.getElementById(`pf-tab-${t}`);
             if (content) content.style.display = t === tab ? 'block' : 'none';
@@ -587,6 +588,147 @@ const profileManager = {
         if (!fileId) return null;
 
         return `https://drive.google.com/file/d/${fileId}/preview`;
+    },
+
+    // ========== TAB RIWAYAT MUTASI (perpindahan tugas + link Google Drive SK Mutasi) ==========
+
+    riwayatMutasi: [],
+
+    async loadRiwayatMutasi() {
+        try {
+            const result = await api.getRiwayatMutasi(this.myId);
+            this.riwayatMutasi = (result.success && result.data) ? result.data : [];
+        } catch (e) {
+            console.error('Error load riwayat mutasi:', e);
+            this.riwayatMutasi = [];
+        }
+        this.renderRiwayatMutasi();
+    },
+
+    renderRiwayatMutasi() {
+        const tbody = document.getElementById('pf-mutasi-list');
+        if (!tbody) return;
+
+        if (this.riwayatMutasi.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:2rem;color:var(--text-muted);">Belum ada riwayat mutasi yang disimpan.</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = this.riwayatMutasi.map(r => `
+            <tr>
+                <td style="padding:10px 12px;">${this._esc(r.nomorSurat || '-')}</td>
+                <td style="padding:10px 12px;">${this._esc(r.instansiAsal || '-')}</td>
+                <td style="padding:10px 12px;">${this._esc(r.unorAsal || '-')}</td>
+                <td style="padding:10px 12px;">${this._esc(r.instansiBaru || '-')}</td>
+                <td style="padding:10px 12px;">${this._esc(r.unorBaru || '-')}</td>
+                <td style="padding:10px 12px;">
+                    ${r.fileDokumenUrl
+                        ? `<button type="button" onclick="window.open('${r.fileDokumenUrl}', '_blank')" style="background:none;border:1px solid var(--border-color);color:var(--text-muted);padding:6px 12px;border-radius:6px;cursor:pointer;font-size:0.8rem;white-space:nowrap;"><i class="fas fa-download"></i> Unduh</button>`
+                        : `<span style="color:var(--text-muted);font-size:0.8rem;font-style:italic;">Belum ada</span>`}
+                </td>
+                <td style="padding:10px 12px;">
+                    <button type="button" onclick="profileManager.editRiwayatMutasi('${r.id}')" style="background:none;border:1px solid var(--border-color);color:var(--text-muted);padding:6px 10px;border-radius:6px;cursor:pointer;font-size:0.8rem;margin-right:4px;"><i class="fas fa-pen"></i></button>
+                    <button type="button" onclick="profileManager.deleteRiwayatMutasi('${r.id}')" style="background:#EF4444;color:#fff;border:none;padding:6px 10px;border-radius:6px;cursor:pointer;font-size:0.8rem;"><i class="fas fa-trash"></i></button>
+                </td>
+            </tr>
+        `).join('');
+    },
+
+    openMutasiModal() {
+        this.resetMutasiForm();
+        document.getElementById('modal-mutasi-form').style.display = 'flex';
+    },
+
+    closeMutasiModal() {
+        document.getElementById('modal-mutasi-form').style.display = 'none';
+    },
+
+    editRiwayatMutasi(id) {
+        const r = this.riwayatMutasi.find(x => String(x.id) === String(id));
+        if (!r) return;
+
+        document.getElementById('pf-mts-id').value           = r.id;
+        document.getElementById('pf-mts-nomorSurat').value    = r.nomorSurat || '';
+        document.getElementById('pf-mts-tanggalSurat').value  = r.tanggalSurat || '';
+        document.getElementById('pf-mts-instansiAsal').value  = r.instansiAsal || '';
+        document.getElementById('pf-mts-unorAsal').value      = r.unorAsal || '';
+        document.getElementById('pf-mts-instansiBaru').value  = r.instansiBaru || '';
+        document.getElementById('pf-mts-unorBaru').value      = r.unorBaru || '';
+        document.getElementById('pf-mts-dokumen-url').value   = r.fileDokumenUrl || '';
+
+        document.getElementById('pf-mts-form-title').innerHTML = '<i class="fas fa-right-left"></i> Edit Riwayat Mutasi';
+        document.getElementById('pf-mts-btn-batal').style.display = 'inline-flex';
+
+        document.getElementById('modal-mutasi-form').style.display = 'flex';
+    },
+
+    resetMutasiForm() {
+        document.getElementById('pf-mts-id').value = '';
+        document.getElementById('pf-mts-nomorSurat').value = '';
+        document.getElementById('pf-mts-tanggalSurat').value = '';
+        document.getElementById('pf-mts-instansiAsal').value = '';
+        document.getElementById('pf-mts-unorAsal').value = '';
+        document.getElementById('pf-mts-instansiBaru').value = '';
+        document.getElementById('pf-mts-unorBaru').value = '';
+        document.getElementById('pf-mts-dokumen-url').value = '';
+
+        document.getElementById('pf-mts-form-title').innerHTML = '<i class="fas fa-right-left"></i> Tambah Riwayat Mutasi';
+        document.getElementById('pf-mts-btn-batal').style.display = 'none';
+    },
+
+    async saveRiwayatMutasi() {
+        const id          = document.getElementById('pf-mts-id').value;
+        const nomorSurat  = document.getElementById('pf-mts-nomorSurat').value.trim();
+
+        if (!nomorSurat) { toast.error('Nomor surat wajib diisi!'); return; }
+
+        const rawDokumenUrl = document.getElementById('pf-mts-dokumen-url').value.trim();
+        const fileDokumenUrl = rawDokumenUrl ? this.normalizeDriveLink(rawDokumenUrl) : '';
+
+        if (rawDokumenUrl && !fileDokumenUrl) { toast.error('Link Dokumen SK Mutasi bukan link Google Drive yang valid! Pastikan link dari "Get link" / "Bagikan" di Drive.'); return; }
+
+        const data = {
+            id:             id || undefined,
+            userId:         this.myId,
+            nomorSurat,
+            tanggalSurat:   document.getElementById('pf-mts-tanggalSurat').value,
+            instansiAsal:   document.getElementById('pf-mts-instansiAsal').value.trim(),
+            unorAsal:       document.getElementById('pf-mts-unorAsal').value.trim(),
+            instansiBaru:   document.getElementById('pf-mts-instansiBaru').value.trim(),
+            unorBaru:       document.getElementById('pf-mts-unorBaru').value.trim(),
+            fileDokumenUrl
+        };
+
+        try {
+            const result = await api.saveRiwayatMutasi(data);
+            if (!result.success) {
+                toast.error(result.error || 'Gagal menyimpan riwayat mutasi');
+                return;
+            }
+
+            toast.success('Riwayat mutasi berhasil disimpan!');
+            this.resetMutasiForm();
+            this.closeMutasiModal();
+            await this.loadRiwayatMutasi();
+        } catch (e) {
+            console.error('Error simpan riwayat mutasi:', e);
+            toast.error('Terjadi kesalahan saat menyimpan riwayat mutasi');
+        }
+    },
+
+    async deleteRiwayatMutasi(id) {
+        if (!confirm('Hapus riwayat mutasi ini? (Link dokumen hanya dihapus dari aplikasi, file aslinya di Google Drive Anda tidak terhapus)')) return;
+        try {
+            const result = await api.deleteRiwayatMutasi(id);
+            if (result.success) {
+                toast.success('Riwayat mutasi dihapus');
+                await this.loadRiwayatMutasi();
+            } else {
+                toast.error(result.error || 'Gagal menghapus');
+            }
+        } catch (e) {
+            toast.error('Terjadi kesalahan');
+        }
     }
 };
 
