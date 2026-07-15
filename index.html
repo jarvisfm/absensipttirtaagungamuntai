@@ -45,7 +45,7 @@
                     <div class="logo-ring ring-2"></div>
                     <div class="logo-ring ring-3"></div>
                     <div class="logo-core">
-                        <img src="assets/logo-taa.png" alt="PT. Tirta Agung Amuntai" style="width:72%;height:72%;object-fit:contain;">
+                        <img src="assets/logo-taa.png" alt="PT. Tirta Agung Amuntai" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">
                     </div>
                 </div>
                 <p class="tagline">Sistem Absensi Karyawan</p>
@@ -946,6 +946,7 @@
                                 <button type="button" class="tab-btn" onclick="profileManager.switchTab('keluarga')" id="pf-tab-keluarga" style="padding:8px 16px;border:none;background:none;cursor:pointer;font-weight:500;color:var(--text-muted);white-space:nowrap;flex-shrink:0;">Keluarga</button>
                                 <button type="button" class="tab-btn" onclick="profileManager.switchTab('akun')" id="pf-tab-akun" style="padding:8px 16px;border:none;background:none;cursor:pointer;font-weight:500;color:var(--text-muted);white-space:nowrap;flex-shrink:0;">Akun</button>
                                 <button type="button" class="tab-btn" onclick="profileManager.switchTab('dokumen')" id="pf-tab-dokumen" style="padding:8px 16px;border:none;background:none;cursor:pointer;font-weight:500;color:var(--text-muted);white-space:nowrap;flex-shrink:0;">Dokumen</button>
+                                <button type="button" class="tab-btn" onclick="profileManager.switchTab('pendidikan')" id="pf-tab-pendidikan" style="padding:8px 16px;border:none;background:none;cursor:pointer;font-weight:500;color:var(--text-muted);white-space:nowrap;flex-shrink:0;">Pendidikan</button>
                             </div>
 
                             <input type="hidden" id="pf-id">
@@ -1209,6 +1210,105 @@
                                     <div class="form-actions">
                                         <button type="button" class="btn-primary" onclick="profileManager.saveDocLink()">
                                             <i class="fas fa-check-circle"></i> Simpan Tautan
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Tab Pendidikan (Riwayat SD/SMP/SMA/S1/S2 + upload Ijazah & Transkrip) -->
+                            <div id="pf-tabcontent-pendidikan" style="display:none;">
+                                <p style="font-size:0.85rem;color:var(--text-muted);margin-bottom:1.5rem;">
+                                    Simpan riwayat pendidikan Anda mulai dari SD sampai S2, lengkap dengan berkas
+                                    Ijazah dan Transkrip Nilai (format PDF, JPG, atau PNG).
+                                </p>
+
+                                <div id="pf-pendidikan-list" style="margin-bottom:1.5rem;"></div>
+
+                                <div style="border:1px dashed var(--border-color);border-radius:8px;padding:1rem;">
+                                    <div style="font-weight:600;margin-bottom:0.75rem;" id="pf-pendidikan-form-title">
+                                        <i class="fas fa-graduation-cap"></i> Tambah Riwayat Pendidikan
+                                    </div>
+                                    <input type="hidden" id="pf-pdk-id">
+                                    <div class="form-row two-col">
+                                        <div class="form-group">
+                                            <label>Jenjang Pendidikan *</label>
+                                            <select id="pf-pdk-jenjang">
+                                                <option value="">Pilih jenjang</option>
+                                                <option value="SD">SD</option>
+                                                <option value="SMP">SMP</option>
+                                                <option value="SMA">SMA</option>
+                                                <option value="S1">S1</option>
+                                                <option value="S2">S2</option>
+                                            </select>
+                                        </div>
+                                        <div class="form-group">
+                                            <label>Jurusan</label>
+                                            <input type="text" id="pf-pdk-jurusan" placeholder="Contoh: Teknik Informatika">
+                                        </div>
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Nama Sekolah/Universitas/Institusi *</label>
+                                        <input type="text" id="pf-pdk-namaSekolah" placeholder="Contoh: SMPN 3 Amuntai">
+                                    </div>
+                                    <div class="form-row two-col">
+                                        <div class="form-group">
+                                            <label>Nomor Ijazah</label>
+                                            <input type="text" id="pf-pdk-nomorIjazah" placeholder="Nomor ijazah">
+                                        </div>
+                                        <div class="form-group">
+                                            <label>Tahun Lulus</label>
+                                            <input type="text" id="pf-pdk-tahunLulus" placeholder="Contoh: 1981" maxlength="4">
+                                        </div>
+                                    </div>
+                                    <div class="form-row two-col">
+                                        <div class="form-group">
+                                            <label>Tanggal Lulus</label>
+                                            <input type="date" id="pf-pdk-tanggalLulus">
+                                        </div>
+                                        <div class="form-group">
+                                            <label>&nbsp;</label>
+                                        </div>
+                                    </div>
+                                    <div class="form-row two-col">
+                                        <div class="form-group">
+                                            <label>Gelar Depan (Opsional)</label>
+                                            <input type="text" id="pf-pdk-gelarDepan" placeholder="Gelar Depan">
+                                        </div>
+                                        <div class="form-group">
+                                            <label>Gelar Belakang (Opsional)</label>
+                                            <input type="text" id="pf-pdk-gelarBelakang" placeholder="Gelar Belakang">
+                                        </div>
+                                    </div>
+                                    <div class="form-row two-col" style="margin-bottom:1rem;">
+                                        <label style="display:flex;align-items:center;gap:8px;font-weight:500;font-size:0.9rem;cursor:pointer;">
+                                            <input type="checkbox" id="pf-pdk-pendidikanPertama" style="width:auto;">
+                                            Pendidikan pertama sewaktu diangkat menjadi CPNS
+                                        </label>
+                                        <label style="display:flex;align-items:center;gap:8px;font-weight:500;font-size:0.9rem;cursor:pointer;">
+                                            <input type="checkbox" id="pf-pdk-pendidikanTerakhir" style="width:auto;">
+                                            Pendidikan terakhir yang diakui kepegawaian
+                                        </label>
+                                    </div>
+
+                                    <div class="form-row two-col">
+                                        <div class="form-group">
+                                            <label>Upload Ijazah (PDF/JPG/PNG)</label>
+                                            <input type="file" id="pf-pdk-fileIjazah" accept="application/pdf,image/jpeg,image/png" onchange="profileManager.previewPendidikanFileName(this,'pf-pdk-ijazah-filename')">
+                                            <small id="pf-pdk-ijazah-filename" style="color:var(--text-muted);"></small>
+                                        </div>
+                                        <div class="form-group">
+                                            <label>Upload Transkrip Nilai (PDF/JPG/PNG)</label>
+                                            <input type="file" id="pf-pdk-fileTranskrip" accept="application/pdf,image/jpeg,image/png" onchange="profileManager.previewPendidikanFileName(this,'pf-pdk-transkrip-filename')">
+                                            <small id="pf-pdk-transkrip-filename" style="color:var(--text-muted);"></small>
+                                        </div>
+                                    </div>
+
+                                    <div class="form-actions">
+                                        <button type="button" class="btn-secondary" id="pf-pdk-btn-batal" style="display:none;" onclick="profileManager.resetPendidikanForm()">
+                                            Batal Edit
+                                        </button>
+                                        <button type="button" class="btn-primary" onclick="profileManager.saveRiwayatPendidikan()">
+                                            <i class="fas fa-check-circle"></i> Simpan Riwayat Pendidikan
                                         </button>
                                     </div>
                                 </div>
@@ -1735,6 +1835,21 @@
     </div>
 </div>
 
+<!-- Modal Preview File (Ijazah/Transkrip Nilai) - tab Pendidikan di Edit Profil -->
+<div class="modal-overlay" id="modal-preview-file" style="display:none;">
+    <div class="modal-container" style="max-width:800px;width:95%;max-height:90vh;">
+        <div class="modal-header">
+            <h3 id="modal-preview-file-title">Dokumen</h3>
+            <button class="btn-close-modal" onclick="profileManager.closePreviewFile()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div style="padding:0 1rem 1rem;">
+            <iframe id="modal-preview-file-iframe" src="" style="width:100%;height:70vh;border:1px solid var(--border-color);border-radius:8px;"></iframe>
+        </div>
+    </div>
+</div>
+
 <!-- Modal Approval Izin - dipakai bersama oleh halaman Approval Asmen, Manajer, Direktur -->
 <div class="modal-overlay" id="modal-approval-izin" style="display:none;">
     <div class="modal-container" style="max-width:520px;max-height:90vh;overflow-y:auto;">
@@ -1883,15 +1998,13 @@
                         </div>
                         <div class="reports-filters-card">
                             <div class="reports-filters">
-                                <div class="filter-group"><label>Periode</label><input type="month" id="leave-month"></div>
+                                <div class="filter-group"><label>Periode</label><input type="month" id="leave-month"
+                                        value="2026-03"></div>
                                 <div class="filter-group"><label>Jenis</label><select id="leave-type-filter">
                                         <option value="">Semua</option>
                                         <option value="cuti">Cuti</option>
                                         <option value="izin">Izin</option>
                                         <option value="sakit">Sakit</option>
-                                    </select></div>
-                                <div class="filter-group"><label>Bagian</label><select id="leave-bagian-filter">
-                                        <option value="">Semua</option>
                                     </select></div>
                                 <div class="filter-group"><label>Status</label><select id="leave-status-filter">
                                         <option value="">Semua</option>
@@ -2428,17 +2541,6 @@
 
     <!-- Scripts -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
-    <!-- html2canvas + jsPDF (TERPISAH, bukan bundle html2pdf.js) - dipakai
-         untuk convert tampilan "Cetak Surat" (print-letters.js) PERSIS APA
-         ADANYA jadi file PDF, supaya PDF yang dikirim email sama persis
-         dengan yang dilihat user waktu klik "Cetak / Simpan PDF".
-         CATATAN: sebelumnya pakai html2pdf.bundle.min.js (versi gabungan),
-         tapi versi itu TIDAK meng-expose variabel global `html2canvas`,
-         jadi errornya "html2canvas is not defined". Kedua library standalone
-         di bawah ini sudah pasti expose window.html2canvas dan
-         window.jspdf.jsPDF secara langsung. -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="js/api.js"></script>
     <script src="js/main.js"></script>
     <script src="js/router.js"></script>
@@ -2449,7 +2551,7 @@
     <script src="js/face-recognition.js"></script>
     <script src="js/izin.js"></script>
     <script src="js/cuti.js"></script>
-    <script src="js/print-letters.js?v=8"></script>
+    <script src="js/print-letters.js"></script>
     <script src="js/admin-dashboard.js"></script>
     <script src="js/admin-employees.js"></script>
     <script src="js/karyawan.js"></script>
