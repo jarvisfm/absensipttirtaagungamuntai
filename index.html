@@ -959,6 +959,7 @@
                                 <button type="button" class="tab-btn" onclick="profileManager.switchTab('akun')" id="pf-tab-akun" style="padding:8px 16px;border:none;background:none;cursor:pointer;font-weight:500;color:var(--text-muted);white-space:nowrap;flex-shrink:0;">Akun</button>
                                 <button type="button" class="tab-btn" onclick="profileManager.switchTab('dokumen')" id="pf-tab-dokumen" style="padding:8px 16px;border:none;background:none;cursor:pointer;font-weight:500;color:var(--text-muted);white-space:nowrap;flex-shrink:0;">Dokumen</button>
                                 <button type="button" class="tab-btn" onclick="profileManager.switchTab('pendidikan')" id="pf-tab-pendidikan" style="padding:8px 16px;border:none;background:none;cursor:pointer;font-weight:500;color:var(--text-muted);white-space:nowrap;flex-shrink:0;">Pendidikan</button>
+                                <button type="button" class="tab-btn" onclick="profileManager.switchTab('mutasi')" id="pf-tab-mutasi" style="padding:8px 16px;border:none;background:none;cursor:pointer;font-weight:500;color:var(--text-muted);white-space:nowrap;flex-shrink:0;">Riwayat Mutasi</button>
                             </div>
 
                             <input type="hidden" id="pf-id">
@@ -1241,6 +1242,39 @@
                                 </div>
 
                                 <div id="pf-pendidikan-list" style="margin-bottom:1.5rem;"></div>
+                            </div>
+
+                            <!-- Tab Riwayat Mutasi -->
+                            <div id="pf-tabcontent-mutasi" style="display:none;">
+                                <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:1.5rem;flex-wrap:wrap;">
+                                    <p style="font-size:0.85rem;color:var(--text-muted);margin:0;max-width:640px;">
+                                        Simpan riwayat mutasi/perpindahan tugas Anda beserta link Google Drive Surat
+                                        Keputusan Mutasi. Upload file SK Mutasi ke Google Drive Anda sendiri, atur akses
+                                        "Siapa saja memiliki link", lalu tempel link-nya di sini.
+                                    </p>
+                                    <button type="button" class="btn-primary" style="white-space:nowrap;flex-shrink:0;" onclick="profileManager.openMutasiModal()">
+                                        <i class="fas fa-plus"></i> Tambah Riwayat Mutasi
+                                    </button>
+                                </div>
+
+                                <div class="employees-table-card">
+                                    <div class="table-responsive">
+                                        <table class="employees-table">
+                                            <thead>
+                                                <tr>
+                                                    <th>Nomor SK</th>
+                                                    <th>Instansi Asal</th>
+                                                    <th>Unor Asal</th>
+                                                    <th>Instansi Baru</th>
+                                                    <th>Unor Baru</th>
+                                                    <th>Dokumen</th>
+                                                    <th>Aksi</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="pf-mutasi-list"></tbody>
+                                        </table>
+                                    </div>
+                                </div>
                             </div>
 
                             <div class="form-actions" style="margin-top:1.5rem;border-top:1px solid var(--border-color);padding-top:1.5rem;">
@@ -2580,6 +2614,65 @@
                     </button>
                     <button type="button" class="btn-primary" onclick="profileManager.saveRiwayatPendidikan()">
                         <i class="fas fa-check-circle"></i> Simpan Riwayat Pendidikan
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="modal-mutasi-form" style="display:none;">
+        <div class="modal-container" style="max-width:700px;width:95%;max-height:92vh;overflow-y:auto;">
+            <div class="modal-header">
+                <h3 id="pf-mts-form-title"><i class="fas fa-right-left"></i> Tambah Riwayat Mutasi</h3>
+                <button class="btn-close-modal" onclick="profileManager.closeMutasiModal()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div style="padding:0 1.25rem 1.25rem;">
+                <input type="hidden" id="pf-mts-id">
+                <div class="form-row two-col">
+                    <div class="form-group">
+                        <label>Nomor Surat *</label>
+                        <input type="text" id="pf-mts-nomorSurat" placeholder="Contoh: 824/038-SI/BKPSDM/2022">
+                    </div>
+                    <div class="form-group">
+                        <label>Tanggal Surat</label>
+                        <input type="date" id="pf-mts-tanggalSurat">
+                    </div>
+                </div>
+                <div class="form-row two-col">
+                    <div class="form-group">
+                        <label>Instansi Asal</label>
+                        <input type="text" id="pf-mts-instansiAsal" placeholder="Contoh: PT. Tirta Agung Amuntai">
+                    </div>
+                    <div class="form-group">
+                        <label>Unor Asal</label>
+                        <input type="text" id="pf-mts-unorAsal" placeholder="Contoh: Unit Kerja/Bagian Asal">
+                    </div>
+                </div>
+                <div class="form-row two-col">
+                    <div class="form-group">
+                        <label>Instansi Baru</label>
+                        <input type="text" id="pf-mts-instansiBaru" placeholder="Contoh: PT. Tirta Agung Amuntai">
+                    </div>
+                    <div class="form-group">
+                        <label>Unor Baru</label>
+                        <input type="text" id="pf-mts-unorBaru" placeholder="Contoh: Unit Kerja/Bagian Baru">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Link Google Drive - Dokumen Surat Keputusan Mutasi</label>
+                    <input type="url" id="pf-mts-dokumen-url" placeholder="Tempel link share Google Drive Dokumen SK Mutasi di sini">
+                    <small style="color:var(--text-muted);">Upload file SK Mutasi ke Google Drive Anda, atur akses "Anyone with the link", lalu tempel link-nya di sini.</small>
+                </div>
+
+                <div class="form-actions">
+                    <button type="button" class="btn-secondary" id="pf-mts-btn-batal" style="display:none;" onclick="profileManager.resetMutasiForm()">
+                        Batal Edit
+                    </button>
+                    <button type="button" class="btn-primary" onclick="profileManager.saveRiwayatMutasi()">
+                        <i class="fas fa-check-circle"></i> Simpan Riwayat Mutasi
                     </button>
                 </div>
             </div>
