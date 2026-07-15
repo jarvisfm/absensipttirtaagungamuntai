@@ -182,8 +182,10 @@ const izin = {
         const singleRow     = document.getElementById('izin-date-single-row');
         const rangeRow      = document.getElementById('izin-date-range-row');
         const durationInput = document.getElementById('izin-duration');
-        const jamKeluar     = document.getElementById('izin-jam-keluar');
-        const jamMasuk      = document.getElementById('izin-jam-masuk');
+        const jamKeluarH    = document.getElementById('izin-jam-keluar-h');
+        const jamKeluarM    = document.getElementById('izin-jam-keluar-m');
+        const jamMasukH     = document.getElementById('izin-jam-masuk-h');
+        const jamMasukM     = document.getElementById('izin-jam-masuk-m');
         const dateStart     = document.getElementById('izin-date-start');
         const dateEnd       = document.getElementById('izin-date-end');
         const dateInput     = document.getElementById('izin-date');
@@ -196,8 +198,10 @@ const izin = {
 
         // Jam keluar/masuk — hanya untuk keluar_kantor
         if (jamRow) jamRow.style.display = isKeluarKantor ? 'flex' : 'none';
-        if (jamKeluar) jamKeluar.required = isKeluarKantor;
-        if (jamMasuk)  jamMasuk.required  = isKeluarKantor;
+        if (jamKeluarH) jamKeluarH.required = isKeluarKantor;
+        if (jamKeluarM) jamKeluarM.required = isKeluarKantor;
+        if (jamMasukH)  jamMasukH.required  = isKeluarKantor;
+        if (jamMasukM)  jamMasukM.required  = isKeluarKantor;
 
         // Tanggal range — hanya untuk izin_harian
         if (rangeRow)   rangeRow.style.display   = isIzinHarian ? 'flex' : 'none';
@@ -271,8 +275,12 @@ const izin = {
         const reason         = document.getElementById('izin-reason')?.value;
         const isKeluarKantor = type === 'keluar_kantor';
         const isIzinHarian   = type === 'izin_harian';
-        const jamKeluar      = document.getElementById('izin-jam-keluar')?.value;
-        const jamMasuk       = document.getElementById('izin-jam-masuk')?.value;
+        const jamKeluarHV = document.getElementById('izin-jam-keluar-h')?.value;
+        const jamKeluarMV = document.getElementById('izin-jam-keluar-m')?.value;
+        const jamMasukHV  = document.getElementById('izin-jam-masuk-h')?.value;
+        const jamMasukMV  = document.getElementById('izin-jam-masuk-m')?.value;
+        const jamKeluar      = (jamKeluarHV && jamKeluarMV) ? `${jamKeluarHV}:${jamKeluarMV}` : '';
+        const jamMasuk       = (jamMasukHV && jamMasukMV) ? `${jamMasukHV}:${jamMasukMV}` : '';
         const dateStart      = document.getElementById('izin-date-start')?.value;
         const dateEnd        = document.getElementById('izin-date-end')?.value;
 
@@ -739,6 +747,8 @@ const izin = {
             ${infoRow('fa-user', 'Nama Karyawan', emp.nama || '-')}
             ${infoRow('fa-briefcase', 'Jabatan', emp.jabatan || '-')}
             ${infoRow('fa-calendar-day', 'Tanggal Izin', dateDisplay)}
+            ${item.type === 'keluar_kantor' ? infoRow('fa-arrow-right-from-bracket', 'Keluar Jam', item.jamKeluar || '-') : ''}
+            ${item.type === 'keluar_kantor' ? infoRow('fa-arrow-right-to-bracket', 'Masuk Jam', item.jamMasuk || '-') : ''}
 
             <div style="margin-top:14px;">
                 <div style="font-size:0.72rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.02em;margin-bottom:6px;">Alasan</div>
