@@ -18,6 +18,9 @@ const faceRecognition = {
         this.locationVerified = false;
         this.position = null;
 
+        const retryBtn = document.getElementById('btn-retry-location');
+        if (retryBtn) retryBtn.style.display = 'none';
+
         // Update UI based on action
         this.updateActionTitle(action);
 
@@ -196,17 +199,32 @@ const faceRecognition = {
             },
             (error) => {
                 console.error('Location error:', error);
-                this.position = {
-                    coords: { latitude: -6.200000, longitude: 106.816666, accuracy: 100 }
-                };
-                this.locationVerified = true;
+
+                // JANGAN loloskan absen dengan lokasi palsu. Tampilkan error
+                // dan biarkan user coba lagi - locationVerified tetap false
+                // supaya tombol konfirmasi tetap terkunci.
+                this.locationVerified = false;
+                this.position = null;
+
                 if (statusEl) {
-                    statusEl.innerHTML = '<i class="fas fa-exclamation-circle" style="color:var(--color-warning);"></i> Simulasi Lokasi';
+                    statusEl.innerHTML = '<i class="fas fa-times-circle" style="color:#EF4444;"></i> <span style="color:#EF4444;">Gagal mendapat lokasi</span>';
+                    statusEl.classList.remove('verified');
+                    statusEl.classList.add('out-of-range');
                 }
-                toast.warning('Menggunakan lokasi simulasi karena GPS gagal.');
+                if (mapEl) {
+                    mapEl.innerHTML = `
+                        <div class="map-placeholder"><i class="fas fa-exclamation-triangle" style="color:#EF4444;"></i>
+                            <p>Tidak bisa mendapatkan lokasi GPS. Pastikan izin lokasi aktif & sinyal GPS/internet stabil, lalu coba lagi.</p>
+                        </div>
+                    `;
+                }
+                const retryBtn = document.getElementById('btn-retry-location');
+                if (retryBtn) retryBtn.style.display = 'flex';
+
+                toast.error('Gagal mendapatkan lokasi. Tekan "Coba Lagi" setelah memastikan GPS aktif.');
                 this.checkCanSubmit();
             },
-            { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+            { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 }
         );
     },
 
@@ -214,6 +232,19 @@ const faceRecognition = {
         const captureBtn = document.getElementById('btn-capture');
         const retakeBtn = document.getElementById('btn-retake');
         const confirmBtn = document.getElementById('btn-confirm-attendance');
+        const retryLocationBtn = document.getElementById('btn-retry-location');
+
+        if (retryLocationBtn) {
+            const newRetryBtn = retryLocationBtn.cloneNode(true);
+            retryLocationBtn.parentNode.replaceChild(newRetryBtn, retryLocationBtn);
+            newRetryBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                newRetryBtn.style.display = 'none';
+                const statusEl = document.getElementById('location-status');
+                if (statusEl) statusEl.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Mendeteksi...';
+                this.initLocation();
+            });
+        }
 
         if (captureBtn) {
             const newCaptureBtn = captureBtn.cloneNode(true);
