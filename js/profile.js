@@ -15,8 +15,6 @@ const profileManager = {
     anakCount: 0,
     docLinks: [],
     riwayatPendidikan: [],
-    _pdkFileIjazahBase64: null,
-    _pdkFileTranskripBase64: null,
 
     async init() {
         const user = auth.getCurrentUser ? auth.getCurrentUser() : null;
@@ -406,8 +404,7 @@ const profileManager = {
                             ${r.nomorIjazah ? ' &middot; No. Ijazah: ' + this._esc(r.nomorIjazah) : ''}
                         </div>
                         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;">
-                            ${r.fileIjazahUrl ? `<button type="button" onclick="profileManager.openPreviewFile('${this._esc(r.fileIjazahUrl)}','Ijazah - ${this._esc(r.namaSekolah)}')" style="background:var(--color-primary);color:#fff;border:none;padding:6px 12px;border-radius:6px;cursor:pointer;font-size:0.8rem;"><i class="fas fa-eye"></i> Lihat Ijazah</button>` : ''}
-                            ${r.fileTranskripUrl ? `<button type="button" onclick="profileManager.openPreviewFile('${this._esc(r.fileTranskripUrl)}','Transkrip Nilai - ${this._esc(r.namaSekolah)}')" style="background:var(--color-primary);color:#fff;border:none;padding:6px 12px;border-radius:6px;cursor:pointer;font-size:0.8rem;"><i class="fas fa-eye"></i> Lihat Transkrip</button>` : ''}
+                            ${(r.fileIjazahUrl || r.fileTranskripUrl) ? `<button type="button" onclick="profileManager.openPreviewPendidikan('${r.id}')" style="background:var(--color-primary);color:#fff;border:none;padding:6px 12px;border-radius:6px;cursor:pointer;font-size:0.8rem;"><i class="fas fa-eye"></i> Review Dokumen</button>` : `<span style="color:var(--text-muted);font-size:0.8rem;font-style:italic;">Belum ada link Ijazah/Transkrip</span>`}
                         </div>
                     </div>
                     <div style="display:flex;flex-direction:column;gap:6px;flex-shrink:0;">
@@ -423,33 +420,6 @@ const profileManager = {
                 </div>
             </div>
         `).join('');
-    },
-
-    previewPendidikanFileName(input, targetElId) {
-        const target = document.getElementById(targetElId);
-        if (input.files && input.files[0]) {
-            const file = input.files[0];
-            const allowedTypes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png'];
-            if (allowedTypes.indexOf(file.type) === -1) {
-                toast.error('Format file harus PDF, JPG, atau PNG.');
-                input.value = '';
-                if (target) target.textContent = '';
-                return;
-            }
-            if (target) target.textContent = file.name;
-
-            const reader = new FileReader();
-            reader.onload = e => {
-                if (targetElId === 'pf-pdk-ijazah-filename') {
-                    this._pdkFileIjazahBase64 = e.target.result;
-                } else {
-                    this._pdkFileTranskripBase64 = e.target.result;
-                }
-            };
-            reader.readAsDataURL(file);
-        } else {
-            if (target) target.textContent = '';
-        }
     },
 
     editRiwayatPendidikan(id) {
@@ -468,12 +438,8 @@ const profileManager = {
         document.getElementById('pf-pdk-pendidikanPertama').checked  = r.pendidikanPertama === 'true';
         document.getElementById('pf-pdk-pendidikanTerakhir').checked = r.pendidikanTerakhir === 'true';
 
-        document.getElementById('pf-pdk-fileIjazah').value = '';
-        document.getElementById('pf-pdk-fileTranskrip').value = '';
-        document.getElementById('pf-pdk-ijazah-filename').textContent = r.fileIjazahUrl ? 'Sudah ada file tersimpan (biarkan kosong jika tidak ingin mengganti)' : '';
-        document.getElementById('pf-pdk-transkrip-filename').textContent = r.fileTranskripUrl ? 'Sudah ada file tersimpan (biarkan kosong jika tidak ingin mengganti)' : '';
-        this._pdkFileIjazahBase64 = null;
-        this._pdkFileTranskripBase64 = null;
+        document.getElementById('pf-pdk-ijazah-url').value    = r.fileIjazahUrl || '';
+        document.getElementById('pf-pdk-transkrip-url').value = r.fileTranskripUrl || '';
 
         document.getElementById('pf-pendidikan-form-title').innerHTML = '<i class="fas fa-graduation-cap"></i> Edit Riwayat Pendidikan';
         document.getElementById('pf-pdk-btn-batal').style.display = 'inline-flex';
@@ -493,12 +459,8 @@ const profileManager = {
         document.getElementById('pf-pdk-gelarBelakang').value = '';
         document.getElementById('pf-pdk-pendidikanPertama').checked = false;
         document.getElementById('pf-pdk-pendidikanTerakhir').checked = false;
-        document.getElementById('pf-pdk-fileIjazah').value = '';
-        document.getElementById('pf-pdk-fileTranskrip').value = '';
-        document.getElementById('pf-pdk-ijazah-filename').textContent = '';
-        document.getElementById('pf-pdk-transkrip-filename').textContent = '';
-        this._pdkFileIjazahBase64 = null;
-        this._pdkFileTranskripBase64 = null;
+        document.getElementById('pf-pdk-ijazah-url').value = '';
+        document.getElementById('pf-pdk-transkrip-url').value = '';
 
         document.getElementById('pf-pendidikan-form-title').innerHTML = '<i class="fas fa-graduation-cap"></i> Tambah Riwayat Pendidikan';
         document.getElementById('pf-pdk-btn-batal').style.display = 'none';
@@ -512,7 +474,14 @@ const profileManager = {
         if (!jenjang) { toast.error('Pilih jenjang pendidikan terlebih dahulu!'); return; }
         if (!namaSekolah) { toast.error('Nama sekolah/institusi wajib diisi!'); return; }
 
-        const existing = id ? this.riwayatPendidikan.find(x => String(x.id) === String(id)) : null;
+        const rawIjazahUrl    = document.getElementById('pf-pdk-ijazah-url').value.trim();
+        const rawTranskripUrl = document.getElementById('pf-pdk-transkrip-url').value.trim();
+
+        const fileIjazahUrl    = rawIjazahUrl ? this.normalizeDriveLink(rawIjazahUrl) : '';
+        const fileTranskripUrl = rawTranskripUrl ? this.normalizeDriveLink(rawTranskripUrl) : '';
+
+        if (rawIjazahUrl && !fileIjazahUrl) { toast.error('Link Ijazah bukan link Google Drive yang valid! Pastikan link dari "Get link" / "Bagikan" di Drive.'); return; }
+        if (rawTranskripUrl && !fileTranskripUrl) { toast.error('Link Transkrip Nilai bukan link Google Drive yang valid! Pastikan link dari "Get link" / "Bagikan" di Drive.'); return; }
 
         const data = {
             id:                 id || undefined,
@@ -527,12 +496,9 @@ const profileManager = {
             gelarBelakang:      document.getElementById('pf-pdk-gelarBelakang').value.trim(),
             pendidikanPertama:  document.getElementById('pf-pdk-pendidikanPertama').checked,
             pendidikanTerakhir: document.getElementById('pf-pdk-pendidikanTerakhir').checked,
-            fileIjazahUrl:      existing ? existing.fileIjazahUrl : '',
-            fileTranskripUrl:   existing ? existing.fileTranskripUrl : ''
+            fileIjazahUrl,
+            fileTranskripUrl
         };
-
-        if (this._pdkFileIjazahBase64) data.fileIjazahBase64 = this._pdkFileIjazahBase64;
-        if (this._pdkFileTranskripBase64) data.fileTranskripBase64 = this._pdkFileTranskripBase64;
 
         try {
             const result = await api.saveRiwayatPendidikan(data);
@@ -542,8 +508,14 @@ const profileManager = {
             }
 
             toast.success('Riwayat pendidikan berhasil disimpan!');
+            const savedId = result.data && result.data.id ? result.data.id : null;
             this.resetPendidikanForm();
             await this.loadRiwayatPendidikan();
+
+            // Auto-buka review dokumen kalau ada minimal 1 link tersimpan
+            if (savedId && (fileIjazahUrl || fileTranskripUrl)) {
+                this.openPreviewPendidikan(savedId);
+            }
         } catch (e) {
             console.error('Error simpan riwayat pendidikan:', e);
             toast.error('Terjadi kesalahan saat menyimpan riwayat pendidikan');
@@ -551,7 +523,7 @@ const profileManager = {
     },
 
     async deleteRiwayatPendidikan(id) {
-        if (!confirm('Hapus riwayat pendidikan ini beserta berkas Ijazah & Transkrip yang tersimpan?')) return;
+        if (!confirm('Hapus riwayat pendidikan ini? (Link Ijazah/Transkrip hanya dihapus dari aplikasi, file aslinya di Google Drive Anda tidak terhapus)')) return;
         try {
             const result = await api.deleteRiwayatPendidikan(id);
             if (result.success) {
@@ -565,19 +537,64 @@ const profileManager = {
         }
     },
 
-    openPreviewFile(url, title) {
-        document.getElementById('modal-preview-file-title').textContent = title || 'Dokumen';
-        document.getElementById('modal-preview-file-iframe').src = url;
-        document.getElementById('modal-preview-file').style.display = 'flex';
+    openPreviewPendidikan(id) {
+        const r = this.riwayatPendidikan.find(x => String(x.id) === String(id));
+        if (!r) return;
+
+        document.getElementById('modal-preview-pendidikan-title').textContent =
+            `Review Dokumen - ${r.jenjang} ${r.namaSekolah}`;
+
+        this._togglePreviewPane('ijazah', r.fileIjazahUrl);
+        this._togglePreviewPane('transkrip', r.fileTranskripUrl);
+
+        document.getElementById('modal-preview-pendidikan').style.display = 'flex';
     },
 
-    closePreviewFile() {
-        document.getElementById('modal-preview-file').style.display = 'none';
-        document.getElementById('modal-preview-file-iframe').src = '';
+    _togglePreviewPane(key, url) {
+        const iframe = document.getElementById(`modal-preview-pendidikan-${key}`);
+        const empty  = document.getElementById(`modal-preview-pendidikan-${key}-empty`);
+        if (url) {
+            iframe.src = url;
+            iframe.style.display = '';
+            empty.style.display = 'none';
+        } else {
+            iframe.src = '';
+            iframe.style.display = 'none';
+            empty.style.display = 'block';
+        }
+    },
+
+    closePreviewPendidikan() {
+        document.getElementById('modal-preview-pendidikan').style.display = 'none';
+        document.getElementById('modal-preview-pendidikan-ijazah').src = '';
+        document.getElementById('modal-preview-pendidikan-transkrip').src = '';
     },
 
     _esc(str) {
         return String(str || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    },
+
+    /**
+     * Ubah berbagai format link share Google Drive (.../view?usp=sharing,
+     * open?id=..., uc?id=..., dst) menjadi format ".../preview" yang bisa
+     * ditanam di <iframe> (format lain sering diblokir Google karena
+     * X-Frame-Options). Balikin null kalau bukan link Drive yang valid.
+     */
+    normalizeDriveLink(url) {
+        if (!url) return '';
+        const trimmed = url.trim();
+        if (!trimmed) return '';
+
+        let fileId = null;
+        let m = trimmed.match(/\/file\/d\/([a-zA-Z0-9_-]{10,})/);
+        if (m) fileId = m[1];
+        if (!fileId) {
+            m = trimmed.match(/[?&]id=([a-zA-Z0-9_-]{10,})/);
+            if (m) fileId = m[1];
+        }
+        if (!fileId) return null;
+
+        return `https://drive.google.com/file/d/${fileId}/preview`;
     }
 };
 
