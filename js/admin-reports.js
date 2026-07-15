@@ -46,6 +46,7 @@ const adminReports = {
         }
         await this.loadData();
         this.bindLeaveEvents();
+        this.populateLeaveBagianFilter();
         this.renderLeaveReports();
     },
 
@@ -152,8 +153,8 @@ const adminReports = {
                     userId: l.userId,
                     name: emp.name || emp.nama || l.userId,
                     department: emp.department || emp.unitKerja || '-',
-                    bagian: emp.bagian || '-',
                     position: emp.position || emp.jabatan || '-',
+                    bagian: emp.bagian || '',
                     type: l.type === 'annual' ? 'Cuti Tahunan'
                         : l.type === 'important' ? 'Cuti Alasan Penting'
                         : l.type === 'sick' ? 'Cuti Sakit'
@@ -184,8 +185,8 @@ const adminReports = {
                     userId: i.userId,
                     name: emp.name || emp.nama || i.userId,
                     department: emp.department || emp.unitKerja || '-',
-                    bagian: emp.bagian || '-',
                     position: emp.position || emp.jabatan || '-',
+                    bagian: emp.bagian || '',
                     rawType: i.type || '',
                     type: i.type === 'sick' ? 'Sakit'
                         : i.type === 'permission' ? 'Izin Penting'
@@ -292,16 +293,24 @@ const adminReports = {
         }
     },
 
-    bindAttendanceEvents() {
-        // PENTING: fungsi ini terpanggil lagi setiap kali halaman Rekap
-        // Absensi dibuka (bukan cuma sekali), padahal tombol-tombolnya
-        // adalah elemen statis yang sama (tidak dibuat ulang oleh router).
-        // Tanpa guard ini, listener numpuk tiap kali halaman dibuka lagi,
-        // jadi 1 klik bisa memicu export/print berkali-kali sekaligus -
-        // sama persis seperti bug notifikasi kemarin.
-        if (this._attendanceListenersAttached) return;
-        this._attendanceListenersAttached = true;
+    // Isi dropdown filter "Bagian" di Rekap Cuti & Izin, diambil dari nilai
+    // unik field `bagian` milik karyawan (this.rawEmployees), bukan hardcode,
+    // supaya otomatis ikut kalau ada bagian baru ditambahkan di Data Karyawan.
+    populateLeaveBagianFilter() {
+        const select = document.getElementById('leave-bagian-filter');
+        if (!select) return;
+        const current = select.value;
+        const bagianList = [...new Set(
+            (this.rawEmployees || [])
+                .map(e => e.bagian)
+                .filter(Boolean)
+        )].sort();
+        select.innerHTML = '<option value="">Semua</option>' +
+            bagianList.map(b => `<option value="${b}">${b}</option>`).join('');
+        select.value = current || '';
+    },
 
+    bindAttendanceEvents() {
         const exportBtn = document.getElementById('btn-export-attendance');
         if (exportBtn) exportBtn.addEventListener('click', () => this.exportToExcel('attendance'));
 
@@ -333,10 +342,6 @@ const adminReports = {
     },
 
     bindJurnalEvents() {
-        // Sama seperti bindAttendanceEvents() - cegah listener numpuk.
-        if (this._jurnalListenersAttached) return;
-        this._jurnalListenersAttached = true;
-
         const exportBtn = document.getElementById('btn-export-jurnal');
         const printBtn = document.getElementById('btn-print-jurnal');
         if (exportBtn) exportBtn.addEventListener('click', () => this.exportToExcel('jurnal'));
@@ -362,29 +367,16 @@ const adminReports = {
     },
 
     bindLeaveEvents() {
-        // Sama seperti bindAttendanceEvents() - cegah listener numpuk.
-        if (this._leaveListenersAttached) return;
-        this._leaveListenersAttached = true;
-
         const exportBtn = document.getElementById('btn-export-leave');
         const printBtn = document.getElementById('btn-print-leave');
         if (exportBtn) exportBtn.addEventListener('click', () => this.exportToExcel('leave'));
         if (printBtn) printBtn.addEventListener('click', () => this.printReport('leave'));
 
         const monthFilter = document.getElementById('leave-month');
-        if (monthFilter) {
-            // Default ke BULAN BERJALAN (dinamis), sebelumnya hardcode
-            // "2026-03" (Maret) di HTML jadi ketinggalan terus tiap bulan.
-            const now = new Date();
-            const currentYearMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-            monthFilter.value = currentYearMonth;
-            this.filters.leave.month = currentYearMonth;
-
-            monthFilter.addEventListener('change', (e) => {
-                this.filters.leave.month = e.target.value;
-                this.renderLeaveReports();
-            });
-        }
+        if (monthFilter) monthFilter.addEventListener('change', (e) => {
+            this.filters.leave.month = e.target.value;
+            this.renderLeaveReports();
+        });
 
         const typeFilter = document.getElementById('leave-type-filter');
         if (typeFilter) typeFilter.addEventListener('change', (e) => {
@@ -399,28 +391,10 @@ const adminReports = {
         });
 
         const bagianFilter = document.getElementById('leave-bagian-filter');
-        if (bagianFilter) {
-            // Isi opsi "Bagian" secara dinamis dari data karyawan yang ada,
-            // supaya selalu sinkron kalau daftar bagian berubah - tanpa
-            // hardcode daftar bagian di sini.
-            const existingValues = Array.from(bagianFilter.options).map(o => o.value);
-            const uniqueBagian = [...new Set((this.rawEmployees || [])
-                .map(e => e.bagian)
-                .filter(b => b && b.trim()))].sort();
-            uniqueBagian.forEach(b => {
-                if (!existingValues.includes(b)) {
-                    const opt = document.createElement('option');
-                    opt.value = b;
-                    opt.textContent = b;
-                    bagianFilter.appendChild(opt);
-                }
-            });
-
-            bagianFilter.addEventListener('change', (e) => {
-                this.filters.leave.bagian = e.target.value;
-                this.renderLeaveReports();
-            });
-        }
+        if (bagianFilter) bagianFilter.addEventListener('change', (e) => {
+            this.filters.leave.bagian = e.target.value;
+            this.renderLeaveReports();
+        });
     },
 
     getFilteredAttendance() {
