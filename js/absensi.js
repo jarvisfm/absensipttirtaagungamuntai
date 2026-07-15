@@ -27,7 +27,6 @@ const absensi = {
     if (comingSoonEl) comingSoonEl.style.display = 'none';
     if (realContentEl) realContentEl.style.display = '';
 
-
     // Reset state dulu sebelum load data baru
     this.currentState = 'waiting';
     this.attendanceData = {};
@@ -106,10 +105,13 @@ const absensi = {
     async loadAttendanceHistory() {
         try {
             const user = auth.getCurrentUser();
-            const result = await api.getAllAttendance();
-            const all = result.data || [];
             const effectiveId = user.employeeId || user.id;
-            const history = all.filter(d => String(d.userId) === String(effectiveId));
+            // Pakai endpoint yang sudah difilter userId DI SERVER, bukan
+            // getAllAttendance() yang menarik data semua karyawan lalu
+            // difilter di browser (itu penyebab history user lain sempat
+            // kebaca sebelum filter jalan).
+            const result = await api.getAttendance(effectiveId);
+            const history = result.data || [];
             this.renderHistory(history);
         } catch (e) {
             console.error('Error loading history:', e);
@@ -138,7 +140,7 @@ const absensi = {
         if (statusLower === 'hadir' || statusLower === 'ontime') {
             badge = '<span class="badge-status success">Hadir</span>';
         } else if (statusLower === 'terlambat' || statusLower === 'late') {
-            badge = '<span class="badge-status warning">Terlambat</span>';
+            badge = '<span class="badge-status warning">Hadir (Terlambat)</span>';
         } else if (statusLower === 'pulang awal') {
             badge = '<span class="badge-status danger">Pulang Awal</span>';
         } else if (statusLower === 'pending' || statusLower === 'waiting') {
