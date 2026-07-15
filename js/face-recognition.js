@@ -299,7 +299,7 @@ const faceRecognition = {
         const preview = document.getElementById('camera-preview');
         if (preview) {
             preview.innerHTML = `
-                <video id="camera-video" autoplay playsinline></video>
+                <video id="camera-video" autoplay playsinline muted></video>
                 <canvas id="camera-canvas" style="display: none;"></canvas>
                 <div class="face-overlay" id="face-overlay">
                     <div class="face-frame">
