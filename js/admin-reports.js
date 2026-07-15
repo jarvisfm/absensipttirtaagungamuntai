@@ -493,8 +493,11 @@ const adminReports = {
             const initials = (emp.name || 'K').split(' ').map(w => w[0]).join('').substring(0, 2).toUpperCase();
             const colors = ['#F59E0B','#3B82F6','#10B981','#EF4444','#8B5CF6'];
             const color = colors[(emp.name || '').charCodeAt(0) % colors.length];
-            const totalHadir = rows.filter(r => ['hadir','ontime'].includes(String(r.status||'').toLowerCase())).length;
+            // "Terlambat" tetap dihitung sebagai hadir (cuma telat absen masuk),
+            // bukan status tandingan dari "Hadir" - makanya totalHadir mencakup
+            // keduanya, dan totalTerlambat cuma breakdown info tambahan.
             const totalTerlambat = rows.filter(r => ['terlambat','late'].includes(String(r.status||'').toLowerCase())).length;
+            const totalHadir = rows.filter(r => ['hadir','ontime','terlambat','late'].includes(String(r.status||'').toLowerCase())).length;
             const totalHari = rows.length;
 
             html += `
@@ -539,7 +542,7 @@ const adminReports = {
                     const statusLower = String(row.status || '').toLowerCase();
                     let statusBadge = '<span class="badge-status">–</span>';
                     if (statusLower === 'hadir' || statusLower === 'ontime') statusBadge = '<span class="badge-status success">Hadir</span>';
-                    else if (statusLower === 'terlambat' || statusLower === 'late') statusBadge = '<span class="badge-status warning">Terlambat</span>';
+                    else if (statusLower === 'terlambat' || statusLower === 'late') statusBadge = '<span class="badge-status warning">Hadir (Terlambat)</span>';
                     else if (statusLower === 'pending' || statusLower === 'waiting') statusBadge = '<span class="badge-status">Pending</span>';
 
                     const coords = this._parseLatLng(row.verificationLocation);
@@ -615,8 +618,11 @@ const adminReports = {
             const initials = (emp.name || 'K').split(' ').map(w => w[0]).join('').substring(0, 2).toUpperCase();
             const colors = ['#F59E0B','#3B82F6','#10B981','#EF4444','#8B5CF6'];
             const color = colors[(emp.name || '').charCodeAt(0) % colors.length];
-            const totalHadir = rows.filter(r => ['hadir','ontime'].includes(String(r.status||'').toLowerCase())).length;
+            // "Terlambat" tetap dihitung sebagai hadir (cuma telat absen masuk),
+            // bukan status tandingan dari "Hadir" - makanya totalHadir mencakup
+            // keduanya, dan totalTerlambat cuma breakdown info tambahan.
             const totalTerlambat = rows.filter(r => ['terlambat','late'].includes(String(r.status||'').toLowerCase())).length;
+            const totalHadir = rows.filter(r => ['hadir','ontime','terlambat','late'].includes(String(r.status||'').toLowerCase())).length;
             const totalHari = rows.length;
 
             html += `
@@ -644,7 +650,7 @@ const adminReports = {
                     const statusLower = String(row.status || '').toLowerCase();
                     let statusBadge = '<span class="badge-status">–</span>';
                     if (statusLower === 'hadir' || statusLower === 'ontime') statusBadge = '<span class="badge-status success">Hadir</span>';
-                    else if (statusLower === 'terlambat' || statusLower === 'late') statusBadge = '<span class="badge-status warning">Terlambat</span>';
+                    else if (statusLower === 'terlambat' || statusLower === 'late') statusBadge = '<span class="badge-status warning">Hadir (Terlambat)</span>';
                     else if (statusLower === 'pending' || statusLower === 'waiting') statusBadge = '<span class="badge-status">Pending</span>';
 
                     const coords = this._parseLatLng(row.verificationLocation);
