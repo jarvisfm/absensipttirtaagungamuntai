@@ -27,10 +27,22 @@ const absensi = {
     if (comingSoonEl) comingSoonEl.style.display = 'none';
     if (realContentEl) realContentEl.style.display = '';
 
+
     // Reset state dulu sebelum load data baru
     this.currentState = 'waiting';
     this.attendanceData = {};
     this.accessInfo = null;
+
+    // Tampilkan status "Memuat..." dulu supaya tombol/teks lama tidak
+    // sempat kelihatan seolah sudah siap-pakai sebelum data asli datang
+    const statusText = document.querySelector('.status-text');
+    const statusSubtext = document.querySelector('.status-subtext');
+    if (statusText) statusText.textContent = 'Memuat...';
+    if (statusSubtext) statusSubtext.textContent = 'Mengecek data absensi Anda';
+    ['btn-clock-in', 'btn-break', 'btn-after-break', 'btn-clock-out'].forEach(id => {
+        const btn = document.getElementById(id);
+        if (btn) btn.disabled = true;
+    });
 
     await this.loadAccessInfo();
     await this.loadTodayAttendance();
