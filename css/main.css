@@ -1279,10 +1279,6 @@ img {
         padding: var(--spacing);
     }
     
-    .current-time .date {
-        display: none;
-    }
-    
     .welcome-card {
         flex-direction: column;
         text-align: center;
