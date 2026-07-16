@@ -9,7 +9,7 @@ const adminReports = {
     leaveData: [],
     leaveQuota: {},
     filters: {
-        attendance: { month: '', dept: '', status: '' },
+        attendance: { month: '', name: '', bagian: '' },
         jurnal: { month: '', employee: '', status: '' },
         leave: { month: '', type: '', status: '', bagian: '' }
     },
@@ -308,28 +308,49 @@ const adminReports = {
         const printBtn = document.getElementById('btn-print-attendance');
         if (printBtn) printBtn.addEventListener('click', () => this.printReport('attendance'));
 
-        const dateFrom = document.getElementById('attendance-date-from');
-        const dateTo = document.getElementById('attendance-date-to');
-        if (dateFrom) dateFrom.addEventListener('change', (e) => {
-            this.filters.attendance.dateFrom = e.target.value;
-            this.renderAttendanceReports();
-        });
-        if (dateTo) dateTo.addEventListener('change', (e) => {
-            this.filters.attendance.dateTo = e.target.value;
+        const nameFilter = document.getElementById('attendance-name-filter');
+        if (nameFilter) nameFilter.addEventListener('input', (e) => {
+            this.filters.attendance.name = e.target.value.trim();
             this.renderAttendanceReports();
         });
 
-        const deptFilter = document.getElementById('report-dept-filter');
-        if (deptFilter) deptFilter.addEventListener('change', (e) => {
-            this.filters.attendance.dept = e.target.value;
-            this.renderAttendanceReports();
-        });
+        const monthFilter = document.getElementById('attendance-month-filter');
+        if (monthFilter) {
+            // Default ke bulan berjalan, supaya data yang tampil pertama kali
+            // adalah rekap bulan ini (bukan seluruh histori sekaligus).
+            const now = new Date();
+            const currentYearMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+            monthFilter.value = currentYearMonth;
+            this.filters.attendance.month = currentYearMonth;
 
-        const statusFilter = document.getElementById('report-status-filter');
-        if (statusFilter) statusFilter.addEventListener('change', (e) => {
-            this.filters.attendance.status = e.target.value;
-            this.renderAttendanceReports();
-        });
+            monthFilter.addEventListener('change', (e) => {
+                this.filters.attendance.month = e.target.value;
+                this.renderAttendanceReports();
+            });
+        }
+
+        const bagianFilter = document.getElementById('attendance-bagian-filter');
+        if (bagianFilter) {
+            // Isi opsi "Bagian" secara dinamis dari data karyawan yang ada,
+            // sama seperti di Rekap Cuti & Izin.
+            const existingValues = Array.from(bagianFilter.options).map(o => o.value);
+            const uniqueBagian = [...new Set((this.rawEmployees || [])
+                .map(e => e.bagian)
+                .filter(b => b && b.trim()))].sort();
+            uniqueBagian.forEach(b => {
+                if (!existingValues.includes(b)) {
+                    const opt = document.createElement('option');
+                    opt.value = b;
+                    opt.textContent = b;
+                    bagianFilter.appendChild(opt);
+                }
+            });
+
+            bagianFilter.addEventListener('change', (e) => {
+                this.filters.attendance.bagian = e.target.value;
+                this.renderAttendanceReports();
+            });
+        }
     },
 
     bindJurnalEvents() {
@@ -424,16 +445,14 @@ const adminReports = {
     },
 
     getFilteredAttendance() {
-        const { dateFrom, dateTo, dept, status } = this.filters.attendance;
+        const { month, name, bagian } = this.filters.attendance;
         return this.rawAttendance.filter(row => {
             const emp = this.rawEmployees.find(e => String(e.id) === String(row.userId));
             if (!emp) return false;
-            const matchesDept = !dept || emp.department === dept;
-            const matchesStatus = !status || String(row.status || '').toLowerCase() === status.toLowerCase();
-            let matchesDate = true;
-            if (dateFrom) matchesDate = matchesDate && row.date >= dateFrom;
-            if (dateTo) matchesDate = matchesDate && row.date <= dateTo;
-            return matchesDept && matchesStatus && matchesDate;
+            const matchesBagian = !bagian || emp.bagian === bagian;
+            const matchesName = !name || String(emp.name || '').toLowerCase().includes(name.toLowerCase());
+            const matchesMonth = !month || (row.date && row.date.startsWith(month));
+            return matchesBagian && matchesName && matchesMonth;
         }).map(row => {
             const emp = this.rawEmployees.find(e => String(e.id) === String(row.userId));
             return { ...row, empName: emp?.name || '-', empDept: emp?.department || '-' };
@@ -466,11 +485,12 @@ const adminReports = {
         const container = document.getElementById('attendance-reports-body');
         if (!container) return;
 
-        const { dateFrom, dateTo, dept, status } = this.filters.attendance;
+        const { month, name, bagian } = this.filters.attendance;
         const months = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Ags','Sep','Okt','Nov','Des'];
 
         let employees = [...(this.rawEmployees || [])];
-        if (dept) employees = employees.filter(e => e.department === dept);
+        if (bagian) employees = employees.filter(e => e.bagian === bagian);
+        if (name) employees = employees.filter(e => String(e.name || '').toLowerCase().includes(name.toLowerCase()));
         employees.sort((a, b) => {
             const deptCompare = String(a.department || '').localeCompare(String(b.department || ''));
             if (deptCompare !== 0) return deptCompare;
@@ -485,9 +505,7 @@ const adminReports = {
         let html = '';
         employees.forEach(emp => {
             let rows = (this.rawAttendance || []).filter(r => String(r.userId) === String(emp.id));
-            if (dateFrom) rows = rows.filter(r => r.date >= dateFrom);
-            if (dateTo) rows = rows.filter(r => r.date <= dateTo);
-            if (status) rows = rows.filter(r => String(r.status || '').toLowerCase() === status.toLowerCase());
+            if (month) rows = rows.filter(r => r.date && r.date.startsWith(month));
             rows.sort((a, b) => String(b.date).localeCompare(String(a.date)));
 
             const initials = (emp.name || 'K').split(' ').map(w => w[0]).join('').substring(0, 2).toUpperCase();
@@ -577,12 +595,11 @@ const adminReports = {
         });
 
         container.innerHTML = html;
-        this.renderAttendanceMobileCards(employees, dateFrom, dateTo, status, months);
+        this.renderAttendanceMobileCards(employees, month, months);
 
         employees.forEach(emp => {
             let rows = (this.rawAttendance || []).filter(r => String(r.userId) === String(emp.id));
-            if (dateFrom) rows = rows.filter(r => r.date >= dateFrom);
-            if (dateTo) rows = rows.filter(r => r.date <= dateTo);
+            if (month) rows = rows.filter(r => r.date && r.date.startsWith(month));
             rows.forEach(async (row) => {
                 const coords = this._parseLatLng(row.verificationLocation);
                 if (!coords) return;
@@ -598,7 +615,7 @@ const adminReports = {
         });
     },
 
-    renderAttendanceMobileCards(employees, dateFrom, dateTo, status, months) {
+    renderAttendanceMobileCards(employees, month, months) {
         const container = document.getElementById('attendance-mobile-cards');
         if (!container) return;
 
@@ -610,9 +627,7 @@ const adminReports = {
         let html = '';
         employees.forEach(emp => {
             let rows = (this.rawAttendance || []).filter(r => String(r.userId) === String(emp.id));
-            if (dateFrom) rows = rows.filter(r => r.date >= dateFrom);
-            if (dateTo) rows = rows.filter(r => r.date <= dateTo);
-            if (status) rows = rows.filter(r => String(r.status || '').toLowerCase() === status.toLowerCase());
+            if (month) rows = rows.filter(r => r.date && r.date.startsWith(month));
             rows.sort((a, b) => String(b.date).localeCompare(String(a.date)));
 
             const initials = (emp.name || 'K').split(' ').map(w => w[0]).join('').substring(0, 2).toUpperCase();
