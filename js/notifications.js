@@ -68,7 +68,7 @@ const notifications = {
         // transform-origin di kanan-atas juga bikin efeknya seperti
         // membuka/minimize dari tombol, bukan tiba-tiba muncul dari 0.
         panel.style.cssText = `
-            position:fixed; width:min(300px, calc(100vw - 32px));
+            position:fixed; width:300px; max-width:calc(100% - 32px);
             z-index:2000; display:none;
             transform-origin: top right;
             opacity:0; transform: scale(0.92) translateY(-6px);
@@ -103,6 +103,12 @@ const notifications = {
             // Jarak dari tepi KANAN layar ke tepi kanan tombol lonceng,
             // minimal `margin` px supaya panel tidak nempel/kepotong di tepi.
             const rightGap = Math.max(margin, window.innerWidth - rect.right);
+            // Lebar panel dihitung eksplisit pakai window.innerWidth (bukan
+            // satuan CSS "vw" yang di beberapa browser HP suka melebihi lebar
+            // layar yang benar-benar terlihat) - supaya sisi kiri panel tidak
+            // pernah "nyembur" keluar layar dan kepotong.
+            const panelWidth = Math.min(300, window.innerWidth - (margin * 2));
+            panel.style.width = panelWidth + 'px';
             panel.style.top = (rect.bottom + 10) + 'px';
             panel.style.right = rightGap + 'px';
             panel.style.display = 'block';
