@@ -123,16 +123,18 @@ const absensi = {
     if (!tbody) return;
 
     if (historyData.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:1.5rem;">Belum ada riwayat absensi.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="7"><div class="history-empty"><i class="fas fa-calendar-day"></i><span>Belum ada riwayat absensi.</span></div></td></tr>';
         return;
     }
 
     const months = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Ags','Sep','Okt','Nov','Des'];
+    const todayYMD = (typeof dateTime !== 'undefined' && dateTime.getLocalDate) ? dateTime.getLocalDate() : '';
 
     tbody.innerHTML = historyData.slice(0, 30).map(record => {
         // Format tanggal
         const [y, m, d] = (record.date || '').split('-');
         const dateStr = (y && m && d) ? `${d} ${months[parseInt(m)-1]} ${y}` : '-';
+        const isToday = todayYMD && record.date === todayYMD;
 
         // Status badge
         const statusLower = String(record.status || '').toLowerCase();
@@ -148,8 +150,8 @@ const absensi = {
         }
 
         return `
-            <tr>
-                <td>${dateStr}</td>
+            <tr${isToday ? ' class="row-today"' : ''}>
+                <td>${dateStr}${isToday ? '<span class="today-tag">Hari Ini</span>' : ''}</td>
                 <td style="font-size:0.82rem;">${record.shift || '-'}</td>
                 <td style="font-weight:600;color:#10b981;">${record.clockIn || '–'}</td>
                 <td style="color:var(--text-muted);">${record.breakStart || '–'}</td>
