@@ -375,9 +375,12 @@
     }
 
     /* Kompensasi tinggi top-bar yang sekarang fixed, supaya konten
-       halaman tidak ketutupan di baris paling atas */
+       halaman tidak ketutupan di baris paling atas. Nilainya diisi
+       otomatis lewat JS (--mobile-topbar-height) sesuai tinggi asli
+       top-bar di perangkat masing-masing, dengan fallback 84px kalau
+       JS belum sempat jalan. */
     .main-content {
-        padding-top: 76px;
+        padding-top: var(--mobile-topbar-height, 84px);
     }
     
     .page-title {
