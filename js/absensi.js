@@ -310,6 +310,7 @@ const absensi = {
         await this.saveAttendance();
         this.updateUI();
         this.renderTimeline();
+        await this.loadAttendanceHistory(); // refresh tabel Riwayat Absensi supaya tidak nampilin data basi dari sebelum absen ini
         storage.remove('temp_attendance');
     },
 
