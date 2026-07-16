@@ -461,8 +461,6 @@ const profileManager = {
         document.getElementById('pf-pdk-tanggalLulus').value      = r.tanggalLulus || '';
         document.getElementById('pf-pdk-gelarDepan').value        = r.gelarDepan || '';
         document.getElementById('pf-pdk-gelarBelakang').value     = r.gelarBelakang || '';
-        document.getElementById('pf-pdk-pendidikanPertama').checked  = r.pendidikanPertama === 'true';
-        document.getElementById('pf-pdk-pendidikanTerakhir').checked = r.pendidikanTerakhir === 'true';
 
         document.getElementById('pf-pdk-ijazah-url').value    = r.fileIjazahUrl || '';
         document.getElementById('pf-pdk-transkrip-url').value = r.fileTranskripUrl || '';
@@ -492,8 +490,6 @@ const profileManager = {
         document.getElementById('pf-pdk-tanggalLulus').value = '';
         document.getElementById('pf-pdk-gelarDepan').value = '';
         document.getElementById('pf-pdk-gelarBelakang').value = '';
-        document.getElementById('pf-pdk-pendidikanPertama').checked = false;
-        document.getElementById('pf-pdk-pendidikanTerakhir').checked = false;
         document.getElementById('pf-pdk-ijazah-url').value = '';
         document.getElementById('pf-pdk-transkrip-url').value = '';
 
@@ -529,8 +525,6 @@ const profileManager = {
             tanggalLulus:       document.getElementById('pf-pdk-tanggalLulus').value,
             gelarDepan:         document.getElementById('pf-pdk-gelarDepan').value.trim(),
             gelarBelakang:      document.getElementById('pf-pdk-gelarBelakang').value.trim(),
-            pendidikanPertama:  document.getElementById('pf-pdk-pendidikanPertama').checked,
-            pendidikanTerakhir: document.getElementById('pf-pdk-pendidikanTerakhir').checked,
             fileIjazahUrl,
             fileTranskripUrl
         };
@@ -610,16 +604,15 @@ const profileManager = {
         if (!tbody) return;
 
         if (this.riwayatMutasi.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:2rem;color:var(--text-muted);">Belum ada riwayat mutasi yang disimpan.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:2rem;color:var(--text-muted);">Belum ada riwayat mutasi yang disimpan.</td></tr>';
             return;
         }
 
         tbody.innerHTML = this.riwayatMutasi.map(r => `
             <tr>
                 <td style="padding:10px 12px;">${this._esc(r.nomorSurat || '-')}</td>
-                <td style="padding:10px 12px;">${this._esc(r.instansiAsal || '-')}</td>
+                <td style="padding:10px 12px;">${this._esc(this._formatTanggalID(r.tanggalSurat) || '-')}</td>
                 <td style="padding:10px 12px;">${this._esc(r.unorAsal || '-')}</td>
-                <td style="padding:10px 12px;">${this._esc(r.instansiBaru || '-')}</td>
                 <td style="padding:10px 12px;">${this._esc(r.unorBaru || '-')}</td>
                 <td style="padding:10px 12px;">
                     ${r.fileDokumenUrl
@@ -632,6 +625,15 @@ const profileManager = {
                 </td>
             </tr>
         `).join('');
+    },
+
+    // Format "yyyy-mm-dd" ke "dd/mm/yyyy" untuk tampilan tabel Riwayat Mutasi
+    _formatTanggalID(dateStr) {
+        if (!dateStr) return '';
+        const parts = String(dateStr).split('-');
+        if (parts.length !== 3) return dateStr;
+        const [y, m, d] = parts;
+        return `${d}/${m}/${y}`;
     },
 
     openMutasiModal() {
@@ -650,9 +652,7 @@ const profileManager = {
         document.getElementById('pf-mts-id').value           = r.id;
         document.getElementById('pf-mts-nomorSurat').value    = r.nomorSurat || '';
         document.getElementById('pf-mts-tanggalSurat').value  = r.tanggalSurat || '';
-        document.getElementById('pf-mts-instansiAsal').value  = r.instansiAsal || '';
         document.getElementById('pf-mts-unorAsal').value      = r.unorAsal || '';
-        document.getElementById('pf-mts-instansiBaru').value  = r.instansiBaru || '';
         document.getElementById('pf-mts-unorBaru').value      = r.unorBaru || '';
         document.getElementById('pf-mts-dokumen-url').value   = r.fileDokumenUrl || '';
 
@@ -666,9 +666,7 @@ const profileManager = {
         document.getElementById('pf-mts-id').value = '';
         document.getElementById('pf-mts-nomorSurat').value = '';
         document.getElementById('pf-mts-tanggalSurat').value = '';
-        document.getElementById('pf-mts-instansiAsal').value = '';
         document.getElementById('pf-mts-unorAsal').value = '';
-        document.getElementById('pf-mts-instansiBaru').value = '';
         document.getElementById('pf-mts-unorBaru').value = '';
         document.getElementById('pf-mts-dokumen-url').value = '';
 
@@ -692,9 +690,7 @@ const profileManager = {
             userId:         this.myId,
             nomorSurat,
             tanggalSurat:   document.getElementById('pf-mts-tanggalSurat').value,
-            instansiAsal:   document.getElementById('pf-mts-instansiAsal').value.trim(),
             unorAsal:       document.getElementById('pf-mts-unorAsal').value.trim(),
-            instansiBaru:   document.getElementById('pf-mts-instansiBaru').value.trim(),
             unorBaru:       document.getElementById('pf-mts-unorBaru').value.trim(),
             fileDokumenUrl
         };
