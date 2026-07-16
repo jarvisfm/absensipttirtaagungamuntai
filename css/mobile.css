@@ -364,10 +364,20 @@
     /* Top bar adjustments */
     .top-bar {
         padding: var(--spacing);
-        position: sticky;
+        position: fixed;
         top: 0;
+        left: 0;
+        right: 0;
+        width: 100%;
         background: var(--bg-secondary);
         z-index: 100;
+        box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+    }
+
+    /* Kompensasi tinggi top-bar yang sekarang fixed, supaya konten
+       halaman tidak ketutupan di baris paling atas */
+    .main-content {
+        padding-top: 76px;
     }
     
     .page-title {
@@ -672,11 +682,6 @@
     
     .bottom-nav-item i {
         font-size: var(--font-size-lg);
-    }
-    
-    /* Hide time on mobile top bar */
-    .current-time .date {
-        display: none;
     }
 }
 
