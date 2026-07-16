@@ -280,54 +280,73 @@ const absensi = {
         const now     = new Date();
         const timeStr = dateTime.formatTime(now);
 
+        // Susun data absen dulu ke variabel terpisah (BUKAN langsung ke
+        // this.attendanceData/this.currentState). Kalau backend menolak
+        // (misal di luar radius kantor), UI tidak boleh kadung menampilkan
+        // "berhasil" padahal datanya tidak benar-benar tersimpan.
+        const payload = { ...this.attendanceData };
+        switch (action) {
+            case 'clock-in':    payload.clockIn    = timeStr; break;
+            case 'break':       payload.breakStart = timeStr; break;
+            case 'after-break': payload.breakEnd   = timeStr; break;
+            case 'clock-out':   payload.clockOut   = timeStr; break;
+        }
+        payload.verificationPhoto     = verificationData.photo || '';
+        payload.verificationLocation  = verificationData.location || '';
+        payload.verificationTimestamp = verificationData.timestamp || '';
+
+        const result = await this.saveAttendance(payload);
+
+        if (!result || !result.success) {
+            // Absen ditolak backend (contoh: di luar radius kantor) -
+            // tampilkan alasannya dan JANGAN ubah state lokal sama sekali,
+            // supaya tombol absen tetap dalam kondisi semula (belum absen)
+            // dan user bisa coba lagi.
+            toast.error(result?.error || 'Absen gagal disimpan. Silakan coba lagi.');
+            router.navigate('absensi');
+            return;
+        }
+
+        this.attendanceData = { ...payload, ...(result.data || {}) };
+
         switch (action) {
             case 'clock-in':
-                this.attendanceData.clockIn = timeStr;
                 this.currentState = 'clocked-in';
                 toast.success(`Absen masuk berhasil: ${timeStr}`);
                 break;
             case 'break':
-                this.attendanceData.breakStart = timeStr;
                 this.currentState = 'on-break';
                 toast.info(`Absen istirahat: ${timeStr}`);
                 break;
             case 'after-break':
-                this.attendanceData.breakEnd = timeStr;
                 this.currentState = 'clocked-in';
                 toast.success(`Absen kembali bekerja: ${timeStr}`);
                 break;
             case 'clock-out':
-                this.attendanceData.clockOut = timeStr;
                 this.currentState = 'completed';
                 toast.success(`Absen pulang berhasil: ${timeStr}`);
                 break;
         }
 
-        this.attendanceData.verificationPhoto     = verificationData.photo || '';
-        this.attendanceData.verificationLocation  = verificationData.location || '';
-        this.attendanceData.verificationTimestamp = verificationData.timestamp || '';
-
-        await this.saveAttendance();
         this.updateUI();
         this.renderTimeline();
         await this.loadAttendanceHistory(); // refresh tabel Riwayat Absensi supaya tidak nampilin data basi dari sebelum absen ini
         storage.remove('temp_attendance');
     },
 
-    async saveAttendance() {
-    const user = auth.getCurrentUser();
-    // Gunakan employeeId jika ada (untuk admin yang punya data karyawan sendiri)
-    // Fallback ke id jika employeeId tidak ada
-    this.attendanceData.userId = user?.employeeId || user?.id;
+    async saveAttendance(payload) {
+        const data = payload || this.attendanceData;
+        const user = auth.getCurrentUser();
+        // Gunakan employeeId jika ada (untuk admin yang punya data karyawan sendiri)
+        // Fallback ke id jika employeeId tidak ada
+        data.userId = user?.employeeId || user?.id;
 
         try {
-            const result = await api.saveAttendance(this.attendanceData);
-            if (result && result.success && result.data) {
-                // Sinkronkan status yang dihitung server (Hadir/Terlambat)
-                this.attendanceData = { ...this.attendanceData, ...result.data };
-            }
+            const result = await api.saveAttendance(data);
+            return result;
         } catch (e) {
             console.error('Error saving attendance:', e);
+            return { success: false, error: 'Terjadi kesalahan koneksi saat menyimpan absensi. Coba lagi.' };
         }
     },
 
