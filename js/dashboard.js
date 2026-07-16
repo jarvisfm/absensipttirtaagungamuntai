@@ -4,12 +4,9 @@
  */
 
 const dashboard = {
-    initialized: false,
     attendanceData: [],
 
     async init() {
-        if (this.initialized) return;
-
         await this.loadData();
 
         this.updateWelcomeCard();
@@ -19,8 +16,6 @@ const dashboard = {
         this.updateWeeklyChart();
         this.renderRecentActivity();
         this.renderTeamAttendance();
-
-        this.initialized = true;
     },
 
     async loadData() {
