@@ -437,6 +437,32 @@ document.addEventListener('DOMContentLoaded', () => {
             if (date) date.textContent = dateTime.formatDate(now);
         }, 1000);
     }
+
+    // Ukur tinggi asli top-bar (yang di mobile posisinya "fixed") dan
+    // simpan ke CSS variable --mobile-topbar-height, supaya padding-top
+    // konten halaman selalu pas mengikuti tinggi top-bar sesungguhnya
+    // di perangkat masing-masing (bukan angka tebakan yang bisa
+    // menyebabkan konten ketutupan/terpotong di beberapa HP).
+    const syncMobileTopbarHeight = () => {
+        const topBar = document.querySelector('.top-bar');
+        if (!topBar) return;
+        const height = topBar.offsetHeight;
+        if (height > 0) {
+            document.documentElement.style.setProperty('--mobile-topbar-height', `${height}px`);
+        }
+    };
+    syncMobileTopbarHeight();
+    window.addEventListener('resize', syncMobileTopbarHeight);
+    window.addEventListener('orientationchange', syncMobileTopbarHeight);
+    // Notifikasi bisa bikin top-bar berubah tinggi (mis. badge muncul),
+    // dan konten top-bar juga baru terisi setelah data user/notifikasi
+    // selesai dimuat, jadi ukur ulang beberapa saat setelah halaman siap.
+    setTimeout(syncMobileTopbarHeight, 500);
+    setTimeout(syncMobileTopbarHeight, 1500);
+    if (window.ResizeObserver) {
+        const topBar = document.querySelector('.top-bar');
+        if (topBar) new ResizeObserver(syncMobileTopbarHeight).observe(topBar);
+    }
 });
 
 // Export for other modules
