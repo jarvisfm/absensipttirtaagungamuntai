@@ -1012,7 +1012,7 @@
                                     </div>
                                     <div class="form-group">
                                         <label>Tanggal Lahir</label>
-                                        <input type="date" id="pf-tanggalLahir">
+                                        <input type="date" id="pf-tanggalLahir" onchange="profileManager.autoHitungTahunPensiun()">
                                     </div>
                                 </div>
                                 <div class="form-row two-col">
@@ -1177,6 +1177,7 @@
                                     <div class="form-group">
                                         <label>Tahun Pensiun</label>
                                         <input type="text" id="pf-tahunPensiun" placeholder="Tahun pensiun">
+                                        <small style="color:var(--text-muted);">Otomatis terisi: Tahun Lahir + 56 (bisa diubah manual kalau perlu)</small>
                                     </div>
                                 </div>
                                 <div class="form-group">
@@ -1535,7 +1536,7 @@
                     </div>
                     <div class="form-group">
                         <label>Tanggal Lahir</label>
-                        <input type="date" id="p-tanggalLahir">
+                        <input type="date" id="p-tanggalLahir" onchange="karyawanManager.autoHitungTahunPensiun()">
                     </div>
                 </div>
                 <div class="form-row two-col">
@@ -1700,6 +1701,7 @@
                     <div class="form-group">
                         <label>Tahun Pensiun</label>
                         <input type="text" id="p-tahunPensiun" placeholder="Tahun pensiun">
+                        <small style="color:var(--text-muted);">Otomatis terisi: Tahun Lahir + 56 (bisa diubah manual kalau perlu)</small>
                     </div>
                 </div>
                 <div class="form-group">
