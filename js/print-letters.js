@@ -486,7 +486,7 @@ const printLetters = {
                 <tr><td class="lbl">JABATAN</td><td class="sep">:</td>
                     <td><input type="text" class="letter-input" value="${emp.jabatan || ''}"></td></tr>
                 <tr><td class="lbl">UNIT KERJA</td><td class="sep">:</td>
-                    <td><input type="text" class="letter-input" value="${emp.unitKerja || ''}"></td></tr>
+                    <td><input type="text" class="letter-input" value="${emp.unitWilayah || ''}"></td></tr>
                 <tr><td class="lbl">KEPERLUAN</td><td class="sep">:</td>
                     <td><input type="text" class="letter-input" value="${keperluan}"></td></tr>
                 <tr><td class="lbl">HARI / TGL</td><td class="sep">:</td>
@@ -711,7 +711,7 @@ const printLetters = {
                     <tr>
                         <td colspan="3"></td>
                         <td class="lbl" style="padding-left:1.5rem; width:120px;">UNIT KERJA</td><td class="sep">:</td>
-                        <td><input type="text" class="letter-input" value="${emp.unitKerja || ''}"></td>
+                        <td><input type="text" class="letter-input" value="${emp.unitWilayah || ''}"></td>
                     </tr>
                     <tr>
                         <td class="lbl" style="width:70px;">NAMA</td><td class="sep">:</td>
