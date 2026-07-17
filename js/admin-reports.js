@@ -1269,14 +1269,15 @@ const adminReports = {
 
         const empRaw = (this.rawEmployees || []).find(e => String(e.id) === String(row.userId)) || {};
         const emp = {
-            name:      empRaw.name || empRaw.nama || row.name,
-            nik:       empRaw.nik || '',
-            jabatan:   empRaw.jabatan || row.position,
-            pangkat:   empRaw.pangkat || '',
-            golongan:  empRaw.golongan || '',
-            unitKerja: empRaw.unitKerja || row.department,
-            bagian:    empRaw.bagian || row.bagian || '',
-            role:      empRaw.role || ''
+            name:        empRaw.name || empRaw.nama || row.name,
+            nik:         empRaw.nik || '',
+            jabatan:     empRaw.jabatan || row.position,
+            pangkat:     empRaw.pangkat || '',
+            golongan:    empRaw.golongan || '',
+            unitKerja:   empRaw.unitKerja || row.department,
+            unitWilayah: empRaw.unitWilayah || '',
+            bagian:      empRaw.bagian || row.bagian || '',
+            role:        empRaw.role || ''
         };
         const izinOverride = {
             date:         row.startDate || row.dates,
@@ -1313,13 +1314,14 @@ const adminReports = {
         const leaveRaw = (this.rawLeaves || []).find(l => String(l.id) === String(id)) || {};
         const empRaw = (this.rawEmployees || []).find(e => String(e.id) === String(row.userId)) || {};
         const emp = {
-            name:      empRaw.name || empRaw.nama || row.name,
-            nik:       empRaw.nik || '',
-            jabatan:   empRaw.jabatan || row.position,
-            pangkat:   empRaw.pangkat || '',
-            golongan:  empRaw.golongan || '',
-            unitKerja: empRaw.unitKerja || row.department,
-            role:      empRaw.role || ''
+            name:        empRaw.name || empRaw.nama || row.name,
+            nik:         empRaw.nik || '',
+            jabatan:     empRaw.jabatan || row.position,
+            pangkat:     empRaw.pangkat || '',
+            golongan:    empRaw.golongan || '',
+            unitKerja:   empRaw.unitKerja || row.department,
+            unitWilayah: empRaw.unitWilayah || '',
+            role:        empRaw.role || ''
         };
         const leaveOverride = {
             type:            leaveRaw.type         || '',
