@@ -337,7 +337,7 @@ const auth = {
             <div style="text-align:center;margin-bottom:1.5rem;">
                 ${fotoHtml}
                 <h3 style="margin-top:0.75rem;font-size:1.1rem;">${p.nama || '-'}</h3>
-                <p style="color:var(--text-muted);font-size:0.85rem;">${p.jabatan || ''} — ${p.unitKerja || ''}</p>
+                <p style="color:var(--text-muted);font-size:0.85rem;">${p.jabatan || ''} — ${p.unitWilayah || ''}</p>
                 <span style="background:${statusColor}20;color:${statusColor};padding:3px 12px;border-radius:20px;font-size:0.8rem;font-weight:600;">${p.statusKaryawan || ''}</span>
             </div>
 
@@ -363,7 +363,6 @@ const auth = {
                 ${field('Status Pekerjaan', p.statusPekerjaan)}
                 ${field('Pendidikan', p.pendidikan)}
                 ${field('Jabatan', p.jabatan)}
-                ${field('Unit Kerja', p.unitKerja)}
                 ${field('Unit Wilayah', p.unitWilayah)}
                 ${field('Pangkat', p.pangkat)}
                 ${field('Golongan', p.golongan)}
