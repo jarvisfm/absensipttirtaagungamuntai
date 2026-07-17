@@ -98,6 +98,7 @@ const auth = {
                     nik: result.data.nik || '',
                     jabatan: result.data.jabatan || '',
                     unitKerja: result.data.unitKerja || '',
+                    unitWilayah: result.data.unitWilayah || '',
                     bagian: result.data.bagian || '',
                     pangkat: result.data.pangkat || '',
                     golongan: result.data.golongan || '',
