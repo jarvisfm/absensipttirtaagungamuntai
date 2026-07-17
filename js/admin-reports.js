@@ -526,7 +526,7 @@ const adminReports = {
                                 <div style="width:38px;height:38px;border-radius:50%;background:${color};color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:0.85rem;flex-shrink:0;">${initials}</div>
                                 <div>
                                     <div style="font-weight:600;font-size:0.95rem;">${emp.name || '-'}</div>
-                                    <div style="font-size:0.78rem;color:var(--text-muted);">${emp.department || '-'} — ${emp.position || '-'} — ${emp.shift || '-'}</div>
+                                    <div style="font-size:0.78rem;color:var(--text-muted);">${emp.department || '-'} — ${emp.bagian || '-'} — ${emp.position || '-'} — ${emp.shift || '-'}</div>
                                 </div>
                             </div>
                             <div style="display:flex;gap:12px;font-size:0.8rem;">
@@ -646,7 +646,7 @@ const adminReports = {
                         <div style="width:38px;height:38px;border-radius:50%;background:${color};color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:0.85rem;flex-shrink:0;">${initials}</div>
                         <div style="flex:1;min-width:0;">
                             <div style="font-weight:600;font-size:0.95rem;">${emp.name || '-'}</div>
-                            <div style="font-size:0.75rem;color:var(--text-muted);">${emp.department || '-'} — ${emp.position || '-'}</div>
+                            <div style="font-size:0.75rem;color:var(--text-muted);">${emp.department || '-'} — ${emp.bagian || '-'} — ${emp.position || '-'}</div>
                         </div>
                     </div>
                     <div style="display:flex;gap:8px;font-size:0.75rem;margin-bottom:10px;flex-wrap:wrap;">
