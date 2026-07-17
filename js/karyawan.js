@@ -83,7 +83,7 @@ const karyawanManager = {
                     <td style="padding:10px 12px;font-size:0.82rem;">${p.nik || '-'}</td>
                     <td style="padding:10px 12px;font-weight:500;">${p.nama || '-'}</td>
                     <td style="padding:10px 12px;font-size:0.85rem;">${p.jabatan || '-'}</td>
-                    <td style="padding:10px 12px;font-size:0.85rem;">${p.unitKerja || '-'}</td>
+                    <td style="padding:10px 12px;font-size:0.85rem;">${p.unitWilayah || '-'}</td>
                     <td style="padding:10px 12px;">
                         <span class="badge-status ${statusColor}">${p.statusKaryawan || '-'}</span>
                     </td>
@@ -176,7 +176,6 @@ const karyawanManager = {
 
             document.getElementById('p-pendidikan').value      = p.pendidikan || '';
             document.getElementById('p-jabatan').value         = p.jabatan || '';
-            document.getElementById('p-unitKerja').value       = p.unitKerja || '';
             document.getElementById('p-unitWilayah').value     = p.unitWilayah || '';
             document.getElementById('p-bagian').value          = p.bagian || '';
             document.getElementById('p-role').value            = p.role || 'staff';
@@ -215,7 +214,7 @@ const karyawanManager = {
         const fields = ['karyawan-id','p-nik','p-nama','p-jenisKelamin','p-statusPernikahan',
             'p-tempatLahir','p-tanggalLahir','p-golonganDarah','p-noTelp','p-npwp','p-ktp',
             'p-email','p-statusPekerjaan','p-statusKaryawan','p-pendidikan','p-jabatan',
-            'p-unitKerja','p-unitWilayah','p-bagian','p-pangkat','p-golongan','p-gajiPokok',
+            'p-unitWilayah','p-bagian','p-pangkat','p-golongan','p-gajiPokok',
             'p-terhitungMulai','p-masaKerja','p-tahunPensiun','p-shift',
             'p-namaPasangan','p-namaAyah','p-namaIbu','p-username','p-password'];
 
@@ -311,7 +310,6 @@ const karyawanManager = {
             statusKaryawan:   document.getElementById('p-statusKaryawan').value,
             pendidikan:       document.getElementById('p-pendidikan').value,
             jabatan:          document.getElementById('p-jabatan').value.trim(),
-            unitKerja:        document.getElementById('p-unitKerja').value.trim(),
             unitWilayah:      document.getElementById('p-unitWilayah').value.trim(),
             bagian:           document.getElementById('p-bagian').value.trim(),
             role:             document.getElementById('p-role').value,
@@ -455,7 +453,7 @@ const karyawanManager = {
                 <div style="text-align:center;margin-bottom:1.5rem;">
                     ${fotoHtml}
                     <h3 style="margin-top:0.75rem;font-size:1.1rem;">${p.nama || '-'}</h3>
-                    <p style="color:var(--text-muted);font-size:0.85rem;">${p.jabatan || ''} — ${p.unitKerja || ''}</p>
+                    <p style="color:var(--text-muted);font-size:0.85rem;">${p.jabatan || ''} — ${p.unitWilayah || ''}</p>
                     <span style="background:${statusColor}20;color:${statusColor};padding:3px 12px;border-radius:20px;font-size:0.8rem;font-weight:600;">${p.statusKaryawan || ''}</span>
                 </div>
 
@@ -481,7 +479,6 @@ const karyawanManager = {
                     ${field('Status Pekerjaan', p.statusPekerjaan)}
                     ${field('Pendidikan', p.pendidikan)}
                     ${field('Jabatan', p.jabatan)}
-                    ${field('Unit Kerja', p.unitKerja)}
                     ${field('Unit Wilayah', p.unitWilayah)}
                     ${field('Pangkat', p.pangkat)}
                     ${field('Golongan', p.golongan)}
