@@ -258,6 +258,20 @@ const karyawanManager = {
         document.getElementById('anak-list').appendChild(div);
     },
 
+    /**
+     * Hitung otomatis Tahun Pensiun = Tahun Lahir + 56 (rumus sama seperti
+     * di Excel), dipanggil setiap field Tanggal Lahir berubah. Hasilnya
+     * tetap bisa diubah manual sesudahnya kalau memang perlu (misal ada
+     * aturan usia pensiun khusus untuk jabatan tertentu).
+     */
+    autoHitungTahunPensiun() {
+        const tgl = document.getElementById('p-tanggalLahir').value;
+        if (!tgl) return;
+        const tahunLahir = parseInt(tgl.split('-')[0], 10);
+        if (isNaN(tahunLahir)) return;
+        document.getElementById('p-tahunPensiun').value = tahunLahir + 56;
+    },
+
     previewFoto(input) {
         if (input.files && input.files[0]) {
             const reader = new FileReader();
