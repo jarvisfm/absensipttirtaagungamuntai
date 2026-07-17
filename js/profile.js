@@ -94,7 +94,6 @@ const profileManager = {
             document.getElementById('pf-statusKaryawan').value  = p.statusKaryawan || 'AKTIF';
             document.getElementById('pf-pendidikan').value      = p.pendidikan || '';
             document.getElementById('pf-jabatan').value         = p.jabatan || '';
-            document.getElementById('pf-unitKerja').value       = p.unitKerja || '';
             document.getElementById('pf-unitWilayah').value     = p.unitWilayah || '';
             document.getElementById('pf-bagian').value          = p.bagian || '';
             document.getElementById('pf-role').value            = p.role || 'staff';
@@ -203,7 +202,6 @@ const profileManager = {
             statusKaryawan:   document.getElementById('pf-statusKaryawan').value,
             pendidikan:       document.getElementById('pf-pendidikan').value,
             jabatan:          document.getElementById('pf-jabatan').value.trim(),
-            unitKerja:        document.getElementById('pf-unitKerja').value.trim(),
             unitWilayah:      document.getElementById('pf-unitWilayah').value.trim(),
             bagian:           document.getElementById('pf-bagian').value.trim(),
             role:             document.getElementById('pf-role').value,
