@@ -50,6 +50,17 @@ const api = {
     return this.request('login', { username, password });
 },
 
+    // Cek berkala apakah sesi login perangkat ini masih yang paling baru
+    // untuk akun ini (dipakai untuk fitur "1 perangkat saja" - lihat
+    // auth.js startSessionWatcher). Tidak ada mode localStorage untuk ini
+    // karena fitur ini memang cuma relevan kalau ada backend nyata.
+    async validateSession(userId, role, sessionToken) {
+        if (!API_BASE_URL) {
+            return { success: true, data: { valid: true } };
+        }
+        return this.request('validateSession', { userId, role, sessionToken });
+    },
+
     async changePassword(userId, oldPassword, newPassword) {
         if (!API_BASE_URL) {
             return { success: true, data: { message: 'Password changed (local)' } };
