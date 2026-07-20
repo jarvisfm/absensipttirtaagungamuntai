@@ -200,8 +200,14 @@ const izin = {
         if (jamRow) jamRow.style.display = isKeluarKantor ? 'flex' : 'none';
         if (jamKeluarH) jamKeluarH.required = isKeluarKantor;
         if (jamKeluarM) jamKeluarM.required = isKeluarKantor;
-        if (jamMasukH)  jamMasukH.required  = isKeluarKantor;
-        if (jamMasukM)  jamMasukM.required  = isKeluarKantor;
+
+        // Reset mode Masuk Jam ke "Jam" tiap kali ganti tipe izin, supaya
+        // tidak nyangkut di mode "Pulang" saat pindah ke tipe lain lalu balik lagi.
+        if (isKeluarKantor) {
+            const modeJam = document.querySelector('input[name="izin-jam-masuk-mode"][value="jam"]');
+            if (modeJam) modeJam.checked = true;
+            this.toggleJamMasukMode();
+        }
 
         // Tanggal range — hanya untuk izin_harian
         if (rangeRow)   rangeRow.style.display   = isIzinHarian ? 'flex' : 'none';
@@ -213,6 +219,27 @@ const izin = {
         // Durasi — sembunyikan untuk keluar_kantor dan izin_harian
         if (durationGroup) durationGroup.style.display = (isKeluarKantor || isIzinHarian) ? 'none' : 'block';
         if (durationInput) durationInput.required      = (!isKeluarKantor && !isIzinHarian);
+    },
+
+    /**
+     * Toggle tampilan "Masuk Jam" di form Surat Izin Keluar Kantor: mode
+     * "Jam" pakai dropdown HH:MM biasa, mode "Pulang" berarti karyawan
+     * tidak kembali lagi ke kantor - dropdown disembunyikan & tidak wajib,
+     * dan nanti nilainya dikirim sebagai teks "Pulang" (submitIzinForm()).
+     */
+    toggleJamMasukMode() {
+        const mode        = document.querySelector('input[name="izin-jam-masuk-mode"]:checked')?.value || 'jam';
+        const selects      = document.getElementById('izin-jam-masuk-selects');
+        const pulangNote   = document.getElementById('izin-jam-masuk-pulang-note');
+        const jamMasukH    = document.getElementById('izin-jam-masuk-h');
+        const jamMasukM    = document.getElementById('izin-jam-masuk-m');
+        const isJam        = mode === 'jam';
+        const isKeluarKantorNow = document.getElementById('izin-type')?.value === 'keluar_kantor';
+
+        if (selects)    selects.style.display    = isJam ? 'flex' : 'none';
+        if (pulangNote) pulangNote.style.display = isJam ? 'none' : 'block';
+        if (jamMasukH)  jamMasukH.required = isJam && isKeluarKantorNow;
+        if (jamMasukM)  jamMasukM.required = isJam && isKeluarKantorNow;
     },
     
     initFilters() {
@@ -277,10 +304,13 @@ const izin = {
         const isIzinHarian   = type === 'izin_harian';
         const jamKeluarHV = document.getElementById('izin-jam-keluar-h')?.value;
         const jamKeluarMV = document.getElementById('izin-jam-keluar-m')?.value;
+        const jamMasukMode = document.querySelector('input[name="izin-jam-masuk-mode"]:checked')?.value || 'jam';
         const jamMasukHV  = document.getElementById('izin-jam-masuk-h')?.value;
         const jamMasukMV  = document.getElementById('izin-jam-masuk-m')?.value;
         const jamKeluar      = (jamKeluarHV && jamKeluarMV) ? `${jamKeluarHV}:${jamKeluarMV}` : '';
-        const jamMasuk       = (jamMasukHV && jamMasukMV) ? `${jamMasukHV}:${jamMasukMV}` : '';
+        const jamMasuk       = (jamMasukMode === 'pulang')
+            ? 'Pulang'
+            : ((jamMasukHV && jamMasukMV) ? `${jamMasukHV}:${jamMasukMV}` : '');
         const dateStart      = document.getElementById('izin-date-start')?.value;
         const dateEnd        = document.getElementById('izin-date-end')?.value;
 
@@ -823,6 +853,7 @@ const izin = {
     // karena field duration untuk tipe ini memang selalu 0 (lihat handleSubmit).
     _hitungDurasiJam(jamKeluar, jamMasuk) {
         if (!jamKeluar || !jamMasuk) return '-';
+        if (jamMasuk === 'Pulang') return 'Sampai pulang';
         const [h1, m1] = jamKeluar.split(':').map(Number);
         const [h2, m2] = jamMasuk.split(':').map(Number);
         if ([h1, m1, h2, m2].some(n => isNaN(n))) return '-';
