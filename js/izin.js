@@ -129,6 +129,10 @@ const izin = {
             typeSelect.addEventListener('change', (e) => this.toggleKeluarKantorFields(e.target.value));
         }
 
+        document.querySelectorAll('input[name="izin-jam-masuk-mode"]').forEach(radio => {
+            radio.addEventListener('change', () => this.toggleJamMasukMode());
+        });
+
         if (verifyBtn) {
             verifyBtn.addEventListener('click', (e) => {
                 e.preventDefault();
