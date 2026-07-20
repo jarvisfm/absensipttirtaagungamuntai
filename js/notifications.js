@@ -159,7 +159,7 @@ const notifications = {
         try {
             if (auth.isAdmin && auth.isAdmin()) {
                 await this._loadAdminNotifications();
-            } else if ((auth.isAsmen && auth.isAsmen()) || (auth.isManajer && auth.isManajer())) {
+            } else if ((auth.isAsmen && auth.isAsmen()) || (auth.isManajer && auth.isManajer()) || (auth.isDirektur && auth.isDirektur())) {
                 await this._loadApproverNotifications(user);
             } else {
                 await this._loadKaryawanNotifications(user);
@@ -171,8 +171,8 @@ const notifications = {
         this._render();
     },
 
-    // Asmen & Manajer punya menu Approval sendiri (approval-asmen /
-    // approval-manajer) - notifikasi mereka gabungan dari 2 hal:
+    // Asmen, Manajer & Direktur punya menu Approval sendiri (approval-asmen /
+    // approval-manajer / approval-direktur) - notifikasi mereka gabungan dari 2 hal:
     // (1) notifikasi pribadi seperti karyawan biasa (status izin/cuti
     //     mereka sendiri, reminder belum absen), DAN
     // (2) pengajuan staff/asmen lain yang lagi MENUNGGU PERSETUJUAN MEREKA
@@ -185,7 +185,9 @@ const notifications = {
         // setelah item approval ditambahkan).
         await this._loadKaryawanNotifications(user);
 
-        const role = (auth.isAsmen && auth.isAsmen()) ? 'asmen' : 'manajer';
+        const role = (auth.isAsmen && auth.isAsmen()) ? 'asmen'
+            : (auth.isManajer && auth.isManajer()) ? 'manajer'
+            : 'direktur';
 
         const [izinRes, leaveRes, empRes] = await Promise.all([
             api.getAllIzin().catch(() => ({ success: false })),
@@ -207,14 +209,31 @@ const notifications = {
         const isHrManajer = myBagian === 'UMUM DAN KEPEGAWAIAN';
 
         // Cek apakah 1 item (izin/cuti) sedang menunggu persetujuan SAYA
-        // di tahap ini - sama persis dengan filter di renderApprovalList().
+        // di tahap ini - sama persis dengan filter di renderApprovalList()
+        // (izin.js & cuti.js), termasuk untuk tahap Direktur.
         const isPendingForMe = (item) => {
             if (role === 'asmen') {
                 return item.status === 'pending' && String(item.asmenId) === String(myEmployeeId);
             }
-            // role === 'manajer'
+
             const pemohon = findEmp(item.userId);
             const pemohonRole = pemohon.role || 'staff';
+
+            if (role === 'direktur') {
+                // Izin Keluar Kantor: alur sendiri, langsung ke Direktur begitu
+                // masih pending - apapun jabatan pemohonnya.
+                if (item.type === 'keluar_kantor') {
+                    return item.status === 'pending';
+                }
+                if (pemohonRole === 'manajer') {
+                    // Tahap Manajer dilewati sama sekali untuk pemohon Manajer
+                    return item.status === 'pending';
+                }
+                // Staff & Asmen: harus sudah disetujui Manajer dulu
+                return item.status === 'manajer_approved';
+            }
+
+            // role === 'manajer'
             const pemohonBagian = String(pemohon.bagian || '').toUpperCase().trim();
             const isPemohonHr = pemohonBagian === 'UMUM DAN KEPEGAWAIAN';
             const gateStatus = pemohonRole === 'staff' ? 'asmen_approved' : 'pending';
@@ -228,7 +247,7 @@ const notifications = {
 
         const izinPending = (izinRes.success ? izinRes.data : []).filter(isPendingForMe);
         const leavePending = (leaveRes.success ? leaveRes.data : []).filter(isPendingForMe);
-        const approvalLink = role === 'asmen' ? 'approval-asmen' : 'approval-manajer';
+        const approvalLink = role === 'asmen' ? 'approval-asmen' : (role === 'manajer' ? 'approval-manajer' : 'approval-direktur');
 
         izinPending.forEach(i => this.items.push({
             icon: 'fa-user-clock',
