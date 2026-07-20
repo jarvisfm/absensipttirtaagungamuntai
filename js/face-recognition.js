@@ -231,7 +231,6 @@ const faceRecognition = {
     bindButtons() {
         const captureBtn = document.getElementById('btn-capture');
         const retakeBtn = document.getElementById('btn-retake');
-        const confirmBtn = document.getElementById('btn-confirm-attendance');
         const retryLocationBtn = document.getElementById('btn-retry-location');
 
         if (retryLocationBtn) {
@@ -257,16 +256,22 @@ const faceRecognition = {
             retakeBtn.parentNode.replaceChild(newRetakeBtn, retakeBtn);
             newRetakeBtn.addEventListener('click', (e) => { e.preventDefault(); this.retakePhoto(); });
         }
-
-        if (confirmBtn) {
-            const newConfirmBtn = confirmBtn.cloneNode(true);
-            confirmBtn.parentNode.replaceChild(newConfirmBtn, confirmBtn);
-            newConfirmBtn.addEventListener('click', (e) => { e.preventDefault(); this.confirmAttendance(); });
-        }
     },
 
     capturePhoto() {
         if (!this.video || !this.canvas) return;
+
+        // Sekarang cuma ada 1 tombol ("Absen Sekarang") yang sekaligus ambil
+        // foto & submit absensi - jadi lokasi WAJIB divalidasi duluan di sini,
+        // sebelum foto diambil, supaya tidak ada foto yang "kepotong di
+        // tengah" gara-gara ternyata lokasinya belum/tidak valid.
+        if (!this.locationVerified) {
+            toast.error('Lokasi belum terverifikasi. Mohon tunggu sebentar, lalu coba lagi.');
+            return;
+        }
+
+        const captureBtnEl = document.getElementById('btn-capture');
+        if (captureBtnEl) captureBtnEl.disabled = true;
 
         const ctx = this.canvas.getContext('2d');
         this.canvas.width = this.video.videoWidth;
@@ -310,15 +315,16 @@ const faceRecognition = {
                 `;
             }
 
-            // Update buttons
+            // Sembunyikan tombol capture (foto sudah diambil)
             const captureBtn = document.getElementById('btn-capture');
-            const retakeBtn = document.getElementById('btn-retake');
-
             if (captureBtn) captureBtn.style.display = 'none';
-            if (retakeBtn) retakeBtn.style.display = 'flex';
 
             this.photoCaptured = true;
-            this.checkCanSubmit();
+
+            // Langsung lanjut submit absensi otomatis - tidak perlu klik
+            // tombol konfirmasi terpisah lagi (dulu ada 2 tombol, sekarang
+            // digabung jadi 1 aksi).
+            this.confirmAttendance();
 
         }, 2000);
     },
