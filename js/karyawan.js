@@ -7,6 +7,8 @@ const karyawanManager = {
     karyawanList: [],
     editingId: null,
     anakCount: 0,
+    riwayatPendidikanKaryawan: [],
+    riwayatMutasiKaryawan: [],
 
     async init() {
         if (!auth.isAdmin()) {
@@ -98,7 +100,7 @@ const karyawanManager = {
     },
 
     switchTab(tab) {
-        ['profil','kekaryawanan','keluarga','akun','uploadfile'].forEach(t => {
+        ['profil','kekaryawanan','keluarga','akun','uploadfile','pendidikan','mutasi'].forEach(t => {
             const content = document.getElementById(`tabcontent-${t}`);
             const btn     = document.getElementById(`tab-${t}`);
             if (content) content.style.display = t === tab ? 'block' : 'none';
@@ -117,8 +119,28 @@ const karyawanManager = {
         this.resetForm();
         this.switchTab('profil');
 
+        // Tab Pendidikan & Riwayat Mutasi butuh id karyawan yang sudah
+        // tersimpan (baru bisa ditautkan ke karyawannya). Kalau ini
+        // "Tambah Karyawan" baru (id belum ada), tampilkan pesan supaya
+        // simpan dulu, dan jangan tampilkan list/form riwayat siapa pun.
+        this.riwayatPendidikanKaryawan = [];
+        this.riwayatMutasiKaryawan = [];
+        this.renderRiwayatPendidikanAdmin();
+        this.renderRiwayatMutasiAdmin();
+
+        const pdkBlocked = document.getElementById('k-pendidikan-blocked');
+        const pdkContent = document.getElementById('k-pendidikan-content');
+        const mtsBlocked = document.getElementById('k-mutasi-blocked');
+        const mtsContent = document.getElementById('k-mutasi-content');
+        if (pdkBlocked) pdkBlocked.style.display = id ? 'none' : 'block';
+        if (pdkContent) pdkContent.style.display = id ? 'block' : 'none';
+        if (mtsBlocked) mtsBlocked.style.display = id ? 'none' : 'block';
+        if (mtsContent) mtsContent.style.display = id ? 'block' : 'none';
+
         if (id) {
             this.loadDetailForEdit(id);
+            this.loadRiwayatPendidikanAdmin(id);
+            this.loadRiwayatMutasiAdmin(id);
         }
 
         document.getElementById('modal-karyawan').style.display = 'flex';
@@ -560,6 +582,366 @@ const karyawanManager = {
     closeModal() {
         document.getElementById('modal-karyawan').style.display = 'none';
         this.editingId = null;
+    },
+
+    _esc(str) {
+        return String(str || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    },
+
+    /**
+     * Ubah berbagai format link share Google Drive (.../view?usp=sharing,
+     * open?id=..., uc?id=..., dst) menjadi format ".../preview" yang bisa
+     * ditanam di <iframe> (format lain sering diblokir Google karena
+     * X-Frame-Options). Balikin null kalau bukan link Drive yang valid.
+     */
+    normalizeDriveLink(url) {
+        if (!url) return '';
+        const trimmed = url.trim();
+        if (!trimmed) return '';
+
+        let fileId = null;
+        let m = trimmed.match(/\/file\/d\/([a-zA-Z0-9_-]{10,})/);
+        if (m) fileId = m[1];
+        if (!fileId) {
+            m = trimmed.match(/[?&]id=([a-zA-Z0-9_-]{10,})/);
+            if (m) fileId = m[1];
+        }
+        if (!fileId) return null;
+
+        return `https://drive.google.com/file/d/${fileId}/preview`;
+    },
+
+    // Format "yyyy-mm-dd" ke "dd/mm/yyyy" untuk tampilan tabel Riwayat Mutasi
+    _formatTanggalID(dateStr) {
+        if (!dateStr) return '';
+        const parts = String(dateStr).split('-');
+        if (parts.length !== 3) return dateStr;
+        const [y, m, d] = parts;
+        return `${d}/${m}/${y}`;
+    },
+
+    // ========== TAB PENDIDIKAN (Admin - Edit Karyawan) ==========
+
+    async loadRiwayatPendidikanAdmin(karyawanId) {
+        try {
+            const result = await api.getRiwayatPendidikan(karyawanId);
+            this.riwayatPendidikanKaryawan = (result.success && result.data) ? result.data : [];
+        } catch (e) {
+            console.error('Error load riwayat pendidikan:', e);
+            this.riwayatPendidikanKaryawan = [];
+        }
+        this.renderRiwayatPendidikanAdmin();
+    },
+
+    renderRiwayatPendidikanAdmin() {
+        const container = document.getElementById('k-pendidikan-list');
+        if (!container) return;
+
+        if (this.riwayatPendidikanKaryawan.length === 0) {
+            container.innerHTML = '<p style="color:var(--text-muted);font-size:0.85rem;">Belum ada riwayat pendidikan yang disimpan.</p>';
+            return;
+        }
+
+        container.innerHTML = this.riwayatPendidikanKaryawan.map(r => `
+            <div style="border:1px solid var(--border-color);border-radius:8px;padding:1.25rem;margin-bottom:1rem;">
+                <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;">
+                    <div style="min-width:0;">
+                        <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;flex-wrap:wrap;">
+                            <span style="background:var(--color-primary);color:#fff;font-size:0.75rem;font-weight:700;padding:2px 10px;border-radius:20px;">${this._esc(r.jenjang)}</span>
+                            <span style="font-weight:600;font-size:1.05rem;">${this._esc(r.namaSekolah)}</span>
+                        </div>
+                        <div style="font-size:0.85rem;color:var(--text-muted);margin-bottom:4px;">
+                            ${r.jurusan ? this._esc(r.jurusan) + ' &middot; ' : ''}Lulus ${this._esc(r.tahunLulus || '-')}
+                            ${r.nomorIjazah ? ' &middot; No. Ijazah: ' + this._esc(r.nomorIjazah) : ''}
+                        </div>
+                    </div>
+                    <div style="display:flex;flex-direction:column;gap:6px;flex-shrink:0;">
+                        <button type="button" onclick="karyawanManager.editRiwayatPendidikanAdmin('${r.id}')"
+                            style="background:none;border:1px solid var(--border-color);color:var(--text-muted);padding:8px 12px;border-radius:6px;cursor:pointer;font-size:0.85rem;">
+                            <i class="fas fa-pen"></i>
+                        </button>
+                        <button type="button" onclick="karyawanManager.deleteRiwayatPendidikanAdmin('${r.id}')"
+                            style="background:#EF4444;color:#fff;border:none;padding:8px 12px;border-radius:6px;cursor:pointer;font-size:0.85rem;">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
+                ${(r.fileIjazahUrl || r.fileTranskripUrl) ? `
+                <div style="margin-top:1rem;padding-top:1rem;border-top:1px solid var(--border-color);">
+                    <div style="font-weight:600;font-size:0.85rem;margin-bottom:8px;">Review Dokumen - ${this._esc(r.jenjang)} ${this._esc(r.namaSekolah)}</div>
+                    <div style="display:flex;gap:12px;flex-wrap:wrap;">
+                        <div style="flex:1;min-width:260px;">
+                            <label style="font-size:0.8rem;color:var(--text-muted);display:block;margin-bottom:4px;">Dokumen Ijazah</label>
+                            <div style="position:relative;height:340px;border:1px solid var(--border-color);border-radius:8px;overflow:hidden;background:var(--bg-secondary,#f8f9fa);">
+                                ${r.fileIjazahUrl
+                                    ? `<iframe src="${this._esc(r.fileIjazahUrl)}" style="width:100%;height:100%;border:none;"></iframe>`
+                                    : `<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:8px;color:var(--text-muted);"><i class="fas fa-file-circle-xmark" style="font-size:1.5rem;"></i><span style="font-size:0.8rem;">Belum ada link Ijazah</span></div>`}
+                            </div>
+                        </div>
+                        <div style="flex:1;min-width:260px;">
+                            <label style="font-size:0.8rem;color:var(--text-muted);display:block;margin-bottom:4px;">Dokumen Transkrip Nilai</label>
+                            <div style="position:relative;height:340px;border:1px solid var(--border-color);border-radius:8px;overflow:hidden;background:var(--bg-secondary,#f8f9fa);">
+                                ${r.fileTranskripUrl
+                                    ? `<iframe src="${this._esc(r.fileTranskripUrl)}" style="width:100%;height:100%;border:none;"></iframe>`
+                                    : `<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:8px;color:var(--text-muted);"><i class="fas fa-file-circle-xmark" style="font-size:1.5rem;"></i><span style="font-size:0.8rem;">Belum ada link Transkrip Nilai</span></div>`}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                ` : `<div style="margin-top:8px;"><span style="color:var(--text-muted);font-size:0.8rem;font-style:italic;">Belum ada link Ijazah/Transkrip</span></div>`}
+            </div>
+        `).join('');
+    },
+
+    editRiwayatPendidikanAdmin(id) {
+        const r = this.riwayatPendidikanKaryawan.find(x => String(x.id) === String(id));
+        if (!r) return;
+
+        document.getElementById('k-pdk-id').value               = r.id;
+        document.getElementById('k-pdk-jenjang').value           = r.jenjang || '';
+        document.getElementById('k-pdk-jurusan').value           = r.jurusan || '';
+        document.getElementById('k-pdk-namaSekolah').value       = r.namaSekolah || '';
+        document.getElementById('k-pdk-nomorIjazah').value       = r.nomorIjazah || '';
+        document.getElementById('k-pdk-tahunLulus').value        = r.tahunLulus || '';
+        document.getElementById('k-pdk-tanggalLulus').value      = r.tanggalLulus || '';
+        document.getElementById('k-pdk-gelarDepan').value        = r.gelarDepan || '';
+        document.getElementById('k-pdk-gelarBelakang').value     = r.gelarBelakang || '';
+
+        document.getElementById('k-pdk-ijazah-url').value    = r.fileIjazahUrl || '';
+        document.getElementById('k-pdk-transkrip-url').value = r.fileTranskripUrl || '';
+
+        document.getElementById('k-pendidikan-form-title').innerHTML = '<i class="fas fa-graduation-cap"></i> Edit Riwayat Pendidikan';
+        document.getElementById('k-pdk-btn-batal').style.display = 'inline-flex';
+
+        document.getElementById('modal-k-pendidikan-form').style.display = 'flex';
+    },
+
+    openPendidikanModalAdmin() {
+        if (!this.editingId) { toast.error('Simpan data profil karyawan terlebih dahulu.'); return; }
+        this.resetPendidikanFormAdmin();
+        document.getElementById('modal-k-pendidikan-form').style.display = 'flex';
+    },
+
+    closePendidikanModalAdmin() {
+        document.getElementById('modal-k-pendidikan-form').style.display = 'none';
+    },
+
+    resetPendidikanFormAdmin() {
+        document.getElementById('k-pdk-id').value = '';
+        document.getElementById('k-pdk-jenjang').value = '';
+        document.getElementById('k-pdk-jurusan').value = '';
+        document.getElementById('k-pdk-namaSekolah').value = '';
+        document.getElementById('k-pdk-nomorIjazah').value = '';
+        document.getElementById('k-pdk-tahunLulus').value = '';
+        document.getElementById('k-pdk-tanggalLulus').value = '';
+        document.getElementById('k-pdk-gelarDepan').value = '';
+        document.getElementById('k-pdk-gelarBelakang').value = '';
+        document.getElementById('k-pdk-ijazah-url').value = '';
+        document.getElementById('k-pdk-transkrip-url').value = '';
+
+        document.getElementById('k-pendidikan-form-title').innerHTML = '<i class="fas fa-graduation-cap"></i> Tambah Riwayat Pendidikan';
+        document.getElementById('k-pdk-btn-batal').style.display = 'none';
+    },
+
+    async saveRiwayatPendidikanAdmin() {
+        if (!this.editingId) { toast.error('Simpan data profil karyawan terlebih dahulu.'); return; }
+
+        const id           = document.getElementById('k-pdk-id').value;
+        const jenjang       = document.getElementById('k-pdk-jenjang').value;
+        const namaSekolah   = document.getElementById('k-pdk-namaSekolah').value.trim();
+
+        if (!jenjang) { toast.error('Pilih jenjang pendidikan terlebih dahulu!'); return; }
+        if (!namaSekolah) { toast.error('Nama sekolah/institusi wajib diisi!'); return; }
+
+        const rawIjazahUrl    = document.getElementById('k-pdk-ijazah-url').value.trim();
+        const rawTranskripUrl = document.getElementById('k-pdk-transkrip-url').value.trim();
+
+        const fileIjazahUrl    = rawIjazahUrl ? this.normalizeDriveLink(rawIjazahUrl) : '';
+        const fileTranskripUrl = rawTranskripUrl ? this.normalizeDriveLink(rawTranskripUrl) : '';
+
+        if (rawIjazahUrl && !fileIjazahUrl) { toast.error('Link Ijazah bukan link Google Drive yang valid! Pastikan link dari "Get link" / "Bagikan" di Drive.'); return; }
+        if (rawTranskripUrl && !fileTranskripUrl) { toast.error('Link Transkrip Nilai bukan link Google Drive yang valid! Pastikan link dari "Get link" / "Bagikan" di Drive.'); return; }
+
+        const data = {
+            id:                 id || undefined,
+            userId:             this.editingId,
+            jenjang,
+            jurusan:            document.getElementById('k-pdk-jurusan').value.trim(),
+            namaSekolah,
+            nomorIjazah:        document.getElementById('k-pdk-nomorIjazah').value.trim(),
+            tahunLulus:         document.getElementById('k-pdk-tahunLulus').value.trim(),
+            tanggalLulus:       document.getElementById('k-pdk-tanggalLulus').value,
+            gelarDepan:         document.getElementById('k-pdk-gelarDepan').value.trim(),
+            gelarBelakang:      document.getElementById('k-pdk-gelarBelakang').value.trim(),
+            fileIjazahUrl,
+            fileTranskripUrl
+        };
+
+        try {
+            const result = await api.saveRiwayatPendidikan(data);
+            if (!result.success) {
+                toast.error(result.error || 'Gagal menyimpan riwayat pendidikan');
+                return;
+            }
+
+            toast.success('Riwayat pendidikan berhasil disimpan!');
+            this.resetPendidikanFormAdmin();
+            this.closePendidikanModalAdmin();
+            await this.loadRiwayatPendidikanAdmin(this.editingId);
+        } catch (e) {
+            console.error('Error simpan riwayat pendidikan:', e);
+            toast.error('Terjadi kesalahan saat menyimpan riwayat pendidikan');
+        }
+    },
+
+    async deleteRiwayatPendidikanAdmin(id) {
+        if (!confirm('Hapus riwayat pendidikan ini? (Link Ijazah/Transkrip hanya dihapus dari aplikasi, file aslinya di Google Drive tidak terhapus)')) return;
+        try {
+            const result = await api.deleteRiwayatPendidikan(id);
+            if (result.success) {
+                toast.success('Riwayat pendidikan dihapus');
+                await this.loadRiwayatPendidikanAdmin(this.editingId);
+            } else {
+                toast.error(result.error || 'Gagal menghapus');
+            }
+        } catch (e) {
+            toast.error('Terjadi kesalahan');
+        }
+    },
+
+    // ========== TAB RIWAYAT MUTASI (Admin - Edit Karyawan) ==========
+
+    async loadRiwayatMutasiAdmin(karyawanId) {
+        try {
+            const result = await api.getRiwayatMutasi(karyawanId);
+            this.riwayatMutasiKaryawan = (result.success && result.data) ? result.data : [];
+        } catch (e) {
+            console.error('Error load riwayat mutasi:', e);
+            this.riwayatMutasiKaryawan = [];
+        }
+        this.renderRiwayatMutasiAdmin();
+    },
+
+    renderRiwayatMutasiAdmin() {
+        const tbody = document.getElementById('k-mutasi-list');
+        if (!tbody) return;
+
+        if (this.riwayatMutasiKaryawan.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:2rem;color:var(--text-muted);">Belum ada riwayat mutasi yang disimpan.</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = this.riwayatMutasiKaryawan.map(r => `
+            <tr>
+                <td style="padding:10px 12px;">${this._esc(r.nomorSurat || '-')}</td>
+                <td style="padding:10px 12px;">${this._esc(this._formatTanggalID(r.tanggalSurat) || '-')}</td>
+                <td style="padding:10px 12px;">${this._esc(r.unorAsal || '-')}</td>
+                <td style="padding:10px 12px;">${this._esc(r.unorBaru || '-')}</td>
+                <td style="padding:10px 12px;">
+                    ${r.fileDokumenUrl
+                        ? `<button type="button" onclick="window.open('${r.fileDokumenUrl}', '_blank')" style="background:none;border:1px solid var(--border-color);color:var(--text-muted);padding:6px 12px;border-radius:6px;cursor:pointer;font-size:0.8rem;white-space:nowrap;"><i class="fas fa-download"></i> Unduh</button>`
+                        : `<span style="color:var(--text-muted);font-size:0.8rem;font-style:italic;">Belum ada</span>`}
+                </td>
+                <td style="padding:10px 12px;">
+                    <button type="button" onclick="karyawanManager.editRiwayatMutasiAdmin('${r.id}')" style="background:none;border:1px solid var(--border-color);color:var(--text-muted);padding:6px 10px;border-radius:6px;cursor:pointer;font-size:0.8rem;margin-right:4px;"><i class="fas fa-pen"></i></button>
+                    <button type="button" onclick="karyawanManager.deleteRiwayatMutasiAdmin('${r.id}')" style="background:#EF4444;color:#fff;border:none;padding:6px 10px;border-radius:6px;cursor:pointer;font-size:0.8rem;"><i class="fas fa-trash"></i></button>
+                </td>
+            </tr>
+        `).join('');
+    },
+
+    openMutasiModalAdmin() {
+        if (!this.editingId) { toast.error('Simpan data profil karyawan terlebih dahulu.'); return; }
+        this.resetMutasiFormAdmin();
+        document.getElementById('modal-k-mutasi-form').style.display = 'flex';
+    },
+
+    closeMutasiModalAdmin() {
+        document.getElementById('modal-k-mutasi-form').style.display = 'none';
+    },
+
+    editRiwayatMutasiAdmin(id) {
+        const r = this.riwayatMutasiKaryawan.find(x => String(x.id) === String(id));
+        if (!r) return;
+
+        document.getElementById('k-mts-id').value           = r.id;
+        document.getElementById('k-mts-nomorSurat').value    = r.nomorSurat || '';
+        document.getElementById('k-mts-tanggalSurat').value  = r.tanggalSurat || '';
+        document.getElementById('k-mts-unorAsal').value      = r.unorAsal || '';
+        document.getElementById('k-mts-unorBaru').value      = r.unorBaru || '';
+        document.getElementById('k-mts-dokumen-url').value   = r.fileDokumenUrl || '';
+
+        document.getElementById('k-mts-form-title').innerHTML = '<i class="fas fa-right-left"></i> Edit Riwayat Mutasi';
+        document.getElementById('k-mts-btn-batal').style.display = 'inline-flex';
+
+        document.getElementById('modal-k-mutasi-form').style.display = 'flex';
+    },
+
+    resetMutasiFormAdmin() {
+        document.getElementById('k-mts-id').value = '';
+        document.getElementById('k-mts-nomorSurat').value = '';
+        document.getElementById('k-mts-tanggalSurat').value = '';
+        document.getElementById('k-mts-unorAsal').value = '';
+        document.getElementById('k-mts-unorBaru').value = '';
+        document.getElementById('k-mts-dokumen-url').value = '';
+
+        document.getElementById('k-mts-form-title').innerHTML = '<i class="fas fa-right-left"></i> Tambah Riwayat Mutasi';
+        document.getElementById('k-mts-btn-batal').style.display = 'none';
+    },
+
+    async saveRiwayatMutasiAdmin() {
+        if (!this.editingId) { toast.error('Simpan data profil karyawan terlebih dahulu.'); return; }
+
+        const id          = document.getElementById('k-mts-id').value;
+        const nomorSurat  = document.getElementById('k-mts-nomorSurat').value.trim();
+
+        if (!nomorSurat) { toast.error('Nomor surat wajib diisi!'); return; }
+
+        const rawDokumenUrl = document.getElementById('k-mts-dokumen-url').value.trim();
+        const fileDokumenUrl = rawDokumenUrl ? this.normalizeDriveLink(rawDokumenUrl) : '';
+
+        if (rawDokumenUrl && !fileDokumenUrl) { toast.error('Link Dokumen SK Mutasi bukan link Google Drive yang valid! Pastikan link dari "Get link" / "Bagikan" di Drive.'); return; }
+
+        const data = {
+            id:             id || undefined,
+            userId:         this.editingId,
+            nomorSurat,
+            tanggalSurat:   document.getElementById('k-mts-tanggalSurat').value,
+            unorAsal:       document.getElementById('k-mts-unorAsal').value.trim(),
+            unorBaru:       document.getElementById('k-mts-unorBaru').value.trim(),
+            fileDokumenUrl
+        };
+
+        try {
+            const result = await api.saveRiwayatMutasi(data);
+            if (!result.success) {
+                toast.error(result.error || 'Gagal menyimpan riwayat mutasi');
+                return;
+            }
+
+            toast.success('Riwayat mutasi berhasil disimpan!');
+            this.resetMutasiFormAdmin();
+            this.closeMutasiModalAdmin();
+            await this.loadRiwayatMutasiAdmin(this.editingId);
+        } catch (e) {
+            console.error('Error simpan riwayat mutasi:', e);
+            toast.error('Terjadi kesalahan saat menyimpan riwayat mutasi');
+        }
+    },
+
+    async deleteRiwayatMutasiAdmin(id) {
+        if (!confirm('Hapus riwayat mutasi ini? (Link dokumen hanya dihapus dari aplikasi, file aslinya di Google Drive tidak terhapus)')) return;
+        try {
+            const result = await api.deleteRiwayatMutasi(id);
+            if (result.success) {
+                toast.success('Riwayat mutasi dihapus');
+                await this.loadRiwayatMutasiAdmin(this.editingId);
+            } else {
+                toast.error(result.error || 'Gagal menghapus');
+            }
+        } catch (e) {
+            toast.error('Terjadi kesalahan');
+        }
     }
 };
 
