@@ -603,7 +603,7 @@
                                     </div>
                                     <div class="camera-controls">
                                         <button class="btn-camera" id="btn-capture" disabled><i
-                                                class="fas fa-check-circle"></i><span>Absen Sekarang</span></button>
+                                                class="fas fa-camera"></i><span>Ambil Foto</span></button>
                                         <button class="btn-camera btn-secondary" id="btn-retake"
                                             style="display: none;"><i
                                                 class="fas fa-redo"></i><span>Ulangi</span></button>
@@ -640,6 +640,10 @@
                                                     id="location-accuracy">--</span></div>
                                         </div>
                                     </div>
+                                </div>
+                                <div class="action-card">
+                                    <button class="btn-primary btn-full" id="btn-confirm-attendance" disabled><i
+                                            class="fas fa-check-circle"></i><span>Konfirmasi Absensi</span></button>
                                 </div>
                             </div>
                         </div>
@@ -1483,6 +1487,8 @@
                 <button type="button" class="tab-btn" onclick="karyawanManager.switchTab('keluarga')" id="tab-keluarga" style="padding:8px 16px;border:none;background:none;cursor:pointer;font-weight:500;color:var(--text-muted);">Keluarga</button>
                 <button type="button" class="tab-btn" onclick="karyawanManager.switchTab('akun')" id="tab-akun" style="padding:8px 16px;border:none;background:none;cursor:pointer;font-weight:500;color:var(--text-muted);">Akun</button>
                 <button type="button" class="tab-btn" onclick="karyawanManager.switchTab('uploadfile')" id="tab-uploadfile" style="padding:8px 16px;border:none;background:none;cursor:pointer;font-weight:500;color:var(--text-muted);">Upload File</button>
+                <button type="button" class="tab-btn" onclick="karyawanManager.switchTab('pendidikan')" id="tab-pendidikan" style="padding:8px 16px;border:none;background:none;cursor:pointer;font-weight:500;color:var(--text-muted);">Pendidikan</button>
+                <button type="button" class="tab-btn" onclick="karyawanManager.switchTab('mutasi')" id="tab-mutasi" style="padding:8px 16px;border:none;background:none;cursor:pointer;font-weight:500;color:var(--text-muted);">Riwayat Mutasi</button>
             </div>
 
             <!-- Tab Profil -->
@@ -1820,6 +1826,60 @@
     </p>
 </div>
 
+<div id="tabcontent-pendidikan" style="display:none;">
+    <div id="k-pendidikan-blocked" style="display:none;padding:2rem;text-align:center;color:var(--text-muted);font-size:0.85rem;">
+        Simpan data profil karyawan terlebih dahulu (tab Profil) sebelum menambahkan riwayat pendidikan.
+    </div>
+    <div id="k-pendidikan-content">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:1.5rem;flex-wrap:wrap;">
+            <p style="font-size:0.85rem;color:var(--text-muted);margin:0;max-width:640px;">
+                Riwayat pendidikan karyawan ini mulai dari SD sampai S2, lengkap dengan link Google
+                Drive Ijazah dan Transkrip Nilai.
+            </p>
+            <button type="button" class="btn-primary" style="white-space:nowrap;flex-shrink:0;" onclick="karyawanManager.openPendidikanModalAdmin()">
+                <i class="fas fa-plus"></i> Tambah Riwayat Pendidikan
+            </button>
+        </div>
+
+        <div id="k-pendidikan-list" style="margin-bottom:1.5rem;"></div>
+    </div>
+</div>
+
+<div id="tabcontent-mutasi" style="display:none;">
+    <div id="k-mutasi-blocked" style="display:none;padding:2rem;text-align:center;color:var(--text-muted);font-size:0.85rem;">
+        Simpan data profil karyawan terlebih dahulu (tab Profil) sebelum menambahkan riwayat mutasi.
+    </div>
+    <div id="k-mutasi-content">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:1.5rem;flex-wrap:wrap;">
+            <p style="font-size:0.85rem;color:var(--text-muted);margin:0;max-width:640px;">
+                Riwayat mutasi/perpindahan tugas karyawan ini beserta link Google Drive Surat
+                Keputusan Mutasi.
+            </p>
+            <button type="button" class="btn-primary" style="white-space:nowrap;flex-shrink:0;" onclick="karyawanManager.openMutasiModalAdmin()">
+                <i class="fas fa-plus"></i> Tambah Riwayat Mutasi
+            </button>
+        </div>
+
+        <div class="employees-table-card">
+            <div class="table-responsive">
+                <table class="employees-table">
+                    <thead>
+                        <tr>
+                            <th>Nomor SK</th>
+                            <th>Terhitung Tanggal</th>
+                            <th>Jabatan Lama</th>
+                            <th>Jabatan Baru</th>
+                            <th>Dokumen</th>
+                            <th>Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody id="k-mutasi-list"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
             <div class="modal-actions" style="margin-top:1.5rem;">
                 <button type="button" class="btn-secondary" onclick="karyawanManager.closeModal()">Batal</button>
                 <button type="button" class="btn-primary" onclick="karyawanManager.saveKaryawan()">
@@ -1840,6 +1900,142 @@
             </button>
         </div>
         <div id="detail-karyawan-content" class="modal-form"></div>
+    </div>
+</div>
+
+<!-- Modal Tambah/Edit Riwayat Pendidikan (Admin) -->
+<div class="modal-overlay" id="modal-k-pendidikan-form" style="display:none;">
+    <div class="modal-container" style="max-width:700px;width:95%;max-height:92vh;overflow-y:auto;">
+        <div class="modal-header">
+            <h3 id="k-pendidikan-form-title"><i class="fas fa-graduation-cap"></i> Tambah Riwayat Pendidikan</h3>
+            <button class="btn-close-modal" onclick="karyawanManager.closePendidikanModalAdmin()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div style="padding:0 1.25rem 1.25rem;">
+            <input type="hidden" id="k-pdk-id">
+            <div class="form-row two-col">
+                <div class="form-group">
+                    <label>Jenjang Pendidikan *</label>
+                    <select id="k-pdk-jenjang">
+                        <option value="">Pilih jenjang</option>
+                        <option value="SD">SD</option>
+                        <option value="SMP">SMP</option>
+                        <option value="SMA">SMA</option>
+                        <option value="S1">S1</option>
+                        <option value="S2">S2</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Jurusan</label>
+                    <input type="text" id="k-pdk-jurusan" placeholder="Contoh: Teknik Informatika">
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Nama Sekolah/Universitas/Institusi *</label>
+                <input type="text" id="k-pdk-namaSekolah" placeholder="Contoh: SMPN 3 Amuntai">
+            </div>
+            <div class="form-row two-col">
+                <div class="form-group">
+                    <label>Nomor Ijazah</label>
+                    <input type="text" id="k-pdk-nomorIjazah" placeholder="Nomor ijazah">
+                </div>
+                <div class="form-group">
+                    <label>Tahun Lulus</label>
+                    <input type="text" id="k-pdk-tahunLulus" placeholder="Contoh: 1981" maxlength="4">
+                </div>
+            </div>
+            <div class="form-row two-col">
+                <div class="form-group">
+                    <label>Tanggal Lulus</label>
+                    <input type="date" id="k-pdk-tanggalLulus">
+                </div>
+                <div class="form-group">
+                    <label>&nbsp;</label>
+                </div>
+            </div>
+            <div class="form-row two-col">
+                <div class="form-group">
+                    <label>Gelar Depan (Opsional)</label>
+                    <input type="text" id="k-pdk-gelarDepan" placeholder="Gelar Depan">
+                </div>
+                <div class="form-group">
+                    <label>Gelar Belakang (Opsional)</label>
+                    <input type="text" id="k-pdk-gelarBelakang" placeholder="Gelar Belakang">
+                </div>
+            </div>
+            <div class="form-row two-col">
+                <div class="form-group">
+                    <label>Link Google Drive - Ijazah</label>
+                    <input type="url" id="k-pdk-ijazah-url" placeholder="Tempel link share Google Drive Ijazah di sini">
+                    <small style="color:var(--text-muted);">Pastikan sharing file diset ke "Anyone with the link".</small>
+                </div>
+                <div class="form-group">
+                    <label>Link Google Drive - Transkrip Nilai</label>
+                    <input type="url" id="k-pdk-transkrip-url" placeholder="Tempel link share Google Drive Transkrip Nilai di sini">
+                    <small style="color:var(--text-muted);">Pastikan sharing file diset ke "Anyone with the link".</small>
+                </div>
+            </div>
+
+            <div class="form-actions">
+                <button type="button" class="btn-secondary" id="k-pdk-btn-batal" style="display:none;" onclick="karyawanManager.resetPendidikanFormAdmin()">
+                    Batal Edit
+                </button>
+                <button type="button" class="btn-primary" onclick="karyawanManager.saveRiwayatPendidikanAdmin()">
+                    <i class="fas fa-check-circle"></i> Simpan Riwayat Pendidikan
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Tambah/Edit Riwayat Mutasi (Admin) -->
+<div class="modal-overlay" id="modal-k-mutasi-form" style="display:none;">
+    <div class="modal-container" style="max-width:700px;width:95%;max-height:92vh;overflow-y:auto;">
+        <div class="modal-header">
+            <h3 id="k-mts-form-title"><i class="fas fa-right-left"></i> Tambah Riwayat Mutasi</h3>
+            <button class="btn-close-modal" onclick="karyawanManager.closeMutasiModalAdmin()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div style="padding:0 1.25rem 1.25rem;">
+            <input type="hidden" id="k-mts-id">
+            <div class="form-row two-col">
+                <div class="form-group">
+                    <label>Nomor Surat *</label>
+                    <input type="text" id="k-mts-nomorSurat" placeholder="Contoh: 824/038-SI/BKPSDM/2022">
+                </div>
+                <div class="form-group">
+                    <label>Terhitung Tanggal</label>
+                    <input type="date" id="k-mts-tanggalSurat">
+                </div>
+            </div>
+            <div class="form-row two-col">
+                <div class="form-group">
+                    <label>Jabatan Lama</label>
+                    <input type="text" id="k-mts-unorAsal" placeholder="Contoh: Staff Produksi">
+                </div>
+                <div class="form-group">
+                    <label>Jabatan Baru</label>
+                    <input type="text" id="k-mts-unorBaru" placeholder="Contoh: Kepala Unit">
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>Link Google Drive - Dokumen Surat Keputusan Mutasi</label>
+                <input type="url" id="k-mts-dokumen-url" placeholder="Tempel link share Google Drive Dokumen SK Mutasi di sini">
+                <small style="color:var(--text-muted);">Pastikan sharing file diset ke "Anyone with the link".</small>
+            </div>
+
+            <div class="form-actions">
+                <button type="button" class="btn-secondary" id="k-mts-btn-batal" style="display:none;" onclick="karyawanManager.resetMutasiFormAdmin()">
+                    Batal Edit
+                </button>
+                <button type="button" class="btn-primary" onclick="karyawanManager.saveRiwayatMutasiAdmin()">
+                    <i class="fas fa-check-circle"></i> Simpan Riwayat Mutasi
+                </button>
+            </div>
+        </div>
     </div>
 </div>
 
