@@ -332,22 +332,22 @@ const printLetters = {
                 <tr>
                     <td class="lbl">N a m a</td>
                     <td class="sep">:</td>
-                    <td><input type="text" class="letter-input" value="${emp.name || ''}"></td>
+                    <td><input type="text" readonly class="letter-input" value="${emp.name || ''}"></td>
                 </tr>
                 <tr>
                     <td class="lbl">NIK</td>
                     <td class="sep">:</td>
-                    <td><input type="text" class="letter-input" value="${emp.nik || ''}"></td>
+                    <td><input type="text" readonly class="letter-input" value="${emp.nik || ''}"></td>
                 </tr>
                 <tr>
                     <td class="lbl">Jabatan</td>
                     <td class="sep">:</td>
-                    <td><input type="text" class="letter-input" value="${emp.jabatan || ''}"></td>
+                    <td><input type="text" readonly class="letter-input" value="${emp.jabatan || ''}"></td>
                 </tr>
             </table>
 
             <p class="letter-p">Dengan ini mengajukan permohonan izin selama
-                <input type="text" class="letter-input-inline" style="width:36px;text-align:center;"
+                <input type="text" readonly class="letter-input-inline" style="width:36px;text-align:center;"
                     value="${durasi}">
                 hari kerja pada :
             </p>
@@ -355,17 +355,17 @@ const printLetters = {
                 <tr>
                     <td class="lbl">Tanggal</td>
                     <td class="sep">:</td>
-                    <td><input type="text" class="letter-input" value="${tanggalValue}"></td>
+                    <td><input type="text" readonly class="letter-input" value="${tanggalValue}"></td>
                 </tr>
                 <tr>
                     <td class="lbl">Keperluan</td>
                     <td class="sep">:</td>
-                    <td><input type="text" class="letter-input" value="${keperluan}"></td>
+                    <td><input type="text" readonly class="letter-input" value="${keperluan}"></td>
                 </tr>
                 <tr>
                     <td class="lbl"></td>
                     <td></td>
-                    <td><input type="text" class="letter-input" value=""></td>
+                    <td><input type="text" readonly class="letter-input" value=""></td>
                 </tr>
             </table>
 
@@ -390,7 +390,7 @@ const printLetters = {
                 <div class="signature-space"></div>
                 <div class="signature-line"></div>
                 <p style="text-align:center; margin:4px 0 2px;">
-                    <input type="text" class="letter-input letter-input-center"
+                    <input type="text" readonly class="letter-input letter-input-center"
                         value="${name || ''}" placeholder="......................">
                 </p>
                 <p style="text-align:center;">NIK. ${nik || '63 08 ......'}</p>
@@ -413,7 +413,7 @@ const printLetters = {
                 <div class="signature-space"></div>
                 <div class="signature-line"></div>
                 <p style="text-align:center; margin:4px 0 2px;">
-                    <input type="text" class="letter-input-plain letter-input-center"
+                    <input type="text" readonly class="letter-input-plain letter-input-center"
                         value="${name || ''}" placeholder="......................">
                 </p>
                 <p style="text-align:center;">NIK. ${nik || '63 08 ......'}</p>
@@ -478,25 +478,25 @@ const printLetters = {
 
             <table class="letter-field-table">
                 <tr><td class="lbl">NAMA / NIK</td><td class="sep">:</td>
-                    <td><input type="text" class="letter-input"
+                    <td><input type="text" readonly class="letter-input"
                         value="${emp.name || ''} / ${emp.nik || ''}"></td></tr>
                 <tr><td class="lbl">PANGKAT / GOL</td><td class="sep">:</td>
-                    <td><input type="text" class="letter-input"
+                    <td><input type="text" readonly class="letter-input"
                         value="${emp.pangkat || ''} / ${emp.golongan || ''}"></td></tr>
                 <tr><td class="lbl">JABATAN</td><td class="sep">:</td>
-                    <td><input type="text" class="letter-input" value="${emp.jabatan || ''}"></td></tr>
+                    <td><input type="text" readonly class="letter-input" value="${emp.jabatan || ''}"></td></tr>
                 <tr><td class="lbl">UNIT WILAYAH</td><td class="sep">:</td>
-                    <td><input type="text" class="letter-input" value="${emp.unitWilayah || ''}"></td></tr>
+                    <td><input type="text" readonly class="letter-input" value="${emp.unitWilayah || ''}"></td></tr>
                 <tr><td class="lbl">KEPERLUAN</td><td class="sep">:</td>
-                    <td><input type="text" class="letter-input" value="${keperluan}"></td></tr>
+                    <td><input type="text" readonly class="letter-input" value="${keperluan}"></td></tr>
                 <tr><td class="lbl">HARI / TGL</td><td class="sep">:</td>
-                    <td><input type="text" class="letter-input"
+                    <td><input type="text" readonly class="letter-input"
                         value="${this._formatTanggalIndo(tgl)}"></td></tr>
                 <tr><td class="lbl">KELUAR JAM</td><td class="sep">:</td>
-                    <td><input type="text" class="letter-input"
+                    <td><input type="text" readonly class="letter-input"
                         value="${this._formatJam(keluar)}"></td></tr>
                 <tr><td class="lbl">MASUK JAM</td><td class="sep">:</td>
-                    <td><input type="text" class="letter-input"
+                    <td><input type="text" readonly class="letter-input"
                         value="${this._formatJam(masuk)}"></td></tr>
             </table>
 
@@ -682,7 +682,7 @@ const printLetters = {
                     <p>MENGETAHUI :</p>
                     <div class="signature-space"></div>
                     <p style="text-align:center; margin:4px 0 2px;">
-                        <input type="text" class="letter-input-plain letter-input-center"
+                        <input type="text" readonly class="letter-input-plain letter-input-center"
                             value="${leave.asmenName || ''}" placeholder="......................">
                     </p>
                     <p style="text-align:center;">NIK. ${leave.asmenNik || '63 08 ......'}</p>
@@ -697,7 +697,7 @@ const printLetters = {
                 <table class="cuti-field-table">
                     <tr>
                         <td class="lbl" style="width:70px;">NIK</td><td class="sep">:</td>
-                        <td><input type="text" class="letter-input" value="${emp.nik || ''}"></td>
+                        <td><input type="text" readonly class="letter-input" value="${emp.nik || ''}"></td>
                         <td class="lbl" style="padding-left:1.5rem; width:120px; vertical-align:top;">UNIT/BAGIAN</td>
                         <td class="sep" style="vertical-align:top;">:</td>
                         <td>
@@ -711,13 +711,13 @@ const printLetters = {
                     <tr>
                         <td colspan="3"></td>
                         <td class="lbl" style="padding-left:1.5rem; width:120px;">UNIT WILAYAH</td><td class="sep">:</td>
-                        <td><input type="text" class="letter-input" value="${emp.unitWilayah || ''}"></td>
+                        <td><input type="text" readonly class="letter-input" value="${emp.unitWilayah || ''}"></td>
                     </tr>
                     <tr>
                         <td class="lbl" style="width:70px;">NAMA</td><td class="sep">:</td>
-                        <td><input type="text" class="letter-input" value="${emp.name || ''}"></td>
+                        <td><input type="text" readonly class="letter-input" value="${emp.name || ''}"></td>
                         <td class="lbl" style="padding-left:1.5rem; width:120px;">PANGKAT/GOL</td><td class="sep">:</td>
-                        <td><input type="text" class="letter-input"
+                        <td><input type="text" readonly class="letter-input"
                             value="${emp.pangkat || ''} / ${emp.golongan || ''}"></td>
                     </tr>
                 </table>
@@ -743,22 +743,22 @@ const printLetters = {
 
                 <table class="cuti-field-table">
                     <tr><td class="lbl">Untuk keperluan</td><td class="sep">:</td>
-                        <td><input type="text" class="letter-input" value="${leave.reason || ''}"></td></tr>
+                        <td><input type="text" readonly class="letter-input" value="${leave.reason || ''}"></td></tr>
                     <tr><td class="lbl">Jumlah Cuti</td><td class="sep">:</td>
-                        <td><input type="text" class="letter-input-inline" style="width:60px"
+                        <td><input type="text" readonly class="letter-input-inline" style="width:60px"
                             value="${leave.duration || ''}"> hari</td></tr>
                     <tr><td class="lbl">Dari Tanggal</td><td class="sep">:</td>
                         <td style="white-space:nowrap;">    
-                            <input type="text" class="letter-input-inline" style="width:110px"
+                            <input type="text" readonly class="letter-input-inline" style="width:110px"
                                 value="${this._formatTanggalIndo(leave.startDate)}">
                             Sampai dengan tanggal
-                            <input type="text" class="letter-input-inline" style="width:110px"
+                            <input type="text" readonly class="letter-input-inline" style="width:110px"
                                 value="${this._formatTanggalIndo(leave.endDate)}">
                         </td></tr>
                     <tr><td class="lbl" style="vertical-align:top;">Alamat yang dapat dihubungi selama cuti</td><td class="sep" style="vertical-align:top;">:</td>
-                        <td><input type="text" class="letter-input" value="${leave.address || ''}" placeholder="Isi alamat..."></td></tr>
+                        <td><input type="text" readonly class="letter-input" value="${leave.address || ''}" placeholder="Isi alamat..."></td></tr>
                     <tr><td class="lbl">Nomor Telpon/HP</td><td class="sep">:</td>
-                        <td><input type="text" class="letter-input" value="${leave.phone || ''}" placeholder="Isi no. HP..."></td></tr>
+                        <td><input type="text" readonly class="letter-input" value="${leave.phone || ''}" placeholder="Isi no. HP..."></td></tr>
                 </table>
 
                      <table class="letter-signoff-table" style="margin-top:10px;">
@@ -781,15 +781,15 @@ const printLetters = {
             <div class="cuti-box">
                 <table class="cuti-field-table">
                     <tr><td class="lbl">CATATAN / PERTIMBANGAN</td><td class="sep">:</td>
-                        <td><input type="text" class="letter-input" value="${leave.managerNote || ''}"></td></tr>
+                        <td><input type="text" readonly class="letter-input" value="${leave.managerNote || ''}"></td></tr>
                     <tr><td class="lbl"></td><td class="sep">:</td>
-                        <td><input type="text" class="letter-input"></td></tr>
+                        <td><input type="text" readonly class="letter-input"></td></tr>
                     <tr><td class="lbl" style="padding-top:10px;">MANAGER UMUM &amp; KEPEG</td><td class="sep" style="padding-top:10px;">:</td>
-                        <td style="padding-top:10px;"><input type="text" class="letter-input" value="${mgrUmumNote}"></td></tr>
+                        <td style="padding-top:10px;"><input type="text" readonly class="letter-input" value="${mgrUmumNote}"></td></tr>
                     <tr><td class="lbl"></td><td class="sep">:</td>
-                        <td><input type="text" class="letter-input"></td></tr>
+                        <td><input type="text" readonly class="letter-input"></td></tr>
                     <tr><td class="lbl"></td><td class="sep">:</td>
-                        <td><input type="text" class="letter-input"></td></tr>
+                        <td><input type="text" readonly class="letter-input"></td></tr>
                 </table>
             </div>
 
@@ -808,7 +808,7 @@ const printLetters = {
                          <td>
                              <div class="cuti-sampai-dengan">
                                  <span>SAMPAI DENGAN&nbsp;:</span>
-                                 <input type="text" class="letter-input-inline" style="flex:1; min-width:80px;"
+                                 <input type="text" readonly class="letter-input-inline" style="flex:1; min-width:80px;"
                                      value="${isDitunda ? this._formatTanggalIndo(leave.tundaSampai) : ''}">
                              </div>
                          </td>
