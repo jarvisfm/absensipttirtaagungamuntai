@@ -30,6 +30,7 @@ const profileManager = {
         // berdasarkan username yang sama). Untuk staff/asmen/manajer biasa,
         // `id` di sesi memang sudah = ID Employees, jadi tidak perlu diubah.
         this.myId = (user.role === 'admin') ? (user.employeeId || null) : user.id;
+        this.isAdmin = (user.role === 'admin');
 
         if (!this.myId) {
             toast.error('Akun Admin ini belum terhubung ke data karyawan di menu Data Karyawan, jadi belum ada profil untuk diedit di sini.');
@@ -101,9 +102,11 @@ const profileManager = {
             document.getElementById('pf-golongan').value        = p.golongan || '';
             document.getElementById('pf-gajiPokok').value       = p.gajiPokok || '';
             document.getElementById('pf-terhitungMulai').value  = p.terhitungMulai || '';
-            document.getElementById('pf-masaKerja').value       = p.masaKerja || '';
+            this.autoHitungMasaKerja();
             document.getElementById('pf-tahunPensiun').value    = p.tahunPensiun || '';
             document.getElementById('pf-shift').value           = p.shift || 'Reguler (Sen-Kam)';
+
+            this.applyFieldPermissions();
 
             // Berkas SK/KTP/Ijazah/Sertifikat: tidak lagi diedit dari halaman
             // ini (sudah digantikan tab "Dokumen"), jadi tidak perlu dimuat
@@ -164,6 +167,45 @@ const profileManager = {
         document.getElementById('pf-tahunPensiun').value = tahunLahir + 56;
     },
 
+    /**
+     * Hitung otomatis Masa Kerja = Terhitung Mulai s/d hari ini, dalam
+     * format "Tahun/Bulan" (contoh: 21/3 = 21 tahun 3 bulan). Dipanggil
+     * setiap field Terhitung Mulai berubah, dan setiap kali profil dimuat
+     * supaya nilainya selalu segar sesuai tanggal hari ini.
+     */
+    autoHitungMasaKerja() {
+        const tgl = document.getElementById('pf-terhitungMulai').value;
+        const target = document.getElementById('pf-masaKerja');
+        if (!tgl) { target.value = ''; return; }
+
+        const mulai = new Date(tgl);
+        const hariIni = new Date();
+        if (isNaN(mulai.getTime())) { target.value = ''; return; }
+
+        let tahun = hariIni.getFullYear() - mulai.getFullYear();
+        let bulan = hariIni.getMonth() - mulai.getMonth();
+        if (hariIni.getDate() < mulai.getDate()) bulan--;
+        if (bulan < 0) { tahun--; bulan += 12; }
+        if (tahun < 0) { tahun = 0; bulan = 0; }
+
+        target.value = `${tahun}/${bulan}`;
+    },
+
+    /**
+     * Pangkat, Golongan, Masa Kerja, dan Tahun Pensiun HANYA boleh diubah
+     * oleh Admin - staff/asmen/manajer biasa cuma bisa lihat (disabled),
+     * tidak bisa mengetik/mengubah nilainya sendiri lewat halaman ini.
+     */
+    applyFieldPermissions() {
+        const restricted = ['pf-pangkat', 'pf-golongan', 'pf-masaKerja', 'pf-tahunPensiun'];
+        restricted.forEach(id => {
+            const el = document.getElementById(id);
+            if (!el) return;
+            el.disabled = !this.isAdmin;
+            el.title = this.isAdmin ? '' : 'Hanya Admin yang dapat mengubah field ini';
+        });
+    },
+
     previewFoto(input) {
         if (input.files && input.files[0]) {
             const reader = new FileReader();
@@ -219,23 +261,27 @@ const profileManager = {
             unitWilayah:      document.getElementById('pf-unitWilayah').value.trim(),
             bagian:           document.getElementById('pf-bagian').value.trim(),
             role:             document.getElementById('pf-role').value,
-            pangkat:          document.getElementById('pf-pangkat').value.trim(),
-            golongan:         document.getElementById('pf-golongan').value.trim(),
             gajiPokok:        document.getElementById('pf-gajiPokok').value,
             terhitungMulai:   document.getElementById('pf-terhitungMulai').value,
-            masaKerja:        document.getElementById('pf-masaKerja').value.trim(),
-            tahunPensiun:     document.getElementById('pf-tahunPensiun').value.trim(),
             shift:            document.getElementById('pf-shift').value,
             username:         document.getElementById('pf-username').value.trim(),
-            // fileSK/fileKTP/fileIjazah/fileSertifikat SENGAJA tidak disertakan
-            // di sini. Field ini sudah tidak diedit dari halaman Edit Profil
-            // (tab "Upload File" dihapus, digantikan tab "Dokumen"), dan kalau
-            // dikirim kosong ('') di sini, backend akan MENIMPA nilai yang
-            // sudah tersimpan menjadi kosong. Dengan tidak menyertakan field
-            // ini, updateKaryawanData() di backend otomatis membiarkan nilai
-            // lama tetap ada (hanya field yang dikirim yang ditimpa).
+            // Pangkat/Golongan/Masa Kerja/Tahun Pensiun SENGAJA tidak selalu
+            // disertakan di sini - lihat penjelasan di bawah.
             keluarga
         };
+
+        // Pangkat, Golongan, Masa Kerja, Tahun Pensiun HANYA boleh diubah
+        // Admin. Untuk staff/asmen/manajer, field-field ini memang di-disable
+        // di form-nya, tapi supaya aman (tidak sekadar UI), di sini juga
+        // SENGAJA tidak disertakan sama sekali di payload kalau bukan Admin -
+        // backend membiarkan nilai lama tetap ada untuk field yang tidak
+        // dikirim (pola yang sama seperti fileSK/fileKTP di atas).
+        if (this.isAdmin) {
+            data.pangkat      = document.getElementById('pf-pangkat').value.trim();
+            data.golongan     = document.getElementById('pf-golongan').value.trim();
+            data.masaKerja    = document.getElementById('pf-masaKerja').value.trim();
+            data.tahunPensiun = document.getElementById('pf-tahunPensiun').value.trim();
+        }
 
         const pwd = document.getElementById('pf-password').value;
         if (pwd) data.password = pwd;
