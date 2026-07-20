@@ -100,17 +100,30 @@ const notifications = {
         if (panel && btn) {
             const rect = btn.getBoundingClientRect();
             const margin = 12;
-            // Jarak dari tepi KANAN layar ke tepi kanan tombol lonceng,
-            // minimal `margin` px supaya panel tidak nempel/kepotong di tepi.
-            const rightGap = Math.max(margin, window.innerWidth - rect.right);
-            // Lebar panel dihitung eksplisit pakai window.innerWidth (bukan
-            // satuan CSS "vw" yang di beberapa browser HP suka melebihi lebar
-            // layar yang benar-benar terlihat) - supaya sisi kiri panel tidak
-            // pernah "nyembur" keluar layar dan kepotong.
-            const panelWidth = Math.min(300, window.innerWidth - (margin * 2));
-            panel.style.width = panelWidth + 'px';
+            const isMobile = window.innerWidth <= 480;
+
             panel.style.top = (rect.bottom + 10) + 'px';
-            panel.style.right = rightGap + 'px';
+
+            if (isMobile) {
+                // Di layar sempit: anchor dari KIRI dan KANAN sekaligus dengan
+                // margin tetap, dan biarkan lebar mengikuti (bukan dihitung
+                // manual). Ini "anti-gagal" - berapapun lebar layar sebenarnya
+                // (termasuk quirk vw/viewport di berbagai browser HP), panel
+                // secara struktur TIDAK BISA nyembur ke luar sisi manapun,
+                // karena kedua tepinya sendiri yang menentukan lebarnya.
+                panel.style.left = margin + 'px';
+                panel.style.right = margin + 'px';
+                panel.style.width = 'auto';
+                panel.style.maxWidth = 'none';
+            } else {
+                // Desktop: dropdown kecil menempel dekat tombol lonceng seperti biasa.
+                const rightGap = Math.max(margin, window.innerWidth - rect.right);
+                panel.style.left = 'auto';
+                panel.style.width = '300px';
+                panel.style.maxWidth = 'calc(100% - 32px)';
+                panel.style.right = rightGap + 'px';
+            }
+
             panel.style.display = 'block';
             // Set posisi awal (kecil & transparan) dulu, baru di frame
             // berikutnya animasikan ke ukuran penuh - efeknya jadi "muncul/
