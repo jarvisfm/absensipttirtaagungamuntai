@@ -205,7 +205,7 @@ const karyawanManager = {
             document.getElementById('p-golongan').value        = p.golongan || '';
             document.getElementById('p-gajiPokok').value       = p.gajiPokok || '';
             document.getElementById('p-terhitungMulai').value  = p.terhitungMulai || '';
-            document.getElementById('p-masaKerja').value       = p.masaKerja || '';
+            this.autoHitungMasaKerja();
             document.getElementById('p-tahunPensiun').value    = p.tahunPensiun || '';
             document.getElementById('p-shift').value           = p.shift || 'Reguler (Sen-Kam)';
 
@@ -292,6 +292,30 @@ const karyawanManager = {
         const tahunLahir = parseInt(tgl.split('-')[0], 10);
         if (isNaN(tahunLahir)) return;
         document.getElementById('p-tahunPensiun').value = tahunLahir + 56;
+    },
+
+    /**
+     * Hitung otomatis Masa Kerja = Terhitung Mulai s/d hari ini, dalam
+     * format "Tahun/Bulan" (contoh: 21/3 = 21 tahun 3 bulan). Dipanggil
+     * setiap field Terhitung Mulai berubah, dan setiap kali data karyawan
+     * dimuat supaya nilainya selalu segar sesuai tanggal hari ini.
+     */
+    autoHitungMasaKerja() {
+        const tgl = document.getElementById('p-terhitungMulai').value;
+        const target = document.getElementById('p-masaKerja');
+        if (!tgl) { target.value = ''; return; }
+
+        const mulai = new Date(tgl);
+        const hariIni = new Date();
+        if (isNaN(mulai.getTime())) { target.value = ''; return; }
+
+        let tahun = hariIni.getFullYear() - mulai.getFullYear();
+        let bulan = hariIni.getMonth() - mulai.getMonth();
+        if (hariIni.getDate() < mulai.getDate()) bulan--;
+        if (bulan < 0) { tahun--; bulan += 12; }
+        if (tahun < 0) { tahun = 0; bulan = 0; }
+
+        target.value = `${tahun}/${bulan}`;
     },
 
     previewFoto(input) {
