@@ -17,6 +17,7 @@ const auth = {
     // perangkat ini otomatis di-logout dengan notifikasi.
     SESSION_CHECK_INTERVAL_MS: 20 * 1000,
     _sessionWatcherId: null,
+    _visibilityHandler: null,
 
     init() {
     const session = storage.get('session');
@@ -180,8 +181,8 @@ const auth = {
      * Fitur "1 perangkat saja": mulai polling berkala ke server untuk cek
      * apakah sessionToken perangkat ini masih yang terbaru untuk akun ini.
      * Dipanggil setelah login berhasil ATAU setelah sesi lama berhasil
-     * dipulihkan (init()). Aman dipanggil berkali-kali - interval lama
-     * selalu dibersihkan dulu supaya tidak dobel jalan.
+     * dipulihkan (init()). Aman dipanggil berkali-kali - interval/listener
+     * lama selalu dibersihkan dulu supaya tidak dobel jalan.
      */
     startSessionWatcher() {
         this.stopSessionWatcher();
@@ -190,29 +191,46 @@ const auth = {
         // atau mode localStorage tanpa backend) - tidak ada yang bisa dicek.
         if (!this.currentUser || !this.currentUser.sessionToken) return;
 
-        this._sessionWatcherId = setInterval(async () => {
-            if (!this.currentUser || !this.currentUser.sessionToken) return;
-            try {
-                const result = await api.validateSession(
-                    this.currentUser.id,
-                    this.currentUser.role,
-                    this.currentUser.sessionToken
-                );
-                if (result.success && result.data && result.data.valid === false) {
-                    this._forceLogoutOtherDevice();
-                }
-            } catch (e) {
-                // Gangguan koneksi sesaat - jangan langsung logout paksa,
-                // coba lagi di interval berikutnya.
-                console.error('Session check error:', e);
+        this._sessionWatcherId = setInterval(() => this._checkSessionNow(), this.SESSION_CHECK_INTERVAL_MS);
+
+        // PENTING: browser HP sering "membekukan" setInterval saat tab di-
+        // background/layar dikunci untuk hemat baterai, jadi pengecekan
+        // berkala di atas bisa telat jalan kalau HP-nya tidak dibiarkan
+        // aktif. Untuk itu, tambahan: begitu tab ini aktif/terlihat lagi
+        // (mis. user membuka HP yang tadi dikunci), langsung cek ulang saat
+        // itu juga - tidak perlu menunggu interval berikutnya.
+        this._visibilityHandler = () => {
+            if (document.visibilityState === 'visible') this._checkSessionNow();
+        };
+        document.addEventListener('visibilitychange', this._visibilityHandler);
+    },
+
+    async _checkSessionNow() {
+        if (!this.currentUser || !this.currentUser.sessionToken) return;
+        try {
+            const result = await api.validateSession(
+                this.currentUser.id,
+                this.currentUser.role,
+                this.currentUser.sessionToken
+            );
+            if (result.success && result.data && result.data.valid === false) {
+                this._forceLogoutOtherDevice();
             }
-        }, this.SESSION_CHECK_INTERVAL_MS);
+        } catch (e) {
+            // Gangguan koneksi sesaat - jangan langsung logout paksa, coba
+            // lagi di pengecekan berikutnya.
+            console.error('Session check error:', e);
+        }
     },
 
     stopSessionWatcher() {
         if (this._sessionWatcherId) {
             clearInterval(this._sessionWatcherId);
             this._sessionWatcherId = null;
+        }
+        if (this._visibilityHandler) {
+            document.removeEventListener('visibilitychange', this._visibilityHandler);
+            this._visibilityHandler = null;
         }
     },
 
