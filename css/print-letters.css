@@ -21,8 +21,18 @@
 .print-letter-toolbar button {
     padding: 8px 16px; border-radius: 6px;
     border: none; cursor: pointer; font-size: 0.85rem;
+    background: rgba(255,255,255,0.12);
+    color: #fff;
+    border: 1px solid rgba(255,255,255,0.25);
+    transition: background 0.15s;
 }
-.print-letter-toolbar .btn-primary { background: linear-gradient(#F59E0B, #F59E0B); color: #fff; }
+.print-letter-toolbar button:hover { background: rgba(255,255,255,0.22); }
+.print-letter-toolbar .btn-primary {
+    background: linear-gradient(#F59E0B, #F59E0B);
+    color: #fff;
+    border: 1px solid #F59E0B;
+}
+.print-letter-toolbar .btn-primary:hover { background: linear-gradient(#e08e0b, #e08e0b); }
 
 /* === Page wrapper === */
 .print-letter-page {
