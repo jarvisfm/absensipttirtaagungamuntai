@@ -11,11 +11,19 @@ const auth = {
     // masuk dashboard tanpa login ulang. 12 jam.
     SESSION_DURATION_MS: 12 * 60 * 60 * 1000,
 
+    // Fitur "1 perangkat saja": tiap sekian detik, cek ke server apakah
+    // sessionToken perangkat ini masih yang paling baru untuk akun ini.
+    // Kalau akun ini ternyata sudah login lagi di perangkat lain, sesi di
+    // perangkat ini otomatis di-logout dengan notifikasi.
+    SESSION_CHECK_INTERVAL_MS: 20 * 1000,
+    _sessionWatcherId: null,
+
     init() {
     const session = storage.get('session');
     if (session && session.id && session.role && !this.isSessionExpired(session)) {
         this.currentUser = session;
         this.showApp();
+        this.startSessionWatcher();
     } else {
         storage.remove('session');
         this.showLogin();
@@ -102,6 +110,7 @@ const auth = {
                     bagian: result.data.bagian || '',
                     pangkat: result.data.pangkat || '',
                     golongan: result.data.golongan || '',
+                    sessionToken: result.data.sessionToken || '',
                     loginTime: new Date().toISOString(),
                     expiresAt: Date.now() + this.SESSION_DURATION_MS
                 };
@@ -121,6 +130,7 @@ const auth = {
 
             // Show app
             this.showApp();
+            this.startSessionWatcher();
 
             toast.success(`Selamat datang, ${user.name}!`);
         } catch (error) {
@@ -156,6 +166,7 @@ const auth = {
     },
 
     _doLogout() {
+        this.stopSessionWatcher();
         this.currentUser = null;
         storage.remove('session');
         storage.remove('currentPage');
@@ -163,6 +174,64 @@ const auth = {
 
         this.showLogin();
         toast.info('Anda telah logout');
+    },
+
+    /**
+     * Fitur "1 perangkat saja": mulai polling berkala ke server untuk cek
+     * apakah sessionToken perangkat ini masih yang terbaru untuk akun ini.
+     * Dipanggil setelah login berhasil ATAU setelah sesi lama berhasil
+     * dipulihkan (init()). Aman dipanggil berkali-kali - interval lama
+     * selalu dibersihkan dulu supaya tidak dobel jalan.
+     */
+    startSessionWatcher() {
+        this.stopSessionWatcher();
+
+        // Tidak ada sessionToken (mis. sesi lama dari sebelum fitur ini ada,
+        // atau mode localStorage tanpa backend) - tidak ada yang bisa dicek.
+        if (!this.currentUser || !this.currentUser.sessionToken) return;
+
+        this._sessionWatcherId = setInterval(async () => {
+            if (!this.currentUser || !this.currentUser.sessionToken) return;
+            try {
+                const result = await api.validateSession(
+                    this.currentUser.id,
+                    this.currentUser.role,
+                    this.currentUser.sessionToken
+                );
+                if (result.success && result.data && result.data.valid === false) {
+                    this._forceLogoutOtherDevice();
+                }
+            } catch (e) {
+                // Gangguan koneksi sesaat - jangan langsung logout paksa,
+                // coba lagi di interval berikutnya.
+                console.error('Session check error:', e);
+            }
+        }, this.SESSION_CHECK_INTERVAL_MS);
+    },
+
+    stopSessionWatcher() {
+        if (this._sessionWatcherId) {
+            clearInterval(this._sessionWatcherId);
+            this._sessionWatcherId = null;
+        }
+    },
+
+    // Dipanggil kalau terdeteksi akun ini sudah login di perangkat lain -
+    // paksa logout perangkat ini disertai notifikasi yang jelas kenapa.
+    _forceLogoutOtherDevice() {
+        this.stopSessionWatcher();
+        this.currentUser = null;
+        storage.remove('session');
+        storage.remove('currentPage');
+        sessionStorage.removeItem('adminSwitchMode');
+
+        this.showLogin();
+        toast.show(
+            'Akun ini baru saja login di perangkat/browser lain, jadi sesi di perangkat ini otomatis di-logout. Silakan login kembali kalau ini bukan Anda.',
+            'warning',
+            'Login di Perangkat Lain',
+            8000
+        );
     },
 
     showApp() {
