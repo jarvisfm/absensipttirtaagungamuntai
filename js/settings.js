@@ -50,13 +50,19 @@ const settings = {
                 const el = document.getElementById('setting-late-tolerance');
                 if (el) el.value = allSettings.late_tolerance;
             }
+            // PENTING: Google Sheets otomatis mengubah teks "true"/"false"
+            // yang disimpan jadi tipe boolean asli, dan dibaca balik sebagai
+            // "TRUE"/"FALSE" (huruf besar semua) - bukan "true" huruf kecil
+            // seperti saat pertama disimpan. Makanya dicek tanpa peduli
+            // besar/kecil huruf, supaya checkbox-nya tidak salah tampil
+            // "off" padahal sebenarnya aktif di database.
             if (allSettings.face_recognition !== undefined) {
                 const el = document.getElementById('setting-face-recognition');
-                if (el) el.checked = allSettings.face_recognition === 'true' || allSettings.face_recognition === true;
+                if (el) el.checked = String(allSettings.face_recognition).toLowerCase() === 'true' || allSettings.face_recognition === true;
             }
             if (allSettings.location_tracking !== undefined) {
                 const el = document.getElementById('setting-location-tracking');
-                if (el) el.checked = allSettings.location_tracking === 'true' || allSettings.location_tracking === true;
+                if (el) el.checked = String(allSettings.location_tracking).toLowerCase() === 'true' || allSettings.location_tracking === true;
             }
             if (allSettings.location_radius !== undefined) {
                 const el = document.getElementById('setting-location-radius');
@@ -80,6 +86,13 @@ const settings = {
         } catch (error) {
             console.error('Error loading settings:', error);
             this.shifts = storage.get('shifts', []);
+            // PENTING: sebelumnya kalau load gagal, form tetap menampilkan
+            // nilai default HTML (radius 100, koordinat kosong) TANPA ada
+            // tanda apa pun ke admin - kelihatan seperti data asli padahal
+            // sebenarnya gagal dimuat dari database. Sekarang admin diberi
+            // tahu supaya tidak salah kira nilai yang tampil = nilai
+            // tersimpan, dan tahu harus refresh/coba lagi.
+            toast.error('Gagal memuat pengaturan dari server. Nilai yang tampil BUKAN data tersimpan - refresh halaman lalu coba lagi.');
         }
     },
 
