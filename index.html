@@ -613,8 +613,14 @@
                             <div class="location-section">
                                 <div class="location-card">
                                     <div class="card-header">
-                                        <h3>Lokasi Anda</h3><span class="location-status" id="location-status"><i
-                                                class="fas fa-spinner fa-spin"></i> Mendeteksi...</span>
+                                        <h3>Lokasi Anda</h3>
+                                        <div style="display:flex;align-items:center;gap:10px;">
+                                            <span class="location-status" id="location-status"><i
+                                                    class="fas fa-spinner fa-spin"></i> Mendeteksi...</span>
+                                            <button type="button" id="btn-refresh-location" title="Refresh Lokasi" style="background:none;border:1px solid var(--border-color);color:var(--text-muted);width:30px;height:30px;border-radius:8px;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;">
+                                                <i class="fas fa-sync-alt"></i>
+                                            </button>
+                                        </div>
                                     </div>
                                     <div class="location-map" id="location-map">
                                         <div class="map-placeholder"><i class="fas fa-map-marker-alt"></i>
