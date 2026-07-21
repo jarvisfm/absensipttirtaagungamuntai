@@ -232,6 +232,39 @@ const faceRecognition = {
         const captureBtn = document.getElementById('btn-capture');
         const retakeBtn = document.getElementById('btn-retake');
         const retryLocationBtn = document.getElementById('btn-retry-location');
+        const refreshLocationBtn = document.getElementById('btn-refresh-location');
+
+        // Tombol refresh lokasi - selalu tersedia (beda dari "Coba Lagi"
+        // yang cuma muncul kalau GPS gagal total), supaya user bisa
+        // manual minta ulang titik GPS kalau koordinatnya kelihatan
+        // meleset dari posisi asli (GPS HP/PC kadang butuh beberapa kali
+        // baca ulang untuk akurat).
+        if (refreshLocationBtn) {
+            const newRefreshBtn = refreshLocationBtn.cloneNode(true);
+            refreshLocationBtn.parentNode.replaceChild(newRefreshBtn, refreshLocationBtn);
+            newRefreshBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                const icon = newRefreshBtn.querySelector('i');
+                if (icon) icon.classList.add('fa-spin');
+                newRefreshBtn.disabled = true;
+
+                const statusEl = document.getElementById('location-status');
+                if (statusEl) statusEl.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Mendeteksi ulang...';
+
+                const retryBtn = document.getElementById('btn-retry-location');
+                if (retryBtn) retryBtn.style.display = 'none';
+
+                this.locationVerified = false;
+                this.checkCanSubmit();
+
+                this.initLocation();
+
+                setTimeout(() => {
+                    if (icon) icon.classList.remove('fa-spin');
+                    newRefreshBtn.disabled = false;
+                }, 1500);
+            });
+        }
 
         if (retryLocationBtn) {
             const newRetryBtn = retryLocationBtn.cloneNode(true);
