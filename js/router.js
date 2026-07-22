@@ -50,19 +50,25 @@ const router = {
         const titles = {
             dashboard: 'Dashboard',
             absensi: 'Absensi',
+            izin: 'Izin / Sakit',
             karyawan: 'Data Karyawan',
             jurnal: 'Jurnal Kerja',
             cuti: 'Pengajuan Cuti',
             'approval-asmen': 'Approval Asmen',
             'approval-manajer': 'Approval Manajer',
             'approval-direktur': 'Approval Direktur',
+            'admin-dashboard': 'Dashboard Admin',
+            employees: 'Data Karyawan',
+            'attendance-reports': 'Rekap Absensi',
+            'jurnal-reports': 'Rekap Jurnal Kerja',
+            'leave-reports': 'Rekap Cuti & Izin',
             'shift-schedule': 'Jadwal Shift',
             settings: 'Settings',
             profile: 'Edit Profil'
         };
         
         const company = storage.get('company', { name: 'Portal Karyawan' });
-        document.title = `${titles[page]} - ${company.name}`;
+        document.title = `${titles[page] || 'Portal Karyawan'} - ${company.name}`;
         
         // Update sidebar active state
         document.querySelectorAll('.nav-item').forEach(item => {
