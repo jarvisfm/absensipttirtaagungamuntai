@@ -48,7 +48,18 @@ const router = {
     },
     
     showPage(page, pushState = true) {
+        const previousPage = this.currentPage;
         this.currentPage = page;
+
+        // Pastikan kamera selalu dimatikan begitu meninggalkan halaman
+        // Face Recognition ke menu manapun - sebelumnya kamera bisa tetap
+        // menyala di background kalau user pindah halaman di tengah proses
+        // verifikasi (belum sempat capturePhoto() memanggil stopCamera()).
+        if (previousPage === 'face-recognition' && page !== 'face-recognition') {
+            if (window.faceRecognition && typeof faceRecognition.stopCamera === 'function') {
+                faceRecognition.stopCamera();
+            }
+        }
         
         // Update page title
         const titles = {
