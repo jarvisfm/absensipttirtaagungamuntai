@@ -21,6 +21,41 @@ const faceRecognition = {
         const retryBtn = document.getElementById('btn-retry-location');
         if (retryBtn) retryBtn.style.display = 'none';
 
+        // PENTING: kembalikan #camera-preview ke markup <video> semula.
+        // Sebelumnya, capturePhoto() mengganti isi #camera-preview jadi
+        // <img> hasil foto - kalau tidak dikembalikan dulu di sini, saat
+        // pindah ke aksi absen berikutnya (mis. clock-in -> istirahat),
+        // initCamera() mencari elemen #camera-video yang sudah tidak ada
+        // lagi di DOM (sudah diganti <img>), gagal diam-diam, dan foto
+        // lama dari aksi sebelumnya tetap kelihatan.
+        const preview = document.getElementById('camera-preview');
+        if (preview) {
+            preview.innerHTML = `
+                <video id="camera-video" autoplay playsinline muted></video>
+                <canvas id="camera-canvas" style="display: none;"></canvas>
+                <div class="face-overlay" id="face-overlay">
+                    <div class="face-frame">
+                        <div class="face-corner top-left"></div>
+                        <div class="face-corner top-right"></div>
+                        <div class="face-corner bottom-left"></div>
+                        <div class="face-corner bottom-right"></div>
+                    </div>
+                    <div class="face-guide">
+                        <i class="fas fa-user"></i>
+                        <p>Posisikan wajah di dalam frame</p>
+                    </div>
+                </div>
+                <div class="scanning-line" id="scanning-line" style="display: none;"></div>
+            `;
+        }
+        const captureBtnReset = document.getElementById('btn-capture');
+        const retakeBtnReset = document.getElementById('btn-retake');
+        if (captureBtnReset) {
+            captureBtnReset.style.display = 'flex';
+            captureBtnReset.disabled = true;
+        }
+        if (retakeBtnReset) retakeBtnReset.style.display = 'none';
+
         // Update UI based on action
         this.updateActionTitle(action);
 
