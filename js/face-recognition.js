@@ -146,31 +146,60 @@ const faceRecognition = {
             async (position) => {
                 this.position = position;
 
-                // Ambil pengaturan lokasi kantor dari backend
-                let officeLat = null, officeLng = null, radius = 100;
+                // Ambil pengaturan lokasi kantor dari backend (bisa lebih
+                // dari 1 - Kantor Pusat, Unit SPAM, dsb)
+                let officeLocations = [], radius = 100;
                 try {
                     const result = await api.getSettings();
                     const s = result.data || {};
-                    officeLat = s.office_lat ? parseFloat(s.office_lat) : null;
-                    officeLng = s.office_lng ? parseFloat(s.office_lng) : null;
-                    radius    = s.location_radius ? parseInt(s.location_radius) : 100;
+                    radius = s.location_radius ? parseInt(s.location_radius) : 100;
+
+                    if (s.office_locations) {
+                        try {
+                            const parsed = JSON.parse(s.office_locations);
+                            if (Array.isArray(parsed)) {
+                                officeLocations = parsed
+                                    .map(loc => ({ nama: loc.nama || 'Kantor', lat: parseFloat(loc.lat), lng: parseFloat(loc.lng) }))
+                                    .filter(loc => !isNaN(loc.lat) && !isNaN(loc.lng));
+                            }
+                        } catch (e) { /* JSON rusak, abaikan */ }
+                    }
+                    // Fallback ke field lama (1 lokasi) kalau office_locations
+                    // belum pernah diisi - supaya konfigurasi lama tidak
+                    // hilang setelah update ke fitur multi-lokasi ini.
+                    if (officeLocations.length === 0 && s.office_lat && s.office_lng) {
+                        const oldLat = parseFloat(s.office_lat);
+                        const oldLng = parseFloat(s.office_lng);
+                        if (!isNaN(oldLat) && !isNaN(oldLng)) {
+                            officeLocations = [{ nama: 'Kantor', lat: oldLat, lng: oldLng }];
+                        }
+                    }
                 } catch(e) { /* pakai default */ }
 
                 const userLat = position.coords.latitude;
                 const userLng = position.coords.longitude;
 
-                // Validasi radius jika koordinat kantor sudah diset
-                if (officeLat !== null && officeLng !== null) {
-                    const distance = Math.round(this._calcDistance(userLat, userLng, officeLat, officeLng));
+                // Validasi radius jika sudah ada lokasi kantor yang diset -
+                // cari lokasi TERDEKAT dari semua yang ada, user dianggap
+                // valid kalau masuk radius SALAH SATU lokasi saja.
+                if (officeLocations.length > 0) {
+                    let nearest = null;
+                    officeLocations.forEach(loc => {
+                        const d = this._calcDistance(userLat, userLng, loc.lat, loc.lng);
+                        if (nearest === null || d < nearest.distance) {
+                            nearest = { nama: loc.nama, distance: d };
+                        }
+                    });
+                    const distance = Math.round(nearest.distance);
                     const inRadius = distance <= radius;
 
                     if (statusEl) {
                         if (inRadius) {
-                            statusEl.innerHTML = `<i class="fas fa-check-circle"></i> Terverifikasi (${distance}m dari kantor)`;
+                            statusEl.innerHTML = `<i class="fas fa-check-circle"></i> Terverifikasi (${distance}m dari ${nearest.nama})`;
                             statusEl.classList.add('verified');
                             statusEl.classList.remove('out-of-range');
                         } else {
-                            statusEl.innerHTML = `<i class="fas fa-times-circle" style="color:#EF4444;"></i> <span style="color:#EF4444;">Di luar area (${distance}m, maks ${radius}m)</span>`;
+                            statusEl.innerHTML = `<i class="fas fa-times-circle" style="color:#EF4444;"></i> <span style="color:#EF4444;">Di luar area (${distance}m dari ${nearest.nama}, maks ${radius}m)</span>`;
                             statusEl.classList.remove('verified');
                             statusEl.classList.add('out-of-range');
                         }
@@ -178,7 +207,7 @@ const faceRecognition = {
 
                     if (!inRadius) {
                         // Tampilkan notifikasi & kunci tombol konfirmasi
-                        toast.error(`Anda berada ${distance}m dari kantor. Absensi hanya diizinkan dalam radius ${radius}m.`);
+                        toast.error(`Anda berada ${distance}m dari lokasi terdekat (${nearest.nama}). Absensi hanya diizinkan dalam radius ${radius}m.`);
                         this.locationVerified = false;
                         this.checkCanSubmit();
 
@@ -189,13 +218,13 @@ const faceRecognition = {
                             const addressEl   = document.getElementById('location-address');
                             const accuracyEl  = document.getElementById('location-accuracy');
                             if (coordsEl)   coordsEl.textContent   = `${userLat.toFixed(6)}, ${userLng.toFixed(6)}`;
-                            if (addressEl)  addressEl.textContent  = `Di luar radius kantor (${distance}m)`;
+                            if (addressEl)  addressEl.textContent  = `Di luar radius ${nearest.nama} (${distance}m)`;
                             if (accuracyEl) accuracyEl.textContent = `±${Math.round(position.coords.accuracy)}m`;
                         }
                         return; // jangan set locationVerified = true
                     }
                 } else {
-                    // Koordinat kantor belum diset, loloskan saja
+                    // Belum ada lokasi kantor yang diset, loloskan saja
                     if (statusEl) {
                         statusEl.innerHTML = '<i class="fas fa-check-circle"></i> Terverifikasi';
                         statusEl.classList.add('verified');
