@@ -2460,25 +2460,11 @@
                                         <div class="setting-control"><input type="number" id="setting-location-radius" value="100" min="10" max="5000" style="width:80px;"></div>
                                     </div>
                                     <div class="setting-item" style="flex-direction:column;align-items:flex-start;gap:12px;">
-                                        <div class="setting-info"><span class="setting-name">Koordinat Kantor</span><span class="setting-desc">Latitude &amp; Longitude lokasi kantor sebagai pusat radius</span></div>
-                                        <div style="display:flex;gap:10px;flex-wrap:wrap;width:100%;">
-                                            <div style="flex:1;min-width:140px;">
-                                                <label style="font-size:0.8rem;color:var(--text-muted);display:block;margin-bottom:4px;">Latitude</label>
-                                                <input type="text" id="setting-office-lat" placeholder="-2.417000" style="width:100%;">
-                                            </div>
-                                            <div style="flex:1;min-width:140px;">
-                                                <label style="font-size:0.8rem;color:var(--text-muted);display:block;margin-bottom:4px;">Longitude</label>
-                                                <input type="text" id="setting-office-lng" placeholder="115.216000" style="width:100%;">
-                                            </div>
-                                            <div style="display:flex;align-items:flex-end;">
-                                                <button type="button" onclick="settings.detectOfficeLocation()" style="background:var(--color-primary);color:#fff;border:none;padding:8px 12px;border-radius:8px;cursor:pointer;font-size:0.82rem;white-space:nowrap;">
-                                                    <i class="fas fa-crosshairs"></i> Deteksi Lokasi Saya
-                                                </button>
-                                            </div>
-                                        </div>
-                                        <div id="office-location-preview" style="display:none;font-size:0.82rem;color:var(--color-success);margin-top:4px;">
-                                            <i class="fas fa-check-circle"></i> <span id="office-location-text"></span>
-                                        </div>
+                                        <div class="setting-info"><span class="setting-name">Koordinat Kantor</span><span class="setting-desc">Lokasi kantor (bisa lebih dari satu, mis. Kantor Pusat + Unit SPAM) sebagai pusat radius absensi</span></div>
+                                        <div id="office-locations-list" style="width:100%;display:flex;flex-direction:column;gap:10px;"></div>
+                                        <button type="button" onclick="settings.addOfficeLocationRow()" style="background:none;color:var(--color-primary);border:1px dashed var(--color-primary);padding:8px 14px;border-radius:8px;cursor:pointer;font-size:0.82rem;">
+                                            <i class="fas fa-plus"></i> Tambah Lokasi
+                                        </button>
                                     </div>
                                 </div>
                                 <div class="form-actions" style="margin-top: var(--spacing-md);"><button type="button"
