@@ -5,6 +5,7 @@
 
 const settings = {
     shifts: [],
+    officeLocations: [],
 
     async init() {
         // Check if admin
@@ -68,21 +69,21 @@ const settings = {
                 const el = document.getElementById('setting-location-radius');
                 if (el) el.value = allSettings.location_radius;
             }
-            if (allSettings.office_lat !== undefined) {
-                const el = document.getElementById('setting-office-lat');
-                if (el) el.value = allSettings.office_lat;
+            // Koordinat Kantor - bisa lebih dari 1 lokasi (Kantor Pusat,
+            // Unit SPAM, dsb), disimpan sebagai JSON array di key
+            // "office_locations". Fallback ke field lama office_lat/
+            // office_lng (1 lokasi) kalau belum pernah diisi versi baru ini.
+            this.officeLocations = [];
+            if (allSettings.office_locations) {
+                try {
+                    const parsed = JSON.parse(allSettings.office_locations);
+                    if (Array.isArray(parsed)) this.officeLocations = parsed;
+                } catch (e) { /* JSON rusak, biarkan kosong */ }
             }
-            if (allSettings.office_lng !== undefined) {
-                const el = document.getElementById('setting-office-lng');
-                if (el) el.value = allSettings.office_lng;
-                // Tampilkan preview jika koordinat sudah ada
-                if (allSettings.office_lat && allSettings.office_lng) {
-                    const preview = document.getElementById('office-location-preview');
-                    const text = document.getElementById('office-location-text');
-                    if (preview) preview.style.display = 'block';
-                    if (text) text.textContent = `${parseFloat(allSettings.office_lat).toFixed(6)}, ${parseFloat(allSettings.office_lng).toFixed(6)}`;
-                }
+            if (this.officeLocations.length === 0 && allSettings.office_lat && allSettings.office_lng) {
+                this.officeLocations = [{ nama: 'Kantor', lat: allSettings.office_lat, lng: allSettings.office_lng }];
             }
+            this.renderOfficeLocations();
         } catch (error) {
             console.error('Error loading settings:', error);
             this.shifts = storage.get('shifts', []);
@@ -165,17 +166,27 @@ const settings = {
         const faceRecognition  = document.getElementById('setting-face-recognition');
         const locationTracking = document.getElementById('setting-location-tracking');
         const locationRadius   = document.getElementById('setting-location-radius');
-        const officeLat        = document.getElementById('setting-office-lat');
-        const officeLng        = document.getElementById('setting-office-lng');
 
-        // Validasi koordinat kantor jika diisi
-        if (officeLat && officeLng && (officeLat.value || officeLng.value)) {
-            const lat = parseFloat(officeLat.value);
-            const lng = parseFloat(officeLng.value);
-            if (isNaN(lat) || isNaN(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) {
-                toast.error('Koordinat kantor tidak valid! Latitude: -90 s/d 90, Longitude: -180 s/d 180');
+        this._syncOfficeLocationsFromDOM();
+
+        // Validasi tiap lokasi kantor yang diisi. Baris yang benar-benar
+        // kosong total (belum diisi apa-apa) dilewati saja, bukan dianggap
+        // error - supaya admin yang menambah baris kosong lalu berubah
+        // pikiran tidak perlu mengisi/menghapusnya dulu sebelum simpan.
+        const validLocations = [];
+        for (const loc of this.officeLocations) {
+            const namaKosong = !loc.nama || !String(loc.nama).trim();
+            const latKosong = loc.lat === '' || loc.lat === undefined || loc.lat === null;
+            const lngKosong = loc.lng === '' || loc.lng === undefined || loc.lng === null;
+            if (namaKosong && latKosong && lngKosong) continue;
+
+            const lat = parseFloat(loc.lat);
+            const lng = parseFloat(loc.lng);
+            if (namaKosong || isNaN(lat) || isNaN(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+                toast.error(`Lokasi "${loc.nama || '(tanpa nama)'}" tidak valid. Nama wajib diisi, Latitude -90 s/d 90, Longitude -180 s/d 180.`);
                 return;
             }
+            validLocations.push({ nama: String(loc.nama).trim(), lat, lng });
         }
 
         try {
@@ -184,8 +195,7 @@ const settings = {
                 face_recognition:  faceRecognition  ? String(faceRecognition.checked)  : 'true',
                 location_tracking: locationTracking ? String(locationTracking.checked) : 'true',
                 location_radius:   locationRadius   ? locationRadius.value             : '100',
-                office_lat:        officeLat        ? officeLat.value                  : '',
-                office_lng:        officeLng        ? officeLng.value                  : '',
+                office_locations:  JSON.stringify(validLocations),
             });
             toast.success('Pengaturan sistem berhasil disimpan!');
         } catch (error) {
@@ -194,26 +204,85 @@ const settings = {
         }
     },
 
-    // Deteksi lokasi saat ini sebagai koordinat kantor
-    detectOfficeLocation() {
+    // ── Kelola beberapa lokasi kantor (Kantor Pusat, Unit SPAM, dst) ──
+    renderOfficeLocations() {
+        const container = document.getElementById('office-locations-list');
+        if (!container) return;
+
+        if (this.officeLocations.length === 0) {
+            this.officeLocations.push({ nama: 'Kantor Pusat', lat: '', lng: '' });
+        }
+
+        container.innerHTML = this.officeLocations.map((loc, idx) => `
+            <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;border:1px solid var(--border-color);border-radius:8px;padding:10px;">
+                <div style="flex:1;min-width:130px;">
+                    <label style="font-size:0.8rem;color:var(--text-muted);display:block;margin-bottom:4px;">Nama Lokasi</label>
+                    <input type="text" class="office-loc-nama" data-idx="${idx}" value="${loc.nama || ''}" placeholder="Kantor Pusat / Unit SPAM A" style="width:100%;">
+                </div>
+                <div style="flex:1;min-width:120px;">
+                    <label style="font-size:0.8rem;color:var(--text-muted);display:block;margin-bottom:4px;">Latitude</label>
+                    <input type="text" class="office-loc-lat" data-idx="${idx}" value="${loc.lat || ''}" placeholder="-2.417000" style="width:100%;">
+                </div>
+                <div style="flex:1;min-width:120px;">
+                    <label style="font-size:0.8rem;color:var(--text-muted);display:block;margin-bottom:4px;">Longitude</label>
+                    <input type="text" class="office-loc-lng" data-idx="${idx}" value="${loc.lng || ''}" placeholder="115.216000" style="width:100%;">
+                </div>
+                <button type="button" onclick="settings.detectLocationForRow(${idx})" style="background:var(--color-primary);color:#fff;border:none;padding:8px 10px;border-radius:8px;cursor:pointer;font-size:0.8rem;white-space:nowrap;">
+                    <i class="fas fa-crosshairs"></i> Deteksi
+                </button>
+                ${this.officeLocations.length > 1 ? `
+                <button type="button" onclick="settings.removeOfficeLocationRow(${idx})" style="background:#EF4444;color:#fff;border:none;padding:8px 10px;border-radius:8px;cursor:pointer;font-size:0.8rem;">
+                    <i class="fas fa-trash"></i>
+                </button>` : ''}
+            </div>
+        `).join('');
+    },
+
+    // Baca ulang nilai dari input yang sedang tampil ke this.officeLocations,
+    // supaya perubahan yang belum disimpan tidak hilang saat baris
+    // ditambah/dihapus/dideteksi.
+    _syncOfficeLocationsFromDOM() {
+        document.querySelectorAll('.office-loc-nama').forEach(el => {
+            const idx = parseInt(el.dataset.idx, 10);
+            if (this.officeLocations[idx]) this.officeLocations[idx].nama = el.value;
+        });
+        document.querySelectorAll('.office-loc-lat').forEach(el => {
+            const idx = parseInt(el.dataset.idx, 10);
+            if (this.officeLocations[idx]) this.officeLocations[idx].lat = el.value;
+        });
+        document.querySelectorAll('.office-loc-lng').forEach(el => {
+            const idx = parseInt(el.dataset.idx, 10);
+            if (this.officeLocations[idx]) this.officeLocations[idx].lng = el.value;
+        });
+    },
+
+    addOfficeLocationRow() {
+        this._syncOfficeLocationsFromDOM();
+        this.officeLocations.push({ nama: '', lat: '', lng: '' });
+        this.renderOfficeLocations();
+    },
+
+    removeOfficeLocationRow(idx) {
+        this._syncOfficeLocationsFromDOM();
+        this.officeLocations.splice(idx, 1);
+        this.renderOfficeLocations();
+    },
+
+    // Deteksi lokasi saat ini sebagai koordinat untuk 1 baris tertentu
+    detectLocationForRow(idx) {
         if (!navigator.geolocation) {
             toast.error('Browser tidak mendukung geolokasi');
             return;
         }
+        this._syncOfficeLocationsFromDOM();
         toast.info('Mendeteksi lokasi...');
         navigator.geolocation.getCurrentPosition(
             (pos) => {
-                const lat = pos.coords.latitude.toFixed(6);
-                const lng = pos.coords.longitude.toFixed(6);
-                const latEl = document.getElementById('setting-office-lat');
-                const lngEl = document.getElementById('setting-office-lng');
-                const preview = document.getElementById('office-location-preview');
-                const text    = document.getElementById('office-location-text');
-                if (latEl) latEl.value = lat;
-                if (lngEl) lngEl.value = lng;
-                if (preview) preview.style.display = 'block';
-                if (text)    text.textContent = `${lat}, ${lng}`;
-                toast.success('Lokasi kantor berhasil dideteksi!');
+                if (!this.officeLocations[idx]) return;
+                this.officeLocations[idx].lat = pos.coords.latitude.toFixed(6);
+                this.officeLocations[idx].lng = pos.coords.longitude.toFixed(6);
+                this.renderOfficeLocations();
+                toast.success('Lokasi berhasil dideteksi!');
             },
             () => { toast.error('Gagal mendeteksi lokasi. Pastikan izin lokasi diaktifkan.'); },
             { enableHighAccuracy: true, timeout: 10000 }
