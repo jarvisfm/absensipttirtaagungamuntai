@@ -789,6 +789,15 @@ const izin = {
                 <div style="background:var(--color-gray-50);border-radius:10px;padding:12px 14px;font-size:0.88rem;color:var(--text-primary);line-height:1.5;">${item.reason || '-'}</div>
             </div>
 
+            ${item.fileUrl ? `
+            <div style="margin-top:14px;">
+                <div style="font-size:0.72rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.02em;margin-bottom:6px;">Surat Keterangan</div>
+                <a href="${item.fileUrl}" target="_blank" rel="noopener" style="display:flex;align-items:center;gap:10px;background:var(--color-gray-50);border-radius:10px;padding:12px 14px;text-decoration:none;color:var(--color-primary);font-size:0.88rem;font-weight:600;">
+                    <i class="fas fa-file-pdf" style="font-size:1.1rem;"></i>
+                    Lihat Surat Keterangan yang Dilampirkan
+                </a>
+            </div>` : ''}
+
             <div class="form-group" style="margin-top:14px;">
                 <label for="approval-catatan">Catatan${role === 'asmen' ? ' (opsional)' : ''}</label>
                 <textarea id="approval-catatan" rows="3" placeholder="Tulis catatan/pertimbangan Anda di sini..."></textarea>
