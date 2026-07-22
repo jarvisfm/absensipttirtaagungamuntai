@@ -13,6 +13,10 @@ const router = {
     init() {
         // Handle navigation clicks
         document.querySelectorAll('.nav-item').forEach(item => {
+            // Menu eksternal (mis. "Permintaan Barang" yang buka tab baru) tidak
+            // ikut ditangani router SPA - biarkan link-nya bekerja apa adanya.
+            if (item.dataset.external) return;
+
             item.addEventListener('click', (e) => {
                 e.preventDefault();
                 const page = item.dataset.page;
