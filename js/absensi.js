@@ -369,12 +369,18 @@ const absensi = {
         const btnIn = document.getElementById('btn-clock-in');
         if (btnIn) {
             btnIn.disabled = !!d.clockIn || isLibur;
+            const el = document.getElementById('clock-in-time');
             if (d.clockIn) {
                 btnIn.classList.add('completed');
-                const el = document.getElementById('clock-in-time');
                 if (el) el.textContent = d.clockIn;
             } else {
                 btnIn.classList.remove('completed');
+                // PENTING: reset ke placeholder - kalau tidak, teks jam dari
+                // sesi/user SEBELUMNYA (mis. user lain yang tadi absen di
+                // perangkat/tab yang sama) akan tetap kelihatan seolah punya
+                // user yang sedang login sekarang, padahal attendanceData-nya
+                // sendiri sudah benar kosong.
+                if (el) el.textContent = '--:--';
             }
         }
 
@@ -392,23 +398,25 @@ const absensi = {
             if (btnBreak) {
                 btnBreak.style.display = '';
                 btnBreak.disabled = !d.clockIn || !!d.breakStart || !!d.clockOut;
+                const el = document.getElementById('break-time');
                 if (d.breakStart) {
                     btnBreak.classList.add('completed');
-                    const el = document.getElementById('break-time');
                     if (el) el.textContent = d.breakStart;
                 } else {
                     btnBreak.classList.remove('completed');
+                    if (el) el.textContent = '--:--';
                 }
             }
             if (btnAfterBreak) {
                 btnAfterBreak.style.display = '';
                 btnAfterBreak.disabled = !d.breakStart || !!d.breakEnd || !!d.clockOut;
+                const elAfter = document.getElementById('after-break-time');
                 if (d.breakEnd) {
                     btnAfterBreak.classList.add('completed');
-                    const el = document.getElementById('after-break-time');
-                    if (el) el.textContent = d.breakEnd;
+                    if (elAfter) elAfter.textContent = d.breakEnd;
                 } else {
                     btnAfterBreak.classList.remove('completed');
+                    if (elAfter) elAfter.textContent = '--:--';
                 }
             }
         }
@@ -417,12 +425,13 @@ const absensi = {
         const btnOut = document.getElementById('btn-clock-out');
         if (btnOut) {
             btnOut.disabled = !d.clockIn || !!d.clockOut;
+            const el = document.getElementById('clock-out-time');
             if (d.clockOut) {
                 btnOut.classList.add('completed');
-                const el = document.getElementById('clock-out-time');
                 if (el) el.textContent = d.clockOut;
             } else {
                 btnOut.classList.remove('completed');
+                if (el) el.textContent = '--:--';
             }
         }
     },
@@ -447,6 +456,11 @@ const absensi = {
             if (map[type]) {
                 item.classList.add('completed');
                 if (timeEl) timeEl.textContent = map[type];
+            } else {
+                // PENTING: reset ke placeholder, sama seperti di updateUI() -
+                // supaya jam dari sesi/user sebelumnya tidak "nyangkut" tampil
+                // di timeline user yang sedang login sekarang.
+                if (timeEl) timeEl.textContent = '--:--';
             }
 
             // Sembunyikan item istirahat jika shift tidak punya istirahat
