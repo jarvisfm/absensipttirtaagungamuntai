@@ -146,6 +146,43 @@ const faceRecognition = {
             async (position) => {
                 this.position = position;
 
+                // Karyawan "Pekerja Lapangan" (ditandai Admin) dikecualikan
+                // dari validasi radius - dicek dulu di sini supaya mereka
+                // tidak melihat pesan "di luar radius" yang membingungkan.
+                // Backend TETAP jadi penentu akhir/wajib (lihat
+                // Attendance.gs), ini cuma untuk UX di layar.
+                try {
+                    const user = auth.getCurrentUser ? auth.getCurrentUser() : null;
+                    if (user && user.id) {
+                        const empRes = await api.getKaryawanDetail(user.id);
+                        const emp = empRes && empRes.data;
+                        const isExempt = emp && (emp.locationExempt === true || String(emp.locationExempt || '').toUpperCase() === 'TRUE');
+                        let withinExemptRange = isExempt;
+                        if (isExempt) {
+                            // Sama seperti backend: kalau Admin isi tanggal
+                            // "Berlaku Dari/Sampai", bebas-radius cuma aktif
+                            // di rentang itu - di luar itu, otomatis balik
+                            // ke validasi radius normal (tidak perlu Admin
+                            // matikan manual tiap hari).
+                            const todayStr = new Date().toISOString().substring(0, 10);
+                            const exemptFrom  = emp.locationExemptFrom  ? String(emp.locationExemptFrom).substring(0, 10)  : '';
+                            const exemptUntil = emp.locationExemptUntil ? String(emp.locationExemptUntil).substring(0, 10) : '';
+                            if (exemptFrom  && todayStr < exemptFrom)  withinExemptRange = false;
+                            if (exemptUntil && todayStr > exemptUntil) withinExemptRange = false;
+                        }
+                        if (withinExemptRange) {
+                            if (statusEl) {
+                                statusEl.innerHTML = '<i class="fas fa-check-circle"></i> Terverifikasi (Pekerja Lapangan - bebas radius)';
+                                statusEl.classList.add('verified');
+                                statusEl.classList.remove('out-of-range');
+                            }
+                            this.locationVerified = true;
+                            this.checkCanSubmit();
+                            return;
+                        }
+                    }
+                } catch (e) { /* kalau gagal cek, lanjut ke validasi radius normal */ }
+
                 // Ambil pengaturan lokasi kantor dari backend (bisa lebih
                 // dari 1 - Kantor Pusat, Unit SPAM, dsb)
                 let officeLocations = [], radius = 100;
