@@ -144,6 +144,21 @@
     font-size: var(--font-size-sm);
 }
 
+/* Wajah terdeteksi - frame & ikon berubah jadi hijau supaya karyawan tahu
+   posisinya sudah pas dan tombol absen akan aktif */
+.face-frame.detected {
+    border-color: rgba(16, 185, 129, 0.6);
+}
+
+.face-frame.detected .face-corner {
+    border-color: #10B981;
+}
+
+.face-guide i.detected {
+    color: #10B981;
+    opacity: 0.9;
+}
+
 /* Scanning Animation */
 .scanning-line {
     position: absolute;
