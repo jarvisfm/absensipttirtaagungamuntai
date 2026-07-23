@@ -284,6 +284,25 @@ const faceRecognition = {
         }
     },
 
+    /**
+     * Ambil alamat asli dari koordinat GPS (reverse geocoding) pakai
+     * Nominatim/OpenStreetMap - gratis, tanpa API key, sama seperti peta
+     * yang sudah dipakai di _renderRealMap(). Balikin '' kalau gagal
+     * (offline, timeout, dll) supaya pemanggilnya bisa fallback ke teks lain.
+     */
+    async _reverseGeocode(lat, lng) {
+        try {
+            const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`;
+            const res = await fetch(url, { headers: { 'Accept-Language': 'id' } });
+            if (!res.ok) throw new Error('reverse geocode gagal: ' + res.status);
+            const data = await res.json();
+            return data && data.display_name ? data.display_name : '';
+        } catch (e) {
+            console.error('Gagal ambil alamat dari koordinat:', e);
+            return '';
+        }
+    },
+
     initLocation() {
         if (!navigator.geolocation) {
             toast.error('Browser Anda tidak mendukung geolokasi');
@@ -409,6 +428,14 @@ const faceRecognition = {
                             if (coordsEl)   coordsEl.textContent   = `${userLat.toFixed(6)}, ${userLng.toFixed(6)}`;
                             if (addressEl)  addressEl.textContent  = `Di luar radius ${nearest.nama} (${distance}m)`;
                             if (accuracyEl) accuracyEl.textContent = `±${Math.round(position.coords.accuracy)}m`;
+
+                            // Tampilkan alamat asli begitu selesai diambil (async,
+                            // tidak menghalangi info radius yang sudah tampil duluan)
+                            this._reverseGeocode(userLat, userLng).then(addr => {
+                                if (addressEl && addr) {
+                                    addressEl.textContent = `${addr} — di luar radius ${nearest.nama} (${distance}m)`;
+                                }
+                            });
                         }
                         return; // jangan set locationVerified = true
                     }
@@ -430,9 +457,15 @@ const faceRecognition = {
                     const timeEl     = document.getElementById('location-time');
                     const accuracyEl = document.getElementById('location-accuracy');
                     if (coordsEl)   coordsEl.textContent   = `${userLat.toFixed(6)}, ${userLng.toFixed(6)}`;
-                    if (addressEl)  addressEl.textContent  = 'Lokasi Valid';
+                    if (addressEl)  addressEl.textContent  = 'Mencari alamat...';
                     if (timeEl)     timeEl.textContent     = dateTime.getCurrentTime();
                     if (accuracyEl) accuracyEl.textContent = `±${Math.round(position.coords.accuracy)}m`;
+
+                    // Alamat asli dari koordinat GPS (reverse geocoding) -
+                    // menggantikan teks statis "Lokasi Valid" yang lama.
+                    this._reverseGeocode(userLat, userLng).then(addr => {
+                        if (addressEl) addressEl.textContent = addr || 'Lokasi Valid';
+                    });
                 }
 
                 // Update map visualization - peta asli (OpenStreetMap via
