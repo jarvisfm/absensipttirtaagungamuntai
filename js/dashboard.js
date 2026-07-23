@@ -10,6 +10,7 @@ const dashboard = {
         await this.loadData();
 
         this.updateWelcomeCard();
+        this.updateBirthdayCard();
         this.updateStats();
         this.updateSessionInfo();
         this.updateProgressBar();
@@ -143,6 +144,45 @@ const dashboard = {
             } else {
                 shiftEl.textContent = `Shift: ${activeShift.name} (${activeShift.startTime} - ${activeShift.endTime})`;
             }
+        }
+    },
+
+    /**
+     * Kartu "Selamat Ulang Tahun" - muncul di dashboard cuma kalau HARI INI
+     * cocok dengan tanggal & bulan lahir karyawan (field Tanggal Lahir di
+     * profil, disimpan sebagai "YYYY-MM-DD" dari <input type="date">).
+     * Tahun lahir sengaja diabaikan - yang dicocokkan cuma tanggal & bulan.
+     */
+    updateBirthdayCard() {
+        const card = document.getElementById('birthday-card');
+        if (!card) return;
+
+        const currentUser = auth.getCurrentUser();
+        const myId = currentUser?.employeeId || currentUser?.id;
+        const me = (this.allEmployees || []).find(e => String(e.id) === String(myId));
+
+        const tanggalLahir = me?.tanggalLahir || '';
+        // Format "YYYY-MM-DD" dari <input type="date"> - ambil bulan & tanggal saja
+        const m = String(tanggalLahir).match(/^\d{4}-(\d{2})-(\d{2})/);
+
+        if (!m) {
+            card.style.display = 'none';
+            return;
+        }
+
+        const birthMonth = Number(m[1]);
+        const birthDay = Number(m[2]);
+
+        const today = new Date();
+        const isBirthdayToday = (today.getMonth() + 1) === birthMonth && today.getDate() === birthDay;
+
+        if (isBirthdayToday) {
+            card.style.display = 'flex';
+            const msgEl = document.getElementById('birthday-message');
+            const firstName = (currentUser?.name || 'Kamu').split(' ')[0];
+            if (msgEl) msgEl.textContent = `Selamat Ulang Tahun, ${firstName}! 🎉`;
+        } else {
+            card.style.display = 'none';
         }
     },
 
