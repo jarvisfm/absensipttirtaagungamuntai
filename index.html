@@ -2785,6 +2785,11 @@
          window.jspdf.jsPDF secara langsung. -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <!-- Leaflet: dipakai face-recognition.js untuk menampilkan peta asli
+         (OpenStreetMap) di lokasi karyawan saat verifikasi absen, sebagai
+         pengganti kotak abu-abu dengan ikon pin statis yang lama. -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <!-- face-api.js: dipakai face-recognition.js untuk deteksi wajah nyata
          (berbasis geometri/landmark wajah, model TinyFaceDetector) - supaya
          absen wajah tidak bisa lolos kalau wajah tidak benar-benar
