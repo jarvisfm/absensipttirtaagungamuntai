@@ -453,6 +453,18 @@
     .welcome-illustration {
         font-size: 3rem;
     }
+
+    /* Birthday card - sama seperti welcome card */
+    .birthday-card {
+        flex-direction: column;
+        text-align: center;
+        gap: var(--spacing);
+        padding: var(--spacing-md);
+    }
+
+    .birthday-illustration {
+        font-size: 3rem;
+    }
     
     /* Stats chart - vertical layout */
     .stats-chart {
