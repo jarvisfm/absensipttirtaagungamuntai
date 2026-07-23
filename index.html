@@ -1747,6 +1747,25 @@
                         <option value="Jaga Malam">Jaga Malam (Senin-Sabtu)</option>
                     </select>
                 </div>
+                <div class="form-group" style="margin-top:1.5rem;border-top:1px solid var(--border-color);padding-top:1rem;">
+                    <label style="display:flex;align-items:center;gap:8px;font-weight:600;cursor:pointer;">
+                        <input type="checkbox" id="p-locationExempt" style="width:auto;">
+                        Pekerja Lapangan (bebas radius lokasi absen)
+                    </label>
+                    <small style="color:var(--text-muted);display:block;margin-top:2px;">Karyawan ini tetap bisa absen walau di luar radius kantor manapun (mis. sedang perbaikan pipa di lapangan). Hanya Admin yang bisa mengaktifkan ini.</small>
+                    <input type="text" id="p-locationExemptNote" placeholder="Catatan (contoh: Tim perbaikan pipa area luar kota)" style="margin-top:8px;">
+                    <div class="form-row two-col" style="margin-top:8px;">
+                        <div class="form-group">
+                            <label style="font-size:0.8rem;">Berlaku Dari (opsional)</label>
+                            <input type="date" id="p-locationExemptFrom">
+                        </div>
+                        <div class="form-group">
+                            <label style="font-size:0.8rem;">Berlaku Sampai (opsional)</label>
+                            <input type="date" id="p-locationExemptUntil">
+                        </div>
+                    </div>
+                    <small style="color:var(--text-muted);display:block;margin-top:2px;">Kosongkan kedua tanggal kalau mau berlaku terus-menerus. Kalau diisi, bebas-radius otomatis aktif HANYA di rentang tanggal itu — di luar itu, karyawan otomatis kembali terikat radius normal tanpa perlu dimatikan manual.</small>
+                </div>
             </div>
 
             <!-- Tab Keluarga -->
