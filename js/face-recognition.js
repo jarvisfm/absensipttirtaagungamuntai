@@ -17,6 +17,7 @@ const faceRecognition = {
     modelsLoaded: false,
     faceDetected: false,
     _detectLoopId: null,
+    _leafletMap: null,
 
     init(action) {
         this.currentAction = action;
@@ -24,6 +25,7 @@ const faceRecognition = {
         this.locationVerified = false;
         this.faceDetected = false;
         this.position = null;
+        this._destroyRealMap();
 
         const retryBtn = document.getElementById('btn-retry-location');
         if (retryBtn) retryBtn.style.display = 'none';
@@ -224,6 +226,64 @@ const faceRecognition = {
         return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
     },
 
+    /**
+     * Render peta ASLI (OpenStreetMap via Leaflet) berpusat di koordinat
+     * karyawan - menggantikan kotak abu-abu dengan ikon pin statis yang lama.
+     * Tidak butuh API key (beda dari Google Maps).
+     */
+    _renderRealMap(mapEl, lat, lng, accuracy) {
+        if (!mapEl || typeof L === 'undefined') {
+            console.error('Leaflet tidak termuat, peta tidak bisa ditampilkan.');
+            return;
+        }
+
+        // Leaflet tidak bisa di-init 2x di container yang sama tanpa
+        // di-destroy dulu - bersihkan instance lama & buat div baru yang
+        // masih "polos".
+        this._destroyRealMap();
+        mapEl.innerHTML = '<div id="leaflet-map-el" style="width:100%;height:100%;"></div>';
+
+        const mapContainer = document.getElementById('leaflet-map-el');
+        if (!mapContainer) return;
+
+        try {
+            this._leafletMap = L.map(mapContainer, { zoomControl: false }).setView([lat, lng], 17);
+
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; OpenStreetMap contributors',
+                maxZoom: 19
+            }).addTo(this._leafletMap);
+
+            L.marker([lat, lng]).addTo(this._leafletMap)
+                .bindPopup('Lokasi Anda saat ini')
+                .openPopup();
+
+            if (accuracy) {
+                L.circle([lat, lng], {
+                    radius: accuracy,
+                    color: '#F59E0B',
+                    fillColor: '#F59E0B',
+                    fillOpacity: 0.12,
+                    weight: 1
+                }).addTo(this._leafletMap);
+            }
+
+            // Leaflet kadang salah hitung ukuran kalau container-nya baru
+            // dipasang ke DOM (mis. div sebelumnya display:none) - paksa
+            // recalculate sesudah render supaya peta tidak terpotong/blank.
+            setTimeout(() => { if (this._leafletMap) this._leafletMap.invalidateSize(); }, 200);
+        } catch (e) {
+            console.error('Gagal render peta:', e);
+        }
+    },
+
+    _destroyRealMap() {
+        if (this._leafletMap) {
+            try { this._leafletMap.remove(); } catch (e) {}
+            this._leafletMap = null;
+        }
+    },
+
     initLocation() {
         if (!navigator.geolocation) {
             toast.error('Browser Anda tidak mendukung geolokasi');
@@ -375,18 +435,9 @@ const faceRecognition = {
                     if (accuracyEl) accuracyEl.textContent = `±${Math.round(position.coords.accuracy)}m`;
                 }
 
-                // Update map visualization
-                if (mapEl) {
-                    mapEl.innerHTML = `
-                        <div class="map-container">
-                            <div class="map-marker"></div>
-                            <div style="position: absolute; bottom: 10px; left: 10px; background: rgba(255,255,255,0.9); padding: 8px; border-radius: 6px; font-size: 12px;">
-                                <i class="fas fa-map-marker-alt" style="color: var(--color-primary);"></i>
-                                Lokasi Valid
-                            </div>
-                        </div>
-                    `;
-                }
+                // Update map visualization - peta asli (OpenStreetMap via
+                // Leaflet), bukan lagi kotak abu-abu dengan ikon pin statis.
+                this._renderRealMap(mapEl, userLat, userLng, position.coords.accuracy);
 
                 this.checkCanSubmit();
             },
@@ -404,6 +455,7 @@ const faceRecognition = {
                     statusEl.classList.remove('verified');
                     statusEl.classList.add('out-of-range');
                 }
+                this._destroyRealMap();
                 if (mapEl) {
                     mapEl.innerHTML = `
                         <div class="map-placeholder"><i class="fas fa-exclamation-triangle" style="color:#EF4444;"></i>
