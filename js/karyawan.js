@@ -208,6 +208,10 @@ const karyawanManager = {
             this.autoHitungMasaKerja();
             document.getElementById('p-tahunPensiun').value    = p.tahunPensiun || '';
             document.getElementById('p-shift').value           = p.shift || 'Reguler (Sen-Kam)';
+            document.getElementById('p-locationExempt').checked = p.locationExempt === true || p.locationExempt === 'TRUE' || p.locationExempt === 'true';
+            document.getElementById('p-locationExemptNote').value = p.locationExemptNote || '';
+            document.getElementById('p-locationExemptFrom').value = p.locationExemptFrom || '';
+            document.getElementById('p-locationExemptUntil').value = p.locationExemptUntil || '';
 
             // Tab Keluarga
             const keluarga = p.keluarga || [];
@@ -237,13 +241,18 @@ const karyawanManager = {
             'p-tempatLahir','p-tanggalLahir','p-golonganDarah','p-noTelp','p-npwp','p-ktp',
             'p-email','p-statusPekerjaan','p-statusKaryawan','p-pendidikan','p-jabatan',
             'p-unitWilayah','p-bagian','p-pangkat','p-golongan','p-gajiPokok',
-            'p-terhitungMulai','p-masaKerja','p-tahunPensiun','p-shift',
+            'p-terhitungMulai','p-masaKerja','p-tahunPensiun','p-shift','p-locationExemptNote',
+            'p-locationExemptFrom','p-locationExemptUntil',
             'p-namaPasangan','p-namaAyah','p-namaIbu','p-username','p-password'];
 
         fields.forEach(id => {
             const el = document.getElementById(id);
             if (el) el.value = '';
         });
+
+        // Checkbox tidak punya .value untuk direset, harus .checked
+        const locationExemptEl = document.getElementById('p-locationExempt');
+        if (locationExemptEl) locationExemptEl.checked = false;
 
         // Select tidak punya opsi kosong, jadi default-kan manual ke 'staff'
         const roleEl = document.getElementById('p-role');
@@ -380,6 +389,10 @@ const karyawanManager = {
             masaKerja:        document.getElementById('p-masaKerja').value.trim(),
             tahunPensiun:     document.getElementById('p-tahunPensiun').value.trim(),
             shift:            document.getElementById('p-shift').value,
+            locationExempt:     document.getElementById('p-locationExempt').checked,
+            locationExemptNote: document.getElementById('p-locationExemptNote').value.trim(),
+            locationExemptFrom:  document.getElementById('p-locationExemptFrom').value,
+            locationExemptUntil: document.getElementById('p-locationExemptUntil').value,
             username:         document.getElementById('p-username').value.trim(),
             fileSK:           document.getElementById('karyawan-sk-link')?.value.trim() || '',
             fileKTP:          document.getElementById('karyawan-ktp-link')?.value.trim() || '',
