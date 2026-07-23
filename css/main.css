@@ -624,6 +624,41 @@ img {
     animation: float 3s ease-in-out infinite;
 }
 
+/* Kartu Ulang Tahun - muncul di bawah kartu sapaan kalau hari ini
+   tanggal lahir karyawan (dari field Tanggal Lahir di profil) */
+.birthday-card {
+    background: linear-gradient(135deg, #EC4899 0%, #8B5CF6 100%);
+    border-radius: var(--border-radius-lg);
+    padding: var(--spacing-lg);
+    margin-top: var(--spacing);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    color: var(--color-white);
+    box-shadow: var(--shadow-lg);
+}
+
+.birthday-content h3 {
+    font-size: var(--font-size-xl);
+    font-weight: 600;
+    margin-bottom: var(--spacing-xs);
+}
+
+.birthday-content p {
+    opacity: 0.9;
+}
+
+.birthday-illustration {
+    font-size: 4rem;
+    opacity: 0.9;
+    animation: birthday-wiggle 1.6s ease-in-out infinite;
+}
+
+@keyframes birthday-wiggle {
+    0%, 100% { transform: rotate(-8deg) scale(1); }
+    50% { transform: rotate(8deg) scale(1.08); }
+}
+
 /* Dashboard Cards */
 .dashboard-card {
     background: var(--bg-secondary);
