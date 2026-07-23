@@ -11,11 +11,18 @@ const faceRecognition = {
     photoCaptured: false,
     locationVerified: false,
     position: null,
+    // Deteksi wajah nyata (geometri/landmark) pakai face-api.js -
+    // menggantikan simulasi "scanning" 2 detik yang lama, yang selalu
+    // menganggap wajah terverifikasi apapun isi kameranya.
+    modelsLoaded: false,
+    faceDetected: false,
+    _detectLoopId: null,
 
     init(action) {
         this.currentAction = action;
         this.photoCaptured = false;
         this.locationVerified = false;
+        this.faceDetected = false;
         this.position = null;
 
         const retryBtn = document.getElementById('btn-retry-location');
@@ -107,17 +114,102 @@ const faceRecognition = {
 
             this.video.srcObject = this.stream;
 
-            // Enable capture button when video is ready
-            this.video.onloadedmetadata = () => {
-                const captureBtn = document.getElementById('btn-capture');
-                if (captureBtn) {
-                    captureBtn.disabled = false;
+            // Dulu: tombol capture langsung di-enable begitu kamera nyala,
+            // tanpa peduli ada wajah atau tidak. Sekarang: tunggu model
+            // deteksi wajah siap, lalu tombol capture cuma aktif selama
+            // wajah BENAR-BENAR terdeteksi di frame (lihat _startFaceDetectionLoop).
+            this.video.onloadedmetadata = async () => {
+                const ready = await this._loadFaceModels();
+                if (!ready) {
+                    // Model gagal dimuat (mis. tidak ada akses ke CDN) -
+                    // supaya fitur absen tidak terkunci total, fallback ke
+                    // perilaku lama (capture selalu boleh).
+                    this.faceDetected = true;
+                    const captureBtn = document.getElementById('btn-capture');
+                    if (captureBtn) captureBtn.disabled = false;
+                    return;
                 }
+                this._startFaceDetectionLoop();
             };
 
         } catch (error) {
             console.error('Camera error:', error);
             toast.error('Tidak dapat mengakses kamera. Pastikan Anda memberikan izin kamera.');
+        }
+    },
+
+    /**
+     * Muat model TinyFaceDetector (face-api.js) sekali saja - dipakai untuk
+     * mendeteksi APAKAH ada wajah di frame kamera (bukan mengenali identitas
+     * siapa, cukup memastikan ada wajah nyata di depan kamera).
+     */
+    async _loadFaceModels() {
+        if (this.modelsLoaded) return true;
+        if (typeof faceapi === 'undefined') {
+            console.error('face-api.js tidak termuat.');
+            return false;
+        }
+        try {
+            const MODEL_URL = 'https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js@master/weights';
+            await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL);
+            this.modelsLoaded = true;
+            return true;
+        } catch (e) {
+            console.error('Gagal memuat model deteksi wajah:', e);
+            return false;
+        }
+    },
+
+    /**
+     * Loop deteksi wajah live tiap ~400ms selama kamera aktif. Tombol
+     * capture cuma aktif selama this.faceDetected true, dan overlay
+     * (frame + teks panduan) berubah warna/teks sesuai status supaya
+     * karyawan tahu harus memposisikan wajahnya.
+     */
+    _startFaceDetectionLoop() {
+        this._stopFaceDetectionLoop();
+
+        this._detectLoopId = setInterval(async () => {
+            if (!this.video || this.video.readyState < 2 || this.photoCaptured) return;
+
+            let detected = false;
+            try {
+                const result = await faceapi.detectSingleFace(
+                    this.video,
+                    new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.5 })
+                );
+                detected = !!result;
+            } catch (e) {
+                detected = false;
+            }
+
+            this.faceDetected = detected;
+            this._updateFaceOverlay(detected);
+
+            const captureBtn = document.getElementById('btn-capture');
+            if (captureBtn && !this.photoCaptured) captureBtn.disabled = !detected;
+        }, 400);
+    },
+
+    _stopFaceDetectionLoop() {
+        if (this._detectLoopId) {
+            clearInterval(this._detectLoopId);
+            this._detectLoopId = null;
+        }
+    },
+
+    // Ubah tampilan frame & teks panduan sesuai status deteksi wajah
+    _updateFaceOverlay(detected) {
+        const frame = document.querySelector('#face-overlay .face-frame');
+        const guideIcon = document.querySelector('#face-overlay .face-guide i');
+        const guideText = document.querySelector('#face-overlay .face-guide p');
+
+        if (frame) frame.classList.toggle('detected', detected);
+        if (guideIcon) guideIcon.classList.toggle('detected', detected);
+        if (guideText) {
+            guideText.textContent = detected
+                ? 'Wajah terdeteksi'
+                : 'Wajah tidak terlihat - posisikan wajah di dalam frame';
         }
     },
 
@@ -420,10 +512,31 @@ const faceRecognition = {
             scanningLine.style.display = 'block';
         }
 
-        // Simulate face verification (2 seconds)
-        setTimeout(() => {
-            if (scanningLine) {
-                scanningLine.style.display = 'none';
+        // Pengecekan wajah FINAL, langsung di frame yang baru saja diambil -
+        // bukan cuma mengandalkan hasil loop live sebelumnya (bisa saja wajah
+        // sempat kelihatan lalu menghilang tepat sebelum tombol ditekan).
+        // Kalau tidak ada wajah di foto ini, absen DIBATALKAN dan user harus
+        // mengulang - tidak ada lagi "verifikasi" palsu yang selalu sukses.
+        (async () => {
+            let faceOk = this.faceDetected; // fallback kalau model gagal load (lihat _loadFaceModels)
+            if (this.modelsLoaded && typeof faceapi !== 'undefined') {
+                try {
+                    const result = await faceapi.detectSingleFace(
+                        this.canvas,
+                        new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.5 })
+                    );
+                    faceOk = !!result;
+                } catch (e) {
+                    faceOk = this.faceDetected;
+                }
+            }
+
+            if (scanningLine) scanningLine.style.display = 'none';
+
+            if (!faceOk) {
+                toast.error('Wajah tidak terdeteksi. Pastikan wajah Anda terlihat jelas di kamera, lalu coba lagi.');
+                if (captureBtnEl) captureBtnEl.disabled = !this.faceDetected;
+                return;
             }
 
             // Show verification success
@@ -459,12 +572,12 @@ const faceRecognition = {
             // tombol konfirmasi terpisah lagi (dulu ada 2 tombol, sekarang
             // digabung jadi 1 aksi).
             this.confirmAttendance();
-
-        }, 2000);
+        })();
     },
 
     retakePhoto() {
         this.photoCaptured = false;
+        this.faceDetected = false;
 
         // Reset preview
         const preview = document.getElementById('camera-preview');
@@ -504,6 +617,7 @@ const faceRecognition = {
     },
 
     stopCamera() {
+        this._stopFaceDetectionLoop();
         if (this.stream) {
             this.stream.getTracks().forEach(track => track.stop());
             this.stream = null;
