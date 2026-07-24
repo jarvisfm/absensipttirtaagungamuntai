@@ -2592,8 +2592,12 @@
         </div>
     </div>
 
-    <!-- Modal Catatan Absen Luar Radius -->
-    <div class="modal-overlay" id="modal-out-of-radius-note" style="display:none;">
+    <!-- Modal Catatan Absen Luar Radius (VIEW-ONLY, dipakai admin-reports.js
+         untuk MELIHAT catatan yang sudah dikirim - beda dengan modal
+         #modal-out-of-radius-note punya face-recognition.js yang dipakai
+         untuk SUBMIT catatan baru saat proses absen. ID sengaja dibedakan
+         supaya tidak bentrok. -->
+    <div class="modal-overlay" id="modal-out-of-radius-view" style="display:none;">
         <div class="modal-container" style="max-width:420px;">
             <div style="padding:1.75rem 1.5rem;">
                 <div style="display:flex;align-items:center;gap:12px;margin-bottom:1.25rem;">
