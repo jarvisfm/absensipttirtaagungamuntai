@@ -586,13 +586,14 @@ const adminReports = {
                         ? `<button style="background:#10b981;color:#fff;font-size:0.7rem;padding:2px 8px;border-radius:4px;border:none;cursor:pointer;" onclick="adminReports.openMaps('${row.verificationLocation}')"><i class="fas fa-map-marker-alt"></i> GPS</button>`
                         : '<span style="color:var(--text-muted)">–</span>';
 
-                    // Tandai jam yang tercatat di luar radius (Pekerja Lapangan)
-                    // dengan badge kecil + tooltip berisi catatan alasannya.
+                    // Tandai jam yang tercatat di luar radius (Pekerja Lapangan).
+                    // Dulu catatannya cuma muncul lewat hover (title attribute) -
+                    // di HP/touchscreen hover tidak berfungsi, jadi sekarang
+                    // badge-nya bisa DIKLIK/DITAP untuk menampilkan catatannya.
                     const oorBadge = (type) => {
                         const r = (this.outOfRadiusMap || {})[`${emp.id}|${row.date}|${type}`];
                         if (!r) return '';
-                        const noteAttr = this._esc(r.note).replace(/"/g, '&quot;');
-                        return `<br><span title="${noteAttr}" style="display:inline-block;margin-top:2px;background:#FEF3C7;color:#D97706;font-size:0.65rem;font-weight:600;padding:1px 6px;border-radius:10px;cursor:help;"><i class="fas fa-map-marker-alt"></i> Luar Radius${r.status === 'approved' ? ' ✓' : ''}</span>`;
+                        return `<br><span onclick="adminReports.showOutOfRadiusNote('${emp.id}', '${row.date}', '${type}')" style="display:inline-block;margin-top:2px;background:#FEF3C7;color:#D97706;font-size:0.65rem;font-weight:600;padding:1px 6px;border-radius:10px;cursor:pointer;"><i class="fas fa-map-marker-alt"></i> Luar Radius${r.status === 'approved' ? ' ✓' : ''} <i class="fas fa-circle-info" style="font-size:0.6rem;"></i></span>`;
                     };
 
                     html += `
@@ -769,6 +770,13 @@ const adminReports = {
 
     _esc(str) {
         return String(str || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    },
+
+    showOutOfRadiusNote(userId, date, type) {
+        const r = (this.outOfRadiusMap || {})[`${userId}|${date}|${type}`];
+        if (!r) return;
+        const statusText = r.status === 'approved' ? `Sudah ditinjau oleh ${r.approvedBy}` : 'Menunggu ditinjau';
+        alert(`Catatan Absen Luar Radius\n\n${r.userName}\n\n"${r.note}"\n\n${statusText}`);
     },
 
     viewAttendanceDetail(id) {
