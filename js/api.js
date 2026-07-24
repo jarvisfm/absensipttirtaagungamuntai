@@ -123,6 +123,19 @@ const api = {
         return this.request('getAllAttendance');
     },
 
+    async submitOutOfRadiusReport(data) {
+        return this.request('submitOutOfRadiusReport', data);
+    },
+    async getOutOfRadiusReportsForApprover(approverId) {
+        return this.request('getOutOfRadiusReportsForApprover', { approverId });
+    },
+    async getAllOutOfRadiusReports() {
+        return this.request('getAllOutOfRadiusReports');
+    },
+    async approveOutOfRadiusReport(id, approver) {
+        return this.request('approveOutOfRadiusReport', { id, approver });
+    },
+
     // ========== LEAVES (CUTI) ==========
 
     async getLeaves(userId) {
