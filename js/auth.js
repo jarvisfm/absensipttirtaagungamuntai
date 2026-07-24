@@ -23,7 +23,7 @@ const auth = {
     const session = storage.get('session');
     if (session && session.id && session.role && !this.isSessionExpired(session)) {
         this.currentUser = session;
-        this.showApp();
+        this.showApp(true); // true = restore sesi (refresh halaman), BUKAN login baru
         this.startSessionWatcher();
     } else {
         storage.remove('session');
@@ -252,7 +252,7 @@ const auth = {
         );
     },
 
-    showApp() {
+    showApp(isSessionRestore = false) {
         const loginContainer = document.getElementById('login-container');
         const appContainer = document.getElementById('app-container');
 
@@ -284,16 +284,18 @@ const auth = {
                 if (adminMenu) adminMenu.classList.remove('hidden');
                 if (bottomNav) bottomNav.style.display = 'none';
 
-                // Navigate to admin dashboard
-                router.navigate('admin-dashboard');
+                // Navigate to admin dashboard - CUMA kalau ini login baru,
+                // bukan restore sesi (refresh halaman) - supaya refresh
+                // tidak selalu balik ke dashboard, tetap di halaman terakhir.
+                if (!isSessionRestore) router.navigate('admin-dashboard');
             } else {
                 // Show employee menu, hide admin menu
                 if (employeeMenu) employeeMenu.classList.remove('hidden');
                 if (adminMenu) adminMenu.classList.add('hidden');
                 if (bottomNav) bottomNav.style.display = window.innerWidth <= 768 ? 'flex' : 'none';
 
-                // Navigate to employee dashboard
-                router.navigate('dashboard');
+                // Navigate to employee dashboard - sama, cuma untuk login baru
+                if (!isSessionRestore) router.navigate('dashboard');
             }
 
             // Menu approval terpisah untuk tiap tahap: Asmen, Manajer, Direktur.
