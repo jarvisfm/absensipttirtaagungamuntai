@@ -18,6 +18,8 @@ const faceRecognition = {
     faceDetected: false,
     _detectLoopId: null,
     _leafletMap: null,
+    _outOfRadiusNote: null,
+    _outOfRadiusContext: null,
 
     init(action) {
         this.currentAction = action;
@@ -26,6 +28,8 @@ const faceRecognition = {
         this.faceDetected = false;
         this.position = null;
         this._destroyRealMap();
+        this._outOfRadiusNote = null;
+        this._outOfRadiusContext = null;
 
         const retryBtn = document.getElementById('btn-retry-location');
         if (retryBtn) retryBtn.style.display = 'none';
@@ -303,6 +307,56 @@ const faceRecognition = {
         }
     },
 
+    /**
+     * Munculkan modal wajib isi catatan alasan untuk karyawan "Pekerja
+     * Lapangan" yang terdeteksi BENAR-BENAR di luar semua radius kantor.
+     * locationVerified tetap false sampai catatan disubmit - tombol absen
+     * tetap terkunci selama itu.
+     */
+    _promptOutOfRadiusNote(ctx) {
+        this._outOfRadiusContext = ctx;
+        const modal = document.getElementById('modal-out-of-radius-note');
+        const textarea = document.getElementById('out-of-radius-note-text');
+        const infoEl = document.getElementById('out-of-radius-note-info');
+        if (textarea) textarea.value = '';
+        if (infoEl) {
+            infoEl.textContent = `Anda terdeteksi ${ctx.distance}m dari ${ctx.nearest.nama}. Sebagai Pekerja Lapangan, Anda tetap boleh absen - jelaskan dulu sedang di mana/mengerjakan apa.`;
+        }
+        if (modal) modal.style.display = 'flex';
+    },
+
+    submitOutOfRadiusNote() {
+        const textarea = document.getElementById('out-of-radius-note-text');
+        const note = textarea ? textarea.value.trim() : '';
+        if (!note) {
+            toast.error('Catatan alasan wajib diisi sebelum bisa absen.');
+            return;
+        }
+
+        this._outOfRadiusNote = note;
+        this.locationVerified = true;
+
+        const modal = document.getElementById('modal-out-of-radius-note');
+        if (modal) modal.style.display = 'none';
+
+        const statusEl = document.getElementById('location-status');
+        if (statusEl) {
+            statusEl.innerHTML = '<i class="fas fa-check-circle"></i> Terverifikasi (Pekerja Lapangan - Luar Radius, tercatat)';
+            statusEl.classList.add('verified');
+            statusEl.classList.remove('out-of-range');
+        }
+
+        this.checkCanSubmit();
+    },
+
+    cancelOutOfRadiusNote() {
+        const modal = document.getElementById('modal-out-of-radius-note');
+        if (modal) modal.style.display = 'none';
+        // locationVerified tetap false - karyawan bisa klik "Coba Lagi" lokasi
+        const retryBtn = document.getElementById('btn-retry-location');
+        if (retryBtn) retryBtn.style.display = 'flex';
+    },
+
     initLocation() {
         if (!navigator.geolocation) {
             toast.error('Browser Anda tidak mendukung geolokasi');
@@ -318,17 +372,24 @@ const faceRecognition = {
                 this.position = position;
 
                 // Karyawan "Pekerja Lapangan" (ditandai Admin) dikecualikan
-                // dari validasi radius - dicek dulu di sini supaya mereka
-                // tidak melihat pesan "di luar radius" yang membingungkan.
-                // Backend TETAP jadi penentu akhir/wajib (lihat
-                // Attendance.gs), ini cuma untuk UX di layar.
+                // dari validasi radius - TAPI tetap dihitung jaraknya di
+                // bawah supaya kita tahu apakah dia SEDANG BENAR-BENAR di
+                // luar radius atau tidak. Kalau memang di luar radius,
+                // dia tetap boleh absen, tapi wajib isi catatan alasan dulu
+                // (lihat _promptOutOfRadiusNote) - laporannya dikirim ke
+                // approver yang ditunjuk Admin. Backend TETAP jadi penentu
+                // akhir/wajib (lihat Attendance.gs), ini cuma untuk UX di layar.
+                let isExempt = false;
+                let withinExemptRange = false;
+                let exemptUserId = null;
                 try {
                     const user = auth.getCurrentUser ? auth.getCurrentUser() : null;
                     if (user && user.id) {
+                        exemptUserId = user.employeeId || user.id;
                         const empRes = await api.getKaryawanDetail(user.id);
                         const emp = empRes && empRes.data;
-                        const isExempt = emp && (emp.locationExempt === true || String(emp.locationExempt || '').toUpperCase() === 'TRUE');
-                        let withinExemptRange = isExempt;
+                        isExempt = !!(emp && (emp.locationExempt === true || String(emp.locationExempt || '').toUpperCase() === 'TRUE'));
+                        withinExemptRange = isExempt;
                         if (isExempt) {
                             // Sama seperti backend: kalau Admin isi tanggal
                             // "Berlaku Dari/Sampai", bebas-radius cuma aktif
@@ -341,18 +402,8 @@ const faceRecognition = {
                             if (exemptFrom  && todayStr < exemptFrom)  withinExemptRange = false;
                             if (exemptUntil && todayStr > exemptUntil) withinExemptRange = false;
                         }
-                        if (withinExemptRange) {
-                            if (statusEl) {
-                                statusEl.innerHTML = '<i class="fas fa-check-circle"></i> Terverifikasi (Pekerja Lapangan - bebas radius)';
-                                statusEl.classList.add('verified');
-                                statusEl.classList.remove('out-of-range');
-                            }
-                            this.locationVerified = true;
-                            this.checkCanSubmit();
-                            return;
-                        }
                     }
-                } catch (e) { /* kalau gagal cek, lanjut ke validasi radius normal */ }
+                } catch (e) { /* kalau gagal cek, anggap tidak exempt, lanjut ke validasi radius normal */ }
 
                 // Ambil pengaturan lokasi kantor dari backend (bisa lebih
                 // dari 1 - Kantor Pusat, Unit SPAM, dsb)
@@ -400,6 +451,36 @@ const faceRecognition = {
                     });
                     const distance = Math.round(nearest.distance);
                     const inRadius = distance <= radius;
+
+                    if (!inRadius && withinExemptRange) {
+                        // Pekerja Lapangan yang MEMANG sedang di luar radius -
+                        // diizinkan, tapi wajib isi catatan alasan dulu.
+                        if (statusEl) {
+                            statusEl.innerHTML = '<i class="fas fa-exclamation-circle" style="color:#D97706;"></i> <span style="color:#D97706;">Di luar radius - isi catatan untuk lanjut (Pekerja Lapangan)</span>';
+                            statusEl.classList.remove('verified');
+                            statusEl.classList.add('out-of-range');
+                        }
+
+                        if (infoEl) {
+                            infoEl.style.display = 'block';
+                            const coordsEl   = document.getElementById('location-coords');
+                            const accuracyEl = document.getElementById('location-accuracy');
+                            if (coordsEl)   coordsEl.textContent   = `${userLat.toFixed(6)}, ${userLng.toFixed(6)}`;
+                            if (accuracyEl) accuracyEl.textContent = `±${Math.round(position.coords.accuracy)}m`;
+                        }
+                        this._renderRealMap(mapEl, userLat, userLng, position.coords.accuracy);
+
+                        this.locationVerified = false;
+                        this.checkCanSubmit();
+                        this._promptOutOfRadiusNote({
+                            userId: exemptUserId,
+                            userLat, userLng,
+                            distance,
+                            nearest,
+                            accuracy: position.coords.accuracy
+                        });
+                        return;
+                    }
 
                     if (statusEl) {
                         if (inRadius) {
@@ -746,6 +827,31 @@ const faceRecognition = {
                 if (window.absensi) {
                     await window.absensi.processWithVerification(this.currentAction, attendanceData);
                 }
+
+                // Kirim laporan luar-radius (kalau ada) SETELAH absen sukses
+                // tersimpan - gagal kirim laporan tidak boleh membatalkan
+                // absen yang sudah tercatat.
+                if (this._outOfRadiusNote && this._outOfRadiusContext) {
+                    try {
+                        const currentUser = auth.getCurrentUser();
+                        const ctx = this._outOfRadiusContext;
+                        await api.submitOutOfRadiusReport({
+                            userId: currentUser?.employeeId || currentUser?.id || ctx.userId,
+                            userName: currentUser?.name || '',
+                            type: this.currentAction,
+                            note: this._outOfRadiusNote,
+                            lat: ctx.userLat,
+                            lng: ctx.userLng,
+                            distance: ctx.distance,
+                            nearestOffice: ctx.nearest ? ctx.nearest.nama : ''
+                        });
+                    } catch (e) {
+                        console.error('Gagal kirim laporan luar radius:', e);
+                    }
+                    this._outOfRadiusNote = null;
+                    this._outOfRadiusContext = null;
+                }
+
                 setTimeout(() => router.navigate('absensi'), 500);
             } catch (error) {
                 console.error('Processing error:', error);
