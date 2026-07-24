@@ -81,9 +81,9 @@ const karyawanManager = {
             return `
                 <tr>
                     <td style="padding:10px 12px;">${idx + 1}</td>
-                    <td style="padding:10px 12px;">${fotoHtml}</td>
+                    <td style="padding:10px 12px;cursor:pointer;" onclick="karyawanManager.openModal('${p.id}')" title="Klik untuk edit">${fotoHtml}</td>
                     <td style="padding:10px 12px;font-size:0.82rem;">${p.nik || '-'}</td>
-                    <td style="padding:10px 12px;font-weight:500;">${p.nama || '-'}</td>
+                    <td style="padding:10px 12px;font-weight:500;cursor:pointer;" onclick="karyawanManager.openModal('${p.id}')" title="Klik untuk edit">${p.nama || '-'}</td>
                     <td style="padding:10px 12px;font-size:0.85rem;">${p.jabatan || '-'}</td>
                     <td style="padding:10px 12px;font-size:0.85rem;">${p.unitWilayah || '-'}</td>
                     <td style="padding:10px 12px;">
