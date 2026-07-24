@@ -777,7 +777,7 @@ const adminReports = {
         if (!r) return;
         const statusText = r.status === 'approved' ? `Sudah ditinjau oleh ${r.approvedBy}` : 'Menunggu ditinjau';
 
-        const modal = document.getElementById('modal-out-of-radius-note');
+        const modal = document.getElementById('modal-out-of-radius-view');
         if (!modal) {
             // Fallback kalau elemen modal tidak ada di halaman ini
             alert(`Catatan Absen Luar Radius\n\n${r.userName}\n\n"${r.note}"\n\n${statusText}`);
@@ -791,7 +791,7 @@ const adminReports = {
     },
 
     closeOutOfRadiusNote() {
-        const modal = document.getElementById('modal-out-of-radius-note');
+        const modal = document.getElementById('modal-out-of-radius-view');
         if (modal) modal.style.display = 'none';
     },
 
