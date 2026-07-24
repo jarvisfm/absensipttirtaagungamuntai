@@ -56,12 +56,13 @@ const adminReports = {
         let izinList = [];
         let attendances = [];
 
-        const [empResult, jurnalResult, leaveResult, izinResult, attResult] = await Promise.allSettled([
+        const [empResult, jurnalResult, leaveResult, izinResult, attResult, oorResult] = await Promise.allSettled([
             api.getEmployees(),
             api.getAllJournals(),
             api.getAllLeaves(),
             api.getAllIzin(),
-            api.getAllAttendance()
+            api.getAllAttendance(),
+            api.getAllOutOfRadiusReports()
         ]);
 
         const pick = (settled, label) => {
@@ -77,6 +78,16 @@ const adminReports = {
         leaves = pick(leaveResult, 'leaves');
         izinList = pick(izinResult, 'izin');
         attendances = pick(attResult, 'attendance');
+
+        // Lookup laporan luar-radius per userId+date+type, dipakai
+        // renderAttendanceReports() untuk menandai jam yang bersangkutan
+        // dengan "(Luar Radius + Catatan)".
+        const oorReports = pick(oorResult, 'laporan luar radius');
+        this.outOfRadiusMap = {};
+        oorReports.forEach(r => {
+            const key = `${r.userId}|${r.date}|${r.type}`;
+            this.outOfRadiusMap[key] = r;
+        });
 
         // Fallback ke localStorage hanya untuk bagian yang benar-benar kosong/gagal
         if (employees.length === 0) employees = storage.get('admin_employees', []);
@@ -575,14 +586,23 @@ const adminReports = {
                         ? `<button style="background:#10b981;color:#fff;font-size:0.7rem;padding:2px 8px;border-radius:4px;border:none;cursor:pointer;" onclick="adminReports.openMaps('${row.verificationLocation}')"><i class="fas fa-map-marker-alt"></i> GPS</button>`
                         : '<span style="color:var(--text-muted)">–</span>';
 
+                    // Tandai jam yang tercatat di luar radius (Pekerja Lapangan)
+                    // dengan badge kecil + tooltip berisi catatan alasannya.
+                    const oorBadge = (type) => {
+                        const r = (this.outOfRadiusMap || {})[`${emp.id}|${row.date}|${type}`];
+                        if (!r) return '';
+                        const noteAttr = this._esc(r.note).replace(/"/g, '&quot;');
+                        return `<br><span title="${noteAttr}" style="display:inline-block;margin-top:2px;background:#FEF3C7;color:#D97706;font-size:0.65rem;font-weight:600;padding:1px 6px;border-radius:10px;cursor:help;"><i class="fas fa-map-marker-alt"></i> Luar Radius${r.status === 'approved' ? ' ✓' : ''}</span>`;
+                    };
+
                     html += `
                         <tr style="border-bottom:1px solid var(--border-color,#e5e7eb);">
                             <td style="padding:10px 12px;font-size:0.85rem;">${dateStr}</td>
                             <td style="padding:10px 12px;font-size:0.82rem;">${row.shift || '-'}</td>
-                            <td style="padding:10px 12px;font-weight:600;color:#10b981;">${row.clockIn || '–'}</td>
-                            <td style="padding:10px 12px;color:var(--text-muted);">${row.breakStart || '–'}</td>
-                            <td style="padding:10px 12px;color:var(--text-muted);">${row.breakEnd || '–'}</td>
-                            <td style="padding:10px 12px;font-weight:600;color:#EF4444;">${row.clockOut || '–'}</td>
+                            <td style="padding:10px 12px;font-weight:600;color:#10b981;">${row.clockIn || '–'}${oorBadge('clockIn')}</td>
+                            <td style="padding:10px 12px;color:var(--text-muted);">${row.breakStart || '–'}${oorBadge('breakStart')}</td>
+                            <td style="padding:10px 12px;color:var(--text-muted);">${row.breakEnd || '–'}${oorBadge('breakEnd')}</td>
+                            <td style="padding:10px 12px;font-weight:600;color:#EF4444;">${row.clockOut || '–'}${oorBadge('clockOut')}</td>
                             <td style="padding:10px 12px;font-size:0.75rem;max-width:160px;">${lokasiHtml}</td>
                             <td style="padding:10px 12px;">${statusBadge}</td>
                             <td style="padding:10px 12px;">${fotoHtml}</td>
@@ -745,6 +765,10 @@ const adminReports = {
         if (!location) return;
         const coords = location.match(/-?\d+\.\d+/g);
         if (coords && coords.length >= 2) window.open(`https://www.google.com/maps?q=${coords[0]},${coords[1]}`, '_blank');
+    },
+
+    _esc(str) {
+        return String(str || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     },
 
     viewAttendanceDetail(id) {
