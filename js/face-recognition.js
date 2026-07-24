@@ -797,6 +797,23 @@ const faceRecognition = {
         }
     },
 
+    /**
+     * currentAction pakai format 'clock-in'/'break'/'after-break'/'clock-out'
+     * (dipakai processWithVerification), sedangkan laporan luar-radius &
+     * rekap admin pakai nama field Attendance ('clockIn'/'breakStart'/
+     * 'breakEnd'/'clockOut'). Fungsi ini menjembatani keduanya - tanpa ini,
+     * laporan tersimpan dengan type yang tidak pernah cocok di rekap admin.
+     */
+    _normalizeAttendanceType(action) {
+        const map = {
+            'clock-in': 'clockIn',
+            'break': 'breakStart',
+            'after-break': 'breakEnd',
+            'clock-out': 'clockOut'
+        };
+        return map[action] || action;
+    },
+
     confirmAttendance() {
         if (!this.photoCaptured || !this.locationVerified) {
             toast.error('Harap verifikasi wajah dan lokasi terlebih dahulu!');
@@ -838,7 +855,7 @@ const faceRecognition = {
                         await api.submitOutOfRadiusReport({
                             userId: currentUser?.employeeId || currentUser?.id || ctx.userId,
                             userName: currentUser?.name || '',
-                            type: this.currentAction,
+                            type: this._normalizeAttendanceType(this.currentAction),
                             note: this._outOfRadiusNote,
                             lat: ctx.userLat,
                             lng: ctx.userLng,
