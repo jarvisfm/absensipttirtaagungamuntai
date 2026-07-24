@@ -2592,6 +2592,31 @@
         </div>
     </div>
 
+    <!-- Modal Catatan Absen Luar Radius -->
+    <div class="modal-overlay" id="modal-out-of-radius-note" style="display:none;">
+        <div class="modal-container" style="max-width:420px;">
+            <div style="padding:1.75rem 1.5rem;">
+                <div style="display:flex;align-items:center;gap:12px;margin-bottom:1.25rem;">
+                    <div style="width:48px;height:48px;border-radius:50%;background:rgba(245,158,11,0.1);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                        <i class="fas fa-map-marker-alt" style="font-size:1.3rem;color:var(--color-primary);"></i>
+                    </div>
+                    <div>
+                        <h3 style="font-size:1.05rem;font-weight:700;color:var(--text-primary);margin:0;">Catatan Absen Luar Radius</h3>
+                        <p id="oorn-user-name" style="font-size:0.85rem;color:var(--text-muted);margin:2px 0 0;"></p>
+                    </div>
+                </div>
+                <div style="background:var(--bg-secondary);border-radius:8px;padding:12px 14px;margin-bottom:1rem;">
+                    <p id="oorn-note-text" style="font-size:0.92rem;color:var(--text-primary);font-style:italic;margin:0;"></p>
+                </div>
+                <p id="oorn-status-text" style="font-size:0.85rem;color:var(--text-muted);margin-bottom:1.5rem;"></p>
+                <button type="button" onclick="adminReports.closeOutOfRadiusNote()"
+                    style="width:100%;padding:0.75rem;border-radius:8px;border:none;background:var(--color-primary);color:#fff;font-weight:600;cursor:pointer;">
+                    OK
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- Modal Tambah Karyawan -->
     <div class="modal-overlay" id="modal-add-employee" style="display: none;">
         <div class="modal-container">
