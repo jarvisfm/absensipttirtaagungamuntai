@@ -145,14 +145,17 @@ const router = {
             case 'approval-asmen':
                 if (window.izin) izin.initApprovalPage('asmen');
                 if (window.cuti) cuti.initApprovalPage('asmen');
+                if (window.outOfRadius) outOfRadius.initApprovalPage('asmen');
                 break;
             case 'approval-manajer':
                 if (window.izin) izin.initApprovalPage('manajer');
                 if (window.cuti) cuti.initApprovalPage('manajer');
+                if (window.outOfRadius) outOfRadius.initApprovalPage('manajer');
                 break;
             case 'approval-direktur':
                 if (window.izin) izin.initApprovalPage('direktur');
                 if (window.cuti) cuti.initApprovalPage('direktur');
+                if (window.outOfRadius) outOfRadius.initApprovalPage('direktur');
                 break;
             case 'profile':
                 if (window.initProfile) window.initProfile();
