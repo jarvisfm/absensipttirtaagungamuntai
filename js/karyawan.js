@@ -118,6 +118,7 @@ const karyawanManager = {
         document.getElementById('modal-karyawan-title').textContent = id ? 'Edit Karyawan' : 'Tambah Karyawan';
         this.resetForm();
         this.switchTab('profil');
+        this._populateApproverDropdown(id);
 
         // Tab Pendidikan & Riwayat Mutasi butuh id karyawan yang sudah
         // tersimpan (baru bisa ditautkan ke karyawannya). Kalau ini
@@ -144,6 +145,23 @@ const karyawanManager = {
         }
 
         document.getElementById('modal-karyawan').style.display = 'flex';
+    },
+
+    /**
+     * Isi dropdown "Approver Absen Luar Radius" dengan daftar karyawan
+     * (kecuali karyawan yang sedang diedit sendiri - tidak masuk akal jadi
+     * approver untuk dirinya sendiri).
+     */
+    _populateApproverDropdown(excludeId) {
+        const select = document.getElementById('p-locationExemptApproverId');
+        if (!select) return;
+
+        const options = (this.karyawanList || [])
+            .filter(k => String(k.id) !== String(excludeId))
+            .map(k => `<option value="${k.id}">${this._esc(k.nama)}${k.jabatan ? ' - ' + this._esc(k.jabatan) : ''}</option>`)
+            .join('');
+
+        select.innerHTML = '<option value="">-- Pilih approver --</option>' + options;
     },
 
     async loadDetailForEdit(id) {
@@ -212,6 +230,8 @@ const karyawanManager = {
             document.getElementById('p-locationExemptNote').value = p.locationExemptNote || '';
             document.getElementById('p-locationExemptFrom').value = p.locationExemptFrom || '';
             document.getElementById('p-locationExemptUntil').value = p.locationExemptUntil || '';
+            const approverEl = document.getElementById('p-locationExemptApproverId');
+            if (approverEl) approverEl.value = p.locationExemptApproverId || '';
 
             // Tab Keluarga
             const keluarga = p.keluarga || [];
@@ -257,6 +277,9 @@ const karyawanManager = {
         // Select tidak punya opsi kosong, jadi default-kan manual ke 'staff'
         const roleEl = document.getElementById('p-role');
         if (roleEl) roleEl.value = 'staff';
+
+        const approverResetEl = document.getElementById('p-locationExemptApproverId');
+        if (approverResetEl) approverResetEl.value = '';
 
         document.getElementById('foto-preview').src = '';
         document.getElementById('foto-preview').style.display = 'none';
@@ -390,6 +413,7 @@ const karyawanManager = {
             tahunPensiun:     document.getElementById('p-tahunPensiun').value.trim(),
             shift:            document.getElementById('p-shift').value,
             locationExempt:     document.getElementById('p-locationExempt').checked,
+            locationExemptApproverId: document.getElementById('p-locationExemptApproverId')?.value || '',
             locationExemptNote: document.getElementById('p-locationExemptNote').value.trim(),
             locationExemptFrom:  document.getElementById('p-locationExemptFrom').value,
             locationExemptUntil: document.getElementById('p-locationExemptUntil').value,
