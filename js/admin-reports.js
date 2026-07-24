@@ -776,7 +776,23 @@ const adminReports = {
         const r = (this.outOfRadiusMap || {})[`${userId}|${date}|${type}`];
         if (!r) return;
         const statusText = r.status === 'approved' ? `Sudah ditinjau oleh ${r.approvedBy}` : 'Menunggu ditinjau';
-        alert(`Catatan Absen Luar Radius\n\n${r.userName}\n\n"${r.note}"\n\n${statusText}`);
+
+        const modal = document.getElementById('modal-out-of-radius-note');
+        if (!modal) {
+            // Fallback kalau elemen modal tidak ada di halaman ini
+            alert(`Catatan Absen Luar Radius\n\n${r.userName}\n\n"${r.note}"\n\n${statusText}`);
+            return;
+        }
+
+        document.getElementById('oorn-user-name').textContent = r.userName || '';
+        document.getElementById('oorn-note-text').textContent = `"${r.note || ''}"`;
+        document.getElementById('oorn-status-text').textContent = statusText;
+        modal.style.display = 'flex';
+    },
+
+    closeOutOfRadiusNote() {
+        const modal = document.getElementById('modal-out-of-radius-note');
+        if (modal) modal.style.display = 'none';
     },
 
     viewAttendanceDetail(id) {
