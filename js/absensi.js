@@ -100,11 +100,53 @@ const absensi = {
             // difilter di browser (itu penyebab history user lain sempat
             // kebaca sebelum filter jalan).
             const result = await api.getAttendance(effectiveId);
-            const history = result.data || [];
-            this.renderHistory(history);
+            this._historyData = result.data || [];
+            this._populateHistoryMonthFilter();
+            this.renderHistory(this._getHistoryForSelectedMonth());
         } catch (e) {
             console.error('Error loading history:', e);
         }
+    },
+
+    /**
+     * Isi dropdown filter bulan dari bulan-bulan yang BENAR-BENAR ada di
+     * data absensi user (bukan 12 bulan kalender statis - biar tidak ada
+     * pilihan bulan kosong tanpa data). Default: bulan berjalan (kalau ada
+     * datanya), atau bulan paling baru yang ada.
+     */
+    _populateHistoryMonthFilter() {
+        const select = document.getElementById('attendance-history-month');
+        if (!select) return;
+
+        const monthNames = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+        const months = [...new Set((this._historyData || []).map(r => (r.date || '').substring(0, 7)).filter(Boolean))];
+        months.sort().reverse();
+
+        const todayYM = (typeof dateTime !== 'undefined' && dateTime.getLocalDate) ? dateTime.getLocalDate().substring(0, 7) : '';
+        if (todayYM && !months.includes(todayYM)) months.unshift(todayYM);
+
+        const previouslySelected = select.value;
+        select.innerHTML = months.map(ym => {
+            const [y, m] = ym.split('-');
+            return `<option value="${ym}">${monthNames[parseInt(m) - 1]} ${y}</option>`;
+        }).join('');
+
+        // Pertahankan pilihan bulan yang sedang aktif (mis. setelah absen
+        // baru & tabel di-refresh) - kalau belum pernah pilih, default ke
+        // bulan berjalan.
+        select.value = months.includes(previouslySelected) ? previouslySelected : (todayYM || months[0] || '');
+
+        if (!select._historyFilterBound) {
+            select.addEventListener('change', () => this.renderHistory(this._getHistoryForSelectedMonth()));
+            select._historyFilterBound = true;
+        }
+    },
+
+    _getHistoryForSelectedMonth() {
+        const select = document.getElementById('attendance-history-month');
+        const selectedMonth = select ? select.value : '';
+        if (!selectedMonth) return this._historyData || [];
+        return (this._historyData || []).filter(r => (r.date || '').startsWith(selectedMonth));
     },
 
     renderHistory(historyData) {
@@ -112,14 +154,14 @@ const absensi = {
     if (!tbody) return;
 
     if (historyData.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7"><div class="history-empty"><i class="fas fa-calendar-day"></i><span>Belum ada riwayat absensi.</span></div></td></tr>';
+        tbody.innerHTML = '<tr><td colspan="7"><div class="history-empty"><i class="fas fa-calendar-day"></i><span>Belum ada riwayat absensi di bulan ini.</span></div></td></tr>';
         return;
     }
 
     const months = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Ags','Sep','Okt','Nov','Des'];
     const todayYMD = (typeof dateTime !== 'undefined' && dateTime.getLocalDate) ? dateTime.getLocalDate() : '';
 
-    tbody.innerHTML = historyData.slice(0, 30).map(record => {
+    tbody.innerHTML = historyData.map(record => {
         // Format tanggal
         const [y, m, d] = (record.date || '').split('-');
         const dateStr = (y && m && d) ? `${d} ${months[parseInt(m)-1]} ${y}` : '-';
