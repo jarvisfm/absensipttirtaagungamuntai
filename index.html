@@ -671,6 +671,27 @@
                     </div>
                 </div>
 
+                <!-- Modal Catatan Wajib - Absen Luar Radius (Pekerja Lapangan) -->
+                <div class="modal-overlay" id="modal-out-of-radius-note" style="display:none;">
+                    <div class="modal-container" style="max-width:480px;width:92%;">
+                        <div class="modal-header">
+                            <h3><i class="fas fa-map-marker-alt" style="color:#D97706;"></i> Anda Terdeteksi di Luar Radius</h3>
+                        </div>
+                        <div style="padding:0 1.25rem 1.25rem;">
+                            <p id="out-of-radius-note-info" style="font-size:0.85rem;color:var(--text-muted);margin-bottom:0.75rem;">
+                                Sebagai Pekerja Lapangan, Anda tetap boleh absen - jelaskan dulu sedang di mana/mengerjakan apa.
+                            </p>
+                            <label style="font-weight:600;font-size:0.85rem;">Catatan Alasan (wajib diisi)</label>
+                            <textarea id="out-of-radius-note-text" rows="3" placeholder="Contoh: Sedang perbaikan pipa di lokasi pelanggan Jl. ..." style="width:100%;margin-top:6px;padding:10px;border:1px solid var(--border-color);border-radius:8px;font-family:inherit;"></textarea>
+                            <small style="color:var(--text-muted);display:block;margin-top:6px;">Catatan ini akan dikirim ke approver yang ditunjuk Admin sebagai laporan. Absensi Anda tetap tersimpan seperti biasa.</small>
+                            <div style="display:flex;gap:8px;margin-top:1rem;">
+                                <button type="button" onclick="faceRecognition.cancelOutOfRadiusNote()" style="flex:1;background:none;border:1px solid var(--border-color);color:var(--text-muted);padding:10px;border-radius:8px;cursor:pointer;">Batal</button>
+                                <button type="button" onclick="faceRecognition.submitOutOfRadiusNote()" style="flex:1;background:var(--color-primary);color:#fff;border:none;padding:10px;border-radius:8px;cursor:pointer;font-weight:600;">Lanjutkan Absen</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Izin/Sakit Page -->
                 <div class="page" id="page-izin">
                     <div class="izin-container">
@@ -824,6 +845,12 @@
                             </div>
                             <div class="izin-list" id="approval-asmen-list-cuti"></div>
                         </div>
+                        <div class="izin-history-card" style="margin-top:1.5rem;">
+                            <div class="card-header">
+                                <h3><i class="fas fa-map-marker-alt"></i> Laporan Absen Luar Radius</h3>
+                            </div>
+                            <div class="izin-list" id="out-of-radius-approval-list-asmen"></div>
+                        </div>
                     </div>
                 </div>
 
@@ -848,6 +875,12 @@
                             </div>
                             <div class="izin-list" id="approval-manajer-list-cuti"></div>
                         </div>
+                        <div class="izin-history-card" style="margin-top:1.5rem;">
+                            <div class="card-header">
+                                <h3><i class="fas fa-map-marker-alt"></i> Laporan Absen Luar Radius</h3>
+                            </div>
+                            <div class="izin-list" id="out-of-radius-approval-list-manajer"></div>
+                        </div>
                     </div>
                 </div>
 
@@ -871,6 +904,12 @@
                                 <h3>Pengajuan Cuti - Menunggu Keputusan Direktur</h3>
                             </div>
                             <div class="izin-list" id="approval-direktur-list-cuti"></div>
+                        </div>
+                        <div class="izin-history-card" style="margin-top:1.5rem;">
+                            <div class="card-header">
+                                <h3><i class="fas fa-map-marker-alt"></i> Laporan Absen Luar Radius</h3>
+                            </div>
+                            <div class="izin-list" id="out-of-radius-approval-list-direktur"></div>
                         </div>
                     </div>
                 </div>
@@ -1777,6 +1816,13 @@
                         </div>
                     </div>
                     <small style="color:var(--text-muted);display:block;margin-top:2px;">Kosongkan kedua tanggal kalau mau berlaku terus-menerus. Kalau diisi, bebas-radius otomatis aktif HANYA di rentang tanggal itu — di luar itu, karyawan otomatis kembali terikat radius normal tanpa perlu dimatikan manual.</small>
+                    <div class="form-group" style="margin-top:12px;">
+                        <label style="font-size:0.8rem;">Approver Absen Luar Radius (opsional)</label>
+                        <select id="p-locationExemptApproverId">
+                            <option value="">-- Pilih approver --</option>
+                        </select>
+                        <small style="color:var(--text-muted);display:block;margin-top:2px;">Setiap kali karyawan ini absen dan benar-benar sedang di luar radius, laporan berisi jam & alasan akan dikirim ke approver ini untuk ditinjau (absennya sendiri tetap tersimpan seperti biasa).</small>
+                    </div>
                 </div>
             </div>
 
@@ -2817,6 +2863,7 @@
     <script src="js/face-recognition.js"></script>
     <script src="js/izin.js"></script>
     <script src="js/cuti.js"></script>
+    <script src="js/outofradius.js"></script>
     <script src="js/print-letters.js?v=8"></script>
     <script src="js/admin-dashboard.js"></script>
     <script src="js/admin-employees.js"></script>
