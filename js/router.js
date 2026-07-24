@@ -37,6 +37,12 @@ const router = {
         const storedPage = storage.get('currentPage');
         if (storedPage && this.routes.includes(storedPage)) {
             this.showPage(storedPage, false);
+        } else {
+            // Belum pernah ada halaman tersimpan (mis. sesi pertama kali) -
+            // default ke dashboard sesuai role, biar tidak blank.
+            const session = storage.get('session');
+            const isAdmin = session && session.role === 'admin';
+            this.showPage(isAdmin ? 'admin-dashboard' : 'dashboard', false);
         }
     },
     
