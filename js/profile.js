@@ -5,15 +5,12 @@
  * Halaman ini dipakai oleh Staff/Asmen/Manajer (termasuk Admin saat Mode
  * Karyawan aktif) untuk mengubah data profil sendiri. Field & tab-nya sama
  * persis dengan modal "Edit Karyawan" milik Admin (lihat js/karyawan.js),
- * tapi HANYA bisa mengedit data akun sendiri (id diambil dari sesi login),
- * ditambah 1 tab baru "Dokumen" untuk menyimpan tautan Google Drive bernama
- * bebas (tidak mengunggah file fisik, hanya link).
+ * tapi HANYA bisa mengedit data akun sendiri (id diambil dari sesi login).
  */
 
 const profileManager = {
     myId: null,
     anakCount: 0,
-    docLinks: [],
 
     async init() {
         const user = auth.getCurrentUser ? auth.getCurrentUser() : null;
@@ -39,13 +36,12 @@ const profileManager = {
 
         this.switchTab('profil');
         await this.loadMyProfile();
-        await this.loadDocLinks();
         await this.loadRiwayatPendidikan();
         await this.loadRiwayatMutasi();
     },
 
     switchTab(tab) {
-        ['profil', 'kekaryawanan', 'keluarga', 'akun', 'dokumen', 'pendidikan', 'mutasi'].forEach(t => {
+        ['profil', 'kekaryawanan', 'keluarga', 'akun', 'pendidikan', 'mutasi'].forEach(t => {
             const content = document.getElementById(`pf-tabcontent-${t}`);
             const btn     = document.getElementById(`pf-tab-${t}`);
             if (content) content.style.display = t === tab ? 'block' : 'none';
@@ -108,10 +104,10 @@ const profileManager = {
 
             this.applyFieldPermissions();
 
-            // Berkas SK/KTP/Ijazah/Sertifikat: tidak lagi diedit dari halaman
-            // ini (sudah digantikan tab "Dokumen"), jadi tidak perlu dimuat
-            // ke form. Nilainya tetap tersimpan di data karyawan dan tidak
-            // disentuh sama sekali oleh halaman Edit Profil ini.
+            // Berkas SK/KTP/Ijazah/Sertifikat: tidak diedit dari halaman ini,
+            // jadi tidak perlu dimuat ke form. Nilainya tetap tersimpan di
+            // data karyawan dan tidak disentuh sama sekali oleh halaman Edit
+            // Profil ini.
 
             // Tab Keluarga
             const keluarga = p.keluarga || [];
@@ -438,98 +434,6 @@ const profileManager = {
             };
             reader.readAsDataURL(file);
         });
-    },
-
-    // ========== TAB DOKUMEN (tautan Drive bernama bebas) ==========
-
-    async loadDocLinks() {
-        try {
-            const result = await api.getDocumentLinks(this.myId);
-            this.docLinks = (result.success && result.data) ? result.data : [];
-        } catch (e) {
-            console.error('Error load dokumen:', e);
-            this.docLinks = [];
-        }
-        this.renderDocLinks();
-    },
-
-    renderDocLinks() {
-        const container = document.getElementById('pf-dokumen-list');
-        if (!container) return;
-
-        if (this.docLinks.length === 0) {
-            container.innerHTML = '<p style="color:var(--text-muted);font-size:0.85rem;">Belum ada tautan dokumen yang disimpan.</p>';
-            return;
-        }
-
-        container.innerHTML = this.docLinks.map(d => `
-            <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;border:1px solid var(--border-color);border-radius:8px;padding:1.25rem;margin-bottom:1rem;">
-                <div style="min-width:0;">
-                    <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
-                        <i class="fas fa-file-alt" style="color:var(--color-primary);font-size:1.1rem;"></i>
-                        <span style="font-weight:600;font-size:1.05rem;">${this._esc(d.nama)}</span>
-                    </div>
-                    ${d.keterangan ? `<div style="font-size:0.9rem;color:var(--text-muted);margin-bottom:8px;">${this._esc(d.keterangan)}</div>` : ''}
-                    <a href="${this._esc(d.url)}" target="_blank" style="font-size:0.9rem;color:var(--color-primary);word-break:break-all;font-weight:500;">
-                        <i class="fas fa-external-link-alt"></i> Buka Tautan
-                    </a>
-                </div>
-                <button type="button" onclick="profileManager.deleteDocLink('${d.id}')"
-                    style="background:#EF4444;color:#fff;border:none;padding:10px 16px;border-radius:6px;cursor:pointer;font-size:0.9rem;flex-shrink:0;">
-                    <i class="fas fa-trash"></i>
-                </button>
-            </div>
-        `).join('');
-    },
-
-    async saveDocLink() {
-        const nama = document.getElementById('pf-doc-nama').value.trim();
-        const url  = document.getElementById('pf-doc-url').value.trim();
-        const keterangan = document.getElementById('pf-doc-keterangan').value.trim();
-
-        if (!nama || !url) {
-            toast.error('Nama dan Link dokumen wajib diisi!');
-            return;
-        }
-
-        try {
-            const result = await api.addDocumentLink({
-                employeeId: this.myId,
-                nama,
-                url,
-                keterangan
-            });
-
-            if (!result.success) {
-                toast.error(result.error || 'Gagal menyimpan tautan dokumen');
-                return;
-            }
-
-            toast.success('Tautan dokumen berhasil disimpan!');
-            document.getElementById('pf-doc-nama').value = '';
-            document.getElementById('pf-doc-url').value = '';
-            document.getElementById('pf-doc-keterangan').value = '';
-
-            await this.loadDocLinks();
-        } catch (e) {
-            console.error('Error simpan dokumen:', e);
-            toast.error('Terjadi kesalahan saat menyimpan tautan');
-        }
-    },
-
-    async deleteDocLink(id) {
-        if (!confirm('Hapus tautan dokumen ini?')) return;
-        try {
-            const result = await api.deleteDocumentLink(id);
-            if (result.success) {
-                toast.success('Tautan dokumen dihapus');
-                await this.loadDocLinks();
-            } else {
-                toast.error(result.error || 'Gagal menghapus');
-            }
-        } catch (e) {
-            toast.error('Terjadi kesalahan');
-        }
     },
 
     _esc(str) {
