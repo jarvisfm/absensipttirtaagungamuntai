@@ -464,13 +464,26 @@ const karyawanManager = {
         // Kumpulkan data keluarga
         const keluarga = [];
         const namaPasangan = document.getElementById('p-namaPasangan').value.trim();
+        const pasanganKtpUrl = document.getElementById('p-pasangan-ktpUrl')?.value.trim() || '';
+        const pasanganKtaUrl = document.getElementById('p-pasangan-ktaUrl')?.value.trim() || '';
+        const pasanganKkUrl  = document.getElementById('p-pasangan-kkUrl')?.value.trim()  || '';
+
+        // Link dokumen Pasangan cuma bisa tersimpan kalau Nama Pasangan juga
+        // diisi (dokumen menempel ke data Pasangan, bukan berdiri sendiri) -
+        // kasih tahu admin duluan daripada link-nya diam-diam tidak tersimpan.
+        if (!namaPasangan && (pasanganKtpUrl || pasanganKtaUrl || pasanganKkUrl)) {
+            toast.error('Isi dulu Nama Pasangan sebelum link dokumennya bisa disimpan!');
+            this.switchTab('keluarga');
+            return;
+        }
+
         if (namaPasangan) {
             keluarga.push({
                 tipe: 'pasangan',
                 nama: namaPasangan,
-                ktpUrl: document.getElementById('p-pasangan-ktpUrl')?.value.trim() || '',
-                ktaUrl: document.getElementById('p-pasangan-ktaUrl')?.value.trim() || '',
-                kkUrl:  document.getElementById('p-pasangan-kkUrl')?.value.trim()  || ''
+                ktpUrl: pasanganKtpUrl,
+                ktaUrl: pasanganKtaUrl,
+                kkUrl:  pasanganKkUrl
             });
         }
 
