@@ -493,17 +493,6 @@ const api = {
         return this.request('uploadFileIzin', { id, base64Data, mimeType, fileName });
     },
 
-    // ========== DOKUMEN (TAUTAN DRIVE BERNAMA) ==========
-    async getDocumentLinks(employeeId) {
-        return this.request('getDocumentLinks', { employeeId });
-    },
-    async addDocumentLink(data) {
-        return this.request('addDocumentLink', data);
-    },
-    async deleteDocumentLink(id) {
-        return this.request('deleteDocumentLink', { id });
-    },
-
     // ========== KIRIM PDF SURAT VIA EMAIL ==========
     // PDF-nya sudah di-generate di frontend (persis tampilan "Cetak Surat"),
     // backend di sini cuma menerima base64-nya dan mengirim lewat Gmail.
