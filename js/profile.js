@@ -118,6 +118,7 @@ const profileManager = {
 
             document.getElementById('pf-namaPasangan').value = pasangan?.nama || '';
             this.renderPasanganDocBlocks(pasangan || {});
+            this.renderKtpUserPreview(p.fileKTP || '');
             document.getElementById('pf-namaAyah').value     = ayah?.nama || '';
             document.getElementById('pf-namaIbu').value      = ibu?.nama || '';
 
@@ -203,13 +204,24 @@ const profileManager = {
         `;
     },
 
-    // Render 3 blok dokumen Pasangan (KTP, KTA, KK) ke #pf-pasangan-doc-list
+    // Preview read-only "Link KTP (Anda)" - berkas KTP sendiri, HANYA bisa
+    // diisi/diubah oleh Admin (lihat komentar di loadProfile), jadi di sini
+    // cuma ditampilkan (tanpa input) supaya tetap kelihatan di tab Keluarga.
+    renderKtpUserPreview(fileKTP) {
+        const el = document.getElementById('pf-ktpUser-preview');
+        if (!el) return;
+        const previewUrl = fileKTP ? this.normalizeDriveLink(fileKTP) : '';
+        el.innerHTML = previewUrl
+            ? `<iframe src="${this._esc(previewUrl)}" style="width:100%;height:100%;border:none;"></iframe>`
+            : `<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:6px;color:var(--text-muted);"><i class="fas fa-file-circle-xmark"></i><span style="font-size:0.75rem;">${fileKTP ? 'Link tidak valid' : 'Belum ada link'}</span></div>`;
+    },
+
+    // Render 2 blok dokumen Pasangan (KTP, KK) ke #pf-pasangan-doc-list
     renderPasanganDocBlocks(pasangan = {}) {
         const container = document.getElementById('pf-pasangan-doc-list');
         if (!container) return;
         container.innerHTML = `
             ${this._pasanganDocBlock('ktp', 'Link KTP (Pasangan)', pasangan.ktpUrl)}
-            ${this._pasanganDocBlock('kta', 'Link KTA (Pasangan)', pasangan.ktaUrl)}
             ${this._pasanganDocBlock('kk', 'Link Kartu Keluarga (KK) Pasangan', pasangan.kkUrl)}
         `;
     },
@@ -315,13 +327,12 @@ const profileManager = {
         const keluarga = [];
         const namaPasangan = document.getElementById('pf-namaPasangan').value.trim();
         const pasanganKtpUrl = document.getElementById('pf-pasangan-ktpUrl')?.value.trim() || '';
-        const pasanganKtaUrl = document.getElementById('pf-pasangan-ktaUrl')?.value.trim() || '';
         const pasanganKkUrl  = document.getElementById('pf-pasangan-kkUrl')?.value.trim()  || '';
 
         // Link dokumen Pasangan cuma bisa tersimpan kalau Nama Pasangan juga
         // diisi (dokumen menempel ke data Pasangan, bukan berdiri sendiri) -
         // kasih tahu user duluan daripada link-nya diam-diam tidak tersimpan.
-        if (!namaPasangan && (pasanganKtpUrl || pasanganKtaUrl || pasanganKkUrl)) {
+        if (!namaPasangan && (pasanganKtpUrl || pasanganKkUrl)) {
             toast.error('Isi dulu Nama Pasangan sebelum link dokumennya bisa disimpan!');
             this.switchTab('keluarga');
             return;
@@ -332,7 +343,6 @@ const profileManager = {
                 tipe: 'pasangan',
                 nama: namaPasangan,
                 ktpUrl: pasanganKtpUrl,
-                ktaUrl: pasanganKtaUrl,
                 kkUrl:  pasanganKkUrl
             });
         }
