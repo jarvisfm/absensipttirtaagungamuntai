@@ -717,6 +717,7 @@ const profileManager = {
         document.getElementById('pf-mts-form-title').innerHTML = '<i class="fas fa-right-left"></i> Edit Riwayat Mutasi';
         document.getElementById('pf-mts-btn-batal').style.display = 'inline-flex';
 
+        this.updateMutasiPreview();
         document.getElementById('modal-mutasi-form').style.display = 'flex';
     },
 
@@ -730,6 +731,22 @@ const profileManager = {
 
         document.getElementById('pf-mts-form-title').innerHTML = '<i class="fas fa-right-left"></i> Tambah Riwayat Mutasi';
         document.getElementById('pf-mts-btn-batal').style.display = 'none';
+        this.updateMutasiPreview();
+    },
+
+    // Update preview dokumen di bawah field link, sama seperti preview di
+    // tab Pendidikan (pakai normalizeDriveLink() yang sudah ada) - dipanggil
+    // baik saat user mengetik/tempel link (oninput), maupun saat modal
+    // dibuka untuk edit data yang sudah ada linknya.
+    updateMutasiPreview() {
+        const container = document.getElementById('pf-mts-dokumen-preview');
+        if (!container) return;
+        const rawUrl = document.getElementById('pf-mts-dokumen-url').value;
+        const previewUrl = this.normalizeDriveLink(rawUrl);
+
+        container.innerHTML = previewUrl
+            ? `<iframe src="${this._esc(previewUrl)}" style="width:100%;height:100%;border:none;"></iframe>`
+            : `<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:8px;color:var(--text-muted);"><i class="fas fa-file-circle-xmark" style="font-size:1.5rem;"></i><span style="font-size:0.8rem;">${rawUrl ? 'Link Google Drive tidak valid' : 'Belum ada link dokumen'}</span></div>`;
     },
 
     async saveRiwayatMutasi() {
