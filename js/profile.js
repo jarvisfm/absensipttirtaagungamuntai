@@ -121,6 +121,7 @@ const profileManager = {
             const anakList = keluarga.filter(k => k.tipe === 'anak');
 
             document.getElementById('pf-namaPasangan').value = pasangan?.nama || '';
+            this.renderPasanganDocBlocks(pasangan || {});
             document.getElementById('pf-namaAyah').value     = ayah?.nama || '';
             document.getElementById('pf-namaIbu').value      = ibu?.nama || '';
 
@@ -179,12 +180,54 @@ const profileManager = {
             </div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
                 ${this._anakDocBlock(n, 'ktp', 'Link KTP', a.ktpUrl)}
-                ${this._anakDocBlock(n, 'kta', 'Link KTA', a.ktaUrl)}
                 ${this._anakDocBlock(n, 'akta', 'Link Akta Kelahiran', a.aktaUrl)}
-                ${this._anakDocBlock(n, 'kk', 'Link Kartu Keluarga (KK)', a.kkUrl)}
             </div>
         `;
         document.getElementById('pf-anak-list').appendChild(div);
+    },
+
+    // Blok dokumen (link + preview) untuk Pasangan - sama persis stylenya
+    // dengan _anakDocBlock() tapi ID-nya tetap (bukan per-index) karena
+    // pasangan cuma 1, bukan daftar.
+    _pasanganDocBlock(key, label, url) {
+        const previewUrl = url ? this.normalizeDriveLink(url) : '';
+        return `
+            <div>
+                <label style="font-size:0.8rem;color:var(--text-muted);display:block;margin-bottom:4px;">${label}</label>
+                <input type="url" id="pf-pasangan-${key}Url" value="${this._esc(url || '')}"
+                    placeholder="Link Google Drive ${label}"
+                    oninput="profileManager.updatePasanganDocPreview('${key}')"
+                    style="width:100%;padding:6px 10px;border:1px solid var(--border-color);border-radius:6px;font-size:0.85rem;margin-bottom:6px;font-family:inherit;">
+                <div id="pf-pasangan-${key}-preview" style="position:relative;height:180px;border:1px solid var(--border-color);border-radius:8px;overflow:hidden;background:var(--bg-secondary,#f8f9fa);">
+                    ${previewUrl
+                        ? `<iframe src="${this._esc(previewUrl)}" style="width:100%;height:100%;border:none;"></iframe>`
+                        : `<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:6px;color:var(--text-muted);"><i class="fas fa-file-circle-xmark"></i><span style="font-size:0.75rem;">${url ? 'Link tidak valid' : 'Belum ada link'}</span></div>`}
+                </div>
+            </div>
+        `;
+    },
+
+    // Render 3 blok dokumen Pasangan (KTP, KTA, KK) ke #pf-pasangan-doc-list
+    renderPasanganDocBlocks(pasangan = {}) {
+        const container = document.getElementById('pf-pasangan-doc-list');
+        if (!container) return;
+        container.innerHTML = `
+            ${this._pasanganDocBlock('ktp', 'Link KTP (Pasangan)', pasangan.ktpUrl)}
+            ${this._pasanganDocBlock('kta', 'Link KTA (Pasangan)', pasangan.ktaUrl)}
+            ${this._pasanganDocBlock('kk', 'Link Kartu Keluarga (KK) Pasangan', pasangan.kkUrl)}
+        `;
+    },
+
+    // Update preview 1 dokumen Pasangan tertentu saat link-nya diketik/tempel
+    updatePasanganDocPreview(key) {
+        const input = document.getElementById(`pf-pasangan-${key}Url`);
+        const previewEl = document.getElementById(`pf-pasangan-${key}-preview`);
+        if (!input || !previewEl) return;
+        const rawUrl = input.value;
+        const previewUrl = this.normalizeDriveLink(rawUrl);
+        previewEl.innerHTML = previewUrl
+            ? `<iframe src="${this._esc(previewUrl)}" style="width:100%;height:100%;border:none;"></iframe>`
+            : `<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:6px;color:var(--text-muted);"><i class="fas fa-file-circle-xmark"></i><span style="font-size:0.75rem;">${rawUrl ? 'Link tidak valid' : 'Belum ada link'}</span></div>`;
     },
 
     // Update preview 1 dokumen anak tertentu saat link-nya diketik/tempel
@@ -275,7 +318,15 @@ const profileManager = {
         // Kumpulkan data keluarga
         const keluarga = [];
         const namaPasangan = document.getElementById('pf-namaPasangan').value.trim();
-        if (namaPasangan) keluarga.push({ tipe: 'pasangan', nama: namaPasangan });
+        if (namaPasangan) {
+            keluarga.push({
+                tipe: 'pasangan',
+                nama: namaPasangan,
+                ktpUrl: document.getElementById('pf-pasangan-ktpUrl')?.value.trim() || '',
+                ktaUrl: document.getElementById('pf-pasangan-ktaUrl')?.value.trim() || '',
+                kkUrl:  document.getElementById('pf-pasangan-kkUrl')?.value.trim()  || ''
+            });
+        }
 
         const anakRows = document.querySelectorAll('#pf-anak-list > div');
         anakRows.forEach(row => {
@@ -286,9 +337,7 @@ const profileManager = {
                 tipe: 'anak',
                 nama,
                 ktpUrl:  row.querySelector('.pf-anak-ktpUrl')?.value.trim()  || '',
-                ktaUrl:  row.querySelector('.pf-anak-ktaUrl')?.value.trim()  || '',
-                aktaUrl: row.querySelector('.pf-anak-aktaUrl')?.value.trim() || '',
-                kkUrl:   row.querySelector('.pf-anak-kkUrl')?.value.trim()   || ''
+                aktaUrl: row.querySelector('.pf-anak-aktaUrl')?.value.trim() || ''
             });
         });
 
