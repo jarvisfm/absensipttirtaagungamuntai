@@ -1022,7 +1022,7 @@
                     <div class="settings-container">
                         <div class="settings-header">
                             <h2>Edit Profil</h2>
-                            <p>Kelola data pribadi, kepegawaian, keluarga, akun, dan dokumen Anda sendiri</p>
+                            <p>Kelola data pribadi, kepegawaian, keluarga, dan akun Anda sendiri</p>
                         </div>
 
                         <div class="settings-card">
@@ -1032,7 +1032,6 @@
                                 <button type="button" class="tab-btn" onclick="profileManager.switchTab('kekaryawanan')" id="pf-tab-kekaryawanan" style="padding:8px 16px;border:none;background:none;cursor:pointer;font-weight:500;color:var(--text-muted);white-space:nowrap;flex-shrink:0;">Kekaryawanan</button>
                                 <button type="button" class="tab-btn" onclick="profileManager.switchTab('keluarga')" id="pf-tab-keluarga" style="padding:8px 16px;border:none;background:none;cursor:pointer;font-weight:500;color:var(--text-muted);white-space:nowrap;flex-shrink:0;">Keluarga</button>
                                 <button type="button" class="tab-btn" onclick="profileManager.switchTab('akun')" id="pf-tab-akun" style="padding:8px 16px;border:none;background:none;cursor:pointer;font-weight:500;color:var(--text-muted);white-space:nowrap;flex-shrink:0;">Akun</button>
-                                <button type="button" class="tab-btn" onclick="profileManager.switchTab('dokumen')" id="pf-tab-dokumen" style="padding:8px 16px;border:none;background:none;cursor:pointer;font-weight:500;color:var(--text-muted);white-space:nowrap;flex-shrink:0;">Dokumen</button>
                                 <button type="button" class="tab-btn" onclick="profileManager.switchTab('pendidikan')" id="pf-tab-pendidikan" style="padding:8px 16px;border:none;background:none;cursor:pointer;font-weight:500;color:var(--text-muted);white-space:nowrap;flex-shrink:0;">Pendidikan</button>
                                 <button type="button" class="tab-btn" onclick="profileManager.switchTab('mutasi')" id="pf-tab-mutasi" style="padding:8px 16px;border:none;background:none;cursor:pointer;font-weight:500;color:var(--text-muted);white-space:nowrap;flex-shrink:0;">Riwayat Mutasi</button>
                             </div>
@@ -1308,38 +1307,6 @@
                                     <label>Password</label>
                                     <input type="password" id="pf-password" placeholder="Kosongkan jika tidak ingin mengubah">
                                     <small style="color:var(--text-muted);">Kosongkan jika tidak ingin mengubah password</small>
-                                </div>
-                            </div>
-
-                            <!-- Tab Dokumen (Tautan dokumen bernama bebas, tersimpan terpisah) -->
-                            <div id="pf-tabcontent-dokumen" style="display:none;">
-                                <p style="font-size:0.85rem;color:var(--text-muted);margin-bottom:1.5rem;">
-                                    Simpan tautan dokumen dari Google Drive dengan nama bebas sesuai keperluan Anda.
-                                    Dokumen ini tidak diunggah ke server, hanya tautannya saja yang disimpan.
-                                </p>
-
-                                <div id="pf-dokumen-list" style="margin-bottom:1.5rem;"></div>
-
-                                <div style="border:1px dashed var(--border-color);border-radius:8px;padding:1rem;">
-                                    <div style="font-weight:600;margin-bottom:0.75rem;"><i class="fas fa-link"></i> Tambah Tautan Dokumen</div>
-                                    <div class="form-group">
-                                        <label>Nama / Judul Dokumen *</label>
-                                        <input type="text" id="pf-doc-nama" placeholder="Contoh: Laporan Keuangan Q2 2026">
-                                    </div>
-                                    <div class="form-group">
-                                        <label>Link / URL Dokumen *</label>
-                                        <input type="url" id="pf-doc-url" placeholder="https://drive.google.com/open?id=...">
-                                        <small style="color:var(--text-muted);">Pastikan akses link sudah diatur ke "Siapa saja memiliki link" agar dapat diakses.</small>
-                                    </div>
-                                    <div class="form-group">
-                                        <label>Keterangan / Deskripsi (Opsional)</label>
-                                        <textarea id="pf-doc-keterangan" rows="2" placeholder="Tulis catatan atau informasi tambahan di sini..."></textarea>
-                                    </div>
-                                    <div class="form-actions">
-                                        <button type="button" class="btn-primary" onclick="profileManager.saveDocLink()">
-                                            <i class="fas fa-check-circle"></i> Simpan Tautan
-                                        </button>
-                                    </div>
                                 </div>
                             </div>
 
