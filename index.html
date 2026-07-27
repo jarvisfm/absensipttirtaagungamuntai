@@ -2135,8 +2135,15 @@
 
             <div class="form-group">
                 <label>Link Google Drive - Dokumen Surat Keputusan Mutasi</label>
-                <input type="url" id="k-mts-dokumen-url" placeholder="Tempel link share Google Drive Dokumen SK Mutasi di sini">
+                <input type="url" id="k-mts-dokumen-url" placeholder="Tempel link share Google Drive Dokumen SK Mutasi di sini"
+                    oninput="karyawanManager.updateMutasiPreviewAdmin()">
                 <small style="color:var(--text-muted);">Pastikan sharing file diset ke "Anyone with the link".</small>
+            </div>
+            <div class="form-group">
+                <label style="font-size:0.8rem;color:var(--text-muted);">Preview Dokumen</label>
+                <div id="k-mts-dokumen-preview" style="position:relative;height:340px;border:1px solid var(--border-color);border-radius:8px;overflow:hidden;background:var(--bg-secondary,#f8f9fa);">
+                    <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:8px;color:var(--text-muted);"><i class="fas fa-file-circle-xmark" style="font-size:1.5rem;"></i><span style="font-size:0.8rem;">Belum ada link dokumen</span></div>
+                </div>
             </div>
 
             <div class="form-actions">
@@ -3024,8 +3031,15 @@
 
                 <div class="form-group">
                     <label>Link Google Drive - Dokumen Surat Keputusan Mutasi</label>
-                    <input type="url" id="pf-mts-dokumen-url" placeholder="Tempel link share Google Drive Dokumen SK Mutasi di sini">
+                    <input type="url" id="pf-mts-dokumen-url" placeholder="Tempel link share Google Drive Dokumen SK Mutasi di sini"
+                        oninput="profileManager.updateMutasiPreview()">
                     <small style="color:var(--text-muted);">Upload file SK Mutasi ke Google Drive Anda, atur akses "Anyone with the link", lalu tempel link-nya di sini.</small>
+                </div>
+                <div class="form-group">
+                    <label style="font-size:0.8rem;color:var(--text-muted);">Preview Dokumen</label>
+                    <div id="pf-mts-dokumen-preview" style="position:relative;height:340px;border:1px solid var(--border-color);border-radius:8px;overflow:hidden;background:var(--bg-secondary,#f8f9fa);">
+                        <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:8px;color:var(--text-muted);"><i class="fas fa-file-circle-xmark" style="font-size:1.5rem;"></i><span style="font-size:0.8rem;">Belum ada link dokumen</span></div>
+                    </div>
                 </div>
 
                 <div class="form-actions">
