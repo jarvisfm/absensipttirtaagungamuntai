@@ -246,7 +246,7 @@ const karyawanManager = {
 
             document.getElementById('anak-list').innerHTML = '';
             this.anakCount = 0;
-            anakList.forEach(a => this.addAnakField(a.nama));
+            anakList.forEach(a => this.addAnakField(a));
 
             // Tab Akun
             document.getElementById('p-username').value = p.username || '';
@@ -296,20 +296,66 @@ const karyawanManager = {
         });
     },
 
-    addAnakField(value = '') {
+    // Blok 1 field dokumen (link + preview) untuk 1 anak - dipakai 4x
+    // (KTP, KTA, Akta Kelahiran, KK) supaya tidak menulis ulang HTML yang
+    // sama 4 kali di addAnakField().
+    _anakDocBlock(n, key, label, url) {
+        const previewUrl = url ? this.normalizeDriveLink(url) : '';
+        return `
+            <div>
+                <label style="font-size:0.8rem;color:var(--text-muted);display:block;margin-bottom:4px;">${label}</label>
+                <input type="url" class="anak-${key}Url" value="${this._esc(url || '')}"
+                    placeholder="Link Google Drive ${label}"
+                    oninput="karyawanManager.updateAnakDocPreview(${n}, '${key}')"
+                    style="width:100%;padding:6px 10px;border:1px solid var(--border-color);border-radius:6px;font-size:0.85rem;margin-bottom:6px;font-family:inherit;">
+                <div id="anak-${n}-${key}-preview" style="position:relative;height:180px;border:1px solid var(--border-color);border-radius:8px;overflow:hidden;background:var(--bg-secondary,#f8f9fa);">
+                    ${previewUrl
+                        ? `<iframe src="${this._esc(previewUrl)}" style="width:100%;height:100%;border:none;"></iframe>`
+                        : `<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:6px;color:var(--text-muted);"><i class="fas fa-file-circle-xmark"></i><span style="font-size:0.75rem;">${url ? 'Link tidak valid' : 'Belum ada link'}</span></div>`}
+                </div>
+            </div>
+        `;
+    },
+
+    // data bisa berupa string (nama saja, kompatibel data lama) atau object
+    // { nama, ktpUrl, ktaUrl, aktaUrl, kkUrl } untuk data yang sudah lengkap
+    // dengan dokumen per anak.
+    addAnakField(data = {}) {
+        const a = (typeof data === 'string') ? { nama: data } : (data || {});
         this.anakCount++;
+        const n = this.anakCount;
         const div = document.createElement('div');
-        div.style.cssText = 'display:flex;gap:8px;margin-bottom:8px;';
-        div.id = `anak-row-${this.anakCount}`;
+        div.style.cssText = 'border:1px solid var(--border-color);border-radius:8px;padding:1rem;margin-bottom:1rem;';
+        div.id = `anak-row-${n}`;
         div.innerHTML = `
-            <input type="text" value="${value}" placeholder="Nama anak ke-${this.anakCount}"
-                style="flex:1;padding:8px 12px;border:1px solid var(--border-color);border-radius:8px;font-family:inherit;">
-            <button type="button" onclick="this.parentElement.remove()"
-                style="background:#EF4444;color:#fff;border:none;padding:4px 10px;border-radius:6px;cursor:pointer;">
-                <i class="fas fa-times"></i>
-            </button>
+            <div style="display:flex;gap:8px;margin-bottom:12px;align-items:center;">
+                <input type="text" class="anak-nama" value="${this._esc(a.nama || '')}" placeholder="Nama anak ke-${n}"
+                    style="flex:1;padding:8px 12px;border:1px solid var(--border-color);border-radius:8px;font-family:inherit;">
+                <button type="button" onclick="document.getElementById('anak-row-${n}').remove()"
+                    style="background:#EF4444;color:#fff;border:none;padding:8px 10px;border-radius:6px;cursor:pointer;flex-shrink:0;">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+                ${this._anakDocBlock(n, 'ktp', 'Link KTP', a.ktpUrl)}
+                ${this._anakDocBlock(n, 'kta', 'Link KTA', a.ktaUrl)}
+                ${this._anakDocBlock(n, 'akta', 'Link Akta Kelahiran', a.aktaUrl)}
+                ${this._anakDocBlock(n, 'kk', 'Link Kartu Keluarga (KK)', a.kkUrl)}
+            </div>
         `;
         document.getElementById('anak-list').appendChild(div);
+    },
+
+    // Update preview 1 dokumen anak tertentu saat link-nya diketik/tempel
+    updateAnakDocPreview(n, key) {
+        const input = document.querySelector(`#anak-row-${n} .anak-${key}Url`);
+        const previewEl = document.getElementById(`anak-${n}-${key}-preview`);
+        if (!input || !previewEl) return;
+        const rawUrl = input.value;
+        const previewUrl = this.normalizeDriveLink(rawUrl);
+        previewEl.innerHTML = previewUrl
+            ? `<iframe src="${this._esc(previewUrl)}" style="width:100%;height:100%;border:none;"></iframe>`
+            : `<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:6px;color:var(--text-muted);"><i class="fas fa-file-circle-xmark"></i><span style="font-size:0.75rem;">${rawUrl ? 'Link tidak valid' : 'Belum ada link'}</span></div>`;
     },
 
     /**
@@ -375,9 +421,19 @@ const karyawanManager = {
         const namaPasangan = document.getElementById('p-namaPasangan').value.trim();
         if (namaPasangan) keluarga.push({ tipe: 'pasangan', nama: namaPasangan });
 
-        const anakInputs = document.querySelectorAll('#anak-list input');
-        anakInputs.forEach(inp => {
-            if (inp.value.trim()) keluarga.push({ tipe: 'anak', nama: inp.value.trim() });
+        const anakRows = document.querySelectorAll('#anak-list > div');
+        anakRows.forEach(row => {
+            const namaEl = row.querySelector('.anak-nama');
+            const nama = namaEl ? namaEl.value.trim() : '';
+            if (!nama) return;
+            keluarga.push({
+                tipe: 'anak',
+                nama,
+                ktpUrl:  row.querySelector('.anak-ktpUrl')?.value.trim()  || '',
+                ktaUrl:  row.querySelector('.anak-ktaUrl')?.value.trim()  || '',
+                aktaUrl: row.querySelector('.anak-aktaUrl')?.value.trim() || '',
+                kkUrl:   row.querySelector('.anak-kkUrl')?.value.trim()   || ''
+            });
         });
 
         const namaAyah = document.getElementById('p-namaAyah').value.trim();
