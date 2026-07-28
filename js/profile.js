@@ -121,12 +121,10 @@ const profileManager = {
             document.getElementById('pf-namaPasangan').value = pasangan?.nama || '';
             this.renderPasanganDocBlocks(pasangan || {});
 
-            // Link KTP (Anda) - sama polanya dengan karyawan.js punya Admin
-            if (p.fileKTP) {
-                document.getElementById('pf-fileKTP').value = p.fileKTP;
-                document.getElementById('pf-ktp-file-link').href = p.fileKTP;
-                document.getElementById('pf-ktp-file-current').style.display = 'block';
-            }
+            // Link KTP (Anda) - preview otomatis begitu link ke-load, sama
+            // seperti field KTP Pasangan.
+            document.getElementById('pf-fileKTP').value = p.fileKTP || '';
+            this.updateKtpUserPreview();
             document.getElementById('pf-namaAyah').value     = ayah?.nama || '';
             document.getElementById('pf-namaIbu').value      = ibu?.nama || '';
 
@@ -226,6 +224,19 @@ const profileManager = {
     updatePasanganDocPreview(key) {
         const input = document.getElementById(`pf-pasangan-${key}Url`);
         const previewEl = document.getElementById(`pf-pasangan-${key}-preview`);
+        if (!input || !previewEl) return;
+        const rawUrl = input.value;
+        const previewUrl = this.normalizeDriveLink(rawUrl);
+        previewEl.innerHTML = previewUrl
+            ? `<iframe src="${this._esc(previewUrl)}" style="width:100%;height:100%;border:none;"></iframe>`
+            : `<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:6px;color:var(--text-muted);"><i class="fas fa-file-circle-xmark"></i><span style="font-size:0.75rem;">${rawUrl ? 'Link tidak valid' : 'Belum ada link'}</span></div>`;
+    },
+
+    // Preview "Link KTP (Anda)" - persis pola updatePasanganDocPreview,
+    // auto-update tiap kali link diketik/tempel.
+    updateKtpUserPreview() {
+        const input = document.getElementById('pf-fileKTP');
+        const previewEl = document.getElementById('pf-fileKTP-preview');
         if (!input || !previewEl) return;
         const rawUrl = input.value;
         const previewUrl = this.normalizeDriveLink(rawUrl);
