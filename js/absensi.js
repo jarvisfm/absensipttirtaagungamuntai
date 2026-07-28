@@ -103,6 +103,7 @@ const absensi = {
             this._historyData = result.data || [];
             this._populateHistoryMonthFilter();
             this.renderHistory(this._getHistoryForSelectedMonth());
+            this.renderHistoryStats(this._getHistoryForSelectedMonth());
         } catch (e) {
             console.error('Error loading history:', e);
         }
@@ -137,9 +138,35 @@ const absensi = {
         select.value = months.includes(previouslySelected) ? previouslySelected : (todayYM || months[0] || '');
 
         if (!select._historyFilterBound) {
-            select.addEventListener('change', () => this.renderHistory(this._getHistoryForSelectedMonth()));
+            select.addEventListener('change', () => {
+                this.renderHistory(this._getHistoryForSelectedMonth());
+                this.renderHistoryStats(this._getHistoryForSelectedMonth());
+            });
             select._historyFilterBound = true;
         }
+    },
+
+    /**
+     * Badge Hadir/Terlambat/Total di atas tabel Riwayat Absensi - persis
+     * cara hitungnya sama seperti rekap Admin (admin-reports.js): status
+     * 'hadir'/'ontime'/'terlambat'/'late' semua dihitung Hadir, 'terlambat'/
+     * 'late' juga masuk breakdown Terlambat, Total = jumlah baris di bulan
+     * yang lagi difilter.
+     */
+    renderHistoryStats(historyData) {
+        const el = document.getElementById('attendance-history-stats');
+        if (!el) return;
+
+        const rows = historyData || [];
+        const totalTerlambat = rows.filter(r => ['terlambat', 'late'].includes(String(r.status || '').toLowerCase())).length;
+        const totalHadir = rows.filter(r => ['hadir', 'ontime', 'terlambat', 'late'].includes(String(r.status || '').toLowerCase())).length;
+        const totalHari = rows.length;
+
+        el.innerHTML = `
+            <span style="background:#d1fae5;color:#065f46;padding:3px 10px;border-radius:20px;font-weight:500;">Hadir: ${totalHadir}</span>
+            <span style="background:#fef3c7;color:#92400e;padding:3px 10px;border-radius:20px;font-weight:500;">Terlambat: ${totalTerlambat}</span>
+            <span style="background:#e0e7ff;color:#3730a3;padding:3px 10px;border-radius:20px;font-weight:500;">Total: ${totalHari} hari</span>
+        `;
     },
 
     _getHistoryForSelectedMonth() {
