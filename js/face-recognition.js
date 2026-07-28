@@ -16,6 +16,8 @@ const faceRecognition = {
     // menganggap wajah terverifikasi apapun isi kameranya.
     modelsLoaded: false,
     faceDetected: false,
+    livenessOk: false,      // DEMO: true setelah kedip terdeteksi (liveness)
+    refDescriptor: null,    // DEMO: sidik wajah dari foto profil (face matching)
     _detectLoopId: null,
     _leafletMap: null,
     _outOfRadiusNote: null,
@@ -104,6 +106,7 @@ const faceRecognition = {
     async initCamera() {
         this.video = document.getElementById('camera-video');
         this.canvas = document.getElementById('camera-canvas');
+        this.livenessOk = false; // reset tiap sesi kamera baru dibuka
 
         if (!this.video) return;
 
@@ -129,8 +132,9 @@ const faceRecognition = {
                 if (!ready) {
                     // Model gagal dimuat (mis. tidak ada akses ke CDN) -
                     // supaya fitur absen tidak terkunci total, fallback ke
-                    // perilaku lama (capture selalu boleh).
+                    // perilaku lama (capture selalu boleh, termasuk liveness).
                     this.faceDetected = true;
+                    this.livenessOk = true;
                     const captureBtn = document.getElementById('btn-capture');
                     if (captureBtn) captureBtn.disabled = false;
                     return;
@@ -158,11 +162,37 @@ const faceRecognition = {
         try {
             const MODEL_URL = 'https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js@master/weights';
             await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL);
+            // DEMO: tambahan model buat face matching (recognition) & landmark
+            // (dipakai deteksi kedip sebagai liveness check sederhana).
+            await faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL);
+            await faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL);
             this.modelsLoaded = true;
+            this._loadReferenceDescriptor(); // async, tidak perlu ditunggu
             return true;
         } catch (e) {
             console.error('Gagal memuat model deteksi wajah:', e);
             return false;
+        }
+    },
+
+    // DEMO face matching: ambil foto profil karyawan yang login, hitung
+    // "sidik wajah" (descriptor 128 angka) sekali di awal, buat dibandingkan
+    // nanti waktu capture. Kalau foto profil belum ada / gagal dimuat,
+    // matching dilewati (tidak memblokir absen - demo, bukan hard rule).
+    async _loadReferenceDescriptor() {
+        try {
+            const user = auth.getCurrentUser ? auth.getCurrentUser() : null;
+            if (!user || !user.id) return;
+            const res = await api.getKaryawanDetail(user.id);
+            const fotoUrl = res && res.data && res.data.foto;
+            if (!fotoUrl) return;
+
+            const img = await faceapi.fetchImage(fotoUrl);
+            const det = await faceapi.detectSingleFace(img, new faceapi.TinyFaceDetectorOptions())
+                .withFaceLandmarks().withFaceDescriptor();
+            if (det) this.refDescriptor = det.descriptor;
+        } catch (e) {
+            console.warn('[DEMO] Gagal memuat foto referensi untuk face matching:', e);
         }
     },
 
@@ -174,6 +204,7 @@ const faceRecognition = {
      */
     _startFaceDetectionLoop() {
         this._stopFaceDetectionLoop();
+        this._earHistory = []; // DEMO liveness: riwayat Eye Aspect Ratio buat deteksi kedip
 
         this._detectLoopId = setInterval(async () => {
             if (!this.video || this.video.readyState < 2 || this.photoCaptured) return;
@@ -183,8 +214,9 @@ const faceRecognition = {
                 const result = await faceapi.detectSingleFace(
                     this.video,
                     new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.5 })
-                );
+                ).withFaceLandmarks();
                 detected = !!result;
+                if (result) this._trackBlink(result.landmarks);
             } catch (e) {
                 detected = false;
             }
@@ -193,8 +225,35 @@ const faceRecognition = {
             this._updateFaceOverlay(detected);
 
             const captureBtn = document.getElementById('btn-capture');
-            if (captureBtn && !this.photoCaptured) captureBtn.disabled = !detected;
+            // DEMO: tombol capture butuh wajah terdeteksi DAN sudah kedip
+            // minimal 1x (liveness) - foto statis/layar HP tidak akan pernah
+            // "berkedip" secara natural.
+            if (captureBtn && !this.photoCaptured) captureBtn.disabled = !(detected && this.livenessOk);
         }, 400);
+    },
+
+    // DEMO liveness check sederhana: hitung Eye Aspect Ratio (EAR) dari
+    // landmark mata tiap frame. Kedip = EAR turun tajam lalu naik lagi
+    // dalam beberapa frame berturut-turut. Foto diam/layar HP EAR-nya akan
+    // selalu flat (tidak pernah turun), jadi tidak akan pernah lolos ini.
+    _trackBlink(landmarks) {
+        if (this.livenessOk) return; // sudah lolos, tidak perlu dicek lagi
+        const ear = (eye) => {
+            const d = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+            return (d(eye[1], eye[5]) + d(eye[2], eye[4])) / (2 * d(eye[0], eye[3]));
+        };
+        const avgEar = (ear(landmarks.getLeftEye()) + ear(landmarks.getRightEye())) / 2;
+
+        this._earHistory.push(avgEar);
+        if (this._earHistory.length > 8) this._earHistory.shift();
+        if (this._earHistory.length < 5) return;
+
+        const minEar = Math.min(...this._earHistory);
+        const maxEar = Math.max(...this._earHistory);
+        // Kedip terdeteksi kalau ada penurunan EAR yang cukup jelas lalu naik lagi
+        if (minEar < 0.22 && maxEar - minEar > 0.08) {
+            this.livenessOk = true;
+        }
     },
 
     _stopFaceDetectionLoop() {
@@ -213,9 +272,9 @@ const faceRecognition = {
         if (frame) frame.classList.toggle('detected', detected);
         if (guideIcon) guideIcon.classList.toggle('detected', detected);
         if (guideText) {
-            guideText.textContent = detected
-                ? 'Wajah terdeteksi'
-                : 'Wajah tidak terlihat - posisikan wajah di dalam frame';
+            guideText.textContent = !detected
+                ? 'Wajah tidak terlihat - posisikan wajah di dalam frame'
+                : (this.livenessOk ? 'Wajah terdeteksi' : 'Wajah terdeteksi - silakan berkedip untuk verifikasi');
         }
     },
 
@@ -685,13 +744,20 @@ const faceRecognition = {
         // mengulang - tidak ada lagi "verifikasi" palsu yang selalu sukses.
         (async () => {
             let faceOk = this.faceDetected; // fallback kalau model gagal load (lihat _loadFaceModels)
+            let matchOk = true; // default lolos kalau matching tidak bisa dijalankan (demo, tidak block)
             if (this.modelsLoaded && typeof faceapi !== 'undefined') {
                 try {
                     const result = await faceapi.detectSingleFace(
                         this.canvas,
                         new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.5 })
-                    );
+                    ).withFaceLandmarks().withFaceDescriptor();
                     faceOk = !!result;
+
+                    // DEMO face matching: bandingkan dengan foto profil (kalau ada)
+                    if (result && this.refDescriptor) {
+                        const dist = faceapi.euclideanDistance(result.descriptor, this.refDescriptor);
+                        matchOk = dist < 0.5; // ambang batas demo - makin kecil makin ketat
+                    }
                 } catch (e) {
                     faceOk = this.faceDetected;
                 }
@@ -702,6 +768,16 @@ const faceRecognition = {
             if (!faceOk) {
                 toast.error('Wajah tidak terdeteksi. Pastikan wajah Anda terlihat jelas di kamera, lalu coba lagi.');
                 if (captureBtnEl) captureBtnEl.disabled = !this.faceDetected;
+                return;
+            }
+            if (!this.livenessOk) {
+                toast.error('Verifikasi wajah hidup (kedip) belum berhasil. Silakan coba lagi.');
+                if (captureBtnEl) captureBtnEl.disabled = !this.livenessOk;
+                return;
+            }
+            if (!matchOk) {
+                toast.error('[DEMO] Wajah tidak cocok dengan foto profil terdaftar.');
+                if (captureBtnEl) captureBtnEl.disabled = false;
                 return;
             }
 
