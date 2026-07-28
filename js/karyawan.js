@@ -100,7 +100,7 @@ const karyawanManager = {
     },
 
     switchTab(tab) {
-        ['profil','kekaryawanan','keluarga','akun','uploadfile','pendidikan','mutasi'].forEach(t => {
+        ['profil','kekaryawanan','keluarga','akun','pendidikan','mutasi'].forEach(t => {
             const content = document.getElementById(`tabcontent-${t}`);
             const btn     = document.getElementById(`tab-${t}`);
             if (content) content.style.display = t === tab ? 'block' : 'none';
@@ -195,25 +195,6 @@ const karyawanManager = {
             document.getElementById('p-statusPekerjaan').value = p.statusPekerjaan || 'Karyawan Tetap';
             document.getElementById('p-statusKaryawan').value  = p.statusKaryawan || 'AKTIF';
 
-            // Berkas SK
-            if (p.fileSK) {
-                document.getElementById('karyawan-sk-link').value = p.fileSK;
-                document.getElementById('sk-file-link').href = p.fileSK;
-                document.getElementById('sk-file-current').style.display = 'block';
-            }
-
-            // Berkas KTP, Ijazah, Sertifikat
-            [['ktp','fileKTP'],['ijazah','fileIjazah'],['sertifikat','fileSertifikat']].forEach(([type, field]) => {
-                if (p[field]) {
-                    const input = document.getElementById(`karyawan-${type}-link`);
-                    const link  = document.getElementById(`${type}-file-link`);
-                    const cur   = document.getElementById(`${type}-file-current`);
-                    if (input) input.value = p[field];
-                    if (link)  link.href = p[field];
-                    if (cur)   cur.style.display = 'block';
-                }
-            });
-
             document.getElementById('p-pendidikan').value      = p.pendidikan || '';
             document.getElementById('p-jabatan').value         = p.jabatan || '';
             document.getElementById('p-unitWilayah').value     = p.unitWilayah || '';
@@ -286,17 +267,8 @@ const karyawanManager = {
         document.getElementById('foto-preview').style.display = 'none';
         document.getElementById('foto-placeholder').style.display = 'block';
         document.getElementById('anak-list').innerHTML = '';
-        const pasanganDocList = document.getElementById('p-pasangan-doc-list');
-        if (pasanganDocList) pasanganDocList.innerHTML = '';
+        this.renderPasanganDocBlocks();
         document.getElementById('karyawan-foto-file').value = '';
-        document.getElementById('karyawan-sk-link').value = '';
-        document.getElementById('sk-file-current').style.display = 'none';
-        ['ktp','ijazah','sertifikat'].forEach(type => {
-            const el = document.getElementById(`karyawan-${type}-link`);
-            if (el) el.value = '';
-            const cur = document.getElementById(`${type}-file-current`);
-            if (cur) cur.style.display = 'none';
-        });
     },
 
     // Blok 1 field dokumen (link + preview) untuk 1 anak - dipakai 4x
@@ -538,10 +510,6 @@ const karyawanManager = {
             locationExemptFrom:  document.getElementById('p-locationExemptFrom').value,
             locationExemptUntil: document.getElementById('p-locationExemptUntil').value,
             username:         document.getElementById('p-username').value.trim(),
-            fileSK:           document.getElementById('karyawan-sk-link')?.value.trim() || '',
-            fileKTP:          document.getElementById('karyawan-ktp-link')?.value.trim() || '',
-            fileIjazah:       document.getElementById('karyawan-ijazah-link')?.value.trim() || '',
-            fileSertifikat:   document.getElementById('karyawan-sertifikat-link')?.value.trim() || '',
             keluarga
         };
 
