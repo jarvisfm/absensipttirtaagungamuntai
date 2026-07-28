@@ -104,10 +104,12 @@ const profileManager = {
 
             this.applyFieldPermissions();
 
-            // Berkas SK/KTP/Ijazah/Sertifikat: tidak diedit dari halaman ini,
+            // Berkas SK/Ijazah/Sertifikat: tidak diedit dari halaman ini,
             // jadi tidak perlu dimuat ke form. Nilainya tetap tersimpan di
             // data karyawan dan tidak disentuh sama sekali oleh halaman Edit
-            // Profil ini.
+            // Profil ini. KTP dikecualikan - link KTP milik sendiri BOLEH
+            // diedit dari sini (lihat tab Keluarga, sama seperti di Edit
+            // Karyawan punya Admin).
 
             // Tab Keluarga
             const keluarga = p.keluarga || [];
@@ -118,7 +120,13 @@ const profileManager = {
 
             document.getElementById('pf-namaPasangan').value = pasangan?.nama || '';
             this.renderPasanganDocBlocks(pasangan || {});
-            this.renderKtpUserPreview(p.fileKTP || '');
+
+            // Link KTP (Anda) - sama polanya dengan karyawan.js punya Admin
+            if (p.fileKTP) {
+                document.getElementById('pf-fileKTP').value = p.fileKTP;
+                document.getElementById('pf-ktp-file-link').href = p.fileKTP;
+                document.getElementById('pf-ktp-file-current').style.display = 'block';
+            }
             document.getElementById('pf-namaAyah').value     = ayah?.nama || '';
             document.getElementById('pf-namaIbu').value      = ibu?.nama || '';
 
@@ -202,18 +210,6 @@ const profileManager = {
                 </div>
             </div>
         `;
-    },
-
-    // Preview read-only "Link KTP (Anda)" - berkas KTP sendiri, HANYA bisa
-    // diisi/diubah oleh Admin (lihat komentar di loadProfile), jadi di sini
-    // cuma ditampilkan (tanpa input) supaya tetap kelihatan di tab Keluarga.
-    renderKtpUserPreview(fileKTP) {
-        const el = document.getElementById('pf-ktpUser-preview');
-        if (!el) return;
-        const previewUrl = fileKTP ? this.normalizeDriveLink(fileKTP) : '';
-        el.innerHTML = previewUrl
-            ? `<iframe src="${this._esc(previewUrl)}" style="width:100%;height:100%;border:none;"></iframe>`
-            : `<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:6px;color:var(--text-muted);"><i class="fas fa-file-circle-xmark"></i><span style="font-size:0.75rem;">${fileKTP ? 'Link tidak valid' : 'Belum ada link'}</span></div>`;
     },
 
     // Render 2 blok dokumen Pasangan (KTP, KK) ke #pf-pasangan-doc-list
@@ -377,6 +373,7 @@ const profileManager = {
             noTelp:           document.getElementById('pf-noTelp').value.trim(),
             npwp:             document.getElementById('pf-npwp').value.trim(),
             ktp:              document.getElementById('pf-ktp').value.trim(),
+            fileKTP:          document.getElementById('pf-fileKTP')?.value.trim() || '',
             email:            document.getElementById('pf-email').value.trim(),
             statusPekerjaan:  document.getElementById('pf-statusPekerjaan').value,
             statusKaryawan:   document.getElementById('pf-statusKaryawan').value,
