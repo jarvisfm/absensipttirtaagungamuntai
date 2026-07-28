@@ -5,8 +5,17 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="color-scheme" content="light only">
-    <meta name="theme-color" content="#ffffff">
+    <meta name="theme-color" content="#F59E0B">
     <title>Sistem Absensi</title>
+
+    <!-- PWA -->
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" href="assets/icons/icon-192.png">
+    <link rel="apple-touch-icon" href="assets/icons/icon-192.png">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="Absensi TAA">
+    <meta name="mobile-web-app-capable" content="yes">
     <link rel="stylesheet" href="css/main.css">
     <link rel="stylesheet" href="css/login.css">
     <link rel="stylesheet" href="css/dashboard.css">
@@ -3034,6 +3043,18 @@
             </div>
         </div>
     </div>
+    <script>
+        // Registrasi Service Worker - supaya app bisa di-"Install" jadi PWA
+        // di Android/iOS. Kalau browser tidak mendukung (sangat jarang),
+        // dilewati saja - app tetap jalan normal sebagai web biasa.
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('sw.js').catch((err) => {
+                    console.error('Gagal registrasi service worker:', err);
+                });
+            });
+        }
+    </script>
 </body>
 
 </html>
