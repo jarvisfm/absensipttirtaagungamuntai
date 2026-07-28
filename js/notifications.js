@@ -313,10 +313,12 @@ const notifications = {
     },
 
     async _loadKaryawanNotifications(user) {
-        const [izinRes, leaveRes, attRes] = await Promise.all([
+        const effectiveId = user.employeeId || user.id;
+        const [izinRes, leaveRes, attRes, accessRes] = await Promise.all([
             api.getIzin(user.id).catch(() => ({ success: false })),
             api.getLeaves(user.id).catch(() => ({ success: false })),
-            api.getAllAttendance().catch(() => ({ success: false }))
+            api.getAllAttendance().catch(() => ({ success: false })),
+            api.checkAttendanceAccess(effectiveId).catch(() => ({ success: false }))
         ]);
 
         const izinData = izinRes.success ? izinRes.data : [];
@@ -344,27 +346,60 @@ const notifications = {
             });
         });
 
-        // Reminder belum absen hari ini (kalau sudah lewat jam 9 pagi)
-        const today = new Date();
-        const todayStr = today.toISOString().split('T')[0];
-        const hour = today.getHours();
+        // Reminder absen berbasis jadwal sesi hari ini (dari
+        // checkAttendanceAccess - sudah tahu shift & jam yang berlaku,
+        // termasuk kasus Jumat/Jaga Malam/libur). Untuk tiap sesi KECUALI
+        // Pulang, ada 2 jenis reminder:
+        // 1. 15 menit SEBELUM jam sesi - "akan dibuka sebentar lagi"
+        // 2. SETELAH jam sesi, kalau belum diisi - "belum absen"
+        const access = accessRes.success ? accessRes.data : null;
 
-        if (hour >= 9) {
+        if (access && access.canAccess && Array.isArray(access.sessions)) {
             const attData = attRes.success ? attRes.data : [];
+            const today = new Date();
+            const todayStr = today.toISOString().split('T')[0];
             const todayRecord = attData.find(a =>
-                String(a.userId) === String(user.id) &&
+                String(a.userId) === String(effectiveId) &&
                 String(a.date).startsWith(todayStr)
             );
-            if (!todayRecord || !todayRecord.clockIn) {
-                this.items.unshift({
-                    icon: 'fa-exclamation-triangle',
-                    color: '#EF4444',
-                    title: 'Kamu belum absen hari ini',
-                    desc: 'Jangan lupa clock-in ya!',
-                    time: new Date().toISOString(),
-                    link: 'absensi'
+
+            const nowMinutes = today.getHours() * 60 + today.getMinutes();
+            const toMinutes = (hhmm) => {
+                const [h, m] = String(hhmm).split(':').map(Number);
+                return h * 60 + m;
+            };
+
+            access.sessions
+                .filter(s => s.field !== 'clockOut') // Pulang tidak usah diingatkan
+                .forEach(s => {
+                    const alreadyDone = todayRecord && todayRecord[s.field];
+                    if (alreadyDone) return;
+
+                    const sessionMinutes = toMinutes(s.time);
+                    const reminderMinutes = sessionMinutes - 15;
+
+                    if (nowMinutes >= reminderMinutes && nowMinutes < sessionMinutes) {
+                        // T-15 menit: reminder "akan dibuka"
+                        this.items.unshift({
+                            icon: 'fa-clock',
+                            color: '#F59E0B',
+                            title: `Absen ${s.label} akan dibuka`,
+                            desc: `Dibuka jam ${s.time} (${sessionMinutes - nowMinutes} menit lagi)`,
+                            time: new Date().toISOString(),
+                            link: 'absensi'
+                        });
+                    } else if (nowMinutes >= sessionMinutes) {
+                        // Sudah lewat jamnya tapi belum diisi
+                        this.items.unshift({
+                            icon: 'fa-exclamation-triangle',
+                            color: '#EF4444',
+                            title: `Kamu belum absen ${s.label}`,
+                            desc: `Sudah lewat jam ${s.time}, jangan lupa ya!`,
+                            time: new Date().toISOString(),
+                            link: 'absensi'
+                        });
+                    }
                 });
-            }
         }
 
         this._sortByTime();
