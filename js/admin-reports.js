@@ -583,7 +583,7 @@ const adminReports = {
                         ? `<img src="${row.verificationPhoto}" style="width:32px;height:32px;border-radius:50%;object-fit:cover;cursor:pointer;" onclick="adminReports.viewPhoto('${row.verificationPhoto}')">`
                         : '<span style="color:var(--text-muted)">–</span>';
                     const gpsHtml = coords
-                        ? `<button style="background:#10b981;color:#fff;font-size:0.7rem;padding:2px 8px;border-radius:4px;border:none;cursor:pointer;" onclick="adminReports.openMaps('${row.verificationLocation}')"><i class="fas fa-map-marker-alt"></i> GPS</button>`
+                        ? `<button style="background:#10b981;color:#fff;font-size:0.7rem;padding:2px 8px;border-radius:4px;border:none;cursor:pointer;" onclick="adminReports.openMaps(${coords.lat}, ${coords.lng})"><i class="fas fa-map-marker-alt"></i> GPS</button>`
                         : '<span style="color:var(--text-muted)">–</span>';
 
                     // Tandai jam yang tercatat di luar radius (Pekerja Lapangan).
@@ -698,7 +698,7 @@ const adminReports = {
                         ? `<img src="${row.verificationPhoto}" style="width:32px;height:32px;border-radius:50%;object-fit:cover;cursor:pointer;" onclick="adminReports.viewPhoto('${row.verificationPhoto}')">`
                         : '<span style="color:var(--text-muted)">–</span>';
                     const gpsHtml = coords
-                        ? `<button style="background:#10b981;color:#fff;font-size:0.7rem;padding:2px 8px;border-radius:4px;border:none;cursor:pointer;" onclick="adminReports.openMaps('${row.verificationLocation}')"><i class="fas fa-map-marker-alt"></i> GPS</button>`
+                        ? `<button style="background:#10b981;color:#fff;font-size:0.7rem;padding:2px 8px;border-radius:4px;border:none;cursor:pointer;" onclick="adminReports.openMaps(${coords.lat}, ${coords.lng})"><i class="fas fa-map-marker-alt"></i> GPS</button>`
                         : '<span style="color:var(--text-muted)">–</span>';
 
                     html += `
@@ -762,10 +762,16 @@ const adminReports = {
         return null;
     },
 
-    openMaps(location) {
-        if (!location) return;
-        const coords = location.match(/-?\d+\.\d+/g);
-        if (coords && coords.length >= 2) window.open(`https://www.google.com/maps?q=${coords[0]},${coords[1]}`, '_blank');
+    // Sebelumnya fungsi ini menerima string mentah row.verificationLocation
+    // lalu di-parse ulang pakai regex - selain rawan gagal (kalau ada
+    // karakter yang bikin onclick-nya rusak, klik jadi tidak bereaksi sama
+    // sekali tanpa error yang kelihatan), itu juga kerjaan dobel karena
+    // koordinatnya SUDAH di-parse duluan (this._parseLatLng) untuk
+    // ditampilkan di kolom LOKASI. Sekarang tinggal terima lat/lng yang
+    // sudah bersih, lalu buka Google Maps PERSIS di titik itu.
+    openMaps(lat, lng) {
+        if (lat === undefined || lng === undefined || isNaN(lat) || isNaN(lng)) return;
+        window.open(`https://www.google.com/maps?q=${lat},${lng}`, '_blank');
     },
 
     _esc(str) {
