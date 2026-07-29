@@ -698,6 +698,46 @@
     .bottom-nav-item i {
         font-size: var(--font-size-lg);
     }
+
+    /* Tombol "Absen" dibuat menonjol di tengah bottom-nav, meniru gaya
+       tombol QRIS pada aplikasi BRImo - lingkaran terangkat di atas bar,
+       supaya aksi paling penting (absen) langsung kelihatan menonjol. */
+    .bottom-nav-item-fab {
+        justify-content: flex-end;
+        padding-top: 0;
+    }
+
+    .bottom-nav-item-fab .fab-circle {
+        width: 52px;
+        height: 52px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: var(--color-primary);
+        color: var(--color-white);
+        margin-top: -26px;
+        margin-bottom: 2px;
+        box-shadow: 0 4px 10px rgba(245, 158, 11, 0.45);
+        border: 3px solid var(--color-white);
+    }
+
+    .bottom-nav-item-fab .fab-circle i {
+        font-size: 20px;
+        color: var(--color-white);
+    }
+
+    .bottom-nav-item-fab.active .fab-circle {
+        background: var(--color-primary-dark);
+    }
+
+    .bottom-nav-item-fab span:last-child {
+        color: var(--text-muted);
+    }
+
+    .bottom-nav-item-fab.active span:last-child {
+        color: var(--color-primary);
+    }
 }
 
 @media (max-width: 576px) {
