@@ -312,6 +312,9 @@ const profileManager = {
             el.disabled = !this.isAdmin;
             el.title = this.isAdmin ? '' : 'Hanya Admin yang dapat mengubah field ini';
         });
+
+        const note = document.getElementById('pf-kekaryawanan-note');
+        if (note) note.style.display = this.isAdmin ? 'none' : 'block';
     },
 
     previewFoto(input) {
