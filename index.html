@@ -486,6 +486,16 @@
                                 <div class="live-clock" id="live-clock">12:00:00</div>
                                 <div class="live-date" id="live-date">Senin, 7 Maret 2026</div>
                             </div>
+                            <button type="button" class="btn-secondary" style="margin-top:8px;font-size:0.8rem;padding:6px 12px;" onclick="suratTugas.openModal()">
+                                <i class="fas fa-suitcase"></i> Input Surat Tugas (SPPD)
+                            </button>
+                        </div>
+
+                        <div id="dinas-luar-info" style="display:none;background:#EFF6FF;border:1px solid #BFDBFE;color:#1E40AF;border-radius:10px;padding:12px 16px;margin-bottom:1rem;font-size:0.85rem;">
+                            <i class="fas fa-suitcase"></i> Anda sedang menjalankan <strong>Surat Tugas (Dinas Luar)</strong>
+                            ke <span id="dinas-luar-tujuan" style="font-weight:600;"></span>
+                            s.d. <span id="dinas-luar-tanggal" style="font-weight:600;"></span>.
+                            Semua sesi absensi hari ini otomatis tercatat Hadir.
                         </div>
 
                         <div class="absensi-grid">
@@ -698,6 +708,53 @@
                             <div style="display:flex;gap:8px;margin-top:1rem;">
                                 <button type="button" onclick="faceRecognition.cancelOutOfRadiusNote()" style="flex:1;background:none;border:1px solid var(--border-color);color:var(--text-muted);padding:10px;border-radius:8px;cursor:pointer;">Batal</button>
                                 <button type="button" onclick="faceRecognition.submitOutOfRadiusNote()" style="flex:1;background:var(--color-primary);color:#fff;border:none;padding:10px;border-radius:8px;cursor:pointer;font-weight:600;">Lanjutkan Absen</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Modal Input Surat Tugas (SPPD) -->
+                <div class="modal-overlay" id="modal-surat-tugas" style="display:none;">
+                    <div class="modal-container" style="max-width:480px;width:92%;max-height:90vh;overflow-y:auto;">
+                        <div class="modal-header">
+                            <h3><i class="fas fa-suitcase" style="color:var(--color-primary);"></i> Input Surat Tugas (SPPD)</h3>
+                            <button class="btn-close-modal" onclick="document.getElementById('modal-surat-tugas').style.display='none'">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                        <div style="padding:0 1.25rem 1.25rem;">
+                            <p style="font-size:0.85rem;color:var(--text-muted);margin-bottom:1rem;">
+                                Selama rentang tanggal ini, semua sesi absensi (Masuk/Istirahat/Kembali/Pulang) otomatis tercatat Hadir - Anda tidak perlu absen manual.
+                            </p>
+                            <div class="form-group">
+                                <label style="font-weight:600;font-size:0.85rem;">Nomor Surat Tugas (opsional)</label>
+                                <input type="text" id="st-nomorSurat" placeholder="mis. 123/ST/VII/2026" style="width:100%;padding:8px 10px;border:1px solid var(--border-color);border-radius:8px;">
+                            </div>
+                            <div class="form-group" style="margin-top:10px;">
+                                <label style="font-weight:600;font-size:0.85rem;">Tujuan Dinas</label>
+                                <input type="text" id="st-tujuan" placeholder="mis. Kantor Bupati Kab. Tabalong" style="width:100%;padding:8px 10px;border:1px solid var(--border-color);border-radius:8px;">
+                            </div>
+                            <div style="display:flex;gap:10px;margin-top:10px;">
+                                <div class="form-group" style="flex:1;">
+                                    <label style="font-weight:600;font-size:0.85rem;">Tanggal Mulai</label>
+                                    <input type="date" id="st-tanggalMulai" style="width:100%;padding:8px 10px;border:1px solid var(--border-color);border-radius:8px;">
+                                </div>
+                                <div class="form-group" style="flex:1;">
+                                    <label style="font-weight:600;font-size:0.85rem;">Tanggal Selesai</label>
+                                    <input type="date" id="st-tanggalSelesai" style="width:100%;padding:8px 10px;border:1px solid var(--border-color);border-radius:8px;">
+                                </div>
+                            </div>
+                            <div class="form-group" style="margin-top:10px;">
+                                <label style="font-weight:600;font-size:0.85rem;">Keterangan (opsional)</label>
+                                <textarea id="st-keterangan" rows="2" placeholder="Uraian tugas singkat" style="width:100%;padding:8px 10px;border:1px solid var(--border-color);border-radius:8px;font-family:inherit;"></textarea>
+                            </div>
+                            <div class="form-group" style="margin-top:10px;">
+                                <label style="font-weight:600;font-size:0.85rem;">Link Surat Tugas - Google Drive (opsional)</label>
+                                <input type="url" id="st-fileUrl" placeholder="https://drive.google.com/file/d/..." style="width:100%;padding:8px 10px;border:1px solid var(--border-color);border-radius:8px;">
+                            </div>
+                            <div style="display:flex;gap:8px;margin-top:1.25rem;">
+                                <button type="button" onclick="document.getElementById('modal-surat-tugas').style.display='none'" style="flex:1;background:none;border:1px solid var(--border-color);color:var(--text-muted);padding:10px;border-radius:8px;cursor:pointer;">Batal</button>
+                                <button type="button" onclick="suratTugas.submit()" style="flex:1;background:var(--color-primary);color:#fff;border:none;padding:10px;border-radius:8px;cursor:pointer;font-weight:600;">Simpan</button>
                             </div>
                         </div>
                     </div>
@@ -2851,6 +2908,7 @@
     <script src="js/izin.js"></script>
     <script src="js/cuti.js"></script>
     <script src="js/outofradius.js"></script>
+    <script src="js/surat-tugas.js"></script>
     <script src="js/print-letters.js?v=8"></script>
     <script src="js/admin-dashboard.js"></script>
     <script src="js/admin-employees.js"></script>
