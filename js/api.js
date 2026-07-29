@@ -136,6 +136,16 @@ const api = {
         return this.request('approveOutOfRadiusReport', { id, approver });
     },
 
+    async submitSuratTugas(data) {
+        return this.request('submitSuratTugas', data);
+    },
+    async getSuratTugas(userId) {
+        return this.request('getSuratTugas', { userId });
+    },
+    async getAllSuratTugas() {
+        return this.request('getAllSuratTugas');
+    },
+
     // ========== LEAVES (CUTI) ==========
 
     async getLeaves(userId) {
