@@ -850,7 +850,7 @@ const adminReports = {
             return;
         }
 
-        const statusLabels = { 'pending': 'Menunggu', 'manager_approved': 'Disetujui Manager', 'approved': 'Disetujui', 'rejected': 'Ditolak' };
+        const statusLabels = { 'pending': 'Menunggu', 'asmen_approved': 'Disetujui Asmen', 'manajer_bidang_approved': 'Disetujui Manajer Bidang', 'manajer_approved': 'Disetujui Manajer', 'approved': 'Disetujui', 'rejected': 'Ditolak' };
 
         tbody.innerHTML = data.map(row => {
             const isKeluarKantor = row.kind === 'izin' && row.rawType === 'keluar_kantor';
@@ -890,7 +890,7 @@ const adminReports = {
             return;
         }
 
-        const statusLabels = { 'pending': 'Menunggu', 'manager_approved': 'Disetujui Manager', 'approved': 'Disetujui', 'rejected': 'Ditolak' };
+        const statusLabels = { 'pending': 'Menunggu', 'asmen_approved': 'Disetujui Asmen', 'manajer_bidang_approved': 'Disetujui Manajer Bidang', 'manajer_approved': 'Disetujui Manajer', 'approved': 'Disetujui', 'rejected': 'Ditolak' };
 
         container.innerHTML = data.map(row => {
             const isKeluarKantor = row.kind === 'izin' && row.rawType === 'keluar_kantor';
@@ -1267,7 +1267,7 @@ const adminReports = {
                        </div>`)
             : '';
 
-        const statusLabels = { 'pending': 'Menunggu', 'manager_approved': 'Disetujui Manager', 'approved': 'Disetujui', 'rejected': 'Ditolak' };
+        const statusLabels = { 'pending': 'Menunggu', 'asmen_approved': 'Disetujui Asmen', 'manajer_bidang_approved': 'Disetujui Manajer Bidang', 'manajer_approved': 'Disetujui Manajer', 'approved': 'Disetujui', 'rejected': 'Ditolak' };
         const statusColors = { 'pending': '#F59E0B', 'manager_approved': '#3B82F6', 'approved': '#10B981', 'rejected': '#EF4444' };
         const statusColor = statusColors[row.status] || '#94A3B8';
 
