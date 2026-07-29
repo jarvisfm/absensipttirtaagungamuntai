@@ -582,6 +582,15 @@ const adminReports = {
                         ? `<img src="${row.verificationPhoto}" style="width:32px;height:32px;border-radius:50%;object-fit:cover;cursor:pointer;" onclick="adminReports.viewPhoto('${row.verificationPhoto}')">`
                         : '<span style="color:var(--text-muted)">–</span>';
 
+                    // Tandai absen yang skor kecocokan wajahnya "kurang yakin"
+                    // (lihat FACE_MATCH_CONFIDENT_ZONE di face-recognition.js) -
+                    // absen tetap diloloskan sistem, tapi ditandai di sini
+                    // supaya admin bisa tinjau ulang manual lewat foto-nya.
+                    const faceFlagRaw = String(row.faceMatchFlag).toLowerCase();
+                    const faceReviewBadge = (faceFlagRaw === 'true')
+                        ? `<br><span onclick="adminReports.showFaceMatchInfo('${row.faceMatchScore || ''}')" style="display:inline-block;margin-top:4px;background:#FEF3C7;color:#D97706;font-size:0.65rem;font-weight:600;padding:1px 6px;border-radius:10px;cursor:pointer;"><i class="fas fa-user-shield"></i> Perlu Review <i class="fas fa-circle-info" style="font-size:0.6rem;"></i></span>`
+                        : '';
+
                     // GPS per sesi (Masuk/Istirahat/Kembali/Pulang) - ikon kecil
                     // yang bisa diklik, muncul di sebelah jam kalau ada titik
                     // koordinat tersimpan untuk sesi itu spesifik (bukan cuma
@@ -612,7 +621,7 @@ const adminReports = {
                             <td style="padding:10px 12px;font-weight:600;color:#EF4444;">${row.clockOut || '–'}${sessionGps('clockOutLocation')}${oorBadge('clockOut')}</td>
                             <td style="padding:10px 12px;font-size:0.75rem;max-width:160px;">${lokasiHtml}</td>
                             <td style="padding:10px 12px;">${statusBadge}</td>
-                            <td style="padding:10px 12px;">${fotoHtml}</td>
+                            <td style="padding:10px 12px;">${fotoHtml}${faceReviewBadge}</td>
                         </tr>
                     `;
                 });
@@ -703,6 +712,13 @@ const adminReports = {
                         ? `<img src="${row.verificationPhoto}" style="width:32px;height:32px;border-radius:50%;object-fit:cover;cursor:pointer;" onclick="adminReports.viewPhoto('${row.verificationPhoto}')">`
                         : '<span style="color:var(--text-muted)">–</span>';
 
+                    // Sama seperti versi tabel desktop - tandai kalau skor
+                    // kecocokan wajahnya kurang meyakinkan.
+                    const faceFlagRawM = String(row.faceMatchFlag).toLowerCase();
+                    const faceReviewBadgeM = (faceFlagRawM === 'true')
+                        ? `<span onclick="adminReports.showFaceMatchInfo('${row.faceMatchScore || ''}')" style="display:inline-block;background:#FEF3C7;color:#D97706;font-size:0.65rem;font-weight:600;padding:1px 6px;border-radius:10px;cursor:pointer;white-space:nowrap;"><i class="fas fa-user-shield"></i> Review</span>`
+                        : '';
+
                     // GPS per sesi (Masuk/Istirahat/Kembali/Pulang) - sama
                     // seperti versi tabel desktop.
                     const sessionGps = (locField) => {
@@ -726,7 +742,7 @@ const adminReports = {
                             </div>
                             <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
                                 <div style="flex:1;min-width:0;">${lokasiHtml}</div>
-                                <div style="display:flex;gap:6px;align-items:center;flex-shrink:0;">${fotoHtml}</div>
+                                <div style="display:flex;gap:6px;align-items:center;flex-shrink:0;">${fotoHtml}${faceReviewBadgeM}</div>
                             </div>
                         </div>
                     `;
@@ -786,6 +802,13 @@ const adminReports = {
 
     _esc(str) {
         return String(str || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    },
+
+    showFaceMatchInfo(score) {
+        const scoreText = score
+            ? `Skor jarak kecocokan: ${score} (semakin kecil = semakin mirip, ambang batas 0.55).`
+            : 'Skor kecocokan tidak tersedia.';
+        toast.warning(`Absen ini ditandai untuk ditinjau karena kecocokan wajah kurang meyakinkan. ${scoreText} Cek foto verifikasinya untuk memastikan.`);
     },
 
     showOutOfRadiusNote(userId, date, type) {
