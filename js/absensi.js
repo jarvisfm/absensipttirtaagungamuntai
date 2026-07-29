@@ -367,6 +367,13 @@ const absensi = {
         payload.verificationPhoto     = verificationData.photo || '';
         payload.verificationLocation  = verificationData.location || '';
         payload.verificationTimestamp = verificationData.timestamp || '';
+        // Skor kecocokan wajah & penanda "perlu ditinjau admin" (lihat
+        // face-recognition.js confirmAttendance/_verifyFaceIdentity) -
+        // dikosongkan kalau memang tidak sempat dicek (mis. toggle Face
+        // Recognition di Settings sedang OFF, atau belum ada foto profil).
+        payload.faceMatchScore = (verificationData.faceMatchScore !== undefined && verificationData.faceMatchScore !== null)
+            ? verificationData.faceMatchScore : '';
+        payload.faceMatchFlag  = verificationData.faceMatchFlag || false;
 
         const result = await this.saveAttendance(payload);
 
