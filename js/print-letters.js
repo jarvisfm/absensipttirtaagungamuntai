@@ -861,7 +861,13 @@ const printLetters = {
      *         api.approveLeave), status-nya harus sudah 'approved'.
      */
     async sendSuratEmailIfApproved(kind, record) {
-        if (!record || record.status !== 'approved') return;
+        // Izin Keluar Kantor (pemohon staff/asmen): email boleh terkirim
+        // begitu tahap MANAJER sudah approve - selaras dengan tombol
+        // "Cetak Surat" yang juga sudah muncul di tahap ini (lihat izin.js),
+        // tidak perlu menunggu Direktur approve juga. Jenis surat lain
+        // (izin_harian, cuti) tetap menunggu status 'approved' penuh seperti biasa.
+        const isKeluarKantorManajerStage = record && record.type === 'keluar_kantor' && record.status === 'manajer_approved';
+        if (!record || (record.status !== 'approved' && !isKeluarKantorManajerStage)) return;
 
         try {
             const empRes = await api.getKaryawanDetail(record.userId);
