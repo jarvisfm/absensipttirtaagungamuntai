@@ -558,12 +558,11 @@ const adminReports = {
                     <td style="padding:8px 12px;">Lokasi</td>
                     <td style="padding:8px 12px;">Status</td>
                     <td style="padding:8px 12px;">Foto</td>
-                    <td style="padding:8px 12px;">GPS</td>
                 </tr>
             `;
 
             if (rows.length === 0) {
-                html += `<tr><td colspan="10" style="text-align:center;padding:1.5rem;color:var(--text-muted);font-size:0.85rem;"><i class="fas fa-calendar-times" style="margin-right:6px;"></i>Tidak ada data absensi pada periode ini</td></tr>`;
+                html += `<tr><td colspan="9" style="text-align:center;padding:1.5rem;color:var(--text-muted);font-size:0.85rem;"><i class="fas fa-calendar-times" style="margin-right:6px;"></i>Tidak ada data absensi pada periode ini</td></tr>`;
             } else {
                 rows.forEach(row => {
                     const [y, m, d] = (row.date || '').split('-');
@@ -582,9 +581,16 @@ const adminReports = {
                     const fotoHtml = row.verificationPhoto
                         ? `<img src="${row.verificationPhoto}" style="width:32px;height:32px;border-radius:50%;object-fit:cover;cursor:pointer;" onclick="adminReports.viewPhoto('${row.verificationPhoto}')">`
                         : '<span style="color:var(--text-muted)">–</span>';
-                    const gpsHtml = coords
-                        ? `<button style="background:#10b981;color:#fff;font-size:0.7rem;padding:2px 8px;border-radius:4px;border:none;cursor:pointer;" onclick="adminReports.openMaps(${coords.lat}, ${coords.lng})"><i class="fas fa-map-marker-alt"></i> GPS</button>`
-                        : '<span style="color:var(--text-muted)">–</span>';
+
+                    // GPS per sesi (Masuk/Istirahat/Kembali/Pulang) - ikon kecil
+                    // yang bisa diklik, muncul di sebelah jam kalau ada titik
+                    // koordinat tersimpan untuk sesi itu spesifik (bukan cuma
+                    // GPS umum yang cuma nunjuk sesi terakhir).
+                    const sessionGps = (locField) => {
+                        const c = this._parseLatLng(row[locField]);
+                        if (!c) return '';
+                        return ` <i class="fas fa-map-marker-alt" style="color:#10b981;cursor:pointer;font-size:0.75rem;" onclick="adminReports.openMaps(${c.lat}, ${c.lng})" title="Lihat titik GPS sesi ini"></i>`;
+                    };
 
                     // Tandai jam yang tercatat di luar radius (Pekerja Lapangan).
                     // Dulu catatannya cuma muncul lewat hover (title attribute) -
@@ -600,19 +606,18 @@ const adminReports = {
                         <tr style="border-bottom:1px solid var(--border-color,#e5e7eb);">
                             <td style="padding:10px 12px;font-size:0.85rem;">${dateStr}</td>
                             <td style="padding:10px 12px;font-size:0.82rem;">${row.shift || '-'}</td>
-                            <td style="padding:10px 12px;font-weight:600;color:#10b981;">${row.clockIn || '–'}${oorBadge('clockIn')}</td>
-                            <td style="padding:10px 12px;color:var(--text-muted);">${row.breakStart || '–'}${oorBadge('breakStart')}</td>
-                            <td style="padding:10px 12px;color:var(--text-muted);">${row.breakEnd || '–'}${oorBadge('breakEnd')}</td>
-                            <td style="padding:10px 12px;font-weight:600;color:#EF4444;">${row.clockOut || '–'}${oorBadge('clockOut')}</td>
+                            <td style="padding:10px 12px;font-weight:600;color:#10b981;">${row.clockIn || '–'}${sessionGps('clockInLocation')}${oorBadge('clockIn')}</td>
+                            <td style="padding:10px 12px;color:var(--text-muted);">${row.breakStart || '–'}${sessionGps('breakStartLocation')}${oorBadge('breakStart')}</td>
+                            <td style="padding:10px 12px;color:var(--text-muted);">${row.breakEnd || '–'}${sessionGps('breakEndLocation')}${oorBadge('breakEnd')}</td>
+                            <td style="padding:10px 12px;font-weight:600;color:#EF4444;">${row.clockOut || '–'}${sessionGps('clockOutLocation')}${oorBadge('clockOut')}</td>
                             <td style="padding:10px 12px;font-size:0.75rem;max-width:160px;">${lokasiHtml}</td>
                             <td style="padding:10px 12px;">${statusBadge}</td>
                             <td style="padding:10px 12px;">${fotoHtml}</td>
-                            <td style="padding:10px 12px;">${gpsHtml}</td>
                         </tr>
                     `;
                 });
             }
-            html += `<tr><td colspan="10" style="padding:8px;background:transparent;border:none;"></td></tr>`;
+            html += `<tr><td colspan="9" style="padding:8px;background:transparent;border:none;"></td></tr>`;
         });
 
         container.innerHTML = html;
@@ -697,9 +702,14 @@ const adminReports = {
                     const fotoHtml = row.verificationPhoto
                         ? `<img src="${row.verificationPhoto}" style="width:32px;height:32px;border-radius:50%;object-fit:cover;cursor:pointer;" onclick="adminReports.viewPhoto('${row.verificationPhoto}')">`
                         : '<span style="color:var(--text-muted)">–</span>';
-                    const gpsHtml = coords
-                        ? `<button style="background:#10b981;color:#fff;font-size:0.7rem;padding:2px 8px;border-radius:4px;border:none;cursor:pointer;" onclick="adminReports.openMaps(${coords.lat}, ${coords.lng})"><i class="fas fa-map-marker-alt"></i> GPS</button>`
-                        : '<span style="color:var(--text-muted)">–</span>';
+
+                    // GPS per sesi (Masuk/Istirahat/Kembali/Pulang) - sama
+                    // seperti versi tabel desktop.
+                    const sessionGps = (locField) => {
+                        const c = this._parseLatLng(row[locField]);
+                        if (!c) return '';
+                        return ` <i class="fas fa-map-marker-alt" style="color:#10b981;cursor:pointer;font-size:0.75rem;" onclick="adminReports.openMaps(${c.lat}, ${c.lng})" title="Lihat titik GPS sesi ini"></i>`;
+                    };
 
                     html += `
                         <div style="padding:10px 0;border-top:1px solid var(--border-color,#e5e7eb);">
@@ -709,14 +719,14 @@ const adminReports = {
                             </div>
                             <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:0.78rem;color:var(--text-muted);margin-bottom:6px;">
                                 <div>Shift: <span style="color:var(--text-primary,#111);">${row.shift || '-'}</span></div>
-                                <div>Masuk: <span style="color:#10b981;font-weight:600;">${row.clockIn || '–'}</span></div>
-                                <div>Istirahat: ${row.breakStart || '–'}</div>
-                                <div>Kembali: ${row.breakEnd || '–'}</div>
-                                <div>Pulang: <span style="color:#EF4444;font-weight:600;">${row.clockOut || '–'}</span></div>
+                                <div>Masuk: <span style="color:#10b981;font-weight:600;">${row.clockIn || '–'}</span>${sessionGps('clockInLocation')}</div>
+                                <div>Istirahat: ${row.breakStart || '–'}${sessionGps('breakStartLocation')}</div>
+                                <div>Kembali: ${row.breakEnd || '–'}${sessionGps('breakEndLocation')}</div>
+                                <div>Pulang: <span style="color:#EF4444;font-weight:600;">${row.clockOut || '–'}</span>${sessionGps('clockOutLocation')}</div>
                             </div>
                             <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
                                 <div style="flex:1;min-width:0;">${lokasiHtml}</div>
-                                <div style="display:flex;gap:6px;align-items:center;flex-shrink:0;">${fotoHtml}${gpsHtml}</div>
+                                <div style="display:flex;gap:6px;align-items:center;flex-shrink:0;">${fotoHtml}</div>
                             </div>
                         </div>
                     `;
