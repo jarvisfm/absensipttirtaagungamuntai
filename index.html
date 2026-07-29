@@ -486,9 +486,6 @@
                                 <div class="live-clock" id="live-clock">12:00:00</div>
                                 <div class="live-date" id="live-date">Senin, 7 Maret 2026</div>
                             </div>
-                            <button type="button" class="btn-secondary" style="margin-top:8px;font-size:0.8rem;padding:6px 12px;" onclick="suratTugas.openModal()">
-                                <i class="fas fa-suitcase"></i> Input Surat Tugas (SPPD)
-                            </button>
                         </div>
 
                         <div id="dinas-luar-info" style="display:none;background:#EFF6FF;border:1px solid #BFDBFE;color:#1E40AF;border-radius:10px;padding:12px 16px;margin-bottom:1rem;font-size:0.85rem;">
@@ -566,6 +563,15 @@
                                     </div>
                                 </div>
                             </div>
+
+                            <button type="button" class="surat-tugas-trigger" onclick="suratTugas.openModal()">
+                                <span class="surat-tugas-trigger-icon"><i class="fas fa-suitcase"></i></span>
+                                <span class="surat-tugas-trigger-text">
+                                    <strong>Input Surat Tugas (SPPD)</strong>
+                                    <small>Sedang dinas luar? Catat di sini</small>
+                                </span>
+                                <i class="fas fa-chevron-right surat-tugas-trigger-arrow"></i>
+                            </button>
                         </div>
 
                         <div class="history-card">
