@@ -296,15 +296,19 @@ const profileManager = {
     },
 
     /**
-     * Pangkat, Golongan, Masa Kerja, dan Tahun Pensiun HANYA boleh diubah
-     * oleh Admin - staff/asmen/manajer biasa cuma bisa lihat (disabled),
-     * tidak bisa mengetik/mengubah nilainya sendiri lewat halaman ini.
+     * Seluruh isian di tab "Kekaryawanan" (Status Pekerjaan, Status Karyawan,
+     * Pendidikan, Jabatan, Unit Wilayah, Bagian, Role, Pangkat, Golongan,
+     * Gaji Pokok, Terhitung Mulai, Masa Kerja, Tahun Pensiun, Jenis Jadwal)
+     * HANYA boleh diubah oleh Admin - staff/asmen/manajer biasa cuma bisa
+     * lihat (disabled), tidak bisa mengedit data kekaryawanannya sendiri
+     * lewat halaman ini. Dipilih otomatis lewat querySelectorAll supaya
+     * kalau nanti ada field baru ditambahkan ke tab ini, otomatis ikut
+     * terkunci juga tanpa perlu ubah daftar manual di sini.
      */
     applyFieldPermissions() {
-        const restricted = ['pf-pangkat', 'pf-golongan', 'pf-masaKerja', 'pf-tahunPensiun'];
-        restricted.forEach(id => {
-            const el = document.getElementById(id);
-            if (!el) return;
+        const tab = document.getElementById('pf-tabcontent-kekaryawanan');
+        if (!tab) return;
+        tab.querySelectorAll('input, select, textarea').forEach(el => {
             el.disabled = !this.isAdmin;
             el.title = this.isAdmin ? '' : 'Hanya Admin yang dapat mengubah field ini';
         });
@@ -386,33 +390,34 @@ const profileManager = {
             ktp:              document.getElementById('pf-ktp').value.trim(),
             fileKTP:          document.getElementById('pf-fileKTP')?.value.trim() || '',
             email:            document.getElementById('pf-email').value.trim(),
-            statusPekerjaan:  document.getElementById('pf-statusPekerjaan').value,
-            statusKaryawan:   document.getElementById('pf-statusKaryawan').value,
-            pendidikan:       document.getElementById('pf-pendidikan').value,
-            jabatan:          document.getElementById('pf-jabatan').value.trim(),
-            unitWilayah:      document.getElementById('pf-unitWilayah').value.trim(),
-            bagian:           document.getElementById('pf-bagian').value.trim(),
-            role:             document.getElementById('pf-role').value,
-            gajiPokok:        document.getElementById('pf-gajiPokok').value,
-            terhitungMulai:   document.getElementById('pf-terhitungMulai').value,
-            shift:            document.getElementById('pf-shift').value,
             username:         document.getElementById('pf-username').value.trim(),
-            // Pangkat/Golongan/Masa Kerja/Tahun Pensiun SENGAJA tidak selalu
-            // disertakan di sini - lihat penjelasan di bawah.
+            // Semua field tab "Kekaryawanan" (Status Pekerjaan s/d Jenis
+            // Jadwal) SENGAJA tidak selalu disertakan di sini - lihat
+            // penjelasan di bawah.
             keluarga
         };
 
-        // Pangkat, Golongan, Masa Kerja, Tahun Pensiun HANYA boleh diubah
-        // Admin. Untuk staff/asmen/manajer, field-field ini memang di-disable
-        // di form-nya, tapi supaya aman (tidak sekadar UI), di sini juga
-        // SENGAJA tidak disertakan sama sekali di payload kalau bukan Admin -
-        // backend membiarkan nilai lama tetap ada untuk field yang tidak
-        // dikirim (pola yang sama seperti fileSK/fileKTP di atas).
+        // Seluruh field tab "Kekaryawanan" HANYA boleh diubah Admin. Untuk
+        // staff/asmen/manajer, field-field ini memang di-disable di form-nya,
+        // tapi supaya aman (tidak sekadar UI), di sini juga SENGAJA tidak
+        // disertakan sama sekali di payload kalau bukan Admin - backend
+        // membiarkan nilai lama tetap ada untuk field yang tidak dikirim
+        // (pola yang sama seperti fileSK/fileKTP di atas).
         if (this.isAdmin) {
-            data.pangkat      = document.getElementById('pf-pangkat').value.trim();
-            data.golongan     = document.getElementById('pf-golongan').value.trim();
-            data.masaKerja    = document.getElementById('pf-masaKerja').value.trim();
-            data.tahunPensiun = document.getElementById('pf-tahunPensiun').value.trim();
+            data.statusPekerjaan = document.getElementById('pf-statusPekerjaan').value;
+            data.statusKaryawan  = document.getElementById('pf-statusKaryawan').value;
+            data.pendidikan      = document.getElementById('pf-pendidikan').value;
+            data.jabatan         = document.getElementById('pf-jabatan').value.trim();
+            data.unitWilayah     = document.getElementById('pf-unitWilayah').value.trim();
+            data.bagian          = document.getElementById('pf-bagian').value.trim();
+            data.role            = document.getElementById('pf-role').value;
+            data.pangkat         = document.getElementById('pf-pangkat').value.trim();
+            data.golongan        = document.getElementById('pf-golongan').value.trim();
+            data.gajiPokok       = document.getElementById('pf-gajiPokok').value;
+            data.terhitungMulai  = document.getElementById('pf-terhitungMulai').value;
+            data.masaKerja       = document.getElementById('pf-masaKerja').value.trim();
+            data.tahunPensiun    = document.getElementById('pf-tahunPensiun').value.trim();
+            data.shift           = document.getElementById('pf-shift').value;
         }
 
         const pwd = document.getElementById('pf-password').value;
