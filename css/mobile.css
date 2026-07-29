@@ -699,12 +699,29 @@
         font-size: var(--font-size-lg);
     }
 
+    /* Kedua "separuh" bottom-nav dibuat SELALU sama lebar (flex:1) apapun
+       jumlah item di dalamnya (mis. separuh kanan bisa 2 item atau 5 item
+       kalau menu Approval kebetulan muncul) - dengan begini posisi tombol
+       Absen di tengah selalu presisi 50%, tidak peduli jumlah itemnya
+       ganjil atau genap. */
+    .bottom-nav-half {
+        display: flex;
+        flex: 1 1 0;
+        min-width: 0;
+    }
+
     /* Tombol "Absen" dibuat menonjol di tengah bottom-nav, meniru gaya
        tombol QRIS pada aplikasi BRImo - lingkaran terangkat di atas bar,
-       supaya aksi paling penting (absen) langsung kelihatan menonjol. */
+       supaya aksi paling penting (absen) langsung kelihatan menonjol.
+       flex: 0 0 auto supaya lebarnya tetap (tidak ikut membesar seperti
+       kedua separuh di sampingnya), sehingga selalu persis di titik
+       tengah di antara 2 separuh yang sama lebar itu. */
     .bottom-nav-item-fab {
+        flex: 0 0 auto;
         justify-content: flex-end;
         padding-top: 0;
+        padding-left: var(--spacing-sm);
+        padding-right: var(--spacing-sm);
     }
 
     .bottom-nav-item-fab .fab-circle {
