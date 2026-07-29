@@ -286,12 +286,28 @@ const faceRecognition = {
         if (!modelsOk) return null;
 
         try {
+            // PENTING: foto profil di-hosting di Google Drive, dan Google
+            // Drive tidak mengirim header CORS - kalau link-nya dipasang
+            // LANGSUNG sebagai src <img>, browser memang berhasil
+            // menampilkannya secara visual, TAPI kanvas jadi "tainted" dan
+            // face-api.js tidak bisa membaca pixel-nya sama sekali untuk
+            // dihitung descriptor-nya (selalu gagal diam-diam). Makanya
+            // foto-nya diambil dulu lewat backend sebagai base64 (lihat
+            // api.getDriveFileAsBase64), baru dipakai sebagai data: URL -
+            // data: URL tidak pernah kena masalah CORS.
+            const fileResult = await api.getDriveFileAsBase64(avatarUrl);
+            if (!fileResult || !fileResult.success || !fileResult.data || !fileResult.data.base64) {
+                console.error('Gagal mengambil foto profil dari server:', fileResult && fileResult.error);
+                return null;
+            }
+
+            const dataUrl = `data:${fileResult.data.mimeType || 'image/jpeg'};base64,${fileResult.data.base64}`;
+
             const img = await new Promise((resolve, reject) => {
                 const el = new Image();
-                el.crossOrigin = 'anonymous';
                 el.onload = () => resolve(el);
                 el.onerror = reject;
-                el.src = avatarUrl;
+                el.src = dataUrl;
             });
 
             const result = await faceapi
@@ -305,9 +321,9 @@ const faceRecognition = {
             this._referenceDescriptorAvatarUrl = avatarUrl;
             return this._referenceDescriptor;
         } catch (e) {
-            // Foto profil gagal dimuat (link putus/CORS) atau tidak ada
-            // wajah terdeteksi di foto profilnya sendiri - fail-open, lihat
-            // catatan di atas.
+            // Foto profil gagal dimuat (link putus, file terhapus, dsb) atau
+            // tidak ada wajah terdeteksi di foto profilnya sendiri -
+            // fail-open, lihat catatan di atas.
             console.error('Gagal menghitung referensi wajah dari foto profil:', e);
             return null;
         }
