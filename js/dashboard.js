@@ -231,7 +231,9 @@ const dashboard = {
             if (clockInEl) clockInEl.textContent = todayAttendance.clockIn || '--:--';
             if (clockOutEl) clockOutEl.textContent = todayAttendance.clockOut || '--:--';
 
-            if (todayAttendance.clockIn && todayAttendance.clockOut && durationEl) {
+            if (todayAttendance.isDinasLuar) {
+                if (durationEl) durationEl.textContent = 'Dinas Luar';
+            } else if (todayAttendance.clockIn && todayAttendance.clockOut && durationEl) {
                 durationEl.textContent = dateTime.calculateDuration(
                     todayAttendance.clockIn,
                     todayAttendance.clockOut
@@ -288,7 +290,9 @@ const dashboard = {
             const isFuture = dayDate > today && dayStr !== this._formatDateYMD(today);
 
             let hours = 0;
-            if (record && record.clockIn && record.clockOut) {
+            if (record && record.isDinasLuar) {
+                hours = 8; // dianggap 1 hari kerja penuh untuk keperluan grafik
+            } else if (record && record.clockIn && record.clockOut) {
                 hours = dateTime.calculateDurationHours
                     ? dateTime.calculateDurationHours(record.clockIn, record.clockOut)
                     : this._durationToHours(dateTime.calculateDuration(record.clockIn, record.clockOut));
