@@ -73,10 +73,23 @@ const absensi = {
             today.breakEnd    = today.breakEnd    || null;
 
             this.attendanceData = today;
+            this._activeSuratTugas = null;
 
             // Tentukan state
             if (!this.accessInfo || !this.accessInfo.canAccess) {
                 this.currentState = 'libur';
+            } else if (today.isDinasLuar) {
+                this.currentState = 'dinas';
+                // Ambil tanggal selesai dari record Surat Tugas-nya, untuk
+                // ditampilkan di banner (lihat updateUI).
+                try {
+                    const stResult = await api.getSuratTugas(effectiveId);
+                    if (stResult.success) {
+                        this._activeSuratTugas = (stResult.data || []).find(
+                            st => String(st.id) === String(today.suratTugasId)
+                        ) || null;
+                    }
+                } catch (e) { /* banner tetap tampil, cuma tanpa tanggal selesai */ }
             } else if (today.clockOut) {
                 this.currentState = 'completed';
             } else if (today.breakStart && !today.breakEnd) {
@@ -423,11 +436,26 @@ const absensi = {
                 'clocked-in': { cls: 'active',  text: 'Sedang Bekerja',   sub: 'Semangat bekerja!' },
                 'on-break': { cls: 'on-break',  text: 'Sedang Istirahat', sub: 'Nikmati waktu istirahat Anda' },
                 completed:  { cls: 'completed', text: 'Selesai Bekerja',  sub: 'Terima kasih atas kerja kerasnya!' },
+                dinas:      { cls: 'completed', text: 'Sedang Dinas Luar (SPPD)', sub: 'Semua sesi absensi hari ini otomatis Hadir' },
             };
             const s = states[this.currentState] || states.waiting;
             statusRing.classList.add(s.cls);
             if (statusText)    statusText.textContent    = s.text;
             if (statusSubtext) statusSubtext.textContent = s.sub;
+        }
+
+        // Banner info Dinas Luar (SPPD)
+        const dinasInfo = document.getElementById('dinas-luar-info');
+        if (dinasInfo) {
+            if (this.attendanceData.isDinasLuar) {
+                dinasInfo.style.display = 'block';
+                const tujuanEl = document.getElementById('dinas-luar-tujuan');
+                const tanggalEl = document.getElementById('dinas-luar-tanggal');
+                if (tujuanEl) tujuanEl.textContent = this.attendanceData.suratTugasTujuan || '-';
+                if (tanggalEl) tanggalEl.textContent = this._activeSuratTugas?.tanggalSelesai || '-';
+            } else {
+                dinasInfo.style.display = 'none';
+            }
         }
 
         const isLibur     = this.currentState === 'libur';
