@@ -486,6 +486,13 @@ const api = {
     async uploadFotoKaryawan(id, base64Data, mimeType) {
         return this.request('uploadFotoKaryawan', { id, base64Data, mimeType });
     },
+    // Ambil isi 1 file Google Drive sebagai base64 - dipakai fitur pencocokan
+    // wajah (face-recognition.js) supaya foto profil bisa dibaca pixel-nya
+    // tanpa kena blokir CORS Google Drive (lihat catatan di Karyawan.gs
+    // getDriveFileAsBase64).
+    async getDriveFileAsBase64(url) {
+        return this.request('getDriveFileAsBase64', { url });
+    },
     async uploadFileSK(id, base64Data, mimeType, fileName) {
         return this.request('uploadFileSK', { id, base64Data, mimeType, fileName });
     },
