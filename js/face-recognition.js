@@ -16,6 +16,22 @@ const faceRecognition = {
     // menganggap wajah terverifikasi apapun isi kameranya.
     modelsLoaded: false,
     faceDetected: false,
+    // Dikontrol dari toggle "Face Recognition" di halaman Settings admin -
+    // lihat _loadFaceRecognitionSetting(). Default true (tetap aktif)
+    // sebelum settingnya sempat dimuat, supaya tidak "bocor" jadi nonaktif
+    // kalau pengecekan setting-nya sendiri gagal/lambat.
+    faceRecognitionEnabled: true,
+    // Model tambahan untuk RECOGNITION (mengenali identitas, bukan cuma
+    // mendeteksi ada-tidaknya wajah) - dipakai untuk mencocokkan wajah yang
+    // difoto saat absen dengan foto profil karyawan yang bersangkutan, supaya
+    // orang lain tidak bisa absen memakai akun karyawan lain ("titip absen").
+    recognitionModelsLoaded: false,
+    _referenceDescriptor: null,
+    _referenceDescriptorAvatarUrl: null,
+    // Ambang batas jarak Euclidean antar descriptor wajah (face-api.js) -
+    // makin kecil jaraknya makin mirip. 0.55 adalah nilai yang umum dipakai
+    // face-api.js sendiri sebagai batas "wajah yang sama".
+    FACE_MATCH_THRESHOLD: 0.55,
     _detectLoopId: null,
     _leafletMap: null,
     _outOfRadiusNote: null,
@@ -31,55 +47,88 @@ const faceRecognition = {
         this._outOfRadiusNote = null;
         this._outOfRadiusContext = null;
 
-        const retryBtn = document.getElementById('btn-retry-location');
-        if (retryBtn) retryBtn.style.display = 'none';
+        // Ambil status toggle "Face Recognition" dari Settings admin dulu -
+        // initCamera() di bawah butuh tahu ini supaya bisa memutuskan mau
+        // menjalankan deteksi/pengenalan wajah atau tidak sama sekali.
+        this._loadFaceRecognitionSetting().finally(() => {
+            const retryBtn = document.getElementById('btn-retry-location');
+            if (retryBtn) retryBtn.style.display = 'none';
 
-        // PENTING: kembalikan #camera-preview ke markup <video> semula.
-        // Sebelumnya, capturePhoto() mengganti isi #camera-preview jadi
-        // <img> hasil foto - kalau tidak dikembalikan dulu di sini, saat
-        // pindah ke aksi absen berikutnya (mis. clock-in -> istirahat),
-        // initCamera() mencari elemen #camera-video yang sudah tidak ada
-        // lagi di DOM (sudah diganti <img>), gagal diam-diam, dan foto
-        // lama dari aksi sebelumnya tetap kelihatan.
-        const preview = document.getElementById('camera-preview');
-        if (preview) {
-            preview.innerHTML = `
-                <video id="camera-video" autoplay playsinline muted></video>
-                <canvas id="camera-canvas" style="display: none;"></canvas>
-                <div class="face-overlay" id="face-overlay">
-                    <div class="face-frame">
-                        <div class="face-corner top-left"></div>
-                        <div class="face-corner top-right"></div>
-                        <div class="face-corner bottom-left"></div>
-                        <div class="face-corner bottom-right"></div>
+            // PENTING: kembalikan #camera-preview ke markup <video> semula.
+            // Sebelumnya, capturePhoto() mengganti isi #camera-preview jadi
+            // <img> hasil foto - kalau tidak dikembalikan dulu di sini, saat
+            // pindah ke aksi absen berikutnya (mis. clock-in -> istirahat),
+            // initCamera() mencari elemen #camera-video yang sudah tidak ada
+            // lagi di DOM (sudah diganti <img>), gagal diam-diam, dan foto
+            // lama dari aksi sebelumnya tetap kelihatan.
+            const preview = document.getElementById('camera-preview');
+            if (preview) {
+                preview.innerHTML = `
+                    <video id="camera-video" autoplay playsinline muted></video>
+                    <canvas id="camera-canvas" style="display: none;"></canvas>
+                    <div class="face-overlay" id="face-overlay">
+                        <div class="face-frame">
+                            <div class="face-corner top-left"></div>
+                            <div class="face-corner top-right"></div>
+                            <div class="face-corner bottom-left"></div>
+                            <div class="face-corner bottom-right"></div>
+                        </div>
+                        <div class="face-guide">
+                            <i class="fas fa-user"></i>
+                            <p>Posisikan wajah di dalam frame</p>
+                        </div>
                     </div>
-                    <div class="face-guide">
-                        <i class="fas fa-user"></i>
-                        <p>Posisikan wajah di dalam frame</p>
-                    </div>
-                </div>
-                <div class="scanning-line" id="scanning-line" style="display: none;"></div>
-            `;
+                    <div class="scanning-line" id="scanning-line" style="display: none;"></div>
+                `;
+            }
+            const captureBtnReset = document.getElementById('btn-capture');
+            const retakeBtnReset = document.getElementById('btn-retake');
+            if (captureBtnReset) {
+                captureBtnReset.style.display = 'flex';
+                captureBtnReset.disabled = true;
+            }
+            if (retakeBtnReset) retakeBtnReset.style.display = 'none';
+
+            // Update UI based on action
+            this.updateActionTitle(action);
+
+            // Initialize camera
+            this.initCamera();
+
+            // Initialize location
+            this.initLocation();
+
+            // Bind buttons
+            this.bindButtons();
+        });
+    },
+
+    /**
+     * Baca toggle "Face Recognition" dari Settings admin. Kalau OFF, seluruh
+     * pengecekan wajah (deteksi ada-tidaknya wajah, MAUPUN pencocokan
+     * identitas ke foto profil) dilewati - absen kembali seperti sebelum
+     * ada fitur ini (cukup ambil foto & kirim). Kalau gagal dimuat (mis.
+     * error jaringan), default AKTIF (fail-safe ke arah lebih ketat, bukan
+     * lebih longgar).
+     */
+    async _loadFaceRecognitionSetting() {
+        try {
+            const result = await api.getSettings();
+            if (result && result.success && result.data && result.data.face_recognition !== undefined) {
+                // PENTING: nilai boolean yang tersimpan di Google Sheets suka
+                // kebaca balik sebagai teks "TRUE"/"FALSE" (huruf besar semua),
+                // bukan "true"/"false" seperti waktu pertama disimpan - jadi
+                // dicek tanpa peduli besar/kecil huruf (lihat juga settings.js
+                // & Attendance.gs yang punya catatan sama).
+                this.faceRecognitionEnabled = String(result.data.face_recognition).toLowerCase() === 'true'
+                    || result.data.face_recognition === true;
+            } else {
+                this.faceRecognitionEnabled = true;
+            }
+        } catch (e) {
+            console.error('Gagal memuat setting Face Recognition, dianggap aktif:', e);
+            this.faceRecognitionEnabled = true;
         }
-        const captureBtnReset = document.getElementById('btn-capture');
-        const retakeBtnReset = document.getElementById('btn-retake');
-        if (captureBtnReset) {
-            captureBtnReset.style.display = 'flex';
-            captureBtnReset.disabled = true;
-        }
-        if (retakeBtnReset) retakeBtnReset.style.display = 'none';
-
-        // Update UI based on action
-        this.updateActionTitle(action);
-
-        // Initialize camera
-        this.initCamera();
-
-        // Initialize location
-        this.initLocation();
-
-        // Bind buttons
-        this.bindButtons();
     },
 
     updateActionTitle(action) {
@@ -125,6 +174,18 @@ const faceRecognition = {
             // deteksi wajah siap, lalu tombol capture cuma aktif selama
             // wajah BENAR-BENAR terdeteksi di frame (lihat _startFaceDetectionLoop).
             this.video.onloadedmetadata = async () => {
+                // Toggle "Face Recognition" di Settings admin sedang OFF -
+                // lewati semua pengecekan wajah, tombol capture langsung
+                // boleh ditekan seperti alur lama sebelum fitur ini ada.
+                if (!this.faceRecognitionEnabled) {
+                    this.faceDetected = true;
+                    const captureBtn = document.getElementById('btn-capture');
+                    if (captureBtn) captureBtn.disabled = false;
+                    const guideText = document.querySelector('#face-overlay .face-guide p');
+                    if (guideText) guideText.textContent = 'Posisikan wajah di dalam frame';
+                    return;
+                }
+
                 const ready = await this._loadFaceModels();
                 if (!ready) {
                     // Model gagal dimuat (mis. tidak ada akses ke CDN) -
@@ -136,6 +197,14 @@ const faceRecognition = {
                     return;
                 }
                 this._startFaceDetectionLoop();
+
+                // Mulai muat model recognition + hitung referensi dari foto
+                // profil di LATAR BELAKANG (tidak di-await) selagi karyawan
+                // baru memposisikan wajahnya - supaya pas tombol "Absen
+                // Sekarang" ditekan, pencocokan identitas di capturePhoto()
+                // besar kemungkinan sudah tidak perlu menunggu model dimuat
+                // lagi dari nol.
+                this._getReferenceDescriptor();
             };
 
         } catch (error) {
@@ -163,6 +232,111 @@ const faceRecognition = {
         } catch (e) {
             console.error('Gagal memuat model deteksi wajah:', e);
             return false;
+        }
+    },
+
+    /**
+     * Muat model landmark + recognition (face-api.js) - lebih berat dari
+     * TinyFaceDetector di atas, jadi dimuat terpisah & cuma kalau memang
+     * dibutuhkan (baru dipanggil pas mau absen, bukan dari awal buka
+     * halaman), supaya tidak memberatkan HP yang koneksinya lambat.
+     */
+    async _loadRecognitionModels() {
+        if (this.recognitionModelsLoaded) return true;
+        if (typeof faceapi === 'undefined') return false;
+        try {
+            const MODEL_URL = 'https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js@master/weights';
+            await Promise.all([
+                faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
+                faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL)
+            ]);
+            this.recognitionModelsLoaded = true;
+            return true;
+        } catch (e) {
+            console.error('Gagal memuat model pengenalan wajah:', e);
+            return false;
+        }
+    },
+
+    /**
+     * Hitung "sidik wajah" (descriptor) dari foto profil karyawan yang
+     * sedang login, dipakai sebagai acuan pembanding saat absen. Hasilnya
+     * di-cache di memori (this._referenceDescriptor) selama foto profilnya
+     * tidak berubah, supaya tidak perlu dihitung ulang tiap kali absen.
+     *
+     * Balikin null kalau: karyawan belum punya foto profil, foto gagal
+     * dimuat (mis. karena CORS atau link putus), atau modelnya gagal
+     * dimuat - di semua kasus itu, pemanggil (capturePhoto) akan
+     * MELOLOSKAN absen tanpa pencocokan identitas (fail-open), supaya
+     * karyawan yang belum sempat upload foto profil tidak jadi tidak bisa
+     * absen sama sekali gara-gara fitur ini.
+     */
+    async _getReferenceDescriptor() {
+        const user = auth.getCurrentUser();
+        const avatarUrl = user && user.avatar ? user.avatar : '';
+        if (!avatarUrl) return null;
+
+        // Masih sama dengan yang sudah di-cache sebelumnya - tidak perlu
+        // dihitung ulang.
+        if (this._referenceDescriptor && this._referenceDescriptorAvatarUrl === avatarUrl) {
+            return this._referenceDescriptor;
+        }
+
+        const modelsOk = await this._loadRecognitionModels();
+        if (!modelsOk) return null;
+
+        try {
+            const img = await new Promise((resolve, reject) => {
+                const el = new Image();
+                el.crossOrigin = 'anonymous';
+                el.onload = () => resolve(el);
+                el.onerror = reject;
+                el.src = avatarUrl;
+            });
+
+            const result = await faceapi
+                .detectSingleFace(img, new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.5 }))
+                .withFaceLandmarks()
+                .withFaceDescriptor();
+
+            if (!result) return null;
+
+            this._referenceDescriptor = result.descriptor;
+            this._referenceDescriptorAvatarUrl = avatarUrl;
+            return this._referenceDescriptor;
+        } catch (e) {
+            // Foto profil gagal dimuat (link putus/CORS) atau tidak ada
+            // wajah terdeteksi di foto profilnya sendiri - fail-open, lihat
+            // catatan di atas.
+            console.error('Gagal menghitung referensi wajah dari foto profil:', e);
+            return null;
+        }
+    },
+
+    /**
+     * Bandingkan wajah di foto yang baru diambil (canvas) dengan foto profil
+     * karyawan yang sedang login. Balikin { matched, checked } - "checked"
+     * true kalau pencocokan benar-benar dilakukan (ada referensi & model
+     * termuat), supaya pemanggil bisa membedakan "cocok", "tidak cocok",
+     * dan "tidak sempat dicek sama sekali" (fail-open).
+     */
+    async _verifyFaceIdentity() {
+        const reference = await this._getReferenceDescriptor();
+        if (!reference) return { matched: true, checked: false };
+
+        try {
+            const result = await faceapi
+                .detectSingleFace(this.canvas, new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.5 }))
+                .withFaceLandmarks()
+                .withFaceDescriptor();
+
+            if (!result) return { matched: true, checked: false };
+
+            const distance = faceapi.euclideanDistance(reference, result.descriptor);
+            return { matched: distance <= this.FACE_MATCH_THRESHOLD, checked: true };
+        } catch (e) {
+            console.error('Gagal mencocokkan wajah:', e);
+            return { matched: true, checked: false };
         }
     },
 
@@ -684,16 +858,20 @@ const faceRecognition = {
         // Kalau tidak ada wajah di foto ini, absen DIBATALKAN dan user harus
         // mengulang - tidak ada lagi "verifikasi" palsu yang selalu sukses.
         (async () => {
-            let faceOk = this.faceDetected; // fallback kalau model gagal load (lihat _loadFaceModels)
-            if (this.modelsLoaded && typeof faceapi !== 'undefined') {
-                try {
-                    const result = await faceapi.detectSingleFace(
-                        this.canvas,
-                        new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.5 })
-                    );
-                    faceOk = !!result;
-                } catch (e) {
-                    faceOk = this.faceDetected;
+            let faceOk = true;
+
+            if (this.faceRecognitionEnabled) {
+                faceOk = this.faceDetected; // fallback kalau model gagal load (lihat _loadFaceModels)
+                if (this.modelsLoaded && typeof faceapi !== 'undefined') {
+                    try {
+                        const result = await faceapi.detectSingleFace(
+                            this.canvas,
+                            new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.5 })
+                        );
+                        faceOk = !!result;
+                    } catch (e) {
+                        faceOk = this.faceDetected;
+                    }
                 }
             }
 
@@ -703,6 +881,21 @@ const faceRecognition = {
                 toast.error('Wajah tidak terdeteksi. Pastikan wajah Anda terlihat jelas di kamera, lalu coba lagi.');
                 if (captureBtnEl) captureBtnEl.disabled = !this.faceDetected;
                 return;
+            }
+
+            // Cocokkan wajah di foto ini dengan foto profil karyawan yang
+            // sedang login - supaya tidak bisa "titip absen" pakai akun
+            // orang lain. Kalau tidak sempat dicek (belum ada foto profil/
+            // model gagal dimuat), absen tetap diloloskan (fail-open) -
+            // lihat penjelasan di _getReferenceDescriptor(). Dilewati total
+            // kalau toggle Face Recognition di Settings admin sedang OFF.
+            if (this.faceRecognitionEnabled) {
+                const identity = await this._verifyFaceIdentity();
+                if (identity.checked && !identity.matched) {
+                    toast.error('Wajah tidak cocok dengan foto profil Anda. Absen dibatalkan - pastikan yang absen adalah pemilik akun ini.');
+                    if (captureBtnEl) captureBtnEl.disabled = !this.faceDetected;
+                    return;
+                }
             }
 
             // Show verification success
