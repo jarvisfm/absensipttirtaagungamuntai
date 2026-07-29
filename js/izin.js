@@ -522,7 +522,7 @@ const izin = {
                                 Lampiran tersedia
                             </span>
                         ` : ''}
-                        ${izin.status === 'approved' && izin.type === 'keluar_kantor' ? `
+                        ${(izin.status === 'manajer_approved' || izin.status === 'approved') && izin.type === 'keluar_kantor' ? `
                             <div style="margin-top:8px;display:flex;gap:6px;">
                                 <button class="btn-small btn-outline" onclick="printLetters.openIzinKeluarKantor(${izin.id})">
                                     <i class="fas fa-print"></i> Cetak Surat Izin Keluar Kantor
@@ -862,7 +862,17 @@ const izin = {
             // sepenuhnya), otomatis generate PDF surat (persis tampilan
             // "Cetak Surat") dan kirim ke email pemohon. Berjalan di
             // belakang layar, tidak memblokir/mengganggu UI approver.
-            if (decision === 'approve' && result.data && result.data.status === 'approved' && window.printLetters) {
+            //
+            // Izin Keluar Kantor (pemohon staff/asmen) beda: email SUDAH
+            // boleh terkirim begitu tahap Manajer approve (status
+            // 'manajer_approved') - selaras dengan tombol "Cetak Surat" yang
+            // juga sudah muncul di tahap itu, tidak perlu nunggu Direktur.
+            // Guard emailSent supaya tidak terkirim DOBEL saat Direktur
+            // approve belakangan (email pertama di tahap Manajer sudah cukup).
+            const isKeluarKantorEarlyStage = result.data && result.data.type === 'keluar_kantor' && result.data.status === 'manajer_approved';
+            const alreadyEmailed = result.data && (result.data.emailSent === true || result.data.emailSent === 'true');
+            if (decision === 'approve' && result.data && !alreadyEmailed &&
+                (result.data.status === 'approved' || isKeluarKantorEarlyStage) && window.printLetters) {
                 printLetters.sendSuratEmailIfApproved('izin', result.data);
             }
         } catch (error) {
