@@ -32,6 +32,26 @@ const faceRecognition = {
     // makin kecil jaraknya makin mirip. 0.55 adalah nilai yang umum dipakai
     // face-api.js sendiri sebagai batas "wajah yang sama".
     FACE_MATCH_THRESHOLD: 0.55,
+    // Kalau jarak masih di bawah threshold (jadi tetap dianggap "cocok")
+    // TAPI di atas angka ini, kecocokannya dianggap "kurang yakin" - absen
+    // tetap diloloskan (tidak mau bikin karyawan asli ditolak-tolak gara-
+    // gara pencahayaan/sudut kurang pas), tapi ditandai faceMatchFlag=true
+    // di data absensinya supaya admin bisa tinjau ulang lewat foto yang
+    // tersimpan.
+    FACE_MATCH_CONFIDENT_ZONE: 0.45,
+    _lastFaceMatch: null,
+    // ---- Liveness check (deteksi kedipan mata) ----
+    // Mencegah orang "titip absen" cuma dengan menodongkan FOTO/screenshot
+    // wajah orang lain ke kamera - foto diam tidak akan pernah berkedip,
+    // jadi tombol capture baru aktif setelah wajah terdeteksi DAN minimal
+    // 1 kedipan alami terekam selama sesi kamera ini berjalan.
+    blinkDetected: false,
+    // EAR (Eye Aspect Ratio) di bawah ini dianggap "mata tertutup". Nilai
+    // umum untuk mata terbuka normal ada di sekitar 0.28-0.35, dan turun
+    // tajam ke ~0.1-0.15 saat berkedip.
+    EAR_CLOSED_THRESHOLD: 0.19,
+    EAR_OPEN_THRESHOLD: 0.23,
+    _eyesWereClosed: false,
     _detectLoopId: null,
     _leafletMap: null,
     _outOfRadiusNote: null,
@@ -42,6 +62,9 @@ const faceRecognition = {
         this.photoCaptured = false;
         this.locationVerified = false;
         this.faceDetected = false;
+        this.blinkDetected = false;
+        this._eyesWereClosed = false;
+        this._lastFaceMatch = null;
         this.position = null;
         this._destroyRealMap();
         this._outOfRadiusNote = null;
@@ -214,9 +237,12 @@ const faceRecognition = {
     },
 
     /**
-     * Muat model TinyFaceDetector (face-api.js) sekali saja - dipakai untuk
-     * mendeteksi APAKAH ada wajah di frame kamera (bukan mengenali identitas
-     * siapa, cukup memastikan ada wajah nyata di depan kamera).
+     * Muat model TinyFaceDetector + FaceLandmark68 (face-api.js) sekali saja -
+     * dipakai untuk mendeteksi APAKAH ada wajah di frame kamera, dan untuk
+     * memantau kedipan mata (liveness check, lihat _startFaceDetectionLoop)
+     * selama karyawan memposisikan wajahnya. Landmark dimuat di sini (bukan
+     * di _loadRecognitionModels di bawah) karena dibutuhkan SELAMA loop
+     * deteksi live berjalan, bukan cuma sesaat sebelum submit.
      */
     async _loadFaceModels() {
         if (this.modelsLoaded) return true;
@@ -226,7 +252,10 @@ const faceRecognition = {
         }
         try {
             const MODEL_URL = 'https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js@master/weights';
-            await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL);
+            await Promise.all([
+                faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
+                faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL)
+            ]);
             this.modelsLoaded = true;
             return true;
         } catch (e) {
@@ -236,16 +265,20 @@ const faceRecognition = {
     },
 
     /**
-     * Muat model landmark + recognition (face-api.js) - lebih berat dari
-     * TinyFaceDetector di atas, jadi dimuat terpisah & cuma kalau memang
-     * dibutuhkan (baru dipanggil pas mau absen, bukan dari awal buka
-     * halaman), supaya tidak memberatkan HP yang koneksinya lambat.
+     * Muat model recognition (face-api.js) - dipakai untuk menghitung
+     * descriptor/"sidik wajah" saat mencocokkan identitas ke foto profil.
+     * Lebih berat dari model deteksi/landmark di atas, jadi dimuat terpisah
+     * di latar belakang (lihat pemanggilan di initCamera), supaya tidak
+     * memberatkan HP yang koneksinya lambat waktu kamera baru dibuka.
      */
     async _loadRecognitionModels() {
         if (this.recognitionModelsLoaded) return true;
         if (typeof faceapi === 'undefined') return false;
         try {
             const MODEL_URL = 'https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js@master/weights';
+            // Landmark sudah dimuat lewat _loadFaceModels() - di sini tinggal
+            // muat ulang juga (aman, cache internal face-api.js) jaga-jaga
+            // kalau dipanggil dari alur lain di masa depan.
             await Promise.all([
                 faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
                 faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL)
@@ -331,14 +364,16 @@ const faceRecognition = {
 
     /**
      * Bandingkan wajah di foto yang baru diambil (canvas) dengan foto profil
-     * karyawan yang sedang login. Balikin { matched, checked } - "checked"
-     * true kalau pencocokan benar-benar dilakukan (ada referensi & model
-     * termuat), supaya pemanggil bisa membedakan "cocok", "tidak cocok",
-     * dan "tidak sempat dicek sama sekali" (fail-open).
+     * karyawan yang sedang login. Balikin { matched, checked, distance } -
+     * "checked" true kalau pencocokan benar-benar dilakukan (ada referensi &
+     * model termuat), supaya pemanggil bisa membedakan "cocok", "tidak
+     * cocok", dan "tidak sempat dicek sama sekali" (fail-open). "distance"
+     * dipakai pemanggil untuk menandai kecocokan yang "kurang yakin" (lihat
+     * FACE_MATCH_CONFIDENT_ZONE) supaya bisa ditinjau admin.
      */
     async _verifyFaceIdentity() {
         const reference = await this._getReferenceDescriptor();
-        if (!reference) return { matched: true, checked: false };
+        if (!reference) return { matched: true, checked: false, distance: null };
 
         try {
             const result = await faceapi
@@ -346,13 +381,13 @@ const faceRecognition = {
                 .withFaceLandmarks()
                 .withFaceDescriptor();
 
-            if (!result) return { matched: true, checked: false };
+            if (!result) return { matched: true, checked: false, distance: null };
 
             const distance = faceapi.euclideanDistance(reference, result.descriptor);
-            return { matched: distance <= this.FACE_MATCH_THRESHOLD, checked: true };
+            return { matched: distance <= this.FACE_MATCH_THRESHOLD, checked: true, distance: distance };
         } catch (e) {
             console.error('Gagal mencocokkan wajah:', e);
-            return { matched: true, checked: false };
+            return { matched: true, checked: false, distance: null };
         }
     },
 
@@ -370,11 +405,17 @@ const faceRecognition = {
 
             let detected = false;
             try {
-                const result = await faceapi.detectSingleFace(
-                    this.video,
-                    new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.5 })
-                );
+                const result = await faceapi
+                    .detectSingleFace(this.video, new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.5 }))
+                    .withFaceLandmarks();
                 detected = !!result;
+
+                // Baru perlu lacak kedipan kalau belum pernah kedeteksi 1x
+                // sepanjang sesi kamera ini - begitu blinkDetected true,
+                // tidak perlu dihitung lagi (hemat proses).
+                if (detected && !this.blinkDetected) {
+                    this._trackBlink(result.landmarks);
+                }
             } catch (e) {
                 detected = false;
             }
@@ -382,9 +423,54 @@ const faceRecognition = {
             this.faceDetected = detected;
             this._updateFaceOverlay(detected);
 
+            // Tombol capture baru boleh ditekan kalau wajah terdeteksi DAN
+            // sudah terekam minimal 1 kedipan alami (liveness check) - lihat
+            // _trackBlink(). Ini yang mencegah "titip absen" cuma dengan
+            // menodongkan foto/screenshot wajah orang lain ke kamera, karena
+            // gambar diam tidak akan pernah berkedip.
+            const readyToCapture = detected && this.blinkDetected;
             const captureBtn = document.getElementById('btn-capture');
-            if (captureBtn && !this.photoCaptured) captureBtn.disabled = !detected;
+            if (captureBtn && !this.photoCaptured) captureBtn.disabled = !readyToCapture;
         }, 400);
+    },
+
+    /**
+     * Hitung Eye Aspect Ratio (EAR) dari landmark mata kiri+kanan, lalu
+     * lacak transisi "terbuka -> tertutup -> terbuka" sebagai 1 kedipan
+     * alami. Foto/screenshot yang ditodongkan ke kamera tidak akan pernah
+     * menghasilkan transisi ini (posisi matanya selalu diam persis sama),
+     * jadi ini jadi pertahanan utama terhadap serangan "foto statis".
+     */
+    _trackBlink(landmarks) {
+        if (!landmarks) return;
+        try {
+            const leftEAR  = this._eyeAspectRatio(landmarks.getLeftEye());
+            const rightEAR = this._eyeAspectRatio(landmarks.getRightEye());
+            const ear = (leftEAR + rightEAR) / 2;
+
+            if (ear < this.EAR_CLOSED_THRESHOLD) {
+                this._eyesWereClosed = true;
+            } else if (ear > this.EAR_OPEN_THRESHOLD && this._eyesWereClosed) {
+                // Mata sempat terpejam, sekarang terbuka lagi -> 1 kedipan
+                // lengkap terekam.
+                this.blinkDetected = true;
+                this._eyesWereClosed = false;
+            }
+        } catch (e) {
+            // Landmark gagal dihitung di frame ini - lewati, dicoba lagi di
+            // tick berikutnya (400ms kemudian).
+        }
+    },
+
+    // eyePoints: 6 titik landmark 1 mata, urutan standar dlib 68-point
+    // (p1 sudut luar, p2, p3, p4 sudut dalam, p5, p6).
+    _eyeAspectRatio(eyePoints) {
+        const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+        const vertical1  = dist(eyePoints[1], eyePoints[5]);
+        const vertical2  = dist(eyePoints[2], eyePoints[4]);
+        const horizontal = dist(eyePoints[0], eyePoints[3]);
+        if (horizontal === 0) return 1;
+        return (vertical1 + vertical2) / (2 * horizontal);
     },
 
     _stopFaceDetectionLoop() {
@@ -394,7 +480,8 @@ const faceRecognition = {
         }
     },
 
-    // Ubah tampilan frame & teks panduan sesuai status deteksi wajah
+    // Ubah tampilan frame & teks panduan sesuai status deteksi wajah +
+    // status kedipan (liveness).
     _updateFaceOverlay(detected) {
         const frame = document.querySelector('#face-overlay .face-frame');
         const guideIcon = document.querySelector('#face-overlay .face-guide i');
@@ -403,9 +490,13 @@ const faceRecognition = {
         if (frame) frame.classList.toggle('detected', detected);
         if (guideIcon) guideIcon.classList.toggle('detected', detected);
         if (guideText) {
-            guideText.textContent = detected
-                ? 'Wajah terdeteksi'
-                : 'Wajah tidak terlihat - posisikan wajah di dalam frame';
+            if (!detected) {
+                guideText.textContent = 'Wajah tidak terlihat - posisikan wajah di dalam frame';
+            } else if (!this.blinkDetected) {
+                guideText.textContent = 'Wajah terdeteksi - silakan berkedip secara alami untuk verifikasi';
+            } else {
+                guideText.textContent = 'Wajah terverifikasi - siap absen';
+            }
         }
     },
 
@@ -899,12 +990,23 @@ const faceRecognition = {
                 return;
             }
 
+            // Jaring pengaman terakhir untuk liveness check - seharusnya
+            // tombol capture memang sudah terkunci selama belum ada kedipan
+            // terekam (lihat _startFaceDetectionLoop), tapi dicek ulang di
+            // sini juga jaga-jaga ada race condition.
+            if (this.faceRecognitionEnabled && !this.blinkDetected) {
+                toast.error('Verifikasi kedipan mata belum lengkap. Silakan berkedip secara alami, lalu coba lagi.');
+                if (captureBtnEl) captureBtnEl.disabled = true;
+                return;
+            }
+
             // Cocokkan wajah di foto ini dengan foto profil karyawan yang
             // sedang login - supaya tidak bisa "titip absen" pakai akun
             // orang lain. Kalau tidak sempat dicek (belum ada foto profil/
             // model gagal dimuat), absen tetap diloloskan (fail-open) -
             // lihat penjelasan di _getReferenceDescriptor(). Dilewati total
             // kalau toggle Face Recognition di Settings admin sedang OFF.
+            this._lastFaceMatch = null;
             if (this.faceRecognitionEnabled) {
                 const identity = await this._verifyFaceIdentity();
                 if (identity.checked && !identity.matched) {
@@ -912,6 +1014,10 @@ const faceRecognition = {
                     if (captureBtnEl) captureBtnEl.disabled = !this.faceDetected;
                     return;
                 }
+                // Simpan hasilnya untuk dikirim bareng data absensi (dibaca
+                // di confirmAttendance) - dipakai buat menandai kecocokan
+                // yang "kurang yakin" supaya admin bisa tinjau ulang.
+                this._lastFaceMatch = identity;
             }
 
             // Show verification success
@@ -953,6 +1059,9 @@ const faceRecognition = {
     retakePhoto() {
         this.photoCaptured = false;
         this.faceDetected = false;
+        this.blinkDetected = false;
+        this._eyesWereClosed = false;
+        this._lastFaceMatch = null;
 
         // Reset preview
         const preview = document.getElementById('camera-preview');
@@ -1038,7 +1147,16 @@ const faceRecognition = {
                 longitude: this.position.coords.longitude,
                 accuracy: this.position.coords.accuracy
             },
-            photo: this.canvas ? this.canvas.toDataURL('image/png') : null
+            photo: this.canvas ? this.canvas.toDataURL('image/png') : null,
+            // Skor kecocokan wajah (jarak Euclidean, makin kecil makin mirip)
+            // + penanda "perlu ditinjau admin" kalau kecocokannya tidak
+            // sepenuhnya yakin (lihat FACE_MATCH_CONFIDENT_ZONE) - dikosongkan
+            // kalau pencocokan tidak sempat dilakukan sama sekali (fail-open).
+            faceMatchScore: (this._lastFaceMatch && this._lastFaceMatch.checked && this._lastFaceMatch.distance != null)
+                ? Number(this._lastFaceMatch.distance.toFixed(4)) : null,
+            faceMatchFlag: !!(this._lastFaceMatch && this._lastFaceMatch.checked
+                && this._lastFaceMatch.distance != null
+                && this._lastFaceMatch.distance > this.FACE_MATCH_CONFIDENT_ZONE)
         };
 
         // Store temporary data
