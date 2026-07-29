@@ -634,6 +634,14 @@ const izin = {
                 const pemohonRole = pemohon.role || 'staff';
                 const pemohonBagian = String(pemohon.bagian || '').toUpperCase().trim();
 
+                // Izin Keluar Kantor: tahap Manajer bagian yang SAMA dengan
+                // pemohon (kecuali pemohonnya sendiri Manajer - lewati,
+                // langsung ke Direktur).
+                if (i.type === 'keluar_kantor') {
+                    if (pemohonRole === 'manajer') return false;
+                    return i.status === 'pending' && pemohonBagian === myBagian;
+                }
+
                 if (pemohonRole === 'staff') {
                     // Sudah disetujui Asmen, dan izin itu dari bagian yang sama dengan Manajer ini
                     return i.status === 'asmen_approved' && pemohonBagian === myBagian;
@@ -665,14 +673,15 @@ const izin = {
             });
         } else if (role === 'direktur') {
             filtered = data.filter(i => {
-                // Izin Keluar Kantor: alur sendiri, langsung ke Direktur begitu
-                // status masih pending — apapun jabatan pemohonnya (staff/asmen/manajer).
-                if (i.type === 'keluar_kantor') {
-                    return i.status === 'pending';
-                }
-
                 const pemohon = this._findEmployee(i.userId);
                 const pemohonRole = pemohon.role || 'staff';
+
+                // Izin Keluar Kantor: sekarang lewat tahap Manajer dulu
+                // (kecuali pemohonnya sendiri Manajer - langsung dari pending).
+                if (i.type === 'keluar_kantor') {
+                    if (pemohonRole === 'manajer') return i.status === 'pending';
+                    return i.status === 'manajer_approved';
+                }
 
                 if (pemohonRole === 'manajer') {
                     // Langsung dari pending, tahap Manajer dilewati sama sekali
