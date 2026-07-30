@@ -1692,15 +1692,15 @@
         <div class="modal-form">
             <input type="hidden" id="karyawan-id">
             <!-- Tab Navigation -->
-            <div style="display:flex;gap:4px;margin-bottom:1.5rem;border-bottom:2px solid var(--border-color);padding-bottom:0;">
-                <button type="button" class="tab-btn active" onclick="karyawanManager.switchTab('profil')" id="tab-profil" style="padding:8px 16px;border:none;background:none;cursor:pointer;font-weight:600;color:var(--color-primary);border-bottom:2px solid var(--color-primary);margin-bottom:-2px;">Profil</button>
-                <button type="button" class="tab-btn" onclick="karyawanManager.switchTab('kekaryawanan')" id="tab-kekaryawanan" style="padding:8px 16px;border:none;background:none;cursor:pointer;font-weight:500;color:var(--text-muted);">Kekaryawanan</button>
-                <button type="button" class="tab-btn" onclick="karyawanManager.switchTab('keluarga')" id="tab-keluarga" style="padding:8px 16px;border:none;background:none;cursor:pointer;font-weight:500;color:var(--text-muted);">Keluarga</button>
-                <button type="button" class="tab-btn" onclick="karyawanManager.switchTab('akun')" id="tab-akun" style="padding:8px 16px;border:none;background:none;cursor:pointer;font-weight:500;color:var(--text-muted);">Akun</button>
-                <button type="button" class="tab-btn" onclick="karyawanManager.switchTab('pendidikan')" id="tab-pendidikan" style="padding:8px 16px;border:none;background:none;cursor:pointer;font-weight:500;color:var(--text-muted);">Pendidikan</button>
-                <button type="button" class="tab-btn" onclick="karyawanManager.switchTab('kgb')" id="tab-kgb" style="padding:8px 16px;border:none;background:none;cursor:pointer;font-weight:500;color:var(--text-muted);">Kenaikan Gaji Berkala</button>
-                <button type="button" class="tab-btn" onclick="karyawanManager.switchTab('golongan')" id="tab-golongan" style="padding:8px 16px;border:none;background:none;cursor:pointer;font-weight:500;color:var(--text-muted);">Golongan</button>
-                <button type="button" class="tab-btn" onclick="karyawanManager.switchTab('mutasi')" id="tab-mutasi" style="padding:8px 16px;border:none;background:none;cursor:pointer;font-weight:500;color:var(--text-muted);">Riwayat Mutasi</button>
+            <div class="k-tabs-nav" style="display:flex;gap:4px;margin-bottom:1.5rem;border-bottom:2px solid var(--border-color);padding-bottom:0;overflow-x:auto;flex-wrap:nowrap;-webkit-overflow-scrolling:touch;">
+                <button type="button" class="tab-btn active" onclick="karyawanManager.switchTab('profil')" id="tab-profil" style="padding:8px 16px;border:none;background:none;cursor:pointer;font-weight:600;color:var(--color-primary);border-bottom:2px solid var(--color-primary);margin-bottom:-2px;white-space:nowrap;flex-shrink:0;">Profil</button>
+                <button type="button" class="tab-btn" onclick="karyawanManager.switchTab('kekaryawanan')" id="tab-kekaryawanan" style="padding:8px 16px;border:none;background:none;cursor:pointer;font-weight:500;color:var(--text-muted);white-space:nowrap;flex-shrink:0;">Kekaryawanan</button>
+                <button type="button" class="tab-btn" onclick="karyawanManager.switchTab('keluarga')" id="tab-keluarga" style="padding:8px 16px;border:none;background:none;cursor:pointer;font-weight:500;color:var(--text-muted);white-space:nowrap;flex-shrink:0;">Keluarga</button>
+                <button type="button" class="tab-btn" onclick="karyawanManager.switchTab('akun')" id="tab-akun" style="padding:8px 16px;border:none;background:none;cursor:pointer;font-weight:500;color:var(--text-muted);white-space:nowrap;flex-shrink:0;">Akun</button>
+                <button type="button" class="tab-btn" onclick="karyawanManager.switchTab('pendidikan')" id="tab-pendidikan" style="padding:8px 16px;border:none;background:none;cursor:pointer;font-weight:500;color:var(--text-muted);white-space:nowrap;flex-shrink:0;">Pendidikan</button>
+                <button type="button" class="tab-btn" onclick="karyawanManager.switchTab('kgb')" id="tab-kgb" style="padding:8px 16px;border:none;background:none;cursor:pointer;font-weight:500;color:var(--text-muted);white-space:nowrap;flex-shrink:0;">Kenaikan Gaji Berkala</button>
+                <button type="button" class="tab-btn" onclick="karyawanManager.switchTab('golongan')" id="tab-golongan" style="padding:8px 16px;border:none;background:none;cursor:pointer;font-weight:500;color:var(--text-muted);white-space:nowrap;flex-shrink:0;">Golongan</button>
+                <button type="button" class="tab-btn" onclick="karyawanManager.switchTab('mutasi')" id="tab-mutasi" style="padding:8px 16px;border:none;background:none;cursor:pointer;font-weight:500;color:var(--text-muted);white-space:nowrap;flex-shrink:0;">Riwayat Mutasi</button>
             </div>
 
             <!-- Tab Profil -->
