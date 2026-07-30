@@ -733,6 +733,15 @@ const adminReports = {
                         return ` <i class="fas fa-map-marker-alt" style="color:#10b981;cursor:pointer;font-size:0.75rem;" onclick="adminReports.openMaps(${c.lat}, ${c.lng})" title="Lihat titik GPS sesi ini"></i>`;
                     };
 
+                    // Tandai jam yang tercatat di luar radius (Pekerja Lapangan)
+                    // - sama seperti versi tabel desktop, cuma sebelumnya lupa
+                    // ditambahkan di kartu mobile ini.
+                    const oorBadgeM = (type) => {
+                        const r = (this.outOfRadiusMap || {})[`${emp.id}|${row.date}|${type}`];
+                        if (!r) return '';
+                        return `<br><span onclick="adminReports.showOutOfRadiusNote('${emp.id}', '${row.date}', '${type}')" style="display:inline-block;margin-top:2px;background:#FEF3C7;color:#D97706;font-size:0.65rem;font-weight:600;padding:1px 6px;border-radius:10px;cursor:pointer;"><i class="fas fa-map-marker-alt"></i> Luar Radius${r.status === 'approved' ? ' ✓' : ''} <i class="fas fa-circle-info" style="font-size:0.6rem;"></i></span>`;
+                    };
+
                     html += `
                         <div style="padding:10px 0;border-top:1px solid var(--border-color,#e5e7eb);">
                             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
@@ -741,10 +750,10 @@ const adminReports = {
                             </div>
                             <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:0.78rem;color:var(--text-muted);margin-bottom:6px;">
                                 <div>Shift: <span style="color:var(--text-primary,#111);">${row.shift || '-'}</span></div>
-                                <div>Masuk: <span style="color:#10b981;font-weight:600;">${row.clockIn || '–'}</span>${sessionGps('clockInLocation')}</div>
-                                <div>Istirahat: ${row.breakStart || '–'}${sessionGps('breakStartLocation')}</div>
-                                <div>Kembali: ${row.breakEnd || '–'}${sessionGps('breakEndLocation')}</div>
-                                <div>Pulang: <span style="color:#EF4444;font-weight:600;">${row.clockOut || '–'}</span>${sessionGps('clockOutLocation')}</div>
+                                <div>Masuk: <span style="color:#10b981;font-weight:600;">${row.clockIn || '–'}</span>${sessionGps('clockInLocation')}${oorBadgeM('clockIn')}</div>
+                                <div>Istirahat: ${row.breakStart || '–'}${sessionGps('breakStartLocation')}${oorBadgeM('breakStart')}</div>
+                                <div>Kembali: ${row.breakEnd || '–'}${sessionGps('breakEndLocation')}${oorBadgeM('breakEnd')}</div>
+                                <div>Pulang: <span style="color:#EF4444;font-weight:600;">${row.clockOut || '–'}</span>${sessionGps('clockOutLocation')}${oorBadgeM('clockOut')}</div>
                             </div>
                             <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
                                 <div style="flex:1;min-width:0;">${lokasiHtml}</div>
