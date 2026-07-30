@@ -709,16 +709,6 @@
                             </p>
                             <label style="font-weight:600;font-size:0.85rem;">Catatan Alasan (wajib diisi)</label>
                             <textarea id="out-of-radius-note-text" rows="3" placeholder="Contoh: Sedang perbaikan pipa di lokasi pelanggan Jl. ..." style="width:100%;margin-top:6px;padding:10px;border:1px solid var(--border-color);border-radius:8px;font-family:inherit;"></textarea>
-
-                            <label style="font-weight:600;font-size:0.85rem;display:block;margin-top:12px;">Foto Dokumentasi (opsional)</label>
-                            <small style="color:var(--text-muted);display:block;margin-bottom:6px;">Foto lokasi/pekerjaan sebagai bukti pendukung laporan.</small>
-                            <input type="file" id="out-of-radius-photo-input" accept="image/*" capture="environment"
-                                onchange="faceRecognition.previewOutOfRadiusPhoto(this)" style="width:100%;">
-                            <div id="out-of-radius-photo-preview" style="display:none;margin-top:8px;">
-                                <img id="out-of-radius-photo-img" style="max-width:100%;max-height:160px;border-radius:8px;border:1px solid var(--border-color);">
-                                <button type="button" onclick="faceRecognition.removeOutOfRadiusPhoto()" style="display:block;margin-top:4px;background:none;border:none;color:#EF4444;font-size:0.8rem;cursor:pointer;padding:0;"><i class="fas fa-times"></i> Hapus foto</button>
-                            </div>
-
                             <small style="color:var(--text-muted);display:block;margin-top:6px;">Catatan ini akan dikirim ke approver yang ditunjuk Admin sebagai laporan. Absensi Anda tetap tersimpan seperti biasa.</small>
                             <div style="display:flex;gap:8px;margin-top:1rem;">
                                 <button type="button" onclick="faceRecognition.cancelOutOfRadiusNote()" style="flex:1;background:none;border:1px solid var(--border-color);color:var(--text-muted);padding:10px;border-radius:8px;cursor:pointer;">Batal</button>
@@ -1115,6 +1105,8 @@
                                 <button type="button" class="tab-btn" onclick="profileManager.switchTab('keluarga')" id="pf-tab-keluarga" style="padding:8px 16px;border:none;background:none;cursor:pointer;font-weight:500;color:var(--text-muted);white-space:nowrap;flex-shrink:0;">Keluarga</button>
                                 <button type="button" class="tab-btn" onclick="profileManager.switchTab('akun')" id="pf-tab-akun" style="padding:8px 16px;border:none;background:none;cursor:pointer;font-weight:500;color:var(--text-muted);white-space:nowrap;flex-shrink:0;">Akun</button>
                                 <button type="button" class="tab-btn" onclick="profileManager.switchTab('pendidikan')" id="pf-tab-pendidikan" style="padding:8px 16px;border:none;background:none;cursor:pointer;font-weight:500;color:var(--text-muted);white-space:nowrap;flex-shrink:0;">Pendidikan</button>
+                                <button type="button" class="tab-btn" onclick="profileManager.switchTab('kgb')" id="pf-tab-kgb" style="padding:8px 16px;border:none;background:none;cursor:pointer;font-weight:500;color:var(--text-muted);white-space:nowrap;flex-shrink:0;">Kenaikan Gaji Berkala</button>
+                                <button type="button" class="tab-btn" onclick="profileManager.switchTab('golongan')" id="pf-tab-golongan" style="padding:8px 16px;border:none;background:none;cursor:pointer;font-weight:500;color:var(--text-muted);white-space:nowrap;flex-shrink:0;">Golongan</button>
                                 <button type="button" class="tab-btn" onclick="profileManager.switchTab('mutasi')" id="pf-tab-mutasi" style="padding:8px 16px;border:none;background:none;cursor:pointer;font-weight:500;color:var(--text-muted);white-space:nowrap;flex-shrink:0;">Riwayat Mutasi</button>
                             </div>
 
@@ -1433,6 +1425,68 @@
                                 <div id="pf-pendidikan-list" style="margin-bottom:1.5rem;"></div>
                             </div>
 
+                            <!-- Tab Kenaikan Gaji Berkala -->
+                            <div id="pf-tabcontent-kgb" style="display:none;">
+                                <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:1.5rem;flex-wrap:wrap;">
+                                    <p style="font-size:0.85rem;color:var(--text-muted);margin:0;max-width:640px;">
+                                        Simpan riwayat Kenaikan Gaji Berkala (KGB) Anda beserta link Google Drive
+                                        dokumennya. Upload file ke Google Drive Anda sendiri, atur akses "Siapa saja
+                                        memiliki link", lalu tempel link-nya di sini.
+                                    </p>
+                                    <button type="button" class="btn-primary" style="white-space:nowrap;flex-shrink:0;" onclick="profileManager.openKgbModal()">
+                                        <i class="fas fa-plus"></i> Tambah Kenaikan Gaji Berkala
+                                    </button>
+                                </div>
+
+                                <div class="employees-table-card">
+                                    <div class="table-responsive">
+                                        <table class="employees-table">
+                                            <thead>
+                                                <tr>
+                                                    <th>Nomor Surat</th>
+                                                    <th>TMT KGB</th>
+                                                    <th>Masa Kerja</th>
+                                                    <th>Dokumen</th>
+                                                    <th>Aksi</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="pf-kgb-list"></tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Tab Golongan -->
+                            <div id="pf-tabcontent-golongan" style="display:none;">
+                                <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:1.5rem;flex-wrap:wrap;">
+                                    <p style="font-size:0.85rem;color:var(--text-muted);margin:0;max-width:640px;">
+                                        Simpan riwayat kenaikan Golongan Anda beserta link Google Drive dokumen SK-nya.
+                                        Upload file ke Google Drive Anda sendiri, atur akses "Siapa saja memiliki
+                                        link", lalu tempel link-nya di sini.
+                                    </p>
+                                    <button type="button" class="btn-primary" style="white-space:nowrap;flex-shrink:0;" onclick="profileManager.openGolonganModal()">
+                                        <i class="fas fa-plus"></i> Tambah Golongan
+                                    </button>
+                                </div>
+
+                                <div class="employees-table-card">
+                                    <div class="table-responsive">
+                                        <table class="employees-table">
+                                            <thead>
+                                                <tr>
+                                                    <th>Golongan</th>
+                                                    <th>TMT</th>
+                                                    <th>Nomor SK</th>
+                                                    <th>Dokumen</th>
+                                                    <th>Aksi</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="pf-golongan-list"></tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+
                             <!-- Tab Riwayat Mutasi -->
                             <div id="pf-tabcontent-mutasi" style="display:none;">
                                 <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:1.5rem;flex-wrap:wrap;">
@@ -1638,13 +1692,15 @@
         <div class="modal-form">
             <input type="hidden" id="karyawan-id">
             <!-- Tab Navigation -->
-            <div style="display:flex;gap:4px;margin-bottom:1.5rem;border-bottom:2px solid var(--border-color);padding-bottom:0;overflow-x:auto;flex-wrap:nowrap;-webkit-overflow-scrolling:touch;">
-                <button type="button" class="tab-btn active" onclick="karyawanManager.switchTab('profil')" id="tab-profil" style="padding:8px 16px;border:none;background:none;cursor:pointer;font-weight:600;color:var(--color-primary);border-bottom:2px solid var(--color-primary);margin-bottom:-2px;white-space:nowrap;flex-shrink:0;">Profil</button>
-                <button type="button" class="tab-btn" onclick="karyawanManager.switchTab('kekaryawanan')" id="tab-kekaryawanan" style="padding:8px 16px;border:none;background:none;cursor:pointer;font-weight:500;color:var(--text-muted);white-space:nowrap;flex-shrink:0;">Kekaryawanan</button>
-                <button type="button" class="tab-btn" onclick="karyawanManager.switchTab('keluarga')" id="tab-keluarga" style="padding:8px 16px;border:none;background:none;cursor:pointer;font-weight:500;color:var(--text-muted);white-space:nowrap;flex-shrink:0;">Keluarga</button>
-                <button type="button" class="tab-btn" onclick="karyawanManager.switchTab('akun')" id="tab-akun" style="padding:8px 16px;border:none;background:none;cursor:pointer;font-weight:500;color:var(--text-muted);white-space:nowrap;flex-shrink:0;">Akun</button>
-                <button type="button" class="tab-btn" onclick="karyawanManager.switchTab('pendidikan')" id="tab-pendidikan" style="padding:8px 16px;border:none;background:none;cursor:pointer;font-weight:500;color:var(--text-muted);white-space:nowrap;flex-shrink:0;">Pendidikan</button>
-                <button type="button" class="tab-btn" onclick="karyawanManager.switchTab('mutasi')" id="tab-mutasi" style="padding:8px 16px;border:none;background:none;cursor:pointer;font-weight:500;color:var(--text-muted);white-space:nowrap;flex-shrink:0;">Riwayat Mutasi</button>
+            <div style="display:flex;gap:4px;margin-bottom:1.5rem;border-bottom:2px solid var(--border-color);padding-bottom:0;">
+                <button type="button" class="tab-btn active" onclick="karyawanManager.switchTab('profil')" id="tab-profil" style="padding:8px 16px;border:none;background:none;cursor:pointer;font-weight:600;color:var(--color-primary);border-bottom:2px solid var(--color-primary);margin-bottom:-2px;">Profil</button>
+                <button type="button" class="tab-btn" onclick="karyawanManager.switchTab('kekaryawanan')" id="tab-kekaryawanan" style="padding:8px 16px;border:none;background:none;cursor:pointer;font-weight:500;color:var(--text-muted);">Kekaryawanan</button>
+                <button type="button" class="tab-btn" onclick="karyawanManager.switchTab('keluarga')" id="tab-keluarga" style="padding:8px 16px;border:none;background:none;cursor:pointer;font-weight:500;color:var(--text-muted);">Keluarga</button>
+                <button type="button" class="tab-btn" onclick="karyawanManager.switchTab('akun')" id="tab-akun" style="padding:8px 16px;border:none;background:none;cursor:pointer;font-weight:500;color:var(--text-muted);">Akun</button>
+                <button type="button" class="tab-btn" onclick="karyawanManager.switchTab('pendidikan')" id="tab-pendidikan" style="padding:8px 16px;border:none;background:none;cursor:pointer;font-weight:500;color:var(--text-muted);">Pendidikan</button>
+                <button type="button" class="tab-btn" onclick="karyawanManager.switchTab('kgb')" id="tab-kgb" style="padding:8px 16px;border:none;background:none;cursor:pointer;font-weight:500;color:var(--text-muted);">Kenaikan Gaji Berkala</button>
+                <button type="button" class="tab-btn" onclick="karyawanManager.switchTab('golongan')" id="tab-golongan" style="padding:8px 16px;border:none;background:none;cursor:pointer;font-weight:500;color:var(--text-muted);">Golongan</button>
+                <button type="button" class="tab-btn" onclick="karyawanManager.switchTab('mutasi')" id="tab-mutasi" style="padding:8px 16px;border:none;background:none;cursor:pointer;font-weight:500;color:var(--text-muted);">Riwayat Mutasi</button>
             </div>
 
             <!-- Tab Profil -->
@@ -1979,6 +2035,72 @@
     </div>
 </div>
 
+<div id="tabcontent-kgb" style="display:none;">
+    <div id="k-kgb-blocked" style="display:none;padding:2rem;text-align:center;color:var(--text-muted);font-size:0.85rem;">
+        Simpan data profil karyawan terlebih dahulu (tab Profil) sebelum menambahkan Kenaikan Gaji Berkala.
+    </div>
+    <div id="k-kgb-content">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:1.5rem;flex-wrap:wrap;">
+            <p style="font-size:0.85rem;color:var(--text-muted);margin:0;max-width:640px;">
+                Riwayat Kenaikan Gaji Berkala (KGB) karyawan ini beserta link Google Drive dokumennya.
+            </p>
+            <button type="button" class="btn-primary" style="white-space:nowrap;flex-shrink:0;" onclick="karyawanManager.openKgbModalAdmin()">
+                <i class="fas fa-plus"></i> Tambah Kenaikan Gaji Berkala
+            </button>
+        </div>
+
+        <div class="employees-table-card">
+            <div class="table-responsive">
+                <table class="employees-table">
+                    <thead>
+                        <tr>
+                            <th>Nomor Surat</th>
+                            <th>TMT KGB</th>
+                            <th>Masa Kerja</th>
+                            <th>Dokumen</th>
+                            <th>Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody id="k-kgb-list"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="tabcontent-golongan" style="display:none;">
+    <div id="k-golongan-blocked" style="display:none;padding:2rem;text-align:center;color:var(--text-muted);font-size:0.85rem;">
+        Simpan data profil karyawan terlebih dahulu (tab Profil) sebelum menambahkan Golongan.
+    </div>
+    <div id="k-golongan-content">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:1.5rem;flex-wrap:wrap;">
+            <p style="font-size:0.85rem;color:var(--text-muted);margin:0;max-width:640px;">
+                Riwayat kenaikan Golongan karyawan ini beserta link Google Drive dokumen SK-nya.
+            </p>
+            <button type="button" class="btn-primary" style="white-space:nowrap;flex-shrink:0;" onclick="karyawanManager.openGolonganModalAdmin()">
+                <i class="fas fa-plus"></i> Tambah Golongan
+            </button>
+        </div>
+
+        <div class="employees-table-card">
+            <div class="table-responsive">
+                <table class="employees-table">
+                    <thead>
+                        <tr>
+                            <th>Golongan</th>
+                            <th>TMT</th>
+                            <th>Nomor SK</th>
+                            <th>Dokumen</th>
+                            <th>Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody id="k-golongan-list"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
 <div id="tabcontent-mutasi" style="display:none;">
     <div id="k-mutasi-blocked" style="display:none;padding:2rem;text-align:center;color:var(--text-muted);font-size:0.85rem;">
         Simpan data profil karyawan terlebih dahulu (tab Profil) sebelum menambahkan riwayat mutasi.
@@ -2124,6 +2246,148 @@
 </div>
 
 <!-- Modal Tambah/Edit Riwayat Mutasi (Admin) -->
+<div class="modal-overlay" id="modal-k-kgb-form" style="display:none;">
+    <div class="modal-container" style="max-width:700px;width:95%;max-height:92vh;overflow-y:auto;">
+        <div class="modal-header">
+            <h3 id="k-kgb-form-title"><i class="fas fa-money-bill-trend-up"></i> Tambah Kenaikan Gaji Berkala</h3>
+            <button class="btn-close-modal" onclick="karyawanManager.closeKgbModalAdmin()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div style="padding:0 1.25rem 1.25rem;">
+            <input type="hidden" id="k-kgb-id">
+            <div class="form-row two-col">
+                <div class="form-group">
+                    <label>Nomor Surat *</label>
+                    <input type="text" id="k-kgb-nomorSurat" placeholder="Contoh: 824/038-SI/BKPSDM/2022">
+                </div>
+                <div class="form-group">
+                    <label>TMT Kenaikan Gaji Berkala</label>
+                    <input type="date" id="k-kgb-tmtKgb">
+                </div>
+            </div>
+            <div class="form-row two-col">
+                <div class="form-group">
+                    <label>Tanggal Surat</label>
+                    <input type="date" id="k-kgb-tanggalSurat">
+                </div>
+                <div class="form-group">
+                    <label>Gaji Pokok Baru</label>
+                    <input type="text" id="k-kgb-gajiPokokBaru" placeholder="Contoh: 3.500.000">
+                </div>
+            </div>
+            <div class="form-row two-col">
+                <div class="form-group">
+                    <label>Masa Kerja (Tahun)</label>
+                    <input type="number" id="k-kgb-masaKerjaTahun" min="0" placeholder="0">
+                </div>
+                <div class="form-group">
+                    <label>Masa Kerja (Bulan)</label>
+                    <input type="number" id="k-kgb-masaKerjaBulan" min="0" max="11" placeholder="0">
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>Link Google Drive - Dokumen Kenaikan Gaji Berkala</label>
+                <input type="url" id="k-kgb-dokumen-url" placeholder="Tempel link share Google Drive Dokumen KGB di sini"
+                    oninput="karyawanManager.updateKgbPreviewAdmin()">
+                <small style="color:var(--text-muted);">Pastikan sharing file diset ke "Anyone with the link".</small>
+            </div>
+            <div class="form-group">
+                <label style="font-size:0.8rem;color:var(--text-muted);">Preview Dokumen</label>
+                <div id="k-kgb-dokumen-preview" style="position:relative;height:340px;border:1px solid var(--border-color);border-radius:8px;overflow:hidden;background:var(--bg-secondary,#f8f9fa);">
+                    <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:8px;color:var(--text-muted);"><i class="fas fa-file-circle-xmark" style="font-size:1.5rem;"></i><span style="font-size:0.8rem;">Belum ada link dokumen</span></div>
+                </div>
+            </div>
+
+            <div class="form-actions">
+                <button type="button" class="btn-secondary" id="k-kgb-btn-batal" style="display:none;" onclick="karyawanManager.resetKgbFormAdmin()">
+                    Batal Edit
+                </button>
+                <button type="button" class="btn-primary" onclick="karyawanManager.saveRiwayatKgbAdmin()">
+                    <i class="fas fa-check-circle"></i> Simpan Kenaikan Gaji Berkala
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal-overlay" id="modal-k-golongan-form" style="display:none;">
+    <div class="modal-container" style="max-width:700px;width:95%;max-height:92vh;overflow-y:auto;">
+        <div class="modal-header">
+            <h3 id="k-gol-form-title"><i class="fas fa-layer-group"></i> Tambah Golongan</h3>
+            <button class="btn-close-modal" onclick="karyawanManager.closeGolonganModalAdmin()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div style="padding:0 1.25rem 1.25rem;">
+            <input type="hidden" id="k-gol-id">
+            <div class="form-row two-col">
+                <div class="form-group">
+                    <label>Golongan *</label>
+                    <input type="text" id="k-gol-golongan" placeholder="Contoh: III/a">
+                </div>
+                <div class="form-group">
+                    <label>TMT Golongan</label>
+                    <input type="date" id="k-gol-tmtGolongan">
+                </div>
+            </div>
+            <div class="form-row two-col">
+                <div class="form-group">
+                    <label>Jenis Kenaikan</label>
+                    <select id="k-gol-jenisKenaikan">
+                        <option value="">-- Pilih Jenis Kenaikan --</option>
+                        <option value="Reguler">Reguler</option>
+                        <option value="Jabatan Struktural">Jabatan Struktural</option>
+                        <option value="Jabatan Fungsional Tertentu">Jabatan Fungsional Tertentu</option>
+                        <option value="Penyesuaian Ijazah">Penyesuaian Ijazah</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Nomor SK</label>
+                    <input type="text" id="k-gol-nomorSK" placeholder="Contoh: 824/038-SI/BKPSDM/2022">
+                </div>
+            </div>
+            <div class="form-row two-col">
+                <div class="form-group">
+                    <label>Masa Kerja Golongan (Tahun)</label>
+                    <input type="number" id="k-gol-masaKerjaTahun" min="0" placeholder="0">
+                </div>
+                <div class="form-group">
+                    <label>Masa Kerja Golongan (Bulan)</label>
+                    <input type="number" id="k-gol-masaKerjaBulan" min="0" max="11" placeholder="0">
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Tanggal SK</label>
+                <input type="date" id="k-gol-tanggalSK">
+            </div>
+
+            <div class="form-group">
+                <label>Link Google Drive - Dokumen SK Golongan</label>
+                <input type="url" id="k-gol-dokumen-url" placeholder="Tempel link share Google Drive Dokumen SK Golongan di sini"
+                    oninput="karyawanManager.updateGolonganPreviewAdmin()">
+                <small style="color:var(--text-muted);">Pastikan sharing file diset ke "Anyone with the link".</small>
+            </div>
+            <div class="form-group">
+                <label style="font-size:0.8rem;color:var(--text-muted);">Preview Dokumen</label>
+                <div id="k-gol-dokumen-preview" style="position:relative;height:340px;border:1px solid var(--border-color);border-radius:8px;overflow:hidden;background:var(--bg-secondary,#f8f9fa);">
+                    <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:8px;color:var(--text-muted);"><i class="fas fa-file-circle-xmark" style="font-size:1.5rem;"></i><span style="font-size:0.8rem;">Belum ada link dokumen</span></div>
+                </div>
+            </div>
+
+            <div class="form-actions">
+                <button type="button" class="btn-secondary" id="k-gol-btn-batal" style="display:none;" onclick="karyawanManager.resetGolonganFormAdmin()">
+                    Batal Edit
+                </button>
+                <button type="button" class="btn-primary" onclick="karyawanManager.saveRiwayatGolonganAdmin()">
+                    <i class="fas fa-check-circle"></i> Simpan Golongan
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <div class="modal-overlay" id="modal-k-mutasi-form" style="display:none;">
     <div class="modal-container" style="max-width:700px;width:95%;max-height:92vh;overflow-y:auto;">
         <div class="modal-header">
@@ -2641,10 +2905,6 @@
                 <div style="background:var(--bg-secondary);border-radius:8px;padding:12px 14px;margin-bottom:1rem;">
                     <p id="oorn-note-text" style="font-size:0.92rem;color:var(--text-primary);font-style:italic;margin:0;"></p>
                 </div>
-                <div id="oorn-photo-wrap" style="display:none;margin-bottom:1rem;">
-                    <label style="font-size:0.78rem;color:var(--text-muted);display:block;margin-bottom:6px;">Foto Dokumentasi</label>
-                    <img id="oorn-photo-img" style="width:100%;border-radius:8px;border:1px solid var(--border-color);cursor:pointer;" onclick="window.open(this.src, '_blank')">
-                </div>
                 <p id="oorn-status-text" style="font-size:0.85rem;color:var(--text-muted);margin-bottom:1.5rem;"></p>
                 <button type="button" onclick="adminReports.closeOutOfRadiusNote()"
                     style="width:100%;padding:0.75rem;border-radius:8px;border:none;background:var(--color-primary);color:#fff;font-weight:600;cursor:pointer;">
@@ -3019,6 +3279,148 @@
                     </button>
                     <button type="button" class="btn-primary" onclick="profileManager.saveRiwayatPendidikan()">
                         <i class="fas fa-check-circle"></i> Simpan Riwayat Pendidikan
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="modal-kgb-form" style="display:none;">
+        <div class="modal-container" style="max-width:700px;width:95%;max-height:92vh;overflow-y:auto;">
+            <div class="modal-header">
+                <h3 id="pf-kgb-form-title"><i class="fas fa-money-bill-trend-up"></i> Tambah Kenaikan Gaji Berkala</h3>
+                <button class="btn-close-modal" onclick="profileManager.closeKgbModal()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div style="padding:0 1.25rem 1.25rem;">
+                <input type="hidden" id="pf-kgb-id">
+                <div class="form-row two-col">
+                    <div class="form-group">
+                        <label>Nomor Surat *</label>
+                        <input type="text" id="pf-kgb-nomorSurat" placeholder="Contoh: 824/038-SI/BKPSDM/2022">
+                    </div>
+                    <div class="form-group">
+                        <label>TMT Kenaikan Gaji Berkala</label>
+                        <input type="date" id="pf-kgb-tmtKgb">
+                    </div>
+                </div>
+                <div class="form-row two-col">
+                    <div class="form-group">
+                        <label>Tanggal Surat</label>
+                        <input type="date" id="pf-kgb-tanggalSurat">
+                    </div>
+                    <div class="form-group">
+                        <label>Gaji Pokok Baru</label>
+                        <input type="text" id="pf-kgb-gajiPokokBaru" placeholder="Contoh: 3.500.000">
+                    </div>
+                </div>
+                <div class="form-row two-col">
+                    <div class="form-group">
+                        <label>Masa Kerja (Tahun)</label>
+                        <input type="number" id="pf-kgb-masaKerjaTahun" min="0" placeholder="0">
+                    </div>
+                    <div class="form-group">
+                        <label>Masa Kerja (Bulan)</label>
+                        <input type="number" id="pf-kgb-masaKerjaBulan" min="0" max="11" placeholder="0">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Link Google Drive - Dokumen Kenaikan Gaji Berkala</label>
+                    <input type="url" id="pf-kgb-dokumen-url" placeholder="Tempel link share Google Drive Dokumen KGB di sini"
+                        oninput="profileManager.updateKgbPreview()">
+                    <small style="color:var(--text-muted);">Upload file KGB ke Google Drive Anda, atur akses "Anyone with the link", lalu tempel link-nya di sini.</small>
+                </div>
+                <div class="form-group">
+                    <label style="font-size:0.8rem;color:var(--text-muted);">Preview Dokumen</label>
+                    <div id="pf-kgb-dokumen-preview" style="position:relative;height:340px;border:1px solid var(--border-color);border-radius:8px;overflow:hidden;background:var(--bg-secondary,#f8f9fa);">
+                        <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:8px;color:var(--text-muted);"><i class="fas fa-file-circle-xmark" style="font-size:1.5rem;"></i><span style="font-size:0.8rem;">Belum ada link dokumen</span></div>
+                    </div>
+                </div>
+
+                <div class="form-actions">
+                    <button type="button" class="btn-secondary" id="pf-kgb-btn-batal" style="display:none;" onclick="profileManager.resetKgbForm()">
+                        Batal Edit
+                    </button>
+                    <button type="button" class="btn-primary" onclick="profileManager.saveRiwayatKgb()">
+                        <i class="fas fa-check-circle"></i> Simpan Kenaikan Gaji Berkala
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="modal-golongan-form" style="display:none;">
+        <div class="modal-container" style="max-width:700px;width:95%;max-height:92vh;overflow-y:auto;">
+            <div class="modal-header">
+                <h3 id="pf-gol-form-title"><i class="fas fa-layer-group"></i> Tambah Golongan</h3>
+                <button class="btn-close-modal" onclick="profileManager.closeGolonganModal()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div style="padding:0 1.25rem 1.25rem;">
+                <input type="hidden" id="pf-gol-id">
+                <div class="form-row two-col">
+                    <div class="form-group">
+                        <label>Golongan *</label>
+                        <input type="text" id="pf-gol-golongan" placeholder="Contoh: III/a">
+                    </div>
+                    <div class="form-group">
+                        <label>TMT Golongan</label>
+                        <input type="date" id="pf-gol-tmtGolongan">
+                    </div>
+                </div>
+                <div class="form-row two-col">
+                    <div class="form-group">
+                        <label>Jenis Kenaikan</label>
+                        <select id="pf-gol-jenisKenaikan">
+                            <option value="">-- Pilih Jenis Kenaikan --</option>
+                            <option value="Reguler">Reguler</option>
+                            <option value="Jabatan Struktural">Jabatan Struktural</option>
+                            <option value="Jabatan Fungsional Tertentu">Jabatan Fungsional Tertentu</option>
+                            <option value="Penyesuaian Ijazah">Penyesuaian Ijazah</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Nomor SK</label>
+                        <input type="text" id="pf-gol-nomorSK" placeholder="Contoh: 824/038-SI/BKPSDM/2022">
+                    </div>
+                </div>
+                <div class="form-row two-col">
+                    <div class="form-group">
+                        <label>Masa Kerja Golongan (Tahun)</label>
+                        <input type="number" id="pf-gol-masaKerjaTahun" min="0" placeholder="0">
+                    </div>
+                    <div class="form-group">
+                        <label>Masa Kerja Golongan (Bulan)</label>
+                        <input type="number" id="pf-gol-masaKerjaBulan" min="0" max="11" placeholder="0">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Tanggal SK</label>
+                    <input type="date" id="pf-gol-tanggalSK">
+                </div>
+
+                <div class="form-group">
+                    <label>Link Google Drive - Dokumen SK Golongan</label>
+                    <input type="url" id="pf-gol-dokumen-url" placeholder="Tempel link share Google Drive Dokumen SK Golongan di sini"
+                        oninput="profileManager.updateGolonganPreview()">
+                    <small style="color:var(--text-muted);">Upload file SK Golongan ke Google Drive Anda, atur akses "Anyone with the link", lalu tempel link-nya di sini.</small>
+                </div>
+                <div class="form-group">
+                    <label style="font-size:0.8rem;color:var(--text-muted);">Preview Dokumen</label>
+                    <div id="pf-gol-dokumen-preview" style="position:relative;height:340px;border:1px solid var(--border-color);border-radius:8px;overflow:hidden;background:var(--bg-secondary,#f8f9fa);">
+                        <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:8px;color:var(--text-muted);"><i class="fas fa-file-circle-xmark" style="font-size:1.5rem;"></i><span style="font-size:0.8rem;">Belum ada link dokumen</span></div>
+                    </div>
+                </div>
+
+                <div class="form-actions">
+                    <button type="button" class="btn-secondary" id="pf-gol-btn-batal" style="display:none;" onclick="profileManager.resetGolonganForm()">
+                        Batal Edit
+                    </button>
+                    <button type="button" class="btn-primary" onclick="profileManager.saveRiwayatGolongan()">
+                        <i class="fas fa-check-circle"></i> Simpan Golongan
                     </button>
                 </div>
             </div>
