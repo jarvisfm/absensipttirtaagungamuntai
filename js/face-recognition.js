@@ -433,7 +433,7 @@ const faceRecognition = {
             const readyToCapture = detected && this.blinkDetected;
             const captureBtn = document.getElementById('btn-capture');
             if (captureBtn && !this.photoCaptured) captureBtn.disabled = !readyToCapture;
-        }, 400);
+        }, 150);
     },
 
     /**
@@ -747,6 +747,28 @@ const faceRecognition = {
 
                 const userLat = position.coords.latitude;
                 const userLng = position.coords.longitude;
+
+                // Bacaan geolocation dengan akurasi sangat jelek (mis. fallback
+                // WiFi/network-based di desktop yang bisa meleset puluhan-
+                // ratusan km, accuracy sampai puluhan ribu meter) TIDAK BOLEH
+                // dipakai untuk validasi radius - bisa salah nuduh karyawan
+                // "di luar radius" padahal cuma GPS-nya yang belum akurat.
+                // Minta user coba lagi daripada lanjut dengan koordinat sampah.
+                const MAX_ACCEPTABLE_ACCURACY = 1000; // meter
+                if (position.coords.accuracy > MAX_ACCEPTABLE_ACCURACY) {
+                    if (statusEl) {
+                        statusEl.innerHTML = `<i class="fas fa-exclamation-triangle" style="color:#EF4444;"></i> <span style="color:#EF4444;">Akurasi GPS rendah (±${Math.round(position.coords.accuracy)}m) - coba lagi</span>`;
+                        statusEl.classList.remove('verified');
+                        statusEl.classList.add('out-of-range');
+                    }
+                    toast.error('Akurasi lokasi terlalu rendah untuk divalidasi. Pastikan GPS/lokasi aktif, lalu tekan "Coba Lagi" atau refresh lokasi.');
+                    this.locationVerified = false;
+                    this.position = null;
+                    const retryBtn = document.getElementById('btn-retry-location');
+                    if (retryBtn) retryBtn.style.display = 'flex';
+                    this.checkCanSubmit();
+                    return;
+                }
 
                 // Validasi radius jika sudah ada lokasi kantor yang diset -
                 // cari lokasi TERDEKAT dari semua yang ada, user dianggap
