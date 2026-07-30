@@ -55,6 +55,7 @@ const faceRecognition = {
     _detectLoopId: null,
     _leafletMap: null,
     _outOfRadiusNote: null,
+    _outOfRadiusPhoto: null, // base64 foto dokumentasi (opsional)
     _outOfRadiusContext: null,
 
     init(action) {
@@ -68,6 +69,7 @@ const faceRecognition = {
         this.position = null;
         this._destroyRealMap();
         this._outOfRadiusNote = null;
+        this._outOfRadiusPhoto = null;
         this._outOfRadiusContext = null;
 
         // Ambil status toggle "Face Recognition" dari Settings admin dulu -
@@ -596,14 +598,41 @@ const faceRecognition = {
      */
     _promptOutOfRadiusNote(ctx) {
         this._outOfRadiusContext = ctx;
+        this._outOfRadiusPhoto = null; // reset tiap kali modal dibuka baru
         const modal = document.getElementById('modal-out-of-radius-note');
         const textarea = document.getElementById('out-of-radius-note-text');
         const infoEl = document.getElementById('out-of-radius-note-info');
         if (textarea) textarea.value = '';
+        this.removeOutOfRadiusPhoto();
         if (infoEl) {
             infoEl.textContent = `Anda terdeteksi ${ctx.distance}m dari ${ctx.nearest.nama}. Sebagai Pekerja Lapangan, Anda tetap boleh absen - jelaskan dulu sedang di mana/mengerjakan apa.`;
         }
         if (modal) modal.style.display = 'flex';
+    },
+
+    // Foto dokumentasi bersifat OPSIONAL (beda dengan catatan yang wajib) -
+    // dikonversi ke base64 di browser, lalu ditumpangkan ke laporan yang
+    // sama seperti catatan alasan.
+    previewOutOfRadiusPhoto(input) {
+        const file = input.files && input.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            this._outOfRadiusPhoto = e.target.result; // base64 data URL
+            const preview = document.getElementById('out-of-radius-photo-preview');
+            const img = document.getElementById('out-of-radius-photo-img');
+            if (img) img.src = this._outOfRadiusPhoto;
+            if (preview) preview.style.display = 'block';
+        };
+        reader.readAsDataURL(file);
+    },
+
+    removeOutOfRadiusPhoto() {
+        this._outOfRadiusPhoto = null;
+        const input = document.getElementById('out-of-radius-photo-input');
+        const preview = document.getElementById('out-of-radius-photo-preview');
+        if (input) input.value = '';
+        if (preview) preview.style.display = 'none';
     },
 
     submitOutOfRadiusNote() {
@@ -1184,6 +1213,7 @@ const faceRecognition = {
                             userName: currentUser?.name || '',
                             type: this._normalizeAttendanceType(this.currentAction),
                             note: this._outOfRadiusNote,
+                            photo: this._outOfRadiusPhoto || '', // opsional
                             lat: ctx.userLat,
                             lng: ctx.userLng,
                             distance: ctx.distance,
@@ -1193,6 +1223,7 @@ const faceRecognition = {
                         console.error('Gagal kirim laporan luar radius:', e);
                     }
                     this._outOfRadiusNote = null;
+                    this._outOfRadiusPhoto = null;
                     this._outOfRadiusContext = null;
                 }
 
