@@ -231,8 +231,9 @@ const dashboard = {
             if (clockInEl) clockInEl.textContent = todayAttendance.clockIn || '--:--';
             if (clockOutEl) clockOutEl.textContent = todayAttendance.clockOut || '--:--';
 
-            if (todayAttendance.isDinasLuar) {
-                if (durationEl) durationEl.textContent = 'Dinas Luar';
+            const excusedStatuses = ['izin', 'cuti'];
+            if (todayAttendance.isDinasLuar || excusedStatuses.includes(String(todayAttendance.status || '').toLowerCase())) {
+                if (durationEl) durationEl.textContent = todayAttendance.clockIn || '-';
             } else if (todayAttendance.clockIn && todayAttendance.clockOut && durationEl) {
                 durationEl.textContent = dateTime.calculateDuration(
                     todayAttendance.clockIn,
@@ -290,8 +291,11 @@ const dashboard = {
             const isFuture = dayDate > today && dayStr !== this._formatDateYMD(today);
 
             let hours = 0;
+            const recordStatusLower = record ? String(record.status || '').toLowerCase() : '';
             if (record && record.isDinasLuar) {
                 hours = 8; // dianggap 1 hari kerja penuh untuk keperluan grafik
+            } else if (record && (recordStatusLower === 'izin' || recordStatusLower === 'cuti')) {
+                hours = 0; // Izin/Cuti bukan jam kerja - biarkan 0, bukan NaN
             } else if (record && record.clockIn && record.clockOut) {
                 hours = dateTime.calculateDurationHours
                     ? dateTime.calculateDurationHours(record.clockIn, record.clockOut)
