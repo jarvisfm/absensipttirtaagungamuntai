@@ -90,6 +90,12 @@ const absensi = {
                         ) || null;
                     }
                 } catch (e) { /* banner tetap tampil, cuma tanpa tanggal selesai */ }
+            } else if (today.status === 'izin' || today.status === 'cuti') {
+                // Hari ini masuk rentang Izin/Cuti yang sudah disetujui
+                // penuh (lihat _markAttendanceRangeAsExcused di
+                // Attendance.gs) - bukan "selesai bekerja", jangan
+                // tampilkan pesan yang menyesatkan.
+                this.currentState = 'excused';
             } else if (today.clockOut) {
                 this.currentState = 'completed';
             } else if (today.breakStart && !today.breakEnd) {
@@ -447,6 +453,7 @@ const absensi = {
                 'on-break': { cls: 'on-break',  text: 'Sedang Istirahat', sub: 'Nikmati waktu istirahat Anda' },
                 completed:  { cls: 'completed', text: 'Selesai Bekerja',  sub: 'Terima kasih atas kerja kerasnya!' },
                 dinas:      { cls: 'completed', text: 'Sedang Dinas Luar (SPPD)', sub: 'Semua sesi absensi hari ini otomatis Hadir' },
+                excused:    { cls: 'completed', text: this.attendanceData.clockIn || 'Izin/Cuti', sub: 'Absensi hari ini mengikuti pengajuan yang sudah disetujui' },
             };
             const s = states[this.currentState] || states.waiting;
             statusRing.classList.add(s.cls);
