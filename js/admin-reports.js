@@ -101,9 +101,15 @@ const adminReports = {
             let present = 0;
             let late = 0;
             empAtt.forEach(a => {
-                if (a.clockIn) {
+                // Kecualikan hari Izin/Cuti (yang otomatis "diisi" di
+                // Attendance begitu disetujui - lihat _markAttendanceRangeAsExcused
+                // di Attendance.gs) dari hitungan present - itu SUDAH
+                // dihitung terpisah lewat leaveDays di bawah, supaya tidak
+                // dobel dihitung present DAN cuti/izin sekaligus.
+                const statusLower = String(a.status || '').toLowerCase();
+                if (a.clockIn && statusLower !== 'izin' && statusLower !== 'cuti') {
                     present++;
-                    if (a.status && a.status.toLowerCase() === 'terlambat') late++;
+                    if (statusLower === 'terlambat') late++;
                 }
             });
             const empLeaves = leaves.filter(l => String(l.userId) === String(emp.id) && l.status === 'approved');
