@@ -101,8 +101,52 @@ const toast = {
 
 // Date & Time Utilities
 const dateTime = {
+    // ===== Sinkronisasi jam SERVER (bukan jam HP) =====
+    // Supaya karyawan tidak bisa mengakali absen dengan mengubah setting
+    // jam/tanggal di HP-nya, jam yang ditampilkan & yang dipakai untuk
+    // mencatat absen di sini TIDAK diambil langsung dari `new Date()`
+    // (yang selalu ikut jam HP), tapi disinkronkan sekali ke jam server
+    // Google Apps Script, lalu dihitung maju pakai performance.now() -
+    // yaitu jam monoton bawaan browser yang TIDAK terpengaruh sama sekali
+    // walau user mengubah jam/tanggal sistem HP-nya di tengah sesi.
+    _serverTimeAtSync: null, // epoch ms dari server saat sync terakhir
+    _perfAtSync: null,       // performance.now() pada saat sync itu
+
+    async init() {
+        await this._sync();
+        // Sinkron ulang tiap 5 menit - jaga-jaga ada sedikit drift jam
+        // internal browser kalau sesi dibiarkan terbuka lama.
+        setInterval(() => this._sync(), 5 * 60 * 1000);
+    },
+
+    async _sync() {
+        try {
+            const result = await api.getServerTime();
+            if (result && result.success && result.data && result.data.timestamp) {
+                this._serverTimeAtSync = result.data.timestamp;
+                this._perfAtSync = performance.now();
+            }
+        } catch (e) {
+            // Gagal sync (offline, dll) - biarkan, now() otomatis fallback
+            // ke jam HP selama belum pernah berhasil sync sama sekali.
+            console.error('Gagal sinkronisasi jam server:', e);
+        }
+    },
+
+    /**
+     * Jam SEKARANG yang terpercaya (mengikuti server, bukan jam HP).
+     * Kalau belum pernah berhasil sync (mis. baru buka app & masih
+     * loading), fallback sementara ke jam HP supaya UI tetap jalan -
+     * begitu sync pertama selesai, otomatis pindah ke jam server.
+     */
+    now() {
+        if (this._serverTimeAtSync === null) return new Date();
+        const elapsed = performance.now() - this._perfAtSync;
+        return new Date(this._serverTimeAtSync + elapsed);
+    },
+
     formatDate(date, format = 'full') {
-        const d = new Date(date);
+        const d = date ? new Date(date) : this.now();
         const days = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
         const months = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
             'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
@@ -123,7 +167,7 @@ const dateTime = {
     },
 
     formatTime(date) {
-        const d = new Date(date);
+        const d = date ? new Date(date) : this.now();
         return d.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
     },
 
@@ -132,7 +176,7 @@ const dateTime = {
     },
 
     getCurrentTime() {
-        return new Date().toLocaleTimeString('id-ID', {
+        return this.now().toLocaleTimeString('id-ID', {
             hour: '2-digit',
             minute: '2-digit',
             second: '2-digit'
@@ -140,17 +184,17 @@ const dateTime = {
     },
 
     getCurrentDate() {
-        return this.formatDate(new Date());
+        return this.formatDate(this.now());
     },
 
     getLocalDate() {
         // Returns YYYY-MM-DD for the local timezone, not UTC
-        const today = new Date();
+        const today = this.now();
         return new Date(today.getTime() - (today.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
     },
 
     getGreeting() {
-        const hour = new Date().getHours();
+        const hour = this.now().getHours();
         if (hour < 11) return 'Selamat Pagi';
         if (hour < 15) return 'Selamat Siang';
         if (hour < 18) return 'Selamat Sore';
@@ -426,11 +470,16 @@ document.addEventListener('DOMContentLoaded', () => {
     // jadi updateCompanyUI()/syncCompanyFromServer() sengaja tidak dipanggil
     // lagi di sini supaya tidak menimpanya dengan data dari Settings.
 
+    // Sinkronkan jam ke SERVER (Google Apps Script), bukan jam HP - supaya
+    // karyawan tidak bisa mengakali absen dengan mengubah setting jam di
+    // HP-nya. Lihat komentar di dateTime._sync() untuk detailnya.
+    dateTime.init();
+
     // Update time display
     const timeEl = document.getElementById('current-time');
     if (timeEl) {
         setInterval(() => {
-            const now = new Date();
+            const now = dateTime.now();
             const time = timeEl.querySelector('.time');
             const date = timeEl.querySelector('.date');
             if (time) time.textContent = dateTime.formatTime(now);
