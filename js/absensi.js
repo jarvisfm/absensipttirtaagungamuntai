@@ -243,7 +243,7 @@ const absensi = {
     // Cek apakah tombol sesi tertentu sudah boleh diakses berdasarkan jam
     _isSessionOpen(opensAt) {
         if (!opensAt) return true;
-        const now = new Date();
+        const now = dateTime.now();
         const nowMin = now.getHours() * 60 + now.getMinutes();
         const openMin = this._toMinutes(opensAt);
         return nowMin >= openMin;
@@ -350,7 +350,10 @@ const absensi = {
     },
 
     async processWithVerification(action, verificationData) {
-        const now     = new Date();
+        // PENTING: pakai dateTime.now() (jam server), BUKAN new Date() (jam
+        // HP) - supaya jam yang tercatat sebagai clockIn/clockOut/dst tidak
+        // bisa dikelabui dengan mengubah setting jam/tanggal di HP.
+        const now     = dateTime.now();
         const timeStr = dateTime.formatTime(now);
 
         // Susun data absen dulu ke variabel terpisah (BUKAN langsung ke
