@@ -944,3 +944,18 @@
     background: var(--border-color);
     border-radius: 4px;
 }
+
+/* Sama seperti .pf-tabs-nav di atas, tapi untuk tab modal "Edit Data
+   Karyawan" milik Admin - supaya tab-nya tidak lagi wrap berantakan jadi
+   beberapa baris begitu jumlah tab bertambah (Pendidikan, KGB, Golongan,
+   Riwayat Mutasi, dst), cukup digeser horizontal. */
+.k-tabs-nav {
+    scrollbar-width: thin;
+}
+.k-tabs-nav::-webkit-scrollbar {
+    height: 4px;
+}
+.k-tabs-nav::-webkit-scrollbar-thumb {
+    background: var(--border-color);
+    border-radius: 4px;
+}
