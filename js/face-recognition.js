@@ -46,11 +46,18 @@ const faceRecognition = {
     // jadi tombol capture baru aktif setelah wajah terdeteksi DAN minimal
     // 1 kedipan alami terekam selama sesi kamera ini berjalan.
     blinkDetected: false,
-    // EAR (Eye Aspect Ratio) di bawah ini dianggap "mata tertutup". Nilai
-    // umum untuk mata terbuka normal ada di sekitar 0.28-0.35, dan turun
-    // tajam ke ~0.1-0.15 saat berkedip.
-    EAR_CLOSED_THRESHOLD: 0.19,
-    EAR_OPEN_THRESHOLD: 0.23,
+    // EAR (Eye Aspect Ratio) "mata terbuka" beda-beda tiap orang (tergantung
+    // bentuk mata, jarak & sudut kamera, resolusi) - angka mutlak yang sama
+    // untuk semua orang gampang meleset (kedip asli tidak pernah kedeteksi
+    // kalau baseline mata terbuka orang itu memang lebih rendah dari angka
+    // tetap yang diasumsikan). Makanya threshold-nya dihitung RELATIF
+    // terhadap baseline yang dikalibrasi otomatis di awal tiap sesi kamera -
+    // lihat _trackBlink(). _earBaseline null berarti masih tahap kalibrasi.
+    _earBaseline: null,
+    _earBaselineSum: 0,
+    _earBaselineCount: 0,
+    EAR_CLOSED_RATIO: 0.78, // EAR di bawah 78% baseline = mata tertutup
+    EAR_OPEN_RATIO: 0.90,   // EAR di atas 90% baseline = mata terbuka lagi
     _eyesWereClosed: false,
     _detectLoopId: null,
     _leafletMap: null,
@@ -65,6 +72,9 @@ const faceRecognition = {
         this.faceDetected = false;
         this.blinkDetected = false;
         this._eyesWereClosed = false;
+        this._earBaseline = null;
+        this._earBaselineSum = 0;
+        this._earBaselineCount = 0;
         this._lastFaceMatch = null;
         this.position = null;
         this._destroyRealMap();
@@ -450,9 +460,29 @@ const faceRecognition = {
             const rightEAR = this._eyeAspectRatio(landmarks.getRightEye());
             const ear = (leftEAR + rightEAR) / 2;
 
-            if (ear < this.EAR_CLOSED_THRESHOLD) {
+            // Tahap kalibrasi: kumpulkan beberapa sampel EAR pertama sebagai
+            // baseline "mata terbuka". Sampel yang jauh lebih rendah dari
+            // rata-rata sejauh ini diabaikan (kemungkinan besar kebetulan
+            // lagi berkedip pas kalibrasi), supaya baseline tidak keburu
+            // rendah gara-gara itu.
+            if (this._earBaseline === null) {
+                const runningAvg = this._earBaselineCount > 0 ? (this._earBaselineSum / this._earBaselineCount) : null;
+                if (runningAvg === null || ear >= runningAvg * 0.85) {
+                    this._earBaselineSum += ear;
+                    this._earBaselineCount++;
+                }
+                if (this._earBaselineCount >= 6) {
+                    this._earBaseline = this._earBaselineSum / this._earBaselineCount;
+                }
+                return; // belum mulai lacak kedipan selama masih kalibrasi
+            }
+
+            const closedThreshold = this._earBaseline * this.EAR_CLOSED_RATIO;
+            const openThreshold   = this._earBaseline * this.EAR_OPEN_RATIO;
+
+            if (ear < closedThreshold) {
                 this._eyesWereClosed = true;
-            } else if (ear > this.EAR_OPEN_THRESHOLD && this._eyesWereClosed) {
+            } else if (ear > openThreshold && this._eyesWereClosed) {
                 // Mata sempat terpejam, sekarang terbuka lagi -> 1 kedipan
                 // lengkap terekam.
                 this.blinkDetected = true;
@@ -460,7 +490,7 @@ const faceRecognition = {
             }
         } catch (e) {
             // Landmark gagal dihitung di frame ini - lewati, dicoba lagi di
-            // tick berikutnya (400ms kemudian).
+            // tick berikutnya (150ms kemudian).
         }
     },
 
