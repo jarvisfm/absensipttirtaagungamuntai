@@ -11,6 +11,11 @@ const API_BASE_URL = 'https://script.google.com/macros/s/AKfycbz3qeYiMdaJ1gvnpnv
 
 const api = {
 
+    // ========== SERVER TIME (anti-akal jam HP) ==========
+    async getServerTime() {
+        return this.request('getServerTime', {});
+    },
+
     // ========== CORE REQUEST ==========
 
     async request(action, data = {}) {
