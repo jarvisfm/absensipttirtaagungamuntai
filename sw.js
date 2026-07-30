@@ -19,7 +19,7 @@
 // PENTING: naikkan angka versi ini (mis. jadi 'v2') tiap kali index.html/
 // css/js diubah & di-deploy ulang - supaya HP karyawan otomatis ambil versi
 // baru, bukan kepakai cache lama terus-menerus.
-const CACHE_NAME = 'taa-portal-v2';
+const CACHE_NAME = 'taa-portal-v3';
 
 // File shell inti yang di-precache saat install, supaya app langsung bisa
 // dibuka (walau offline) begitu pernah dibuka online minimal 1x.
@@ -32,7 +32,7 @@ const PRECACHE_URLS = [
 self.addEventListener('install', (event) => {
     event.waitUntil(
         caches.open(CACHE_NAME)
-            .then((cache) => cache.addAll(PRECACHE_URLS))
+            .then((cache) => cache.addAll(PRECACHE_URLS.map((url) => new Request(url, { cache: 'reload' }))))
             .then(() => self.skipWaiting())
     );
 });
@@ -67,7 +67,7 @@ self.addEventListener('fetch', (event) => {
     // pernah nyangkut permanen di versi lama selama masih online.
     event.respondWith(
         caches.match(req).then((cached) => {
-            const networkFetch = fetch(req)
+            const networkFetch = fetch(req, { cache: 'no-store' })
                 .then((res) => {
                     if (res && res.status === 200) {
                         const resClone = res.clone();
