@@ -617,6 +617,15 @@ const adminReports = {
                         return `<br><span onclick="adminReports.showOutOfRadiusNote('${emp.id}', '${row.date}', '${type}')" style="display:inline-block;margin-top:2px;background:#FEF3C7;color:#D97706;font-size:0.65rem;font-weight:600;padding:1px 6px;border-radius:10px;cursor:pointer;"><i class="fas fa-map-marker-alt"></i> Luar Radius${r.status === 'approved' ? ' ✓' : ''} <i class="fas fa-circle-info" style="font-size:0.6rem;"></i></span>`;
                     };
 
+                    // Kalau hari ini Dinas Luar (self-declare Surat Tugas/SPPD),
+                    // tampilkan badge yang bisa diklik untuk buka dokumen
+                    // suratnya (kalau ada link-nya) - lihat Surattugas.gs.
+                    const dinasLuarBadge = row.isDinasLuar
+                        ? (row.suratTugasFileUrl
+                            ? `<br><span onclick="window.open('${row.suratTugasFileUrl}', '_blank')" style="display:inline-block;margin-top:4px;background:#DBEAFE;color:#1D4ED8;font-size:0.65rem;font-weight:600;padding:1px 6px;border-radius:10px;cursor:pointer;" title="${this._esc(row.suratTugasTujuan || '')}"><i class="fas fa-file-lines"></i> Surat Tugas</span>`
+                            : `<br><span style="display:inline-block;margin-top:4px;background:#DBEAFE;color:#1D4ED8;font-size:0.65rem;font-weight:600;padding:1px 6px;border-radius:10px;" title="${this._esc(row.suratTugasTujuan || '')}"><i class="fas fa-file-lines"></i> Dinas Luar</span>`)
+                        : '';
+
                     html += `
                         <tr style="border-bottom:1px solid var(--border-color,#e5e7eb);">
                             <td style="padding:10px 12px;font-size:0.85rem;">${dateStr}</td>
@@ -626,7 +635,7 @@ const adminReports = {
                             <td style="padding:10px 12px;color:var(--text-muted);">${row.breakEnd || '–'}${sessionGps('breakEndLocation')}${oorBadge('breakEnd')}</td>
                             <td style="padding:10px 12px;font-weight:600;color:#EF4444;">${row.clockOut || '–'}${sessionGps('clockOutLocation')}${oorBadge('clockOut')}</td>
                             <td style="padding:10px 12px;font-size:0.75rem;max-width:160px;">${lokasiHtml}</td>
-                            <td style="padding:10px 12px;">${statusBadge}</td>
+                            <td style="padding:10px 12px;">${statusBadge}${dinasLuarBadge}</td>
                             <td style="padding:10px 12px;">${fotoHtml}${faceReviewBadge}</td>
                         </tr>
                     `;
@@ -742,11 +751,19 @@ const adminReports = {
                         return `<br><span onclick="adminReports.showOutOfRadiusNote('${emp.id}', '${row.date}', '${type}')" style="display:inline-block;margin-top:2px;background:#FEF3C7;color:#D97706;font-size:0.65rem;font-weight:600;padding:1px 6px;border-radius:10px;cursor:pointer;"><i class="fas fa-map-marker-alt"></i> Luar Radius${r.status === 'approved' ? ' ✓' : ''} <i class="fas fa-circle-info" style="font-size:0.6rem;"></i></span>`;
                     };
 
+                    // Sama seperti versi tabel desktop - badge Dinas Luar yang
+                    // bisa diklik untuk buka dokumen Surat Tugas/SPPD.
+                    const dinasLuarBadgeM = row.isDinasLuar
+                        ? (row.suratTugasFileUrl
+                            ? `<span onclick="window.open('${row.suratTugasFileUrl}', '_blank')" style="display:inline-block;margin-top:4px;background:#DBEAFE;color:#1D4ED8;font-size:0.65rem;font-weight:600;padding:1px 6px;border-radius:10px;cursor:pointer;" title="${this._esc(row.suratTugasTujuan || '')}"><i class="fas fa-file-lines"></i> Surat Tugas</span>`
+                            : `<span style="display:inline-block;margin-top:4px;background:#DBEAFE;color:#1D4ED8;font-size:0.65rem;font-weight:600;padding:1px 6px;border-radius:10px;" title="${this._esc(row.suratTugasTujuan || '')}"><i class="fas fa-file-lines"></i> Dinas Luar</span>`)
+                        : '';
+
                     html += `
                         <div style="padding:10px 0;border-top:1px solid var(--border-color,#e5e7eb);">
                             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
                                 <span style="font-weight:600;font-size:0.85rem;">${dateStr}</span>
-                                ${statusBadge}
+                                <span>${statusBadge}${dinasLuarBadgeM}</span>
                             </div>
                             <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:0.78rem;color:var(--text-muted);margin-bottom:6px;">
                                 <div>Shift: <span style="color:var(--text-primary,#111);">${row.shift || '-'}</span></div>
