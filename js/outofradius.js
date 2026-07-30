@@ -65,6 +65,7 @@ const outOfRadius = {
                         <div style="background:var(--color-gray-100);border-radius:8px;padding:8px 10px;font-size:0.85rem;">
                             <i class="fas fa-quote-left" style="color:var(--text-muted);font-size:0.7rem;"></i> ${this._esc(r.note)}
                         </div>
+                        ${r.photo ? `<img src="${this._esc(r.photo)}" onclick="window.open(this.src,'_blank')" style="max-width:220px;max-height:140px;border-radius:8px;margin-top:8px;cursor:pointer;display:block;">` : ''}
                         ${r.status === 'approved' ? `<div style="font-size:0.75rem;color:var(--text-muted);margin-top:6px;">Ditinjau oleh ${this._esc(r.approvedBy)}</div>` : ''}
                     </div>
                     ${r.status !== 'approved' ? `<button type="button" onclick="outOfRadius.approve('${r.id}')" style="background:var(--color-primary);color:#fff;border:none;padding:8px 14px;border-radius:6px;cursor:pointer;font-size:0.85rem;font-weight:600;white-space:nowrap;"><i class="fas fa-check"></i> Approve</button>` : ''}
