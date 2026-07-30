@@ -542,6 +542,28 @@ const api = {
     },
     async deleteRiwayatMutasi(id) {
         return this.request('deleteRiwayatMutasi', { id });
+    },
+
+    // ========== RIWAYAT KGB / KENAIKAN GAJI BERKALA ==========
+    async getRiwayatKgb(userId) {
+        return this.request('getRiwayatKgb', { userId });
+    },
+    async saveRiwayatKgb(data) {
+        return this.request('saveRiwayatKgb', data);
+    },
+    async deleteRiwayatKgb(id) {
+        return this.request('deleteRiwayatKgb', { id });
+    },
+
+    // ========== RIWAYAT GOLONGAN ==========
+    async getRiwayatGolongan(userId) {
+        return this.request('getRiwayatGolongan', { userId });
+    },
+    async saveRiwayatGolongan(data) {
+        return this.request('saveRiwayatGolongan', data);
+    },
+    async deleteRiwayatGolongan(id) {
+        return this.request('deleteRiwayatGolongan', { id });
     }
 
 };  // ← penutup object api
