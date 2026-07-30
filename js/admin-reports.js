@@ -832,6 +832,16 @@ const adminReports = {
         document.getElementById('oorn-user-name').textContent = r.userName || '';
         document.getElementById('oorn-note-text').textContent = `"${r.note || ''}"`;
         document.getElementById('oorn-status-text').textContent = statusText;
+
+        const photoWrap = document.getElementById('oorn-photo-wrap');
+        const photoImg = document.getElementById('oorn-photo-img');
+        if (r.photo && photoWrap && photoImg) {
+            photoImg.src = r.photo;
+            photoWrap.style.display = 'block';
+        } else if (photoWrap) {
+            photoWrap.style.display = 'none';
+        }
+
         modal.style.display = 'flex';
     },
 
