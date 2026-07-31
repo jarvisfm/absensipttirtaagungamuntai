@@ -1151,9 +1151,20 @@ const faceRecognition = {
                     if (captureBtnEl) captureBtnEl.disabled = !this.faceDetected;
                     return;
                 }
+                if (!identity.checked) {
+                    // Fail-open: verifikasi TIDAK sempat dilakukan sama
+                    // sekali (foto profil bermasalah/belum ada/model gagal
+                    // dimuat) - absen tetap diloloskan supaya karyawan tidak
+                    // terjebak gara-gara masalah teknis, tapi harus jelas
+                    // kelihatan kalau ini BUKAN "wajah sudah dicek dan
+                    // cocok", biar tidak disalahartikan sistemnya lolos
+                    // padahal harusnya ketahuan beda orang.
+                    toast.warning('Identitas wajah tidak dapat diverifikasi otomatis (foto profil bermasalah/belum ada) - absen tetap diproses tapi ditandai untuk ditinjau admin.');
+                }
                 // Simpan hasilnya untuk dikirim bareng data absensi (dibaca
                 // di confirmAttendance) - dipakai buat menandai kecocokan
-                // yang "kurang yakin" supaya admin bisa tinjau ulang.
+                // yang "kurang yakin" ATAU tidak sempat dicek sama sekali,
+                // supaya admin bisa tinjau ulang.
                 this._lastFaceMatch = identity;
             }
 
@@ -1289,14 +1300,22 @@ const faceRecognition = {
             },
             photo: this.canvas ? this.canvas.toDataURL('image/png') : null,
             // Skor kecocokan wajah (jarak Euclidean, makin kecil makin mirip)
-            // + penanda "perlu ditinjau admin" kalau kecocokannya tidak
-            // sepenuhnya yakin (lihat FACE_MATCH_CONFIDENT_ZONE) - dikosongkan
-            // kalau pencocokan tidak sempat dilakukan sama sekali (fail-open).
+            // - dikosongkan kalau pencocokan tidak sempat dilakukan sama
+            // sekali (fail-open, lihat _getReferenceDescriptor). Penanda
+            // "perlu ditinjau admin" dipasang untuk DUA kasus: kecocokan
+            // yang tidak sepenuhnya yakin (lihat FACE_MATCH_CONFIDENT_ZONE)
+            // MAUPUN saat verifikasi gagal dilakukan sama sekali - fail-open
+            // artinya sistem TIDAK TAHU apakah wajahnya cocok atau tidak,
+            // jadi tetap layak ditinjau manual, bukan dianggap "aman" begitu
+            // saja.
             faceMatchScore: (this._lastFaceMatch && this._lastFaceMatch.checked && this._lastFaceMatch.distance != null)
                 ? Number(this._lastFaceMatch.distance.toFixed(4)) : null,
-            faceMatchFlag: !!(this._lastFaceMatch && this._lastFaceMatch.checked
-                && this._lastFaceMatch.distance != null
-                && this._lastFaceMatch.distance > this.FACE_MATCH_CONFIDENT_ZONE)
+            faceMatchFlag: this.faceRecognitionEnabled && (
+                !this._lastFaceMatch || !this._lastFaceMatch.checked || (
+                    this._lastFaceMatch.distance != null &&
+                    this._lastFaceMatch.distance > this.FACE_MATCH_CONFIDENT_ZONE
+                )
+            )
         };
 
         // Store temporary data
