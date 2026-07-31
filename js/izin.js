@@ -1,908 +1,422 @@
 /**
- * Portal Karyawan - Izin/Sakit
- * Leave permission functionality with face recognition
+ * Portal Karyawan - Izin / Sakit / Keluar Kantor
+ * Mendukung 2 jenis surat:
+ *  - Surat Permohonan Izin biasa (type: 'sick' | 'permission' | 'emergency')
+ *  - Surat Izin Keluar Kantor (type: 'keluar_kantor', dengan jamKeluar & jamMasuk)
  */
 
-const izin = {
-    izinData: [],
-    currentFile: null,
-    verifiedData: null,
-    filterStatus: '',
+function getIzinData(userId) {
+  if (!userId) {
+    return { success: false, error: 'userId is required' };
+  }
+  const rows = findRows('Izin', 'userId', userId);
+  rows.sort((a, b) => String(b.appliedAt).localeCompare(String(a.appliedAt)));
+  return { success: true, data: rows };
+}
 
-    async init() {
-        await this.loadIzinData();
-        this.initForm();
-        this.initFilters();
-        this.renderIzinList();
-        this.updateStats();
+function getAllIzinData() {
+  const rows = getAllRows('Izin');
+  rows.sort((a, b) => String(b.appliedAt).localeCompare(String(a.appliedAt)));
+  return { success: true, data: rows };
+}
 
-        // Set default date to today
-        const dateInput = document.getElementById('izin-date');
-        if (dateInput) {
-            dateInput.valueAsDate = new Date();
-        }
+function submitIzinData(data) {
+  if (!data.userId || !data.type) {
+    return { success: false, error: 'Required fields missing' };
+  }
 
-        // Dropdown "Pilih Asmen" hanya untuk role staff (lihat submitIzinData
-        // di backend - staff wajib pilih Asmen penyetuju sesuai bagiannya)
-        this._setupAsmenDropdown();
-    },
+  ensureColumns('Izin', [
+    'dateEnd', 'bagian',
+    'jamKeluar', 'jamMasuk',
+    'asmenId', 'asmenName', 'asmenNik', 'asmenApprovedAt', 'asmenNote',
+    'managerName', 'managerNik', 'managerApprovedAt', 'managerNote',
+    'hrManagerName', 'hrManagerNik', 'hrManagerApprovedAt', 'hrManagerNote',
+    'directorName', 'directorNik', 'directorApprovedAt', 'directorNote',
+    'rejectedBy', 'rejectedByRole', 'rejectedAt', 'rejectedNote'
+  ]);
 
-    // Muat daftar Asmen (kalau user role-nya staff). Visibilitas dropdown-nya
-    // sendiri diatur oleh _toggleAsmenGroup() berdasarkan Jenis Izin yang
-    // dipilih — Asmen penyetuju CUMA dipakai untuk Surat Permohonan Izin
-    // (izin_harian), bukan untuk Izin Keluar Kantor/Sakit/dll.
-    async _setupAsmenDropdown() {
-        const user = auth.getCurrentUser();
-        const group = document.getElementById('izin-asmen-group');
-        const select = document.getElementById('izin-asmen');
-        if (!group || !select) return;
+  // Ambil bagian pemohon dari data karyawan, jangan percaya kiriman client
+  const pemohon = findRow('Employees', 'id', String(data.userId));
+  data.bagian = pemohon ? (pemohon.bagian || '') : '';
 
-        this._userNeedsAsmen = !!(user && user.role === 'staff');
-
-        if (!this._userNeedsAsmen) {
-            group.style.display = 'none';
-            select.required = false;
-            return;
-        }
-
-        try {
-            const result = await api.getAsmenByBagian(user.bagian);
-            const list = result.data || [];
-            select.innerHTML = list.length
-                ? '<option value="">Pilih Asmen...</option>' +
-                  list.map(a => `<option value="${a.id}">${a.nama}</option>`).join('')
-                : '<option value="">Tidak ada Asmen untuk bagian ini</option>';
-        } catch (error) {
-            console.error('Gagal memuat daftar Asmen:', error);
-            select.innerHTML = '<option value="">Gagal memuat daftar Asmen</option>';
-        }
-
-        // Sinkronkan visibilitas dengan Jenis Izin yang sedang dipilih saat ini
-        const currentType = document.getElementById('izin-type')?.value || '';
-        this._toggleAsmenGroup(currentType);
-    },
-
-    // Tampilkan/wajibkan dropdown Asmen HANYA saat Jenis Izin = izin_harian
-    // (Surat Permohonan Izin) DAN user yang login role-nya staff.
-    _toggleAsmenGroup(type) {
-        const group = document.getElementById('izin-asmen-group');
-        const select = document.getElementById('izin-asmen');
-        if (!group || !select) return;
-
-        const show = !!this._userNeedsAsmen && type === 'izin_harian';
-        group.style.display = show ? 'block' : 'none';
-        select.required = show;
-    },
-
-    async loadIzinData() {
-        const currentUser = auth.getCurrentUser();
-        // Konsisten dengan userId yang dikirim saat submit (lihat submitIzinForm):
-        // admin dual-role (mis. M. Azemi) pakai employeeId, karyawan biasa pakai id.
-        const userId = currentUser?.employeeId || currentUser?.id || 'demo-user';
-        try {
-            // PENTING: ini riwayat MILIK SENDIRI di halaman "Izin/Sakit", jadi selalu
-            // getIzin(userId) - jangan pakai isApprover() di sini. Kalau Asmen/Manajer/
-            // Direktur login, mereka tetap hanya boleh lihat izin MEREKA SENDIRI di sini.
-            // Data untuk approval (izin milik orang lain) dimuat terpisah lewat
-            // loadAllIzinData(), dipakai khusus oleh halaman approval.
-            const result = await api.getIzin(userId);
-            this.izinData = result.data || [];
-        } catch (error) {
-            console.error('Error loading izin:', error);
-            this.izinData = storage.get('izin', []);
-        }
-    },
-
-    // Dipakai KHUSUS oleh halaman Approval Asmen/Manajer/Direktur - berisi izin
-    // SEMUA karyawan, disimpan terpisah dari this.izinData (riwayat pribadi)
-    // supaya tidak ketuker/tercampur.
-    async loadAllIzinData() {
-        try {
-            const result = await api.getAllIzin();
-            this.allIzinData = result.data || [];
-        } catch (error) {
-            console.error('Error loading all izin:', error);
-            this.allIzinData = [];
-        }
-    },
-
-    initForm() {
-        // Guard: cegah listener dobel kalau initForm() terpanggil ulang
-        // (terjadi setiap kali router membuka halaman Izin lagi)
-        if (this._formBound) return;
-        this._formBound = true;
-
-        const form = document.getElementById('izin-form');
-        const verifyBtn = document.getElementById('btn-verify-izin');
-        const fileInput = document.getElementById('izin-document');
-        const fileUpload = document.getElementById('file-upload');
-
-        if (form) {
-            form.addEventListener('submit', (e) => {
-                e.preventDefault();
-                this.submitIzinForm();
-            });
-        }
-
-        const typeSelect = document.getElementById('izin-type');
-        if (typeSelect) {
-            typeSelect.addEventListener('change', (e) => this.toggleKeluarKantorFields(e.target.value));
-        }
-
-        document.querySelectorAll('input[name="izin-jam-masuk-mode"]').forEach(radio => {
-            radio.addEventListener('change', () => this.toggleJamMasukMode());
-        });
-
-        if (verifyBtn) {
-            verifyBtn.addEventListener('click', (e) => {
-                e.preventDefault();
-                this.submitIzinForm();
-            });
-        }
-
-        // File upload handling
-        if (fileUpload && fileInput) {
-            fileUpload.addEventListener('click', () => fileInput.click());
-
-            fileUpload.addEventListener('dragover', (e) => {
-                e.preventDefault();
-                fileUpload.classList.add('dragover');
-            });
-
-            fileUpload.addEventListener('dragleave', () => {
-                fileUpload.classList.remove('dragover');
-            });
-
-            fileUpload.addEventListener('drop', (e) => {
-                e.preventDefault();
-                fileUpload.classList.remove('dragover');
-                if (e.dataTransfer.files.length) {
-                    this.handleFile(e.dataTransfer.files[0]);
-                }
-            });
-
-            fileInput.addEventListener('change', (e) => {
-                if (e.target.files.length) {
-                    this.handleFile(e.target.files[0]);
-                }
-            });
-        }
-
-        // Remove file button
-        const removeBtn = document.querySelector('.btn-remove-file');
-        if (removeBtn) {
-            removeBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                this.removeFile();
-            });
-        }
-
-        this.initFilters();
-    },
-
-    toggleKeluarKantorFields(type) {
-        const jamRow        = document.getElementById('izin-jam-row');
-        const durationGroup = document.getElementById('izin-duration-group');
-        const singleRow     = document.getElementById('izin-date-single-row');
-        const rangeRow      = document.getElementById('izin-date-range-row');
-        const durationInput = document.getElementById('izin-duration');
-        const jamKeluarH    = document.getElementById('izin-jam-keluar-h');
-        const jamKeluarM    = document.getElementById('izin-jam-keluar-m');
-        const jamMasukH     = document.getElementById('izin-jam-masuk-h');
-        const jamMasukM     = document.getElementById('izin-jam-masuk-m');
-        const dateStart     = document.getElementById('izin-date-start');
-        const dateEnd       = document.getElementById('izin-date-end');
-        const dateInput     = document.getElementById('izin-date');
-
-        const isKeluarKantor = type === 'keluar_kantor';
-        const isIzinHarian   = type === 'izin_harian';
-
-        // Asmen penyetuju cuma relevan untuk Surat Permohonan Izin (izin_harian)
-        this._toggleAsmenGroup(type);
-
-        // Jam keluar/masuk — hanya untuk keluar_kantor
-        if (jamRow) jamRow.style.display = isKeluarKantor ? 'flex' : 'none';
-        if (jamKeluarH) jamKeluarH.required = isKeluarKantor;
-        if (jamKeluarM) jamKeluarM.required = isKeluarKantor;
-
-        // Reset mode Masuk Jam ke "Jam" tiap kali ganti tipe izin, supaya
-        // tidak nyangkut di mode "Pulang" saat pindah ke tipe lain lalu balik lagi.
-        if (isKeluarKantor) {
-            const modeJam = document.querySelector('input[name="izin-jam-masuk-mode"][value="jam"]');
-            if (modeJam) modeJam.checked = true;
-            this.toggleJamMasukMode();
-        }
-
-        // Tanggal range — hanya untuk izin_harian
-        if (rangeRow)   rangeRow.style.display   = isIzinHarian ? 'flex' : 'none';
-        if (singleRow)  singleRow.style.display  = isIzinHarian ? 'none' : 'flex';
-        if (dateStart)  dateStart.required = isIzinHarian;
-        if (dateEnd)    dateEnd.required   = isIzinHarian;
-        if (dateInput)  dateInput.required = !isIzinHarian;
-
-        // Durasi — sembunyikan untuk keluar_kantor dan izin_harian
-        if (durationGroup) durationGroup.style.display = (isKeluarKantor || isIzinHarian) ? 'none' : 'block';
-        if (durationInput) durationInput.required      = (!isKeluarKantor && !isIzinHarian);
-    },
-
-    /**
-     * Toggle tampilan "Masuk Jam" di form Surat Izin Keluar Kantor: mode
-     * "Jam" pakai dropdown HH:MM biasa, mode "Pulang" berarti karyawan
-     * tidak kembali lagi ke kantor - dropdown disembunyikan & tidak wajib,
-     * dan nanti nilainya dikirim sebagai teks "Pulang" (submitIzinForm()).
-     */
-    toggleJamMasukMode() {
-        const mode        = document.querySelector('input[name="izin-jam-masuk-mode"]:checked')?.value || 'jam';
-        const selects      = document.getElementById('izin-jam-masuk-selects');
-        const pulangNote   = document.getElementById('izin-jam-masuk-pulang-note');
-        const jamMasukH    = document.getElementById('izin-jam-masuk-h');
-        const jamMasukM    = document.getElementById('izin-jam-masuk-m');
-        const isJam        = mode === 'jam';
-        const isKeluarKantorNow = document.getElementById('izin-type')?.value === 'keluar_kantor';
-
-        if (selects)    selects.style.display    = isJam ? 'flex' : 'none';
-        if (pulangNote) pulangNote.style.display = isJam ? 'none' : 'block';
-        if (jamMasukH)  jamMasukH.required = isJam && isKeluarKantorNow;
-        if (jamMasukM)  jamMasukM.required = isJam && isKeluarKantorNow;
-    },
-    
-    initFilters() {
-        // Status filter for izin history
-        const statusFilter = document.querySelector('.izin-history-card .select-filter');
-        if (statusFilter) {
-            statusFilter.addEventListener('change', (e) => {
-                this.filterStatus = e.target.value === 'Semua Status' ? '' : e.target.value.toLowerCase();
-                this.renderIzinList();
-            });
-        }
-    },
-
-    handleFile(file) {
-        const maxSize = 5 * 1024 * 1024; // 5MB
-        const allowedTypes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png'];
-
-        if (file.size > maxSize) {
-            toast.error('File terlalu besar. Maksimum 5MB');
-            return;
-        }
-
-        if (!allowedTypes.includes(file.type)) {
-            toast.error('Format file tidak didukung. Gunakan PDF, JPG, atau PNG');
-            return;
-        }
-
-        this.currentFile = file;
-
-        // Update UI
-        const uploadArea = document.querySelector('.upload-area');
-        const filePreview = document.getElementById('file-preview');
-        const filename = filePreview?.querySelector('.filename');
-
-        if (uploadArea) uploadArea.style.display = 'none';
-        if (filePreview) filePreview.style.display = 'flex';
-        if (filename) filename.textContent = file.name;
-    },
-
-    removeFile() {
-        this.currentFile = null;
-
-        const uploadArea = document.querySelector('.upload-area');
-        const filePreview = document.getElementById('file-preview');
-        const fileInput = document.getElementById('izin-document');
-
-        if (uploadArea) uploadArea.style.display = 'block';
-        if (filePreview) filePreview.style.display = 'none';
-        if (fileInput) fileInput.value = '';
-    },
-
-    async submitIzinForm() {
-    if (this.isSubmitting) return;
-    this.isSubmitting = true;
-
-    try {
-        const type           = document.getElementById('izin-type')?.value;
-        const date           = document.getElementById('izin-date')?.value;
-        const duration       = document.getElementById('izin-duration')?.value;
-        const reason         = document.getElementById('izin-reason')?.value;
-        const isKeluarKantor = type === 'keluar_kantor';
-        const isIzinHarian   = type === 'izin_harian';
-        const jamKeluarHV = document.getElementById('izin-jam-keluar-h')?.value;
-        const jamKeluarMV = document.getElementById('izin-jam-keluar-m')?.value;
-        const jamMasukMode = document.querySelector('input[name="izin-jam-masuk-mode"]:checked')?.value || 'jam';
-        const jamMasukHV  = document.getElementById('izin-jam-masuk-h')?.value;
-        const jamMasukMV  = document.getElementById('izin-jam-masuk-m')?.value;
-        const jamKeluar      = (jamKeluarHV && jamKeluarMV) ? `${jamKeluarHV}:${jamKeluarMV}` : '';
-        const jamMasuk       = (jamMasukMode === 'pulang')
-            ? 'Pulang'
-            : ((jamMasukHV && jamMasukMV) ? `${jamMasukHV}:${jamMasukMV}` : '');
-        const dateStart      = document.getElementById('izin-date-start')?.value;
-        const dateEnd        = document.getElementById('izin-date-end')?.value;
-
-        if (!type || !reason) {
-            toast.error('Harap isi semua field yang wajib diisi!');
-            return;
-        }
-        if (isKeluarKantor && (!jamKeluar || !jamMasuk)) {
-            toast.error('Harap isi Jam Keluar dan Jam Masuk!');
-            return;
-        }
-        if (isIzinHarian && (!dateStart || !dateEnd)) {
-            toast.error('Harap isi Tanggal Mulai dan Tanggal Selesai!');
-            return;
-        }
-        if (!isKeluarKantor && !isIzinHarian && !date) {
-            toast.error('Harap isi Tanggal!');
-            return;
-        }
-        if (!isKeluarKantor && !isIzinHarian && !duration) {
-            toast.error('Harap isi Durasi!');
-            return;
-        }
-
-        const currentUser = auth.getCurrentUser();
-        const asmenSelect = document.getElementById('izin-asmen');
-        const asmenId = asmenSelect ? asmenSelect.value : '';
-
-        // Asmen penyetuju cuma wajib untuk Surat Permohonan Izin (izin_harian).
-        // Izin Keluar Kantor/Sakit/dll tidak butuh Asmen sama sekali.
-        if (currentUser?.role === 'staff' && isIzinHarian && !asmenId) {
-            toast.error('Silakan pilih Asmen penyetuju!');
-            return;
-        }
-
-        const typeLabels = {
-            'sick':         'Sakit',
-            'izin_harian':  'Permohonan Izin Harian',
-            'keluar_kantor':'Keluar Kantor'
-        };
-
-        let computedDuration = isKeluarKantor ? 0 : parseInt(duration);
-        if (isIzinHarian && dateStart && dateEnd) {
-            const diff = (new Date(dateEnd) - new Date(dateStart)) / (1000 * 60 * 60 * 24);
-            computedDuration = Math.max(1, Math.round(diff) + 1);
-        }
-
-        const izinEntry = {
-            // Admin yang dual-role (mis. M. Azemi = Admin sekaligus Asmen
-            // Kepegawaian) login dengan id dari tabel Users, sedangkan seluruh
-            // logika approval (approveIzinData, renderApprovalList) mencari
-            // data pemohon dari tabel Employees berdasarkan userId — pakai
-            // employeeId (kalau ada) supaya izin yang diajukan lewat "Mode
-            // Karyawan" tetap tercatat sebagai identitas karyawan yang benar.
-            userId:        currentUser?.employeeId || currentUser?.id || 'demo-user',
-            type:          type,
-            typeLabel:     typeLabels[type] || type,
-            date:          isIzinHarian ? dateStart : date,
-            dateEnd:       isIzinHarian ? dateEnd   : '',
-            duration:      computedDuration,
-            reason:        reason,
-            jamKeluar:     isKeluarKantor ? jamKeluar : '',
-            jamMasuk:      isKeluarKantor ? jamMasuk  : '',
-            hasAttachment: !!this.currentFile,
-            asmenId:       isIzinHarian ? (asmenId || '') : ''
-        };
-
-        try {
-            const result = await api.submitIzin(izinEntry);
-            if (result.success) {
-                this.izinData.unshift(result.data);
-                if (this.currentFile) {
-                    await this.uploadLampiranIzin(result.data.id, this.currentFile);
-                }
-            }
-        } catch (error) {
-            console.error('Error submitting izin:', error);
-            toast.error('Gagal mengirim pengajuan izin.');
-            return;
-        }
-
-        this.currentFile = null;
-        toast.success('Pengajuan izin berhasil dikirim!');
-
-        const form = document.getElementById('izin-form');
-        if (form) form.reset();
-        this.toggleKeluarKantorFields('');
-        this.removeFile();
-
-        this.renderIzinList();
-        this.updateStats();
-    } finally {
-        this.isSubmitting = false;
+  // Wajib pilih Asmen HANYA untuk Surat Permohonan Izin (izin_harian) yang
+  // diajukan staff. Izin Keluar Kantor/Sakit/dll tidak perlu Asmen sama sekali
+  // — alurnya beda, lihat approveIzinData().
+  if (pemohon && pemohon.role === 'staff' && data.type === 'izin_harian') {
+    if (!data.asmenId) {
+      return { success: false, error: 'Silakan pilih Asisten Manajer penyetuju' };
     }
-},
+    const asmen = findRow('Employees', 'id', String(data.asmenId));
+    if (!asmen || asmen.role !== 'asmen' || String(asmen.bagian) !== String(data.bagian)) {
+      return { success: false, error: 'Asmen yang dipilih tidak valid untuk bagian ini' };
+    }
+    data.asmenId = asmen.id;
+  }
 
-    async uploadLampiranIzin(id, file) {
-        return new Promise((resolve) => {
-            const reader = new FileReader();
-            reader.onload = async (e) => {
-                const base64 = e.target.result.split(',')[1];
-                const mimeType = file.type;
-                try {
-                    await api.uploadFileIzin(id, base64, mimeType, file.name);
-                } catch (err) {
-                    console.error('Upload lampiran izin gagal:', err);
-                }
-                resolve();
-            };
-            reader.readAsDataURL(file);
-        });
-    },
+  // Kunci proses ambil ID + tulis baris supaya 2 request yang nyaris bersamaan
+  // tidak pernah dapat ID yang sama (mencegah data dobel/ID bentrok).
+  const lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  try {
+    data.id = getNextId('Izin');
+    data.status = 'pending';
+    data.appliedAt = new Date().toISOString();
 
-    updateStats() {
-        const pending = this.izinData.filter(i => i.status === 'pending').length;
-        const approved = this.izinData.filter(i => i.status === 'approved').length;
-        const rejected = this.izinData.filter(i => i.status === 'rejected').length;
+    addRow('Izin', data);
+    return { success: true, data: data };
+  } finally {
+    lock.releaseLock();
+  }
+}
 
-        const pendingEl = document.getElementById('izin-pending-count');
-        const approvedEl = document.getElementById('izin-approved-count');
-        const rejectedEl = document.getElementById('izin-rejected-count');
+/**
+ * approver: { id, name, nik, role, bagian } - role 'asmen', 'manajer', 'direktur', atau 'admin'
+ *
+ * Ada 4 alur berbeda tergantung ROLE SI PEMOHON (bukan cuma status surat)
+ * - ini SEMUA untuk type 'izin_harian' (Surat Permohonan Izin biasa). Untuk
+ * type 'keluar_kantor' (Surat Izin Keluar Kantor), alur TERPISAH & lebih
+ * sederhana - lihat blok "if (izin.type === 'keluar_kantor')" di bawah:
+ * pending -> (Manajer bagian yang SAMA dengan pemohon) -> manajer_approved
+ * -> (Direktur) -> approved. Kalau pemohonnya sendiri Manajer, tahap
+ * Manajer dilewati (langsung ke Direktur) - sama seperti aturan pemohon
+ * Manajer di alur Izin Harian di bawah ini.
+ *
+ * 1) Pemohon STAFF:
+ *    pending -> (asmen pilihan staff) -> asmen_approved
+ *            -> (manajer bagian staff itu) -> manajer_approved
+ *            -> (direktur) -> approved
+ *
+ * 2) Pemohon ASMEN, bagian != UMUM DAN KEPEGAWAIAN:
+ *    pending -> (Manajer bidang Asmen itu sendiri) -> manajer_bidang_approved
+ *            -> (Manajer Umum & Kepegawaian - HR) -> manajer_approved
+ *            -> (direktur) -> approved
+ *
+ * 3) Pemohon ASMEN dari bagian UMUM DAN KEPEGAWAIAN sendiri:
+ *    pending -> (Manajer Umum & Kepegawaian - orang yang sama dengan manajer
+ *                bidangnya sendiri, jadi cukup 1x approval sebagai
+ *                representasi, tidak dobel) -> manajer_approved
+ *            -> (direktur) -> approved
+ *
+ * 4) Pemohon MANAJER (bagian manapun):
+ *    pending -> (direktur langsung, tahap manajer dilewati sama sekali) -> approved
+ */
+var BAGIAN_UMUM_KEPEGAWAIAN = 'UMUM DAN KEPEGAWAIAN';
 
-        if (pendingEl) pendingEl.textContent = pending;
-        if (approvedEl) approvedEl.textContent = approved;
-        if (rejectedEl) rejectedEl.textContent = rejected;
-    },
+function approveIzinData(id, approver, catatan) {
+  if (!id) {
+    return { success: false, error: 'id is required' };
+  }
+  approver = approver || {};
+  const now = new Date().toISOString();
 
-    renderIzinList() {
-        const list = document.getElementById('izin-list');
-        if (!list) return;
+  const izin = findRow('Izin', 'id', String(id));
+  if (!izin) return { success: false, error: 'Izin not found' };
 
-        // Filter izin data
-        let filteredData = this.izinData.filter(i => {
-            if (!this.filterStatus) return true;
-            if (this.filterStatus === 'menunggu') return i.status === 'pending';
-            if (this.filterStatus === 'disetujui') return i.status === 'approved';
-            if (this.filterStatus === 'ditolak') return i.status === 'rejected';
-            return true;
-        });
+  // Surat Izin Keluar Kantor: sekarang melalui tahap Manajer (bagian yang
+  // SAMA dengan pemohon) dulu, baru Direktur - kecuali pemohonnya sendiri
+  // seorang Manajer (tidak masuk akal approve diri sendiri), langsung ke
+  // Direktur seperti alur Izin Harian untuk pemohon Manajer.
+  if (izin.type === 'keluar_kantor') {
+    const pemohonKK = findRow('Employees', 'id', String(izin.userId)) || {};
+    const pemohonRoleKK = pemohonKK.role || 'staff';
+    const pemohonBagianKK = String(pemohonKK.bagian || '').toUpperCase().trim();
+    const skipManagerStageKK = pemohonRoleKK === 'manajer';
 
-        if (filteredData.length === 0) {
-            list.innerHTML = `
-                <div class="empty-state" style="text-align: center; padding: var(--spacing-xl); color: var(--text-muted);">
-                    <i class="fas fa-inbox" style="font-size: 3rem; margin-bottom: var(--spacing);"></i>
-                    <p>${this.filterStatus ? 'Tidak ada pengajuan yang sesuai' : 'Belum ada pengajuan izin'}</p>
-                </div>
-            `;
-            return;
-        }
+    if (approver.role === 'manajer') {
+      if (skipManagerStageKK) {
+        return { success: false, error: 'Pengajuan ini langsung ke Direktur, tidak melalui tahap Manajer' };
+      }
+      if (izin.status !== 'pending') {
+        return { success: false, error: 'Surat sudah diproses, tidak bisa disetujui Manajer lagi' };
+      }
+      const approverBagianKK = String(approver.bagian || '').toUpperCase().trim();
+      if (approverBagianKK !== pemohonBagianKK) {
+        return { success: false, error: 'Surat ini bukan dari bagian Anda' };
+      }
+      const patchManajerKK = {
+        status: 'manajer_approved',
+        managerName: approver.name || '',
+        managerNik: approver.nik || '',
+        managerApprovedAt: now,
+        managerNote: catatan || ''
+      };
+      const updatedManajerKK = updateRow('Izin', id, patchManajerKK);
+      if (updatedManajerKK) return { success: true, data: updatedManajerKK };
+      return { success: false, error: 'Izin not found' };
+    }
 
-        // Sort by date descending
-        const sortedData = filteredData.sort((a, b) =>
-            new Date(b.appliedAt) - new Date(a.appliedAt)
+    if (approver.role !== 'direktur' && approver.role !== 'admin') {
+      return { success: false, error: 'Izin Keluar Kantor menunggu tahap Manajer/Direktur' };
+    }
+    const expectedStatusKK = skipManagerStageKK ? 'pending' : 'manajer_approved';
+    if (izin.status !== expectedStatusKK) {
+      return { success: false, error: skipManagerStageKK ? 'Surat sudah diproses' : 'Surat belum disetujui Manajer' };
+    }
+    const patchKeluarKantor = {
+      status: 'approved',
+      directorName: approver.name || '',
+      directorNik: approver.nik || '',
+      directorApprovedAt: now,
+      directorNote: catatan || ''
+    };
+    const updatedKeluarKantor = updateRow('Izin', id, patchKeluarKantor);
+    if (updatedKeluarKantor) {
+      if (updatedKeluarKantor.jamMasuk === 'Pulang') {
+        // Mode "Sampai Pulang" (tidak balik lagi ke kantor) - begitu
+        // disetujui, sesi Pulang hari itu otomatis terisi, karyawan tidak
+        // perlu Clock Out manual karena memang tidak kembali ke kantor.
+        _markSessionAsExcused(
+          updatedKeluarKantor.userId, updatedKeluarKantor.date, 'clockOut',
+          'Izin Keluar Kantor', 'keluar_kantor', updatedKeluarKantor.id
         );
-
-        list.innerHTML = sortedData.map(izin => {
-            const date = new Date(izin.date);
-            const dateFormatted = dateTime.formatDate(date, 'short');
-
-            
-            const icons = {
-                'sick': 'fa-heartbeat',
-                'izin_harian': 'fa-file-alt',
-                'keluar_kantor': 'fa-door-open'
-            };
-            const typeLabelFallback = {
-                'sick': 'Sakit',
-                'permission': 'Izin Penting',
-                'emergency': 'Keadaan Darurat',
-                'izin_harian': 'Permohonan Izin Harian',
-                'keluar_kantor': 'Izin Keluar Kantor'
-            };
-            const typeLabel = izin.typeLabel || typeLabelFallback[izin.type] || 'Izin';
-
-            const durationText = izin.type === 'keluar_kantor'
-                ? this._hitungDurasiJam(izin.jamKeluar, izin.jamMasuk)
-                : `${izin.duration} hari`;
-
-            return `
-                <div class="izin-item">
-                    <div class="izin-icon ${izin.type}">
-                        <i class="fas ${icons[izin.type] || 'fa-file'}"></i>
-                    </div>
-                    <div class="izin-content">
-                        <div class="izin-header-row">
-                            <h4 class="izin-type">${typeLabel}</h4>
-                            <span class="izin-status ${izin.status}">${this.getStatusLabel(izin.status)}</span>
-                        </div>
-                        <div class="izin-details">
-                            <span class="izin-date">
-                                <i class="fas fa-calendar"></i>
-                                ${dateFormatted} (${durationText})
-                            </span>
-                        </div>
-                        <p class="izin-reason">${izin.reason}</p>
-                        ${izin.status === 'approved' && (izin.emailSent === false || izin.emailSent === 'false') ? `
-                            <div style="margin-top:8px;padding:8px 12px;border-radius:8px;background:rgba(245,158,11,0.08);border-left:3px solid var(--color-warning);font-size:var(--font-size-sm);color:var(--text-secondary);">
-                                <i class="fas fa-triangle-exclamation" style="color:var(--color-warning);margin-right:6px;"></i>
-                                ${izin.emailError || 'Isi email supaya surat dikirimkan'}
-                            </div>
-                        ` : ''}
-                        ${izin.hasAttachment ? `
-                            <span class="izin-attachment">
-                                <i class="fas fa-paperclip"></i>
-                                Lampiran tersedia
-                            </span>
-                        ` : ''}
-                        ${(izin.status === 'manajer_approved' || izin.status === 'approved') && izin.type === 'keluar_kantor' ? `
-                            <div style="margin-top:8px;display:flex;gap:6px;">
-                                <button class="btn-small btn-outline" onclick="printLetters.openIzinKeluarKantor(${izin.id})">
-                                    <i class="fas fa-print"></i> Cetak Surat Izin Keluar Kantor
-                                </button>
-                            </div>
-                        ` : ''}
-                        ${izin.status === 'approved' && izin.type === 'izin_harian' ? `
-                            <div style="margin-top:8px;display:flex;gap:6px;">
-                                <button class="btn-small btn-outline" onclick="printLetters.openIzinPermohonan(${izin.id})">
-                                    <i class="fas fa-print"></i> Cetak Surat Permohonan Izin
-                                </button>
-                            </div>
-                        ` : ''}
-                    </div>
-                </div>
-            `;
-        }).join('');
-    },
-
-    getStatusLabel(status) {
-        const labels = {
-            'pending': 'Menunggu',
-            'asmen_approved': 'Disetujui Asmen',
-            'manajer_approved': 'Disetujui Manajer',
-            'manager_approved': 'Disetujui Manager',
-            'approved': 'Disetujui',
-            'rejected': 'Ditolak'
-        };
-        return labels[status] || status;
-    },
-
-    // Label status 'manajer_approved' yang lebih spesifik sesuai siapa
-    // approver sebenarnya di tahap itu — karena "Disetujui Manajer" saja
-    // ambigu (bisa manajer bagian staff, atau Manajer Umum & Kepegawaian
-    // untuk pemohon Asmen). Status selain 'manajer_approved' tetap pakai
-    // label generik dari getStatusLabel().
-    _getDetailedStatusLabel(item, emp) {
-        if (item.status !== 'manajer_approved') {
-            return this.getStatusLabel(item.status);
-        }
-
-        const pemohonRole = emp?.role || 'staff';
-
-        if (pemohonRole === 'staff') {
-            const bagian = emp?.bagian || '';
-            return bagian ? `Disetujui Manajer ${bagian}` : 'Disetujui Manajer';
-        }
-        if (pemohonRole === 'asmen') {
-            // Baik representasi tunggal (Asmen dari Umum & Kepegawaian sendiri)
-            // maupun tahap ke-2 (Asmen bagian lain) — keduanya digerbangi oleh
-            // Manajer Umum & Kepegawaian sebagai approver terakhir sebelum Direktur.
-            return 'Disetujui Manajer Umum dan Kepegawaian';
-        }
-        return this.getStatusLabel(item.status);
-    },
-
-    // =========================================================
-    // APPROVAL BERTINGKAT: Asmen -> Manajer -> Direktur
-    // Dipanggil dari router saat halaman approval-asmen/manajer/direktur dibuka.
-    // =========================================================
-    async initApprovalPage(role) {
-        // Approver butuh data SEMUA izin (bukan cuma miliknya sendiri) supaya bisa
-        // melihat pengajuan staff lain - pakai allIzinData, TERPISAH dari izinData
-        // (riwayat pribadi approver itu sendiri di halaman Izin/Sakit).
-        await this.loadAllIzinData();
-        await this._ensureEmployeesLoaded();
-        this.renderApprovalList(role);
-    },
-
-    // Cache daftar karyawan (untuk resolve nama/jabatan pemohon by userId),
-    // karena tabel Izin sendiri cuma menyimpan userId, bukan snapshot nama.
-    async _ensureEmployeesLoaded() {
-        if (this._employees) return;
+      } else if (updatedKeluarKantor.jamKeluar && updatedKeluarKantor.jamMasuk) {
+        // Mode "Jam" (balik lagi jam tertentu) - kalau rentang Jam Keluar
+        // s.d. Jam Masuk-nya MELEWATI jam Istirahat Keluar terjadwal
+        // (dicocokkan ke jadwal shift ASLI karyawan itu di TANGGAL izin-nya,
+        // bukan tanggal approval), karyawan tidak sempat absen Istirahat
+        // Keluar karena sedang di luar kantor - excuse sesi itu saja.
+        // Kembali Istirahat TETAP absen normal seperti biasa begitu
+        // karyawan benar-benar kembali ke kantor.
         try {
-            const result = await api.getKaryawanList();
-            this._employees = result.data || [];
-        } catch (error) {
-            console.error('Gagal memuat data karyawan:', error);
-            this._employees = [];
-        }
-    },
-
-    _findEmployee(userId) {
-        return (this._employees || []).find(e => String(e.id) === String(userId)) || {};
-    },
-
-    renderApprovalList(role) {
-        const list = document.getElementById(`approval-${role}-list`);
-        if (!list) return;
-
-        const user = auth.getCurrentUser();
-        // Untuk akun Admin yang juga terhubung ke data karyawan (mode "Switch ke
-        // Karyawan"), id Employees-nya ada di employeeId, bukan id (id di sana
-        // adalah id akun Users). Untuk karyawan biasa, employeeId kosong -> pakai id.
-        const myEmployeeId = user?.employeeId || user?.id;
-        const myBagian = String(user?.bagian || '').toUpperCase().trim();
-        const isHrManajer = myBagian === 'UMUM DAN KEPEGAWAIAN';
-        const data = this.allIzinData || [];
-        let filtered = [];
-
-        if (role === 'asmen') {
-            // Hanya izin yang memang memilih Asmen ini sebagai penyetuju, status masih pending
-            filtered = data.filter(i =>
-                i.status === 'pending' && String(i.asmenId) === String(myEmployeeId)
-            );
-        } else if (role === 'manajer') {
-            filtered = data.filter(i => {
-                const pemohon = this._findEmployee(i.userId);
-                const pemohonRole = pemohon.role || 'staff';
-                const pemohonBagian = String(pemohon.bagian || '').toUpperCase().trim();
-
-                // Izin Keluar Kantor: tahap Manajer bagian yang SAMA dengan
-                // pemohon (kecuali pemohonnya sendiri Manajer - lewati,
-                // langsung ke Direktur).
-                if (i.type === 'keluar_kantor') {
-                    if (pemohonRole === 'manajer') return false;
-                    return i.status === 'pending' && pemohonBagian === myBagian;
-                }
-
-                if (pemohonRole === 'staff') {
-                    // Sudah disetujui Asmen, dan izin itu dari bagian yang sama dengan Manajer ini
-                    return i.status === 'asmen_approved' && pemohonBagian === myBagian;
-                }
-
-                if (pemohonRole === 'asmen') {
-                    const isPemohonHr = pemohonBagian === 'UMUM DAN KEPEGAWAIAN';
-
-                    if (isPemohonHr) {
-                        // Asmen HR sendiri: manajer bidangnya = Manajer HR (orang
-                        // sama), jadi cukup 1 tahap approval saja (representasi).
-                        return isHrManajer && i.status === 'pending';
-                    }
-
-                    // Asmen bagian lain: 2 tahap berurutan —
-                    // (1) Manajer bidang Asmen itu sendiri dulu
-                    if (i.status === 'pending' && pemohonBagian === myBagian) {
-                        return true;
-                    }
-                    // (2) baru Manajer Umum & Kepegawaian, setelah tahap 1 selesai
-                    if (i.status === 'manajer_bidang_approved' && isHrManajer) {
-                        return true;
-                    }
-                    return false;
-                }
-
-                // Pemohon Manajer: tahap ini dilewati sama sekali (langsung ke Direktur)
-                return false;
-            });
-        } else if (role === 'direktur') {
-            filtered = data.filter(i => {
-                const pemohon = this._findEmployee(i.userId);
-                const pemohonRole = pemohon.role || 'staff';
-
-                // Izin Keluar Kantor: sekarang lewat tahap Manajer dulu
-                // (kecuali pemohonnya sendiri Manajer - langsung dari pending).
-                if (i.type === 'keluar_kantor') {
-                    if (pemohonRole === 'manajer') return i.status === 'pending';
-                    return i.status === 'manajer_approved';
-                }
-
-                if (pemohonRole === 'manajer') {
-                    // Langsung dari pending, tahap Manajer dilewati sama sekali
-                    return i.status === 'pending';
-                }
-                // Staff & Asmen (bagian manapun, termasuk Asmen HR sendiri):
-                // semuanya harus sudah disetujui Manajer dulu (manajer_approved)
-                return i.status === 'manajer_approved';
-            });
-        }
-
-        if (filtered.length === 0) {
-            list.innerHTML = `
-                <div class="empty-state" style="text-align:center;padding:var(--spacing-xl);color:var(--text-muted);">
-                    <i class="fas fa-inbox" style="font-size:3rem;margin-bottom:var(--spacing);"></i>
-                    <p>Tidak ada pengajuan yang menunggu persetujuan Anda saat ini</p>
-                </div>
-            `;
-            return;
-        }
-
-        const sorted = filtered.sort((a, b) => new Date(b.appliedAt) - new Date(a.appliedAt));
-
-        const typeLabelFallback = {
-            'sick': 'Sakit',
-            'permission': 'Izin Penting',
-            'emergency': 'Keadaan Darurat',
-            'izin_harian': 'Permohonan Izin Harian',
-            'keluar_kantor': 'Izin Keluar Kantor'
-        };
-
-        list.innerHTML = sorted.map(item => {
-            const emp = this._findEmployee(item.userId);
-            const typeLabel = item.typeLabel || typeLabelFallback[item.type] || 'Izin';
-            const dateFormatted = dateTime.formatDate(new Date(item.date), 'short');
-            const dateDisplay = item.dateEnd
-                ? `${dateFormatted} - ${dateTime.formatDate(new Date(item.dateEnd), 'short')}`
-                : dateFormatted;
-
-            return `
-                <div class="izin-item">
-                    <div class="izin-icon ${item.type}"><i class="fas fa-file-alt"></i></div>
-                    <div class="izin-content">
-                        <div class="izin-header-row">
-                            <h4 class="izin-type">${typeLabel}</h4>
-                            <span class="izin-status ${item.status}">${this._getDetailedStatusLabel(item, emp)}</span>
-                        </div>
-                        <div class="izin-details">
-                            <span class="izin-date"><i class="fas fa-user"></i> ${emp.nama || 'Tidak diketahui'}</span>
-                        </div>
-                        <div class="izin-details">
-                            <span class="izin-date"><i class="fas fa-calendar"></i> ${dateDisplay}</span>
-                        </div>
-                        <p class="izin-reason">${item.reason || ''}</p>
-                        <div style="margin-top:8px;">
-                            <button class="btn-small btn-primary" onclick="izin.openApprovalModal(${item.id}, '${role}')">
-                                <i class="fas fa-eye"></i> Lihat &amp; Proses
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            `;
-        }).join('');
-    },
-
-    openApprovalModal(id, role) {
-        const item = this.allIzinData.find(i => String(i.id) === String(id));
-        const modal = document.getElementById('modal-approval-izin');
-        const content = document.getElementById('approval-izin-content');
-        if (!item || !modal || !content) return;
-
-        const emp = this._findEmployee(item.userId);
-        const typeLabelFallback = {
-            'sick': 'Sakit',
-            'permission': 'Izin Penting',
-            'emergency': 'Keadaan Darurat',
-            'izin_harian': 'Permohonan Izin Harian',
-            'keluar_kantor': 'Izin Keluar Kantor'
-        };
-        const typeLabel = item.typeLabel || typeLabelFallback[item.type] || 'Izin';
-        const dateFormatted = dateTime.formatDate(new Date(item.date), 'short');
-        const dateDisplay = item.dateEnd
-            ? `${dateFormatted} - ${dateTime.formatDate(new Date(item.dateEnd), 'short')}`
-            : dateFormatted;
-
-        const infoRow = (icon, label, value) => `
-            <div style="display:flex;align-items:flex-start;gap:12px;padding:10px 0;border-bottom:1px solid var(--border-color);">
-                <div style="width:32px;height:32px;border-radius:8px;background:rgba(245,158,11,0.12);color:var(--color-primary);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-                    <i class="fas ${icon}"></i>
-                </div>
-                <div style="flex:1;">
-                    <div style="font-size:0.72rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.02em;">${label}</div>
-                    <div style="font-size:0.9rem;font-weight:600;color:var(--text-primary);margin-top:2px;">${value}</div>
-                </div>
-            </div>`;
-
-        content.innerHTML = `
-            <div style="text-align:center;margin-bottom:1.25rem;">
-                <div style="width:56px;height:56px;border-radius:50%;background:rgba(245,158,11,0.12);color:var(--color-primary);display:flex;align-items:center;justify-content:center;font-size:1.4rem;margin:0 auto 10px;">
-                    <i class="fas fa-file-alt"></i>
-                </div>
-                <h3 style="font-size:1.05rem;margin-bottom:4px;">${typeLabel}</h3>
-                <span class="izin-status ${item.status}">${this._getDetailedStatusLabel(item, emp)}</span>
-            </div>
-
-            ${infoRow('fa-user', 'Nama Karyawan', emp.nama || '-')}
-            ${infoRow('fa-briefcase', 'Jabatan', emp.jabatan || '-')}
-            ${infoRow('fa-calendar-day', 'Tanggal Izin', dateDisplay)}
-            ${item.type === 'keluar_kantor' ? infoRow('fa-arrow-right-from-bracket', 'Keluar Jam', item.jamKeluar || '-') : ''}
-            ${item.type === 'keluar_kantor' ? infoRow('fa-arrow-right-to-bracket', 'Masuk Jam', item.jamMasuk || '-') : ''}
-
-            <div style="margin-top:14px;">
-                <div style="font-size:0.72rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.02em;margin-bottom:6px;">Alasan</div>
-                <div style="background:var(--color-gray-50);border-radius:10px;padding:12px 14px;font-size:0.88rem;color:var(--text-primary);line-height:1.5;">${item.reason || '-'}</div>
-            </div>
-
-            ${item.fileUrl ? `
-            <div style="margin-top:14px;">
-                <div style="font-size:0.72rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.02em;margin-bottom:6px;">Surat Keterangan</div>
-                <a href="${item.fileUrl}" target="_blank" rel="noopener" style="display:flex;align-items:center;gap:10px;background:var(--color-gray-50);border-radius:10px;padding:12px 14px;text-decoration:none;color:var(--color-primary);font-size:0.88rem;font-weight:600;">
-                    <i class="fas fa-file-pdf" style="font-size:1.1rem;"></i>
-                    Lihat Surat Keterangan yang Dilampirkan
-                </a>
-            </div>` : ''}
-
-            <div class="form-group" style="margin-top:14px;">
-                <label for="approval-catatan">Catatan${role === 'asmen' ? ' (opsional)' : ''}</label>
-                <textarea id="approval-catatan" rows="3" placeholder="Tulis catatan/pertimbangan Anda di sini..."></textarea>
-            </div>
-
-            <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px;">
-                <button class="btn-secondary" onclick="izin.submitApproval(${item.id}, '${role}', 'reject')">
-                    <i class="fas fa-times"></i> Tolak
-                </button>
-                <button class="btn-primary" onclick="izin.submitApproval(${item.id}, '${role}', 'approve')">
-                    <i class="fas fa-check"></i> Setuju
-                </button>
-            </div>
-        `;
-
-        modal.style.display = 'flex';
-    },
-
-    closeApprovalModal() {
-        const modal = document.getElementById('modal-approval-izin');
-        if (modal) modal.style.display = 'none';
-    },
-
-    async submitApproval(id, role, decision) {
-        const catatan = document.getElementById('approval-catatan')?.value || '';
-        const user = auth.getCurrentUser();
-        const approver = {
-            id: user?.employeeId || user?.id,
-            name: user?.name,
-            nik: user?.nik,
-            role: role,
-            bagian: user?.bagian
-        };
-
-        try {
-            const result = decision === 'approve'
-                ? await api.approveIzin(id, approver, catatan)
-                : await api.rejectIzin(id, approver, catatan);
-
-            if (!result.success) {
-                toast.error(result.error || 'Gagal memproses pengajuan');
-                return;
+          const scheduleKK = checkAttendanceAccess(updatedKeluarKantor.userId, null, updatedKeluarKantor.date);
+          if (scheduleKK.success && scheduleKK.data.canAccess) {
+            const breakSession = (scheduleKK.data.sessions || []).find(s => s.field === 'breakStart');
+            if (breakSession &&
+                updatedKeluarKantor.jamKeluar <= breakSession.time &&
+                updatedKeluarKantor.jamMasuk > breakSession.time) {
+              _markSessionAsExcused(
+                updatedKeluarKantor.userId, updatedKeluarKantor.date, 'breakStart',
+                'Izin Keluar Kantor', 'keluar_kantor', updatedKeluarKantor.id
+              );
             }
-
-            const idx = this.allIzinData.findIndex(i => String(i.id) === String(id));
-            if (idx > -1) this.allIzinData[idx] = { ...this.allIzinData[idx], ...result.data };
-
-            this.closeApprovalModal();
-            this.renderApprovalList(role);
-            toast.success(decision === 'approve' ? 'Pengajuan disetujui' : 'Pengajuan ditolak');
-
-            // Kalau approval ini adalah TAHAP TERAKHIR (status jadi 'approved'
-            // sepenuhnya), otomatis generate PDF surat (persis tampilan
-            // "Cetak Surat") dan kirim ke email pemohon. Berjalan di
-            // belakang layar, tidak memblokir/mengganggu UI approver.
-            //
-            // Izin Keluar Kantor (pemohon staff/asmen) beda: email SUDAH
-            // boleh terkirim begitu tahap Manajer approve (status
-            // 'manajer_approved') - selaras dengan tombol "Cetak Surat" yang
-            // juga sudah muncul di tahap itu, tidak perlu nunggu Direktur.
-            // Guard emailSent supaya tidak terkirim DOBEL saat Direktur
-            // approve belakangan (email pertama di tahap Manajer sudah cukup).
-            const isKeluarKantorEarlyStage = result.data && result.data.type === 'keluar_kantor' && result.data.status === 'manajer_approved';
-            const alreadyEmailed = result.data && (result.data.emailSent === true || result.data.emailSent === 'true');
-            if (decision === 'approve' && result.data && !alreadyEmailed &&
-                (result.data.status === 'approved' || isKeluarKantorEarlyStage) && window.printLetters) {
-                printLetters.sendSuratEmailIfApproved('izin', result.data);
-            }
-        } catch (error) {
-            console.error('Error submitApproval:', error);
-            toast.error('Terjadi kesalahan, silakan coba lagi.');
+          }
+        } catch (e) {
+          // Gagal cek jadwal (mis. karyawan sudah tidak aktif) - jangan
+          // sampai membatalkan approval yang sudah berhasil, cukup lewati.
         }
-    },
-
-    // Durasi Izin Keluar Kantor ditampilkan dalam jam/menit, bukan hari,
-    // karena field duration untuk tipe ini memang selalu 0 (lihat handleSubmit).
-    _hitungDurasiJam(jamKeluar, jamMasuk) {
-        if (!jamKeluar || !jamMasuk) return '-';
-        if (jamMasuk === 'Pulang') return 'Sampai pulang';
-        const [h1, m1] = jamKeluar.split(':').map(Number);
-        const [h2, m2] = jamMasuk.split(':').map(Number);
-        if ([h1, m1, h2, m2].some(n => isNaN(n))) return '-';
-        let totalMenit = (h2 * 60 + m2) - (h1 * 60 + m1);
-        if (totalMenit < 0) totalMenit += 24 * 60; // jaga-jaga kalau lintas tengah malam
-        const jam = Math.floor(totalMenit / 60);
-        const menit = totalMenit % 60;
-        if (jam === 0) return `${menit} menit`;
-        if (menit === 0) return `${jam} jam`;
-        return `${jam} jam ${menit} menit`;
+      }
+      // PDF surat digenerate & dikirim dari FRONTEND (persis tampilan
+      // "Cetak Surat"), lalu diteruskan ke sendSuratEmailData() di
+      // Mailer.gs - lihat printLetters.sendSuratEmailIfApproved() di
+      // print-letters.js. Di sini cukup balikin hasil approve-nya saja.
+      return { success: true, data: updatedKeluarKantor };
     }
-};
+    return { success: false, error: 'Izin not found' };
+  }
 
-// Global init function
-window.initIzin = () => {
-    izin.init();
-};
+  const pemohon = findRow('Employees', 'id', String(izin.userId)) || {};
+  const pemohonRole = pemohon.role || 'staff';
+  const pemohonBagian = String(pemohon.bagian || '').toUpperCase().trim();
+  const isPemohonHrAsmen = pemohonRole === 'asmen' && pemohonBagian === BAGIAN_UMUM_KEPEGAWAIAN;
 
-// Expose
-window.izin = izin;
+  // HANYA pemohon Manajer yang langsung ke Direktur tanpa tahap Manajer sama
+  // sekali. Asmen dari bagian Umum & Kepegawaian sendiri TETAP melalui 1 kali
+  // approval Manajer (representasi tunggal — karena manajer bidangnya dan
+  // Manajer Umum & Kepegawaian adalah orang yang sama, jadi tidak perlu dobel).
+  const skipManagerStage = pemohonRole === 'manajer';
+
+  let patch;
+
+  if (approver.role === 'asmen') {
+    // Tahap Asmen cuma berlaku untuk pengajuan STAFF (yang lain sudah level
+    // Asmen/Manajer sendiri, tidak butuh approval Asmen).
+    if (pemohonRole !== 'staff') {
+      return { success: false, error: 'Tahap Asmen tidak berlaku untuk pengajuan ini' };
+    }
+    if (izin.status !== 'pending') {
+      return { success: false, error: 'Surat sudah diproses, tidak bisa disetujui Asmen lagi' };
+    }
+    patch = {
+      status: 'asmen_approved',
+      asmenName: approver.name || '',
+      asmenNik: approver.nik || '',
+      asmenApprovedAt: now,
+      asmenNote: catatan || ''
+    };
+
+  } else if (approver.role === 'manajer') {
+    if (skipManagerStage) {
+      return { success: false, error: 'Pengajuan ini langsung ke Direktur, tidak melalui tahap Manajer' };
+    }
+    const approverBagian = String(approver.bagian || '').toUpperCase().trim();
+
+    if (pemohonRole === 'staff') {
+      // Manajer bagian yang sama dengan staff pemohon
+      if (izin.status !== 'asmen_approved') {
+        return { success: false, error: 'Surat belum disetujui Asmen' };
+      }
+      if (approverBagian !== pemohonBagian) {
+        return { success: false, error: 'Surat ini bukan dari bagian Anda' };
+      }
+      patch = {
+        status: 'manajer_approved',
+        managerName: approver.name || '',
+        managerNik: approver.nik || '',
+        managerApprovedAt: now,
+        managerNote: catatan || ''
+      };
+
+    } else if (pemohonRole === 'asmen' && isPemohonHrAsmen) {
+      // Asmen dari Umum & Kepegawaian SENDIRI: manajer bidangnya = Manajer
+      // Umum & Kepegawaian (orang yang sama) -> cukup SATU kali approval
+      // saja sebagai representasi, tidak perlu dobel dari orang yang sama.
+      if (izin.status !== 'pending') {
+        return { success: false, error: 'Surat sudah diproses' };
+      }
+      if (approverBagian !== BAGIAN_UMUM_KEPEGAWAIAN) {
+        return { success: false, error: 'Hanya Manajer Umum & Kepegawaian yang bisa menyetujui izin ini' };
+      }
+      patch = {
+        status: 'manajer_approved',
+        managerName: approver.name || '',
+        managerNik: approver.nik || '',
+        managerApprovedAt: now,
+        managerNote: catatan || ''
+      };
+
+    } else if (pemohonRole === 'asmen') {
+      // Asmen bagian LAIN (bukan Umum & Kepegawaian) -> 2 tahap manajer
+      // berurutan: (1) Manajer bidang Asmen itu sendiri dulu, baru
+      // (2) Manajer Umum & Kepegawaian (HR) sebagai tahap terakhir.
+      if (izin.status === 'pending') {
+        // Tahap 1: Manajer bidang si Asmen
+        if (approverBagian !== pemohonBagian) {
+          return { success: false, error: 'Surat ini bukan dari bagian Anda' };
+        }
+        patch = {
+          status: 'manajer_bidang_approved',
+          managerName: approver.name || '',
+          managerNik: approver.nik || '',
+          managerApprovedAt: now,
+          managerNote: catatan || ''
+        };
+      } else if (izin.status === 'manajer_bidang_approved') {
+        // Tahap 2: Manajer Umum & Kepegawaian (HR)
+        if (approverBagian !== BAGIAN_UMUM_KEPEGAWAIAN) {
+          return { success: false, error: 'Surat ini menunggu persetujuan Manajer Umum & Kepegawaian' };
+        }
+        patch = {
+          status: 'manajer_approved',
+          hrManagerName: approver.name || '',
+          hrManagerNik: approver.nik || '',
+          hrManagerApprovedAt: now,
+          hrManagerNote: catatan || ''
+        };
+      } else {
+        return { success: false, error: 'Surat sudah diproses' };
+      }
+
+    } else {
+      return { success: false, error: 'Tahap Manajer tidak berlaku untuk pengajuan ini' };
+    }
+
+  } else if (approver.role === 'direktur' || approver.role === 'admin') {
+    const requiredStatus = skipManagerStage ? 'pending' : 'manajer_approved';
+    if (izin.status !== requiredStatus) {
+      return {
+        success: false,
+        error: skipManagerStage
+          ? 'Surat sudah diproses'
+          : 'Surat belum disetujui Manajer'
+      };
+    }
+    patch = {
+      status: 'approved',
+      directorName: approver.name || '',
+      directorNik: approver.nik || '',
+      directorApprovedAt: now,
+      directorNote: catatan || ''
+    };
+  } else {
+    return { success: false, error: 'Role approver tidak dikenali: ' + approver.role };
+  }
+
+  const updated = updateRow('Izin', id, patch);
+  if (updated) {
+    // Izin Harian/Sakit yang sudah disetujui PENUH (Direktur) - tandai
+    // rentang tanggalnya di Attendance pakai label JENISNYA SENDIRI (mis.
+    // "Permohonan Izin Harian" atau "Sakit", dari typeLabel), bukan teks
+    // generik "Izin" - supaya Riwayat Absensi & rekap jelas menunjukkan
+    // izin jenis apa yang disetujui. Keluar Kantor TIDAK ikut - itu cuma
+    // keluar sebentar, karyawan tetap absen normal untuk hari itu (lihat
+    // penanganan terpisah untuk keluar_kantor di bawah).
+    if (updated.status === 'approved' && updated.type !== 'keluar_kantor') {
+      _markAttendanceRangeAsExcused(
+        updated.userId, updated.date, updated.dateEnd || updated.date,
+        'izin', updated.typeLabel || 'Izin', 'izin', updated.id
+      );
+    }
+    // PDF surat digenerate & dikirim dari FRONTEND (persis tampilan
+    // "Cetak Surat"), lalu diteruskan ke sendSuratEmailData() di
+    // Mailer.gs - lihat printLetters.sendSuratEmailIfApproved() di
+    // print-letters.js. Di sini cukup balikin hasil approve-nya saja.
+    return { success: true, data: updated };
+  }
+  return { success: false, error: 'Izin not found' };
+}
+
+function rejectIzinData(id, approver, catatan) {
+  if (!id) {
+    return { success: false, error: 'id is required' };
+  }
+  approver = approver || {};
+  const patch = {
+    status: 'rejected',
+    rejectedBy: approver.name || '',
+    rejectedByRole: approver.role || '',
+    rejectedAt: new Date().toISOString(),
+    rejectedNote: catatan || ''
+  };
+
+  const updated = updateRow('Izin', id, patch);
+  if (updated) {
+    return { success: true, data: updated };
+  }
+  return { success: false, error: 'Izin not found' };
+}
+
+/**
+ * Upload berkas lampiran surat untuk pengajuan Izin (PDF/JPG/PNG).
+ * Disimpan ke Google Drive, link-nya disimpan di kolom 'fileUrl'.
+ * Memakai helper _getOrCreateFolder & _extractDriveId yang sudah ada di Karyawan.gs.
+ */
+function uploadFileIzinData(id, base64Data, mimeType, fileName) {
+  if (!id || !base64Data) {
+    return { success: false, error: 'ID dan berkas diperlukan' };
+  }
+
+  try {
+    ensureColumns('Izin', ['fileUrl']);
+
+    const folder = _getOrCreateFolder('Lampiran Izin PT TAA');
+    const ext = (mimeType && mimeType.split('/')[1]) || 'pdf';
+    const safeName = fileName || ('Izin_' + id + '_' + Date.now() + '.' + ext);
+
+    const blob = Utilities.newBlob(
+      Utilities.base64Decode(base64Data),
+      mimeType || 'application/pdf',
+      safeName
+    );
+
+    const izin = findRow('Izin', 'id', String(id));
+    if (izin && izin.fileUrl) {
+      try {
+        const oldFileId = _extractDriveId(izin.fileUrl);
+        if (oldFileId) DriveApp.getFileById(oldFileId).setTrashed(true);
+      } catch (e) {}
+    }
+
+    const file = folder.createFile(blob);
+    file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+    const fileUrl = file.getUrl();
+
+    const updated = updateRow('Izin', id, { fileUrl: fileUrl, hasAttachment: true });
+    if (!updated) {
+      return { success: false, error: 'Izin not found' };
+    }
+
+    return { success: true, data: { fileUrl } };
+  } catch (e) {
+    return { success: false, error: 'Gagal upload lampiran izin: ' + e.message };
+  }
+}
