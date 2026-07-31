@@ -56,13 +56,14 @@ const adminReports = {
         let izinList = [];
         let attendances = [];
 
-        const [empResult, jurnalResult, leaveResult, izinResult, attResult, oorResult] = await Promise.allSettled([
+        const [empResult, jurnalResult, leaveResult, izinResult, attResult, oorResult, settingsResult] = await Promise.allSettled([
             api.getEmployees(),
             api.getAllJournals(),
             api.getAllLeaves(),
             api.getAllIzin(),
             api.getAllAttendance(),
-            api.getAllOutOfRadiusReports()
+            api.getAllOutOfRadiusReports(),
+            api.getSettings()
         ]);
 
         const pick = (settled, label) => {
@@ -88,6 +89,25 @@ const adminReports = {
             const key = `${r.userId}|${r.date}|${r.type}`;
             this.outOfRadiusMap[key] = r;
         });
+
+        // Daftar lokasi kantor (Kantor Pusat, Unit SPAM, dsb) - dipakai
+        // sessionGps() untuk mencocokkan titik GPS tiap sesi absen (Masuk/
+        // Istirahat/Kembali/Pulang) ke NAMA lokasi terdekat (mis. "BNA
+        // Amuntai", "SPAM Alabio"), bukan cuma pin GPS mentah. Sama seperti
+        // fallback yang dipakai settings.js/face-recognition.js - kalau
+        // "office_locations" belum diisi, coba field lama office_lat/lng
+        // (1 lokasi saja).
+        const settingsData = (settingsResult.status === 'fulfilled' && settingsResult.value && settingsResult.value.data) || {};
+        this.officeLocations = [];
+        if (settingsData.office_locations) {
+            try {
+                const parsed = JSON.parse(settingsData.office_locations);
+                if (Array.isArray(parsed)) this.officeLocations = parsed;
+            } catch (e) { /* JSON rusak, biarkan kosong */ }
+        }
+        if (this.officeLocations.length === 0 && settingsData.office_lat && settingsData.office_lng) {
+            this.officeLocations = [{ nama: 'Kantor', lat: settingsData.office_lat, lng: settingsData.office_lng }];
+        }
 
         // Fallback ke localStorage hanya untuk bagian yang benar-benar kosong/gagal
         if (employees.length === 0) employees = storage.get('admin_employees', []);
@@ -604,7 +624,11 @@ const adminReports = {
                     const sessionGps = (locField) => {
                         const c = this._parseLatLng(row[locField]);
                         if (!c) return '';
-                        return ` <i class="fas fa-map-marker-alt" style="color:#10b981;cursor:pointer;font-size:0.75rem;" onclick="adminReports.openMaps(${c.lat}, ${c.lng})" title="Lihat titik GPS sesi ini"></i>`;
+                        const namaLokasi = this._nearestOfficeName(c.lat, c.lng);
+                        const namaHtml = namaLokasi
+                            ? `<br><small style="color:var(--text-muted);font-size:0.68rem;">${this._esc(namaLokasi)}</small>`
+                            : '';
+                        return ` <i class="fas fa-map-marker-alt" style="color:#10b981;cursor:pointer;font-size:0.75rem;" onclick="adminReports.openMaps(${c.lat}, ${c.lng})" title="Lihat titik GPS sesi ini"></i>${namaHtml}`;
                     };
 
                     // Tandai jam yang tercatat di luar radius (Pekerja Lapangan).
@@ -739,7 +763,11 @@ const adminReports = {
                     const sessionGps = (locField) => {
                         const c = this._parseLatLng(row[locField]);
                         if (!c) return '';
-                        return ` <i class="fas fa-map-marker-alt" style="color:#10b981;cursor:pointer;font-size:0.75rem;" onclick="adminReports.openMaps(${c.lat}, ${c.lng})" title="Lihat titik GPS sesi ini"></i>`;
+                        const namaLokasi = this._nearestOfficeName(c.lat, c.lng);
+                        const namaHtml = namaLokasi
+                            ? `<br><small style="color:var(--text-muted);font-size:0.68rem;">${this._esc(namaLokasi)}</small>`
+                            : '';
+                        return ` <i class="fas fa-map-marker-alt" style="color:#10b981;cursor:pointer;font-size:0.75rem;" onclick="adminReports.openMaps(${c.lat}, ${c.lng})" title="Lihat titik GPS sesi ini"></i>${namaHtml}`;
                     };
 
                     // Tandai jam yang tercatat di luar radius (Pekerja Lapangan)
@@ -818,6 +846,38 @@ const adminReports = {
             if (!isNaN(lat) && !isNaN(lng)) return { lat, lng };
         }
         return null;
+    },
+
+    // Rumus Haversine, sama persis dengan yang dipakai backend
+    // (Attendance.gs) supaya jarak yang dihitung konsisten.
+    _haversineMeters(lat1, lng1, lat2, lng2) {
+        const R = 6371000; // radius bumi dalam meter
+        const dLat = (lat2 - lat1) * Math.PI / 180;
+        const dLng = (lng2 - lng1) * Math.PI / 180;
+        const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                  Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                  Math.sin(dLng / 2) * Math.sin(dLng / 2);
+        return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    },
+
+    // Cari NAMA lokasi kantor (mis. "BNA Amuntai", "SPAM Alabio") yang
+    // paling dekat dengan titik GPS sesi absen tertentu - dipakai
+    // sessionGps() supaya admin lihat nama lokasinya, bukan cuma
+    // koordinat mentah. Kalau belum ada lokasi kantor yang diset di
+    // Settings, kembalikan null (sessionGps tetap tampil pin GPS saja).
+    _nearestOfficeName(lat, lng) {
+        const locations = this.officeLocations || [];
+        let nearest = null;
+        locations.forEach(loc => {
+            const locLat = parseFloat(loc.lat);
+            const locLng = parseFloat(loc.lng);
+            if (isNaN(locLat) || isNaN(locLng)) return;
+            const d = this._haversineMeters(lat, lng, locLat, locLng);
+            if (nearest === null || d < nearest.distance) {
+                nearest = { nama: loc.nama || 'Kantor', distance: d };
+            }
+        });
+        return nearest ? nearest.nama : null;
     },
 
     // Sebelumnya fungsi ini menerima string mentah row.verificationLocation
