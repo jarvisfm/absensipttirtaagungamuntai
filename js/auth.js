@@ -326,6 +326,16 @@ const auth = {
             const loginForm = document.getElementById('login-form');
             if (loginForm) loginForm.reset();
         }
+
+        // PENTING: router.js mengubah document.title jadi "<Judul Halaman> -
+        // <Nama Perusahaan>" (mis. "Rekap Absensi - Portal Karyawan...")
+        // setiap kali pindah halaman, tapi tidak pernah direset balik saat
+        // logout - jadi tab browser tetap menampilkan judul halaman terakhir
+        // walau user sudah kembali ke layar login. Reset di sini supaya tab
+        // langsung sesuai lagi begitu logout (manual, sesi habis, atau
+        // dipaksa logout dari perangkat lain).
+        const company = storage.get('company', { name: 'Portal Karyawan' });
+        document.title = company.name;
     },
 
     // Sesi dianggap kedaluwarsa kalau tidak punya expiresAt (data lama sebelum
