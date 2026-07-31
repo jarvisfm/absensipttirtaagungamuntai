@@ -781,15 +781,15 @@ const printLetters = {
             <div class="cuti-box">
                 <table class="cuti-field-table">
                     <tr><td class="lbl">CATATAN / PERTIMBANGAN</td><td class="sep">:</td>
-                        <td><input type="text" readonly class="letter-input" value="${leave.managerNote || ''}"></td></tr>
-                    <tr><td class="lbl"></td><td class="sep">:</td>
-                        <td><input type="text" readonly class="letter-input"></td></tr>
+                        <!-- <div>, BUKAN <input> - supaya catatan yang panjang bisa
+                             wrap turun ke baris di bawahnya (rowspan), bukan
+                             terpotong seperti sebelumnya. -->
+                        <td rowspan="2"><div class="letter-input" style="white-space:normal; word-wrap:break-word; line-height:1.4; min-height:2.8em;">${leave.managerNote || ''}</div></td></tr>
+                    <tr><td class="lbl"></td><td class="sep">:</td></tr>
                     <tr><td class="lbl" style="padding-top:10px;">MANAGER UMUM &amp; KEPEG</td><td class="sep" style="padding-top:10px;">:</td>
-                        <td style="padding-top:10px;"><input type="text" readonly class="letter-input" value="${mgrUmumNote}"></td></tr>
-                    <tr><td class="lbl"></td><td class="sep">:</td>
-                        <td><input type="text" readonly class="letter-input"></td></tr>
-                    <tr><td class="lbl"></td><td class="sep">:</td>
-                        <td><input type="text" readonly class="letter-input"></td></tr>
+                        <td rowspan="3" style="padding-top:10px;"><div class="letter-input" style="white-space:normal; word-wrap:break-word; line-height:1.4; min-height:4.2em;">${mgrUmumNote}</div></td></tr>
+                    <tr><td class="lbl"></td><td class="sep">:</td></tr>
+                    <tr><td class="lbl"></td><td class="sep">:</td></tr>
                 </table>
             </div>
 
