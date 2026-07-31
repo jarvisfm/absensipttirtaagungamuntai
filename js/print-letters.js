@@ -342,7 +342,8 @@ const printLetters = {
                 <tr>
                     <td class="lbl">Jabatan</td>
                     <td class="sep">:</td>
-                    <td><input type="text" readonly class="letter-input" value="${emp.jabatan || ''}"></td>
+                    <!-- <div>, BUKAN <input> - jabatan bisa panjang, jadi perlu wrap -->
+                    <td><div class="letter-input" style="white-space:normal; word-wrap:break-word; line-height:1.4; min-height:1.4em;">${emp.jabatan || ''}</div></td>
                 </tr>
             </table>
 
@@ -360,7 +361,8 @@ const printLetters = {
                 <tr>
                     <td class="lbl">Keperluan</td>
                     <td class="sep">:</td>
-                    <td><input type="text" readonly class="letter-input" value="${keperluan}"></td>
+                    <!-- <div>, BUKAN <input> - alasan/keperluan bisa panjang, jadi perlu wrap -->
+                    <td><div class="letter-input" style="white-space:normal; word-wrap:break-word; line-height:1.4; min-height:1.4em;">${keperluan}</div></td>
                 </tr>
                 <tr>
                     <td class="lbl"></td>
@@ -484,11 +486,13 @@ const printLetters = {
                     <td><input type="text" readonly class="letter-input"
                         value="${emp.pangkat || ''} / ${emp.golongan || ''}"></td></tr>
                 <tr><td class="lbl">JABATAN</td><td class="sep">:</td>
-                    <td><input type="text" readonly class="letter-input" value="${emp.jabatan || ''}"></td></tr>
+                    <!-- <div>, BUKAN <input> - jabatan bisa panjang, jadi perlu wrap -->
+                    <td><div class="letter-input" style="white-space:normal; word-wrap:break-word; line-height:1.4; min-height:1.4em;">${emp.jabatan || ''}</div></td></tr>
                 <tr><td class="lbl">UNIT WILAYAH</td><td class="sep">:</td>
                     <td><input type="text" readonly class="letter-input" value="${emp.unitWilayah || ''}"></td></tr>
                 <tr><td class="lbl">KEPERLUAN</td><td class="sep">:</td>
-                    <td><input type="text" readonly class="letter-input" value="${keperluan}"></td></tr>
+                    <!-- <div>, BUKAN <input> - alasan/keperluan bisa panjang, jadi perlu wrap -->
+                    <td><div class="letter-input" style="white-space:normal; word-wrap:break-word; line-height:1.4; min-height:1.4em;">${keperluan}</div></td></tr>
                 <tr><td class="lbl">HARI / TGL</td><td class="sep">:</td>
                     <td><input type="text" readonly class="letter-input"
                         value="${this._formatTanggalIndo(tgl)}"></td></tr>
@@ -743,7 +747,8 @@ const printLetters = {
 
                 <table class="cuti-field-table">
                     <tr><td class="lbl">Untuk keperluan</td><td class="sep">:</td>
-                        <td><input type="text" readonly class="letter-input" value="${leave.reason || ''}"></td></tr>
+                        <!-- <div>, BUKAN <input> - alasan cuti bisa panjang, jadi perlu wrap -->
+                        <td><div class="letter-input" style="white-space:normal; word-wrap:break-word; line-height:1.4; min-height:1.4em;">${leave.reason || ''}</div></td></tr>
                     <tr><td class="lbl">Jumlah Cuti</td><td class="sep">:</td>
                         <td><input type="text" readonly class="letter-input-inline" style="width:60px"
                             value="${leave.duration || ''}"> hari</td></tr>
@@ -756,7 +761,8 @@ const printLetters = {
                                 value="${this._formatTanggalIndo(leave.endDate)}">
                         </td></tr>
                     <tr><td class="lbl" style="vertical-align:top;">Alamat yang dapat dihubungi selama cuti</td><td class="sep" style="vertical-align:top;">:</td>
-                        <td><input type="text" readonly class="letter-input" value="${leave.address || ''}" placeholder="Isi alamat..."></td></tr>
+                        <!-- <div>, BUKAN <input> - alamat bisa panjang, jadi perlu wrap -->
+                        <td><div class="letter-input" style="white-space:normal; word-wrap:break-word; line-height:1.4; min-height:1.4em;">${leave.address ? leave.address : '<span style="color:#999;">Isi alamat...</span>'}</div></td></tr>
                     <tr><td class="lbl">Nomor Telpon/HP</td><td class="sep">:</td>
                         <td><input type="text" readonly class="letter-input" value="${leave.phone || ''}" placeholder="Isi no. HP..."></td></tr>
                 </table>
