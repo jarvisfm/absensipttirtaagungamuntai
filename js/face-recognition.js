@@ -411,9 +411,26 @@ const faceRecognition = {
      */
     _startFaceDetectionLoop() {
         this._stopFaceDetectionLoop();
+        this._detectionActive = true;
+        this._loopStartedAt = Date.now();
+        this._faceFirstDetectedAt = null;
+        this._noFaceWarnShown = false;
+        this._blinkHintShown = false;
 
-        this._detectLoopId = setInterval(async () => {
-            if (!this.video || this.video.readyState < 2 || this.photoCaptured) return;
+        // Self-scheduling (setTimeout dipanggil ulang SETELAH tick
+        // sebelumnya benar-benar selesai) - BUKAN setInterval. Kalau
+        // inference-nya kebetulan lebih lambat dari 150ms (umum di HP
+        // kelas menengah-bawah), setInterval akan tetap menembak panggilan
+        // baru tanpa nunggu, jadi menumpuk (overlapping) dan bikin device
+        // makin lemot & deteksi makin lambat lama-lama. Cara ini mencegah
+        // itu - tick berikutnya baru dijadwalkan setelah yang sekarang tuntas.
+        const tick = async () => {
+            if (!this._detectionActive) return;
+
+            if (!this.video || this.video.readyState < 2 || this.photoCaptured) {
+                this._detectLoopId = setTimeout(tick, 150);
+                return;
+            }
 
             let detected = false;
             try {
@@ -433,6 +450,7 @@ const faceRecognition = {
             }
 
             this.faceDetected = detected;
+            if (detected && !this._faceFirstDetectedAt) this._faceFirstDetectedAt = Date.now();
             this._updateFaceOverlay(detected);
 
             // Tombol capture baru boleh ditekan kalau wajah terdeteksi DAN
@@ -441,9 +459,49 @@ const faceRecognition = {
             // menodongkan foto/screenshot wajah orang lain ke kamera, karena
             // gambar diam tidak akan pernah berkedip.
             const readyToCapture = detected && this.blinkDetected;
-            const captureBtn = document.getElementById('btn-capture');
-            if (captureBtn && !this.photoCaptured) captureBtn.disabled = !readyToCapture;
-        }, 150);
+            this._updateCaptureButtonState(detected, readyToCapture);
+
+            // Kasih tahu karyawan (bukan cuma diam disabled) kalau proses
+            // terlalu lama - bantu troubleshoot (kamera/pencahayaan) SEKALIGUS
+            // jadi pengingat kalau yang ditodongkan ke kamera bukan wajah asli
+            // (foto/gambar diam tidak akan pernah menghasilkan kedipan).
+            if (!readyToCapture) {
+                const sinceStart = Date.now() - this._loopStartedAt;
+                if (!detected && !this._noFaceWarnShown && sinceStart > 15000) {
+                    this._noFaceWarnShown = true;
+                    toast.error('Wajah tidak terdeteksi. Pastikan wajah terlihat jelas di kamera dan pencahayaan cukup.');
+                } else if (detected && !this.blinkDetected && !this._blinkHintShown &&
+                           this._faceFirstDetectedAt && (Date.now() - this._faceFirstDetectedAt) > 20000) {
+                    this._blinkHintShown = true;
+                    toast.error('Kedipan belum terdeteksi. Berkedip secara alami di depan kamera - foto/gambar diam tidak akan pernah terverifikasi.');
+                }
+            }
+
+            if (this._detectionActive) {
+                this._detectLoopId = setTimeout(tick, 150);
+            }
+        };
+
+        tick();
+    },
+
+    // Ubah tampilan tombol "Absen Sekarang" jadi status loading selama
+    // wajah/kedipan belum lolos verifikasi, supaya karyawan tahu sistem
+    // masih memproses (bukan macet/diam) - baru berubah jadi tombol aktif
+    // normal begitu benar-benar siap.
+    _updateCaptureButtonState(detected, ready) {
+        const captureBtn = document.getElementById('btn-capture');
+        if (!captureBtn || this.photoCaptured) return;
+        captureBtn.disabled = !ready;
+        const icon = captureBtn.querySelector('i');
+        const label = captureBtn.querySelector('span');
+        if (ready) {
+            if (icon) icon.className = 'fas fa-check-circle';
+            if (label) label.textContent = 'Absen Sekarang';
+        } else {
+            if (icon) icon.className = 'fas fa-spinner fa-spin';
+            if (label) label.textContent = detected ? 'Verifikasi kedipan...' : 'Menunggu wajah...';
+        }
     },
 
     /**
@@ -506,8 +564,9 @@ const faceRecognition = {
     },
 
     _stopFaceDetectionLoop() {
+        this._detectionActive = false;
         if (this._detectLoopId) {
-            clearInterval(this._detectLoopId);
+            clearTimeout(this._detectLoopId);
             this._detectLoopId = null;
         }
     },
