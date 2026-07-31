@@ -837,10 +837,11 @@ const adminReports = {
     },
 
     showFaceMatchInfo(score) {
-        const scoreText = score
-            ? `Skor jarak kecocokan: ${score} (semakin kecil = semakin mirip, ambang batas 0.55).`
-            : 'Skor kecocokan tidak tersedia.';
-        toast.warning(`Absen ini ditandai untuk ditinjau karena kecocokan wajah kurang meyakinkan. ${scoreText} Cek foto verifikasinya untuk memastikan.`);
+        if (!score) {
+            toast.warning('Absen ini ditandai untuk ditinjau karena identitas wajah TIDAK SEMPAT diverifikasi otomatis (kemungkinan foto profil karyawan bermasalah/belum ada). Cek foto verifikasinya secara manual untuk memastikan.');
+            return;
+        }
+        toast.warning(`Absen ini ditandai untuk ditinjau karena kecocokan wajah kurang meyakinkan. Skor jarak kecocokan: ${score} (semakin kecil = semakin mirip, ambang batas 0.55). Cek foto verifikasinya untuk memastikan.`);
     },
 
     showOutOfRadiusNote(userId, date, type) {
