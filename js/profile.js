@@ -155,7 +155,7 @@ const profileManager = {
                     placeholder="Link Google Drive ${label}"
                     oninput="profileManager.updateAnakDocPreview(${n}, '${key}')"
                     style="width:100%;padding:6px 10px;border:1px solid var(--border-color);border-radius:6px;font-size:0.85rem;margin-bottom:6px;font-family:inherit;">
-                <div id="pf-anak-${n}-${key}-preview" style="position:relative;height:180px;border:1px solid var(--border-color);border-radius:8px;overflow:hidden;background:var(--bg-secondary,#f8f9fa);">
+                <div id="pf-anak-${n}-${key}-preview" style="position:relative;height:180px;border:1px solid var(--border-color);border-radius:8px;overflow:hidden;background:var(--bg-secondary,#f8f9fa);display:${url ? 'block' : 'none'};">
                     ${previewUrl
                         ? `<iframe src="${this._esc(previewUrl)}" style="width:100%;height:100%;border:none;"></iframe>`
                         : `<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:6px;color:var(--text-muted);"><i class="fas fa-file-circle-xmark"></i><span style="font-size:0.75rem;">${url ? 'Link tidak valid' : 'Belum ada link'}</span></div>`}
@@ -203,7 +203,7 @@ const profileManager = {
                     placeholder="Link Google Drive ${label}"
                     oninput="profileManager.updatePasanganDocPreview('${key}')"
                     style="width:100%;padding:6px 10px;border:1px solid var(--border-color);border-radius:6px;font-size:0.85rem;margin-bottom:6px;font-family:inherit;">
-                <div id="pf-pasangan-${key}-preview" style="position:relative;height:180px;border:1px solid var(--border-color);border-radius:8px;overflow:hidden;background:var(--bg-secondary,#f8f9fa);">
+                <div id="pf-pasangan-${key}-preview" style="position:relative;height:180px;border:1px solid var(--border-color);border-radius:8px;overflow:hidden;background:var(--bg-secondary,#f8f9fa);display:${url ? 'block' : 'none'};">
                     ${previewUrl
                         ? `<iframe src="${this._esc(previewUrl)}" style="width:100%;height:100%;border:none;"></iframe>`
                         : `<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:6px;color:var(--text-muted);"><i class="fas fa-file-circle-xmark"></i><span style="font-size:0.75rem;">${url ? 'Link tidak valid' : 'Belum ada link'}</span></div>`}
@@ -228,6 +228,7 @@ const profileManager = {
         const previewEl = document.getElementById(`pf-pasangan-${key}-preview`);
         if (!input || !previewEl) return;
         const rawUrl = input.value;
+        previewEl.style.display = rawUrl ? 'block' : 'none';
         const previewUrl = this.normalizeDriveLink(rawUrl);
         previewEl.innerHTML = previewUrl
             ? `<iframe src="${this._esc(previewUrl)}" style="width:100%;height:100%;border:none;"></iframe>`
@@ -241,6 +242,7 @@ const profileManager = {
         const previewEl = document.getElementById('pf-fileKTP-preview');
         if (!input || !previewEl) return;
         const rawUrl = input.value;
+        previewEl.style.display = rawUrl ? 'block' : 'none';
         const previewUrl = this.normalizeDriveLink(rawUrl);
         previewEl.innerHTML = previewUrl
             ? `<iframe src="${this._esc(previewUrl)}" style="width:100%;height:100%;border:none;"></iframe>`
@@ -253,6 +255,7 @@ const profileManager = {
         const previewEl = document.getElementById(`pf-anak-${n}-${key}-preview`);
         if (!input || !previewEl) return;
         const rawUrl = input.value;
+        previewEl.style.display = rawUrl ? 'block' : 'none';
         const previewUrl = this.normalizeDriveLink(rawUrl);
         previewEl.innerHTML = previewUrl
             ? `<iframe src="${this._esc(previewUrl)}" style="width:100%;height:100%;border:none;"></iframe>`
