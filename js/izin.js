@@ -341,9 +341,19 @@ function approveIzinData(id, approver, catatan) {
     // keluar sebentar, karyawan tetap absen normal untuk hari itu (lihat
     // penanganan terpisah untuk keluar_kantor di bawah).
     if (updated.status === 'approved' && updated.type !== 'keluar_kantor') {
+      // typeLabel kadang kosong/tidak tersimpan, jadi jangan cuma andalkan
+      // itu - turunkan juga dari field 'type' (selalu wajib diisi saat
+      // pengajuan) pakai pemetaan yang sama seperti di admin-reports.js,
+      // supaya Riwayat Absensi tampil detail (mis. "Izin Harian"/"Sakit")
+      // bukan cuma "Izin" generik.
+      const izinTypeLabels = {
+        sick: 'Sakit', permission: 'Izin Penting', emergency: 'Keadaan Darurat',
+        izin_harian: 'Izin Harian'
+      };
+      const label = updated.typeLabel || izinTypeLabels[updated.type] || 'Izin';
       _markAttendanceRangeAsExcused(
         updated.userId, updated.date, updated.dateEnd || updated.date,
-        'izin', updated.typeLabel || 'Izin', 'izin', updated.id
+        'izin', label, 'izin', updated.id
       );
     }
     // PDF surat digenerate & dikirim dari FRONTEND (persis tampilan
