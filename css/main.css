@@ -1392,6 +1392,11 @@ img {
     color: var(--color-danger);
 }
 
+.badge-status.info {
+    background: rgba(59, 130, 246, 0.1);
+    color: #3B82F6;
+}
+
 /* Loading Animation - No Spin */
 .loading {
     position: relative;
