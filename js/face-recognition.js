@@ -75,6 +75,8 @@ const faceRecognition = {
         this._yawBaseline = null;
         this._yawBaselineSum = 0;
         this._yawBaselineCount = 0;
+        this._stableFaceSince = null;
+        this._autoCaptureNextAllowedAt = 0;
         this._lastFaceMatch = null;
         this.position = null;
         this._destroyRealMap();
@@ -435,17 +437,8 @@ const faceRecognition = {
             let detected = false;
             try {
                 const result = await faceapi
-                    .detectSingleFace(this.video, new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.5 }))
-                    .withFaceLandmarks();
+                    .detectSingleFace(this.video, new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.5 }));
                 detected = !!result;
-
-                // Baru perlu lacak gerakan menoleh kalau belum pernah
-                // kedeteksi 1x sepanjang sesi kamera ini - begitu
-                // livenessDetected true, tidak perlu dihitung lagi (hemat
-                // proses).
-                if (detected && !this.livenessDetected) {
-                    this._trackHeadTurn(result.landmarks);
-                }
             } catch (e) {
                 detected = false;
             }
@@ -454,27 +447,46 @@ const faceRecognition = {
             if (detected && !this._faceFirstDetectedAt) this._faceFirstDetectedAt = Date.now();
             this._updateFaceOverlay(detected);
 
-            // Tombol capture baru boleh ditekan kalau wajah terdeteksi DAN
-            // sudah terekam gerakan menoleh (liveness check) - lihat
-            // _trackHeadTurn(). Ini yang mencegah "titip absen" cuma dengan
-            // menodongkan foto/screenshot wajah orang lain ke kamera, karena
-            // gambar diam tidak akan pernah bisa menoleh.
-            const readyToCapture = detected && this.livenessDetected;
+            // Lacak berapa lama wajah terdeteksi TERUS-MENERUS tanpa putus -
+            // dipakai buat auto-capture di bawah, supaya tidak langsung
+            // ambil foto dari sekilas lirikan/wajah lewat, tapi nunggu
+            // sedikit stabil dulu (>=800ms).
+            if (detected) {
+                if (!this._stableFaceSince) this._stableFaceSince = Date.now();
+            } else {
+                this._stableFaceSince = null;
+            }
+
+            // Liveness (menoleh) sudah TIDAK lagi jadi syarat - tombol/auto-
+            // capture cukup butuh wajah terdeteksi. Identitas tetap dicek di
+            // capturePhoto() lewat pencocokan ke foto profil.
+            const readyToCapture = detected;
             this._updateCaptureButtonState(detected, readyToCapture);
 
+            // Auto-capture: begitu wajah stabil terdeteksi (>=800ms) DAN
+            // lokasi sudah terverifikasi DAN tidak sedang cooldown dari
+            // percobaan sebelumnya (mis. baru saja gagal cocok/tidak ada
+            // wajah di frame final) - langsung panggil capturePhoto() tanpa
+            // perlu user menekan tombol. capturePhoto() sendiri yang
+            // menentukan sukses/gagal (termasuk cocok/tidak dengan foto
+            // profil) dan langsung lanjut submit otomatis kalau berhasil.
+            const stableEnough = this._stableFaceSince && (Date.now() - this._stableFaceSince) >= 800;
+            const cooldownOk = Date.now() >= (this._autoCaptureNextAllowedAt || 0);
+            if (stableEnough && cooldownOk && this.locationVerified && !this.photoCaptured) {
+                // Jangan coba lagi otomatis sebelum jeda ini lewat - hindari
+                // spam percobaan/toast kalau capturePhoto() gagal (mis. wajah
+                // tidak cocok dengan foto profil).
+                this._autoCaptureNextAllowedAt = Date.now() + 3000;
+                this.capturePhoto();
+            }
+
             // Kasih tahu karyawan (bukan cuma diam disabled) kalau proses
-            // terlalu lama - bantu troubleshoot (kamera/pencahayaan) SEKALIGUS
-            // jadi pengingat kalau yang ditodongkan ke kamera bukan wajah asli
-            // (foto/gambar diam tidak akan pernah bisa menoleh).
-            if (!readyToCapture) {
+            // terlalu lama - bantu troubleshoot (kamera/pencahayaan/lokasi).
+            if (!this.photoCaptured) {
                 const sinceStart = Date.now() - this._loopStartedAt;
                 if (!detected && !this._noFaceWarnShown && sinceStart > 15000) {
                     this._noFaceWarnShown = true;
                     toast.error('Wajah tidak terdeteksi. Pastikan wajah terlihat jelas di kamera dan pencahayaan cukup.');
-                } else if (detected && !this.livenessDetected && !this._turnHintShown &&
-                           this._faceFirstDetectedAt && (Date.now() - this._faceFirstDetectedAt) > 20000) {
-                    this._turnHintShown = true;
-                    toast.error('Gerakan menoleh belum terdeteksi. Coba noleh ke kiri/kanan secara alami lalu hadap kamera lagi - foto/gambar diam tidak akan pernah terverifikasi.');
                 }
             }
 
@@ -501,7 +513,7 @@ const faceRecognition = {
             if (label) label.textContent = 'Absen Sekarang';
         } else {
             if (icon) icon.className = 'fas fa-spinner fa-spin';
-            if (label) label.textContent = detected ? 'Verifikasi gerakan...' : 'Menunggu wajah...';
+            if (label) label.textContent = detected ? 'Memverifikasi otomatis...' : 'Menunggu wajah...';
         }
     },
 
@@ -568,8 +580,9 @@ const faceRecognition = {
         }
     },
 
-    // Ubah tampilan frame & teks panduan sesuai status deteksi wajah +
-    // status liveness (menoleh).
+    // Ubah tampilan frame & teks panduan sesuai status deteksi wajah -
+    // verifikasi (identitas ke foto profil) berjalan otomatis di
+    // capturePhoto(), tidak ada lagi tahap liveness manual.
     _updateFaceOverlay(detected) {
         const frame = document.querySelector('#face-overlay .face-frame');
         const guideIcon = document.querySelector('#face-overlay .face-guide i');
@@ -580,8 +593,8 @@ const faceRecognition = {
         if (guideText) {
             if (!detected) {
                 guideText.textContent = 'Wajah tidak terlihat - posisikan wajah di dalam frame';
-            } else if (!this.livenessDetected) {
-                guideText.textContent = 'Wajah terdeteksi - silakan noleh ke kiri/kanan lalu hadap kamera lagi untuk verifikasi';
+            } else if (!this.photoCaptured) {
+                guideText.textContent = 'Wajah terdeteksi - memverifikasi otomatis, tetap diam sebentar...';
             } else {
                 guideText.textContent = 'Wajah terverifikasi - siap absen';
             }
@@ -1127,16 +1140,6 @@ const faceRecognition = {
                 return;
             }
 
-            // Jaring pengaman terakhir untuk liveness check - seharusnya
-            // tombol capture memang sudah terkunci selama belum ada gerakan
-            // menoleh terekam (lihat _startFaceDetectionLoop), tapi dicek
-            // ulang di sini juga jaga-jaga ada race condition.
-            if (this.faceRecognitionEnabled && !this.livenessDetected) {
-                toast.error('Verifikasi gerakan menoleh belum lengkap. Silakan noleh ke kiri/kanan lalu hadap kamera lagi, kemudian coba lagi.');
-                if (captureBtnEl) captureBtnEl.disabled = true;
-                return;
-            }
-
             // Cocokkan wajah di foto ini dengan foto profil karyawan yang
             // sedang login - supaya tidak bisa "titip absen" pakai akun
             // orang lain. Kalau tidak sempat dicek (belum ada foto profil/
@@ -1212,6 +1215,8 @@ const faceRecognition = {
         this._yawBaseline = null;
         this._yawBaselineSum = 0;
         this._yawBaselineCount = 0;
+        this._stableFaceSince = null;
+        this._autoCaptureNextAllowedAt = 0;
         this._lastFaceMatch = null;
 
         // Reset preview
