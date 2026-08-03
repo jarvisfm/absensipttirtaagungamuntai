@@ -179,8 +179,8 @@ const dashboard = {
         if (isBirthdayToday) {
             card.style.display = 'flex';
             const msgEl = document.getElementById('birthday-message');
-            const firstName = (currentUser?.name || 'Kamu').split(' ')[0];
-            if (msgEl) msgEl.textContent = `Selamat Ulang Tahun, ${firstName}! 🎉`;
+            const fullName = currentUser?.name || 'Kamu';
+            if (msgEl) msgEl.textContent = `Selamat Ulang Tahun, ${fullName}! 🎉`;
         } else {
             card.style.display = 'none';
         }
