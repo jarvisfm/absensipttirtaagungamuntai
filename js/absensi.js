@@ -223,6 +223,13 @@ const absensi = {
             badge = '<span class="badge-status warning">Hadir (Terlambat)</span>';
         } else if (statusLower === 'pulang awal') {
             badge = '<span class="badge-status danger">Pulang Awal</span>';
+        } else if (statusLower === 'izin' || statusLower === 'cuti') {
+            // Hari yang otomatis "diisi" begitu Izin/Cuti disetujui penuh
+            // (lihat _markAttendanceRangeAsExcused di Attendance.gs) -
+            // BUKAN status menunggu, jadi jangan jatuh ke badge default.
+            // Pakai teks jenisnya sendiri (mis. "Cuti Tahunan"/"Sakit")
+            // yang sudah tersimpan di kolom clockIn.
+            badge = `<span class="badge-status info">${record.clockIn || (statusLower === 'izin' ? 'Izin' : 'Cuti')}</span>`;
         } else if (statusLower === 'pending' || statusLower === 'waiting') {
             badge = '<span class="badge-status">Pending</span>';
         }
