@@ -590,6 +590,8 @@ const izin = {
         await this.loadAllIzinData();
         await this._ensureEmployeesLoaded();
         this.renderApprovalList(role);
+        this._populateApprovalHistoryMonthFilter(role);
+        this.renderApprovalHistory(role);
     },
 
     // Cache daftar karyawan (untuk resolve nama/jabatan pemohon by userId),
@@ -607,6 +609,133 @@ const izin = {
 
     _findEmployee(userId) {
         return (this._employees || []).find(e => String(e.id) === String(userId)) || {};
+    },
+
+    // Sama seperti kriteria di renderApprovalList, tapi TANPA gate status -
+    // dipakai khusus untuk kartu "Riwayat" (semua pengajuan yang pernah lewat
+    // tahap approval role ini, apapun status akhirnya sekarang: pending,
+    // disetujui, atau ditolak).
+    _izinInScopeForRole(role) {
+        const user = auth.getCurrentUser();
+        const myEmployeeId = user?.employeeId || user?.id;
+        const myBagian = String(user?.bagian || '').toUpperCase().trim();
+        const isHrManajer = myBagian === 'UMUM DAN KEPEGAWAIAN';
+        const data = this.allIzinData || [];
+
+        if (role === 'asmen') {
+            return data.filter(i => String(i.asmenId) === String(myEmployeeId));
+        }
+        if (role === 'manajer') {
+            return data.filter(i => {
+                const pemohon = this._findEmployee(i.userId);
+                const pemohonRole = pemohon.role || 'staff';
+                const pemohonBagian = String(pemohon.bagian || '').toUpperCase().trim();
+
+                if (pemohonRole === 'staff') return pemohonBagian === myBagian;
+                if (pemohonRole === 'asmen') {
+                    const isPemohonHr = pemohonBagian === 'UMUM DAN KEPEGAWAIAN';
+                    if (isPemohonHr) return isHrManajer;
+                    return pemohonBagian === myBagian || isHrManajer;
+                }
+                return false; // Pemohon Manajer: tahap ini dilewati sama sekali
+            });
+        }
+        if (role === 'direktur') {
+            return data; // Direktur adalah approver tertinggi untuk semua pengajuan (termasuk Keluar Kantor)
+        }
+        return [];
+    },
+
+    /**
+     * Isi dropdown filter bulan kartu "Riwayat" dari bulan-bulan yang
+     * BENAR-BENAR ada di pengajuan izin yang relevan buat role ini - sama
+     * pola/perilakunya seperti filter bulan di Riwayat Absensi karyawan
+     * (absensi.js: _populateHistoryMonthFilter).
+     */
+    _populateApprovalHistoryMonthFilter(role) {
+        const select = document.getElementById(`approval-${role}-history-month`);
+        if (!select) return;
+
+        const monthNames = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+        const scoped = this._izinInScopeForRole(role);
+        const months = [...new Set(scoped.map(i => (i.date || '').substring(0, 7)).filter(Boolean))];
+        months.sort().reverse();
+
+        const todayYM = (typeof dateTime !== 'undefined' && dateTime.getLocalDate) ? dateTime.getLocalDate().substring(0, 7) : '';
+        if (todayYM && !months.includes(todayYM)) months.unshift(todayYM);
+
+        const previouslySelected = select.value;
+        select.innerHTML = months.map(ym => {
+            const [y, m] = ym.split('-');
+            return `<option value="${ym}">${monthNames[parseInt(m) - 1]} ${y}</option>`;
+        }).join('');
+        select.value = months.includes(previouslySelected) ? previouslySelected : (todayYM || months[0] || '');
+
+        if (!select._historyFilterBound) {
+            select.addEventListener('change', () => this.renderApprovalHistory(role));
+            select._historyFilterBound = true;
+        }
+    },
+
+    // Kartu "Riwayat Pengajuan Izin" - beda dari renderApprovalList di atas
+    // (yang cuma nampilin yang MASIH menunggu keputusan role ini), kartu ini
+    // nampilin SEMUA pengajuan yang relevan buat role ini di bulan yang
+    // dipilih, apapun statusnya sekarang (menunggu/disetujui/ditolak) -
+    // supaya bisa lihat riwayat lama, bukan cuma yang aktif hari ini.
+    renderApprovalHistory(role) {
+        const list = document.getElementById(`approval-${role}-history-list`);
+        if (!list) return;
+
+        const select = document.getElementById(`approval-${role}-history-month`);
+        const selectedMonth = select ? select.value : '';
+        let scoped = this._izinInScopeForRole(role);
+        if (selectedMonth) scoped = scoped.filter(i => (i.date || '').startsWith(selectedMonth));
+        scoped = scoped.slice().sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+
+        if (scoped.length === 0) {
+            list.innerHTML = `
+                <div class="empty-state" style="text-align:center;padding:var(--spacing-xl);color:var(--text-muted);">
+                    <i class="fas fa-clock-rotate-left" style="font-size:3rem;margin-bottom:var(--spacing);"></i>
+                    <p>Tidak ada riwayat pengajuan izin di bulan ini</p>
+                </div>
+            `;
+            return;
+        }
+
+        const typeLabelFallback = {
+            'sick': 'Sakit',
+            'permission': 'Izin Penting',
+            'emergency': 'Keadaan Darurat',
+            'izin_harian': 'Permohonan Izin Harian',
+            'keluar_kantor': 'Izin Keluar Kantor'
+        };
+
+        list.innerHTML = scoped.map(item => {
+            const emp = this._findEmployee(item.userId);
+            const typeLabel = item.typeLabel || typeLabelFallback[item.type] || 'Izin';
+            const dateFormatted = dateTime.formatDate(new Date(item.date), 'short');
+            const dateDisplay = item.dateEnd
+                ? `${dateFormatted} - ${dateTime.formatDate(new Date(item.dateEnd), 'short')}`
+                : dateFormatted;
+
+            return `
+                <div class="izin-item">
+                    <div class="izin-icon ${item.type}"><i class="fas fa-file-alt"></i></div>
+                    <div class="izin-content">
+                        <div class="izin-header-row">
+                            <h4 class="izin-type">${typeLabel}</h4>
+                            <span class="izin-status ${item.status}">${this._getDetailedStatusLabel(item, emp)}</span>
+                        </div>
+                        <div class="izin-details">
+                            <span class="izin-date"><i class="fas fa-user"></i> ${emp.nama || 'Tidak diketahui'}</span>
+                        </div>
+                        <div class="izin-details">
+                            <span class="izin-date"><i class="fas fa-calendar"></i> ${dateDisplay}</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }).join('');
     },
 
     renderApprovalList(role) {
