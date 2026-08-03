@@ -597,6 +597,7 @@ const adminReports = {
                     let statusBadge = '<span class="badge-status">–</span>';
                     if (statusLower === 'hadir' || statusLower === 'ontime') statusBadge = '<span class="badge-status success">Hadir</span>';
                     else if (statusLower === 'terlambat' || statusLower === 'late') statusBadge = '<span class="badge-status warning">Hadir (Terlambat)</span>';
+                    else if (statusLower === 'izin' || statusLower === 'cuti') statusBadge = `<span class="badge-status info">${row.clockIn || (statusLower === 'izin' ? 'Izin' : 'Cuti')}</span>`;
                     else if (statusLower === 'pending' || statusLower === 'waiting') statusBadge = '<span class="badge-status">Pending</span>';
 
                     const coords = this._parseLatLng(row.verificationLocation);
@@ -740,6 +741,7 @@ const adminReports = {
                     let statusBadge = '<span class="badge-status">–</span>';
                     if (statusLower === 'hadir' || statusLower === 'ontime') statusBadge = '<span class="badge-status success">Hadir</span>';
                     else if (statusLower === 'terlambat' || statusLower === 'late') statusBadge = '<span class="badge-status warning">Hadir (Terlambat)</span>';
+                    else if (statusLower === 'izin' || statusLower === 'cuti') statusBadge = `<span class="badge-status info">${row.clockIn || (statusLower === 'izin' ? 'Izin' : 'Cuti')}</span>`;
                     else if (statusLower === 'pending' || statusLower === 'waiting') statusBadge = '<span class="badge-status">Pending</span>';
 
                     const coords = this._parseLatLng(row.verificationLocation);
