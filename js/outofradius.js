@@ -2,10 +2,9 @@
  * Portal Karyawan - Laporan Absen Luar Radius
  * Approver (siapapun yang ditunjuk Admin di field "Approver Absen Luar
  * Radius" pada form Karyawan) meninjau & meng-approve laporan absen di
- * luar radius milik karyawan "Pekerja Lapangan" yang jadi tanggung
- * jawabnya. Approve di sini CUMA menandai "sudah ditinjau" - tidak
- * mengubah data absensi apapun, karena absennya sendiri sudah tersimpan
- * duluan (lihat face-recognition.js).
+ * luar radius milik karyawan yang jadi tanggung jawabnya. Approve di sini
+ * CUMA menandai "sudah ditinjau" - tidak mengubah data absensi apapun,
+ * karena absennya sendiri sudah tersimpan duluan (lihat face-recognition.js).
  */
 const outOfRadius = {
     reports: [],
