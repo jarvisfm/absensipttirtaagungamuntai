@@ -113,6 +113,7 @@ const absensi = {
     async loadAttendanceHistory() {
         try {
             const user = auth.getCurrentUser();
+            if (!user) return;
             const effectiveId = user.employeeId || user.id;
             // Pakai endpoint yang sudah difilter userId DI SERVER, bukan
             // getAllAttendance() yang menarik data semua karyawan lalu
