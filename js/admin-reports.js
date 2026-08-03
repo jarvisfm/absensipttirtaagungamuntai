@@ -632,7 +632,7 @@ const adminReports = {
                         return ` <i class="fas fa-map-marker-alt" style="color:#10b981;cursor:pointer;font-size:0.75rem;" onclick="adminReports.openMaps(${c.lat}, ${c.lng})" title="Lihat titik GPS sesi ini"></i>${namaHtml}`;
                     };
 
-                    // Tandai jam yang tercatat di luar radius (Pekerja Lapangan).
+                    // Tandai jam yang tercatat di luar radius.
                     // Dulu catatannya cuma muncul lewat hover (title attribute) -
                     // di HP/touchscreen hover tidak berfungsi, jadi sekarang
                     // badge-nya bisa DIKLIK/DITAP untuk menampilkan catatannya.
@@ -772,7 +772,7 @@ const adminReports = {
                         return ` <i class="fas fa-map-marker-alt" style="color:#10b981;cursor:pointer;font-size:0.75rem;" onclick="adminReports.openMaps(${c.lat}, ${c.lng})" title="Lihat titik GPS sesi ini"></i>${namaHtml}`;
                     };
 
-                    // Tandai jam yang tercatat di luar radius (Pekerja Lapangan)
+                    // Tandai jam yang tercatat di luar radius
                     // - sama seperti versi tabel desktop, cuma sebelumnya lupa
                     // ditambahkan di kartu mobile ini.
                     const oorBadgeM = (type) => {
