@@ -11,24 +11,44 @@ const auth = {
     // masuk dashboard tanpa login ulang. 12 jam.
     SESSION_DURATION_MS: 12 * 60 * 60 * 1000,
 
+    // Kalau app/browser ditutup (atau di-background, mis. minimize/kunci
+    // layar/pindah app lain) dan BARU dibuka lagi setelah lebih dari durasi
+    // ini, sesi dianggap habis walau SESSION_DURATION_MS di atas belum
+    // lewat - beda dari expiry 12 jam yang dihitung dari waktu login,  ini
+    // dihitung dari kapan TERAKHIR app-nya aktif/kelihatan. 30 menit.
+    IDLE_LOGOUT_MS: 30 * 60 * 1000,
+
     // Fitur "1 perangkat saja": tiap sekian detik, cek ke server apakah
     // sessionToken perangkat ini masih yang paling baru untuk akun ini.
     // Kalau akun ini ternyata sudah login lagi di perangkat lain, sesi di
     // perangkat ini otomatis di-logout dengan notifikasi.
-    SESSION_CHECK_INTERVAL_MS: 20 * 1000,
+    SESSION_CHECK_INTERVAL_MS: 5 * 1000,
     _sessionWatcherId: null,
     _visibilityHandler: null,
 
     init() {
     const session = storage.get('session');
     if (session && session.id && session.role && !this.isSessionExpired(session)) {
-        this.currentUser = session;
-        this.showApp(true); // true = restore sesi (refresh halaman), BUKAN login baru
-        this.startSessionWatcher();
+        if (this._isIdleTimedOut()) {
+            // App sempat ditutup/di-background >30 menit - anggap sesi
+            // habis walau belum 12 jam, harus login ulang.
+            storage.remove('session');
+            storage.remove('lastHiddenAt');
+            this.showLogin();
+            toast.show(
+                'Sesi Anda berakhir karena aplikasi tidak aktif lebih dari 30 menit. Silakan login kembali.',
+                'warning', 'Sesi Berakhir', 6000
+            );
+        } else {
+            this.currentUser = session;
+            this.showApp(true); // true = restore sesi (refresh halaman), BUKAN login baru
+            this.startSessionWatcher();
+        }
     } else {
         storage.remove('session');
         this.showLogin();
     }
+    this._startIdleTracking();
 
         // Login form handler
         const loginForm = document.getElementById('login-form');
@@ -47,6 +67,7 @@ const auth = {
         if (logoutBtn) {
             logoutBtn.addEventListener('click', () => this.handleLogout());
         }
+
 
         // Profile click - open profile modal
         // (helper isSessionExpired ada di bawah, dipakai oleh init() di atas)
@@ -125,6 +146,7 @@ const auth = {
 
             this.currentUser = user;
             storage.set('session', user);
+            storage.remove('lastHiddenAt');
 
             // Update UI
             this.updateUserUI();
@@ -170,11 +192,64 @@ const auth = {
         this.stopSessionWatcher();
         this.currentUser = null;
         storage.remove('session');
+        storage.remove('lastHiddenAt');
         storage.remove('currentPage');
         sessionStorage.removeItem('adminSwitchMode');
 
         this.showLogin();
         toast.info('Anda telah logout');
+    },
+
+    // Sudah lewat IDLE_LOGOUT_MS sejak app terakhir disembunyikan/ditutup?
+    _isIdleTimedOut() {
+        const lastHidden = storage.get('lastHiddenAt');
+        return !!(lastHidden && (Date.now() - lastHidden > this.IDLE_LOGOUT_MS));
+    },
+
+    /**
+     * Catat kapan app terakhir disembunyikan (tab/app pindah ke background,
+     * layar dikunci, atau browser/PWA ditutup) ke localStorage - dipakai
+     * _isIdleTimedOut() begitu app dibuka lagi (baik lewat init() setelah
+     * app benar-benar ditutup total, maupun langsung di listener di bawah
+     * kalau cuma pindah tab/app sebentar lalu balik lagi).
+     *
+     * 'visibilitychange' menangkap kasus minimize/kunci layar/pindah app
+     * lain. 'pagehide' jadi jaring pengaman tambahan khusus utuk kasus tab/
+     * browser/PWA benar-benar ditutup (lebih andal dibanding 'beforeunload'
+     * di mobile & PWA).
+     */
+    _startIdleTracking() {
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'hidden') {
+                storage.set('lastHiddenAt', Date.now());
+            } else if (document.visibilityState === 'visible') {
+                if (this.currentUser && this._isIdleTimedOut()) {
+                    this._forceLogoutIdleTimeout();
+                } else {
+                    storage.remove('lastHiddenAt');
+                }
+            }
+        });
+        window.addEventListener('pagehide', () => {
+            storage.set('lastHiddenAt', Date.now());
+        });
+    },
+
+    // Dipanggil kalau terdeteksi app sempat ditutup/di-background lebih
+    // dari IDLE_LOGOUT_MS - paksa logout disertai notifikasi yang jelas.
+    _forceLogoutIdleTimeout() {
+        this.stopSessionWatcher();
+        this.currentUser = null;
+        storage.remove('session');
+        storage.remove('lastHiddenAt');
+        storage.remove('currentPage');
+        sessionStorage.removeItem('adminSwitchMode');
+
+        this.showLogin();
+        toast.show(
+            'Sesi Anda berakhir karena aplikasi tidak aktif lebih dari 30 menit. Silakan login kembali.',
+            'warning', 'Sesi Berakhir', 6000
+        );
     },
 
     /**
