@@ -697,7 +697,7 @@
                     </div>
                 </div>
 
-                <!-- Modal Catatan Wajib - Absen Luar Radius (Pekerja Lapangan) -->
+                <!-- Modal Catatan Wajib - Absen Luar Radius (berlaku untuk semua karyawan) -->
                 <div class="modal-overlay" id="modal-out-of-radius-note" style="display:none;">
                     <div class="modal-container" style="max-width:480px;width:92%;">
                         <div class="modal-header">
@@ -705,7 +705,7 @@
                         </div>
                         <div style="padding:0 1.25rem 1.25rem;">
                             <p id="out-of-radius-note-info" style="font-size:0.85rem;color:var(--text-muted);margin-bottom:0.75rem;">
-                                Sebagai Pekerja Lapangan, Anda tetap boleh absen - jelaskan dulu sedang di mana/mengerjakan apa.
+                                Anda tetap boleh absen - jelaskan dulu sedang di mana/mengerjakan apa.
                             </p>
                             <label style="font-weight:600;font-size:0.85rem;">Catatan Alasan (wajib diisi)</label>
                             <textarea id="out-of-radius-note-text" rows="3" placeholder="Contoh: Sedang perbaikan pipa di lokasi pelanggan Jl. ..." style="width:100%;margin-top:6px;padding:10px;border:1px solid var(--border-color);border-radius:8px;font-family:inherit;"></textarea>
@@ -1956,30 +1956,11 @@
                     </select>
                 </div>
                 <div class="form-group" style="margin-top:1.5rem;border-top:1px solid var(--border-color);padding-top:1rem;">
-                    <label style="display:flex;align-items:center;gap:8px;font-weight:600;cursor:pointer;">
-                        <input type="checkbox" id="p-locationExempt" style="width:auto;">
-                        Pekerja Lapangan (bebas radius lokasi absen)
-                    </label>
-                    <small style="color:var(--text-muted);display:block;margin-top:2px;">Karyawan ini tetap bisa absen walau di luar radius kantor manapun (mis. sedang perbaikan pipa di lapangan). Hanya Admin yang bisa mengaktifkan ini.</small>
-                    <input type="text" id="p-locationExemptNote" placeholder="Catatan (contoh: Tim perbaikan pipa area luar kota)" style="margin-top:8px;">
-                    <div class="form-row two-col" style="margin-top:8px;">
-                        <div class="form-group">
-                            <label style="font-size:0.8rem;">Berlaku Dari (opsional)</label>
-                            <input type="date" id="p-locationExemptFrom">
-                        </div>
-                        <div class="form-group">
-                            <label style="font-size:0.8rem;">Berlaku Sampai (opsional)</label>
-                            <input type="date" id="p-locationExemptUntil">
-                        </div>
-                    </div>
-                    <small style="color:var(--text-muted);display:block;margin-top:2px;">Kosongkan kedua tanggal kalau mau berlaku terus-menerus. Kalau diisi, bebas-radius otomatis aktif HANYA di rentang tanggal itu — di luar itu, karyawan otomatis kembali terikat radius normal tanpa perlu dimatikan manual.</small>
-                    <div class="form-group" style="margin-top:12px;">
-                        <label style="font-size:0.8rem;">Approver Absen Luar Radius (opsional)</label>
-                        <select id="p-locationExemptApproverId">
-                            <option value="">-- Pilih approver --</option>
-                        </select>
-                        <small style="color:var(--text-muted);display:block;margin-top:2px;">Setiap kali karyawan ini absen dan benar-benar sedang di luar radius, laporan berisi jam & alasan akan dikirim ke approver ini untuk ditinjau (absennya sendiri tetap tersimpan seperti biasa).</small>
-                    </div>
+                    <label style="font-size:0.8rem;font-weight:600;">Approver Absen Luar Radius (opsional)</label>
+                    <select id="p-locationExemptApproverId">
+                        <option value="">-- Pilih approver --</option>
+                    </select>
+                    <small style="color:var(--text-muted);display:block;margin-top:2px;">Setiap kali karyawan ini absen dan benar-benar sedang di luar radius, laporan berisi jam & alasan akan dikirim ke approver ini untuk ditinjau (absennya sendiri tetap tersimpan seperti biasa).</small>
                 </div>
             </div>
 
