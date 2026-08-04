@@ -238,6 +238,15 @@ const notifications = {
             const isPemohonHr = pemohonBagian === 'UMUM DAN KEPEGAWAIAN';
             const gateStatus = pemohonRole === 'staff' ? 'asmen_approved' : 'pending';
 
+            // Izin Keluar Kantor: alur TERPISAH, Manajer bagian yang sama
+            // dengan pemohon adalah approver UTAMA/FINAL langsung dari
+            // status 'pending' (tidak lewat tahap Asmen) - sama persis
+            // dengan izin.js (renderApprovalList).
+            if (item.type === 'keluar_kantor') {
+                if (pemohonRole === 'manajer') return false;
+                return item.status === 'pending' && pemohonBagian === myBagian;
+            }
+
             if (pemohonRole === 'manajer') return false; // tahap ini dilewati sama sekali
             if (isPemohonHr) return isHrManajer && item.status === gateStatus;
             if (item.status === gateStatus && pemohonBagian === myBagian) return true;
