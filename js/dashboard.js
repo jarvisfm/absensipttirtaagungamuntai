@@ -97,7 +97,7 @@ const dashboard = {
             className = 'evening';
         }
 
-        const userName = auth.getCurrentUser()?.name?.split(' ')[0] || 'User';
+        const userName = auth.getCurrentUser()?.name || 'User';
         greetingEl.innerHTML = `${greeting}, <span id="welcome-name">${userName}</span>! 👋`;
 
         if (iconEl) {
