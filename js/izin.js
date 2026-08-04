@@ -25,6 +25,99 @@ const izin = {
         // Dropdown "Pilih Asmen" hanya untuk role staff (lihat submitIzinData
         // di backend - staff wajib pilih Asmen penyetuju sesuai bagiannya)
         this._setupAsmenDropdown();
+
+        // Kalau user sedang dalam periode Izin ATAU Cuti yang sudah disetujui
+        // (hari ini masuk rentang tanggalnya), kunci form pengajuan sampai
+        // periode itu selesai - supaya tidak bisa mengajukan izin/cuti baru
+        // yang tumpang tindih.
+        this._checkActiveBlock();
+    },
+
+    // Cek apakah user sedang dalam periode Izin/Cuti yang sudah disetujui
+    // penuh (status 'approved') dan MASIH BERLANGSUNG hari ini. Kalau ya,
+    // form pengajuan izin dikunci (lihat _toggleFormBlock) sampai periode
+    // itu lewat. Dicek lintas jenis: sedang Cuti pun tetap mengunci form
+    // Izin ini, bukan cuma sesama Izin.
+    async _checkActiveBlock() {
+        const currentUser = auth.getCurrentUser();
+        const userId = currentUser?.employeeId || currentUser?.id || 'demo-user';
+        const todayStr = (typeof dateTime !== 'undefined' && dateTime.getLocalDate)
+            ? dateTime.getLocalDate()
+            : new Date().toISOString().split('T')[0];
+
+        let activeInfo = null;
+
+        // 1) Cek riwayat Izin milik sendiri (sudah dimuat di this.izinData)
+        for (const rec of this.izinData) {
+            if (rec.status !== 'approved') continue;
+            const { start, end } = this._getIzinRange(rec);
+            if (start && end && start <= todayStr && todayStr <= end) {
+                activeInfo = { jenis: 'Izin', typeLabel: rec.typeLabel || 'Izin', sampai: end };
+                break;
+            }
+        }
+
+        // 2) Kalau belum ketemu, cek juga riwayat Cuti (request terpisah,
+        //    karena halaman ini tidak memuat data Cuti secara default)
+        if (!activeInfo) {
+            try {
+                const cutiRes = await api.getLeaves(userId);
+                const cutiList = (cutiRes && cutiRes.data) || [];
+                for (const rec of cutiList) {
+                    if (rec.status !== 'approved') continue;
+                    if (rec.startDate && rec.endDate && rec.startDate <= todayStr && todayStr <= rec.endDate) {
+                        activeInfo = { jenis: 'Cuti', typeLabel: rec.typeLabel || 'Cuti', sampai: rec.endDate };
+                        break;
+                    }
+                }
+            } catch (e) {
+                // Gagal ambil data Cuti (mis. offline) - jangan sampai
+                // mengunci form karena error jaringan, biarkan tetap terbuka.
+                console.error('Gagal cek status Cuti aktif:', e);
+            }
+        }
+
+        this._toggleFormBlock(activeInfo);
+    },
+
+    // Izin tipe 'izin_harian' punya field date+dateEnd eksplisit. Tipe lain
+    // (sick/keluar_kantor/dll) cuma punya date+duration(hari) - hitung
+    // tanggal selesainya dari situ supaya bisa dibandingkan dengan cara yang
+    // sama.
+    _getIzinRange(rec) {
+        const start = rec.date;
+        let end = rec.dateEnd;
+        if (!end && start) {
+            const durasi = parseInt(rec.duration, 10) || 1;
+            const d = new Date(start);
+            d.setDate(d.getDate() + durasi - 1);
+            end = d.toISOString().split('T')[0];
+        }
+        return { start, end };
+    },
+
+    // Tampilkan/sembunyikan form Pengajuan Izin berdasarkan hasil
+    // _checkActiveBlock(). activeInfo null berarti tidak sedang Izin/Cuti -
+    // form tetap terbuka seperti biasa.
+    _toggleFormBlock(activeInfo) {
+        const form    = document.getElementById('izin-form');
+        const blocked = document.getElementById('izin-form-blocked');
+        if (!form || !blocked) return;
+
+        if (activeInfo) {
+            form.style.display = 'none';
+            blocked.style.display = 'block';
+            const msgEl = document.getElementById('izin-form-blocked-msg');
+            if (msgEl) {
+                const sampaiFormatted = (typeof dateTime !== 'undefined' && dateTime.formatDate)
+                    ? dateTime.formatDate(new Date(activeInfo.sampai), 'short')
+                    : activeInfo.sampai;
+                msgEl.textContent = `Anda sedang ${activeInfo.jenis} (${activeInfo.typeLabel}) sampai ${sampaiFormatted}. Pengajuan baru bisa dilakukan setelah periode ini selesai.`;
+            }
+        } else {
+            form.style.display = '';
+            blocked.style.display = 'none';
+        }
     },
 
     // Muat daftar Asmen (kalau user role-nya staff). Visibilitas dropdown-nya
