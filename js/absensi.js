@@ -195,6 +195,12 @@ const absensi = {
      * 'hadir'/'ontime'/'terlambat'/'late' semua dihitung Hadir, 'terlambat'/
      * 'late' juga masuk breakdown Terlambat, Total = jumlah baris di bulan
      * yang lagi difilter.
+     *
+     * 'izin'/'cuti' JUGA dihitung Hadir - sama seperti Dinas Luar (yang
+     * baris Attendance-nya memang sudah ditulis status:'hadir' langsung
+     * oleh backend). Izin/Cuti yang sudah disetujui penuh itu bukan
+     * ketidakhadiran, jadi harus ikut dihitung Hadir juga, bukan cuma
+     * ditampilkan sebagai badge terpisah tanpa masuk hitungan mana pun.
      */
     renderHistoryStats(historyData) {
         const el = document.getElementById('attendance-history-stats');
@@ -202,7 +208,7 @@ const absensi = {
 
         const rows = historyData || [];
         const totalTerlambat = rows.filter(r => ['terlambat', 'late'].includes(String(r.status || '').toLowerCase())).length;
-        const totalHadir = rows.filter(r => ['hadir', 'ontime', 'terlambat', 'late'].includes(String(r.status || '').toLowerCase())).length;
+        const totalHadir = rows.filter(r => ['hadir', 'ontime', 'terlambat', 'late', 'izin', 'cuti'].includes(String(r.status || '').toLowerCase())).length;
         const totalHari = rows.length;
 
         el.innerHTML = `
