@@ -1,10 +1,20 @@
 /**
  * Portal Karyawan - Surat Tugas (SPPD)
- * Self-declare dinas luar - begitu disimpan, langsung berlaku (tanpa
- * approval), semua sesi absensi di rentang tanggal itu otomatis Hadir.
+ * Karyawan input pengajuan Surat Tugas (dinas luar) - berstatus PENDING
+ * dulu, baru berlaku (Attendance tercatat otomatis Dinas Luar) SETELAH
+ * disetujui Admin. Lihat approveSuratTugasData() di Surattugas.gs.
  */
 const suratTugas = {
     openModal() {
+        // Jangan izinkan input Surat Tugas selama user masih dalam rentang
+        // Izin/Cuti yang sedang berjalan hari ini (lihat updateUI() di
+        // absensi.js yang men-disable tombolnya) - dicek ulang di sini
+        // sebagai jaga-jaga kalau tombolnya somehow masih ke-klik.
+        if (window.absensi && absensi.currentState === 'excused') {
+            toast.error('Tidak bisa input Surat Tugas selama masih Izin/Cuti. Coba lagi setelah rentang Izin/Cuti Anda selesai.');
+            return;
+        }
+
         // Reset form tiap dibuka
         document.getElementById('st-nomorSurat').value = '';
         document.getElementById('st-tujuan').value = '';
@@ -40,7 +50,7 @@ const suratTugas = {
         try {
             const result = await api.submitSuratTugas(data);
             if (result.success) {
-                toast.success('Surat Tugas tersimpan! Absensi Anda otomatis tercatat Hadir untuk rentang tanggal tsb.');
+                toast.success('Surat Tugas berhasil diajukan! Menunggu persetujuan Admin sebelum absensi Anda otomatis tercatat Dinas Luar.');
                 document.getElementById('modal-surat-tugas').style.display = 'none';
                 // Refresh halaman Absensi supaya banner "Dinas Luar" langsung
                 // kelihatan kalau hari ini termasuk dalam rentangnya.
