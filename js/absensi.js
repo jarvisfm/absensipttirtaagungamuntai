@@ -327,6 +327,29 @@ const absensi = {
     });
 },
 
+    // Cek apakah karyawan yang sedang login sudah upload foto profil.
+    // Foto profil dipakai sebagai acuan pencocokan wajah (lihat
+    // face-recognition.js _getReferenceDescriptor) - kalau belum ada,
+    // pencocokan wajah otomatis di-skip (fail-open) sehingga siapa saja
+    // bisa absen memakai akun tsb. Makanya karyawan diwajibkan upload
+    // foto profil dulu sebelum diizinkan absen.
+    _hasProfilePhoto() {
+        const user = auth.getCurrentUser();
+        return !!(user && user.avatar);
+    },
+
+    // Balikin true (dan tampilkan notifikasi + arahkan ke halaman Profil)
+    // kalau user belum punya foto profil, supaya pemanggil bisa langsung
+    // "return" tanpa lanjut membuka kamera/face-recognition.
+    _blockIfNoProfilePhoto() {
+        if (!this._hasProfilePhoto()) {
+            toast.warning('Anda belum mengupload foto profil. Silakan upload foto profil terlebih dahulu sebelum melakukan absensi.');
+            router.navigate('profile');
+            return true;
+        }
+        return false;
+    },
+
     handleClockIn() {
         if (this.attendanceData.clockIn) return;
 
@@ -336,6 +359,8 @@ const absensi = {
             toast.warning(`Portal absen masuk baru dibuka pukul ${sesiMasuk.opensAt}`);
             return;
         }
+
+        if (this._blockIfNoProfilePhoto()) return;
 
         router.navigate('face-recognition');
         setTimeout(() => { if (window.faceRecognition) window.faceRecognition.init('clock-in'); }, 100);
@@ -350,6 +375,8 @@ const absensi = {
             return;
         }
 
+        if (this._blockIfNoProfilePhoto()) return;
+
         router.navigate('face-recognition');
         setTimeout(() => { if (window.faceRecognition) window.faceRecognition.init('break'); }, 100);
     },
@@ -362,6 +389,8 @@ const absensi = {
             toast.warning(`Absen setelah istirahat baru dibuka pukul ${sesi.opensAt}`);
             return;
         }
+
+        if (this._blockIfNoProfilePhoto()) return;
 
         router.navigate('face-recognition');
         setTimeout(() => { if (window.faceRecognition) window.faceRecognition.init('after-break'); }, 100);
@@ -381,6 +410,8 @@ const absensi = {
             toast.warning(`Absen pulang baru dibuka pukul ${sesi.opensAt}`);
             return;
         }
+
+        if (this._blockIfNoProfilePhoto()) return;
 
         router.navigate('face-recognition');
         setTimeout(() => { if (window.faceRecognition) window.faceRecognition.init('clock-out'); }, 100);
