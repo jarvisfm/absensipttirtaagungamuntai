@@ -599,6 +599,23 @@ const absensi = {
                 if (el) el.textContent = '--:--';
             }
         }
+
+        // Tombol Input Surat Tugas (SPPD) - dikunci selama user masih dalam
+        // rentang Izin/Cuti yang sedang berjalan (currentState 'excused'),
+        // supaya tidak bisa input dinas luar yang tumpang tindih dengan
+        // Izin/Cuti yang sudah disetujui. Otomatis aktif lagi begitu
+        // currentState bukan 'excused' lagi (rentang izin/cuti sudah lewat).
+        const btnSuratTugas = document.getElementById('btn-surat-tugas-trigger');
+        if (btnSuratTugas) {
+            btnSuratTugas.disabled = isExcused;
+            btnSuratTugas.classList.toggle('disabled', isExcused);
+            const subEl = document.getElementById('surat-tugas-trigger-sub');
+            if (subEl) {
+                subEl.textContent = isExcused
+                    ? 'Tidak bisa diisi selama masih Izin/Cuti'
+                    : 'Sedang dinas luar? Catat di sini';
+            }
+        }
     },
 
     renderTimeline() {
