@@ -37,6 +37,15 @@
     box-shadow: var(--shadow);
 }
 
+/* Kartu "Edit Profil" - beri jarak kiri/kanan (dan atas/bawah) supaya field
+   form (Nama, NIK, dst) tidak mepet ke tepi kartu. Dibuat class terpisah
+   (bukan menambah padding ke .settings-card langsung) supaya TIDAK ikut
+   mengubah kartu Pengaturan Shift/Hari Kerja/Sistem di halaman lain, yang
+   sudah punya padding sendiri lewat elemen di dalamnya masing-masing. */
+.pf-profile-card {
+    padding: var(--spacing-md);
+}
+
 .settings-card.shift-settings {
     grid-column: span 2;
 }
