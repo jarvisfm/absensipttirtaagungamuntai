@@ -1,0 +1,226 @@
+/* ============================================
+   PORTAL KARYAWAN - JADWAL JAGA OPERATOR
+   ============================================ */
+
+.jjo-container {
+    max-width: 100%;
+    padding: var(--spacing-md);
+}
+
+.jjo-header {
+    margin-bottom: var(--spacing-lg);
+}
+
+.jjo-header h2 {
+    font-size: var(--font-size-xl);
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: var(--spacing-xs);
+}
+
+.jjo-header p {
+    color: var(--text-secondary);
+    font-size: var(--font-size-sm);
+}
+
+.jjo-filters {
+    background: var(--bg-secondary);
+    border-radius: var(--border-radius-lg);
+    padding: var(--spacing-lg);
+    margin-bottom: var(--spacing-lg);
+    box-shadow: var(--shadow);
+    display: flex;
+    gap: var(--spacing-md);
+    flex-wrap: wrap;
+    align-items: flex-end;
+}
+
+.jjo-filter-item {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-xs);
+}
+
+.jjo-filter-item label {
+    font-size: var(--font-size-xs);
+    font-weight: 600;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.jjo-filter-item select,
+.jjo-filter-item input {
+    padding: var(--spacing-sm) var(--spacing-md);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    font-size: var(--font-size-sm);
+    min-width: 160px;
+}
+
+.jjo-filter-actions {
+    display: flex;
+    gap: var(--spacing-sm);
+    margin-left: auto;
+}
+
+.jjo-unit-info {
+    margin-bottom: var(--spacing-md);
+    font-size: var(--font-size-sm);
+    color: var(--text-primary);
+}
+
+.jjo-empty-msg {
+    color: var(--text-secondary);
+    padding: var(--spacing-lg);
+    text-align: center;
+}
+
+.jjo-table-wrap {
+    background: var(--bg-secondary);
+    border-radius: var(--border-radius-lg);
+    padding: var(--spacing-md);
+    box-shadow: var(--shadow);
+    overflow-x: auto;
+}
+
+.jjo-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: var(--font-size-sm);
+}
+
+.jjo-table th,
+.jjo-table td {
+    border: 1px solid var(--border-color);
+    padding: 6px 8px;
+    text-align: center;
+    vertical-align: middle;
+}
+
+.jjo-table th {
+    background: var(--bg-tertiary, #f3f4f6);
+    font-weight: 600;
+}
+
+.jjo-table .jjo-jam {
+    color: var(--text-secondary);
+    font-size: var(--font-size-xs);
+}
+
+.jjo-input {
+    width: 100%;
+    min-width: 130px;
+    border: 1px solid transparent;
+    background: transparent;
+    padding: 4px 6px;
+    border-radius: var(--border-radius);
+    font-size: var(--font-size-sm);
+    color: var(--text-primary);
+    text-align: left;
+}
+
+.jjo-input:focus {
+    outline: none;
+    border-color: var(--primary-color, #f59e0b);
+    background: var(--bg-primary);
+}
+
+.jjo-row-sabtu td { background: rgba(245, 158, 11, 0.12); }
+.jjo-row-minggu td { background: rgba(239, 68, 68, 0.12); }
+
+.jjo-team-editor {
+    margin-bottom: var(--spacing-md);
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-xs);
+}
+
+.jjo-team-editor label {
+    font-size: var(--font-size-xs);
+    font-weight: 600;
+    color: var(--text-secondary);
+}
+
+.jjo-team-editor textarea {
+    width: 100%;
+    padding: var(--spacing-sm);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    font-size: var(--font-size-sm);
+    font-family: inherit;
+    resize: vertical;
+}
+
+/* ── Konten cetak (di dalam .print-letter-overlay yang sudah ada) ── */
+.jjo-print-title {
+    text-align: center;
+    margin-bottom: var(--spacing-md);
+}
+
+.jjo-print-title h3 {
+    font-size: 16px;
+    font-weight: 700;
+    margin: 0;
+}
+
+.jjo-print-title h4 {
+    font-size: 14px;
+    font-weight: 600;
+    margin: 2px 0 0 0;
+    color: #d97706;
+}
+
+.jjo-print-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+    margin-bottom: var(--spacing-md);
+}
+
+.jjo-print-table th,
+.jjo-print-table td {
+    border: 1px solid #333;
+    padding: 4px 6px;
+    text-align: center;
+    vertical-align: middle;
+}
+
+.jjo-print-table th {
+    background: #f3f4f6;
+    font-weight: 700;
+}
+
+.jjo-print-legend p {
+    margin: 2px 0;
+    font-size: 12px;
+}
+
+.jjo-print-signature {
+    display: flex;
+    justify-content: space-between;
+    margin-top: var(--spacing-xl);
+    font-size: 13px;
+}
+
+.jjo-sig-left,
+.jjo-sig-right {
+    width: 45%;
+    text-align: center;
+}
+
+.jjo-print-toolbar {
+    display: flex;
+    justify-content: center;
+    gap: var(--spacing-md);
+    margin-top: var(--spacing-lg);
+}
+
+@media print {
+    .jjo-print-toolbar,
+    .no-print {
+        display: none !important;
+    }
+}
