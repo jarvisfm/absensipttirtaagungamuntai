@@ -8,7 +8,7 @@ const router = {
     routes: ['dashboard', 'absensi', 'face-recognition', 'izin', 'jurnal', 'cuti', 
          'approval-asmen', 'approval-manajer', 'approval-direktur', 'profile',
          'admin-dashboard', 'employees', 'karyawan', 'attendance-reports', 'jurnal-reports', 
-         'leave-reports', 'shift-schedule', 'settings'],
+         'leave-reports', 'surat-tugas-approval', 'shift-schedule', 'settings'],
     
     init() {
         // Handle navigation clicks
@@ -83,6 +83,7 @@ const router = {
             'attendance-reports': 'Rekap Absensi',
             'jurnal-reports': 'Rekap Jurnal Kerja',
             'leave-reports': 'Rekap Cuti & Izin',
+            'surat-tugas-approval': 'Approval Surat Tugas',
             'shift-schedule': 'Jadwal Shift',
             settings: 'Settings',
             profile: 'Edit Profil'
@@ -183,6 +184,9 @@ const router = {
                 break;
             case 'leave-reports':
                 if (window.initLeaveReports) window.initLeaveReports();
+                break;
+            case 'surat-tugas-approval':
+                if (window.initSuratTugasApproval) window.initSuratTugasApproval();
                 break;
             case 'shift-schedule':
                 if (window.initShiftSchedule) window.initShiftSchedule();
