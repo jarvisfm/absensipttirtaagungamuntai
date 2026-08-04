@@ -551,8 +551,11 @@ const adminReports = {
             // "Terlambat" tetap dihitung sebagai hadir (cuma telat absen masuk),
             // bukan status tandingan dari "Hadir" - makanya totalHadir mencakup
             // keduanya, dan totalTerlambat cuma breakdown info tambahan.
+            // 'izin'/'cuti' juga dihitung Hadir - sama seperti Dinas Luar
+            // (statusnya sudah 'hadir' langsung dari backend) - Izin/Cuti
+            // yang disetujui penuh bukan ketidakhadiran.
             const totalTerlambat = rows.filter(r => ['terlambat','late'].includes(String(r.status||'').toLowerCase())).length;
-            const totalHadir = rows.filter(r => ['hadir','ontime','terlambat','late'].includes(String(r.status||'').toLowerCase())).length;
+            const totalHadir = rows.filter(r => ['hadir','ontime','terlambat','late','izin','cuti'].includes(String(r.status||'').toLowerCase())).length;
             const totalHari = rows.length;
 
             html += `
@@ -711,8 +714,11 @@ const adminReports = {
             // "Terlambat" tetap dihitung sebagai hadir (cuma telat absen masuk),
             // bukan status tandingan dari "Hadir" - makanya totalHadir mencakup
             // keduanya, dan totalTerlambat cuma breakdown info tambahan.
+            // 'izin'/'cuti' juga dihitung Hadir - sama seperti Dinas Luar
+            // (statusnya sudah 'hadir' langsung dari backend) - Izin/Cuti
+            // yang disetujui penuh bukan ketidakhadiran.
             const totalTerlambat = rows.filter(r => ['terlambat','late'].includes(String(r.status||'').toLowerCase())).length;
-            const totalHadir = rows.filter(r => ['hadir','ontime','terlambat','late'].includes(String(r.status||'').toLowerCase())).length;
+            const totalHadir = rows.filter(r => ['hadir','ontime','terlambat','late','izin','cuti'].includes(String(r.status||'').toLowerCase())).length;
             const totalHari = rows.length;
 
             html += `
