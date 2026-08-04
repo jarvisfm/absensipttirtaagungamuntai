@@ -24,6 +24,7 @@
     <link rel="stylesheet" href="css/print-letters.css">
     <link rel="stylesheet" href="css/settings.css">
     <link rel="stylesheet" href="css/shift-schedule.css">
+    <link rel="stylesheet" href="css/jadwal-jaga-operator.css">
     <link rel="stylesheet" href="css/mobile.css">
     <link rel="stylesheet" href="css/admin.css">
     <link rel="stylesheet" href="css/face-rec.css">
@@ -220,6 +221,12 @@
                             <a href="#" class="nav-link">
                                 <i class="fas fa-calendar-alt"></i>
                                 <span>Jadwal Shift</span>
+                            </a>
+                        </li>
+                        <li class="nav-item" data-page="jadwal-jaga-operator">
+                            <a href="#" class="nav-link">
+                                <i class="fas fa-user-clock"></i>
+                                <span>Jadwal Jaga Operator</span>
                             </a>
                         </li>
                         <li class="nav-item" data-page="settings">
@@ -2853,6 +2860,45 @@
                     </div>
                 </div>
 
+                <!-- Jadwal Jaga Operator Page -->
+                <div class="page" id="page-jadwal-jaga-operator">
+                    <div class="jjo-container">
+                        <div class="jjo-header">
+                            <h2>Jadwal Jaga Operator</h2>
+                            <p>Atur &amp; cetak jadwal jaga per unit operator (Fase 1: belum terhubung ke absen)</p>
+                        </div>
+
+                        <div class="jjo-filters">
+                            <div class="jjo-filter-item">
+                                <label for="jjo-unit">Unit</label>
+                                <select id="jjo-unit"></select>
+                            </div>
+                            <div class="jjo-filter-item" id="jjo-cabang-wrap" style="display:none;">
+                                <label for="jjo-cabang-trd">Nama Cabang TRD</label>
+                                <input type="text" id="jjo-cabang-trd" placeholder="mis. Amuntai, Cabang 1">
+                            </div>
+                            <div class="jjo-filter-item">
+                                <label for="jjo-bulan">Bulan</label>
+                                <select id="jjo-bulan"></select>
+                            </div>
+                            <div class="jjo-filter-item">
+                                <label for="jjo-tahun">Tahun</label>
+                                <select id="jjo-tahun"></select>
+                            </div>
+                            <div class="jjo-filter-actions">
+                                <button class="btn btn-primary" id="jjo-btn-simpan"><i class="fas fa-save"></i> Simpan</button>
+                                <button class="btn btn-secondary" id="jjo-btn-cetak"><i class="fas fa-print"></i> Cetak</button>
+                            </div>
+                        </div>
+
+                        <div class="jjo-unit-info" id="jjo-unit-info"></div>
+
+                        <div class="jjo-table-wrap" id="jjo-table-wrap">
+                            <p class="jjo-empty-msg">Pilih unit terlebih dahulu untuk mengatur jadwal jaga.</p>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Settings Page -->
                 <div class="page" id="page-settings">
                     <div class="settings-container">
@@ -3292,6 +3338,7 @@
     <script src="js/admin-reports.js"></script>
     <script src="js/admin-surat-tugas.js"></script>
     <script src="js/shift-schedule.js"></script>
+    <script src="js/jadwal-jaga-operator.js"></script>
     <script src="js/settings.js"></script>
     <script src="js/mobile.js"></script>
     <script src="js/admin-switch.js"></script>
