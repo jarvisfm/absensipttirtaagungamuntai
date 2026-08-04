@@ -5,9 +5,20 @@
  * luar radius milik karyawan yang jadi tanggung jawabnya. Approve di sini
  * CUMA menandai "sudah ditinjau" - tidak mengubah data absensi apapun,
  * karena absennya sendiri sudah tersimpan duluan (lihat face-recognition.js).
+ *
+ * Laporan yang sudah "Sudah Ditinjau" TETAP ditampilkan (tidak hilang dari
+ * daftar) - beda dari Izin/Cuti yang riwayatnya baru ditambahkan terpisah,
+ * di sini daftarnya sendiri sudah berfungsi sebagai riwayat. Filter bulan
+ * ditambahkan supaya daftar tidak makin panjang seiring waktu.
  */
 const outOfRadius = {
     reports: [],
+
+    _containerMap: {
+        'asmen': 'out-of-radius-approval-list-asmen',
+        'manajer': 'out-of-radius-approval-list-manajer',
+        'direktur': 'out-of-radius-approval-list-direktur'
+    },
 
     /**
      * Dipanggil dari router.js bareng izin.initApprovalPage() &
@@ -16,13 +27,7 @@ const outOfRadius = {
      * ditunjuk manual per-karyawan oleh Admin, bukan berdasarkan role).
      */
     async initApprovalPage(role) {
-        const containerMap = {
-            'asmen': 'out-of-radius-approval-list-asmen',
-            'manajer': 'out-of-radius-approval-list-manajer',
-            'direktur': 'out-of-radius-approval-list-direktur'
-        };
-        const containerId = containerMap[role];
-        if (!containerId) return;
+        if (!this._containerMap[role]) return;
 
         const currentUser = auth.getCurrentUser();
         const myId = currentUser?.employeeId || currentUser?.id;
@@ -35,19 +40,56 @@ const outOfRadius = {
             this.reports = [];
         }
 
-        this._render(containerId);
+        this._populateMonthFilter(role);
+        this._render(role);
     },
 
-    _render(containerId) {
+    /**
+     * Isi dropdown filter bulan dari bulan-bulan yang BENAR-BENAR ada di
+     * laporan absen luar radius approver ini - sama pola/perilakunya
+     * seperti izin.js: _populateApprovalHistoryMonthFilter.
+     */
+    _populateMonthFilter(role) {
+        const select = document.getElementById(`out-of-radius-history-month-${role}`);
+        if (!select) return;
+
+        const monthNames = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+        const months = [...new Set(this.reports.map(r => (r.date || '').substring(0, 7)).filter(Boolean))];
+        months.sort().reverse();
+
+        const todayYM = (typeof dateTime !== 'undefined' && dateTime.getLocalDate) ? dateTime.getLocalDate().substring(0, 7) : '';
+        if (todayYM && !months.includes(todayYM)) months.unshift(todayYM);
+
+        const previouslySelected = select.value;
+        select.innerHTML = months.map(ym => {
+            const [y, m] = ym.split('-');
+            return `<option value="${ym}">${monthNames[parseInt(m) - 1]} ${y}</option>`;
+        }).join('');
+        select.value = months.includes(previouslySelected) ? previouslySelected : (todayYM || months[0] || '');
+
+        if (!select._monthFilterBound) {
+            select.addEventListener('change', () => this._render(role));
+            select._monthFilterBound = true;
+        }
+    },
+
+    _render(role) {
+        const containerId = this._containerMap[role];
         const container = document.getElementById(containerId);
         if (!container) return;
 
-        if (this.reports.length === 0) {
-            container.innerHTML = '<p style="color:var(--text-muted);font-size:0.85rem;padding:1rem 0;">Tidak ada laporan absen luar radius.</p>';
+        const select = document.getElementById(`out-of-radius-history-month-${role}`);
+        const selectedMonth = select ? select.value : '';
+        let filtered = this.reports;
+        if (selectedMonth) filtered = filtered.filter(r => (r.date || '').startsWith(selectedMonth));
+        filtered = filtered.slice().sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')));
+
+        if (filtered.length === 0) {
+            container.innerHTML = '<p style="color:var(--text-muted);font-size:0.85rem;padding:1rem 0;">Tidak ada laporan absen luar radius di bulan ini.</p>';
             return;
         }
 
-        container.innerHTML = this.reports.map(r => `
+        container.innerHTML = filtered.map(r => `
             <div style="border:1px solid var(--border-color);border-radius:8px;padding:1rem;margin-bottom:0.75rem;">
                 <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;">
                     <div style="min-width:0;">
@@ -87,8 +129,9 @@ const outOfRadius = {
                     report.status = 'approved';
                     report.approvedBy = currentUser?.name || '';
                 }
-                ['out-of-radius-approval-list-asmen', 'out-of-radius-approval-list-manajer', 'out-of-radius-approval-list-direktur']
-                    .forEach(cid => { if (document.getElementById(cid)) this._render(cid); });
+                Object.keys(this._containerMap).forEach(role => {
+                    if (document.getElementById(this._containerMap[role])) this._render(role);
+                });
             } else {
                 toast.error(result.error || 'Gagal menandai laporan');
             }
