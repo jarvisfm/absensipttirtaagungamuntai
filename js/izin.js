@@ -993,6 +993,8 @@ const izin = {
 
             this.closeApprovalModal();
             this.renderApprovalList(role);
+            this._populateApprovalHistoryMonthFilter(role);
+            this.renderApprovalHistory(role);
             if (decision === 'approve' && result.reviewedOnly) {
                 // Direktur "approve" Izin Keluar Kantor yang pemohonnya
                 // BUKAN Manajer - ini cuma catatan peninjauan beliau, BUKAN
