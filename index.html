@@ -210,6 +210,12 @@
                                 <span>Rekap Cuti & Izin</span>
                             </a>
                         </li>
+                        <li class="nav-item" data-page="surat-tugas-approval">
+                            <a href="#" class="nav-link">
+                                <i class="fas fa-suitcase"></i>
+                                <span>Approval Surat Tugas</span>
+                            </a>
+                        </li>
                         <li class="nav-item" data-page="shift-schedule">
                             <a href="#" class="nav-link">
                                 <i class="fas fa-calendar-alt"></i>
@@ -568,11 +574,11 @@
                                                 class="timeline-time">--:--</span></div>
                                     </div>
                                 </div>
-                                <button type="button" class="surat-tugas-trigger" onclick="suratTugas.openModal()" style="margin:12px 16px 16px;width:calc(100% - 32px);">
+                                <button type="button" class="surat-tugas-trigger" id="btn-surat-tugas-trigger" onclick="suratTugas.openModal()" style="margin:12px 16px 16px;width:calc(100% - 32px);">
                                     <span class="surat-tugas-trigger-icon"><i class="fas fa-suitcase"></i></span>
                                     <span class="surat-tugas-trigger-text">
                                         <strong>Input Surat Tugas (SPPD)</strong>
-                                        <small>Sedang dinas luar? Catat di sini</small>
+                                        <small id="surat-tugas-trigger-sub">Sedang dinas luar? Catat di sini</small>
                                     </span>
                                     <i class="fas fa-chevron-right surat-tugas-trigger-arrow"></i>
                                 </button>
@@ -2632,6 +2638,47 @@
                     </div>
                 </div>
 
+                <!-- Approval Surat Tugas (SPPD) Page -->
+                <div class="page" id="page-surat-tugas-approval">
+                    <div class="reports-container">
+                        <div class="reports-header">
+                            <div class="reports-title">
+                                <h2>Approval Surat Tugas (SPPD)</h2>
+                                <p>Tinjau &amp; setujui pengajuan Surat Tugas/Dinas Luar karyawan sebelum berlaku di absensi</p>
+                            </div>
+                        </div>
+                        <div class="reports-filters-card">
+                            <div class="reports-filters">
+                                <div class="filter-group"><label>Status</label><select id="st-status-filter">
+                                        <option value="">Semua</option>
+                                        <option value="pending">Menunggu</option>
+                                        <option value="approved">Disetujui</option>
+                                        <option value="rejected">Ditolak</option>
+                                    </select></div>
+                            </div>
+                        </div>
+                        <div class="reports-table-card">
+                            <div class="table-responsive">
+                                <table class="reports-table" id="surat-tugas-approval-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Karyawan</th>
+                                            <th>No. Surat</th>
+                                            <th>Tujuan</th>
+                                            <th>Tanggal</th>
+                                            <th>Keterangan</th>
+                                            <th>Status</th>
+                                            <th>Aksi</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="surat-tugas-approval-body"></tbody>
+                                </table>
+                            </div>
+                            <div class="mobile-cards" id="surat-tugas-approval-mobile-cards"></div>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Shift Schedule Page -->
                 <div class="page" id="page-shift-schedule">
                     <div class="shift-schedule-container">
@@ -3190,6 +3237,7 @@
     <script src="js/karyawan.js"></script>
     <script src="js/profile.js"></script>
     <script src="js/admin-reports.js"></script>
+    <script src="js/admin-surat-tugas.js"></script>
     <script src="js/shift-schedule.js"></script>
     <script src="js/settings.js"></script>
     <script src="js/mobile.js"></script>
