@@ -976,7 +976,14 @@ const izin = {
 
             this.closeApprovalModal();
             this.renderApprovalList(role);
-            toast.success(decision === 'approve' ? 'Pengajuan disetujui' : 'Pengajuan ditolak');
+            if (decision === 'approve' && result.reviewedOnly) {
+                // Direktur "approve" Izin Keluar Kantor yang pemohonnya
+                // BUKAN Manajer - ini cuma catatan peninjauan beliau, BUKAN
+                // keputusan final (itu wewenang Manajer bagian terkait).
+                toast.success('Peninjauan Anda tercatat. Keputusan final tetap menunggu approval Manajer bagian terkait (kalau belum).');
+            } else {
+                toast.success(decision === 'approve' ? 'Pengajuan disetujui' : 'Pengajuan ditolak');
+            }
 
             // Kalau approval ini adalah TAHAP TERAKHIR (status jadi 'approved'
             // sepenuhnya), otomatis generate PDF surat (persis tampilan
