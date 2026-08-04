@@ -763,6 +763,23 @@ const izin = {
                 const pemohonRole = pemohon.role || 'staff';
                 const pemohonBagian = String(pemohon.bagian || '').toUpperCase().trim();
 
+                // Izin Keluar Kantor: alur TERPISAH dari izin biasa - Manajer
+                // bagian yang SAMA dengan pemohon adalah approver UTAMA/FINAL
+                // (langsung dari status 'pending', tidak lewat tahap Asmen
+                // sama sekali - lihat approveIzinData() di Izin.gs). Kalau
+                // tidak ditangani di sini duluan, kondisi di bawah untuk
+                // pemohonRole 'staff' (butuh status 'asmen_approved') tidak
+                // akan pernah cocok, karena keluar_kantor memang tidak pernah
+                // mampir ke status itu - jadi tidak pernah muncul di antrean
+                // Manajer sama sekali.
+                if (i.type === 'keluar_kantor') {
+                    // Pemohonnya sendiri Manajer -> tahap ini dilewati,
+                    // langsung ke Direktur (representasi, tidak approve diri
+                    // sendiri/rekan setingkat).
+                    if (pemohonRole === 'manajer') return false;
+                    return i.status === 'pending' && pemohonBagian === myBagian;
+                }
+
                 if (pemohonRole === 'staff') {
                     // Sudah disetujui Asmen, dan izin itu dari bagian yang sama dengan Manajer ini
                     return i.status === 'asmen_approved' && pemohonBagian === myBagian;
