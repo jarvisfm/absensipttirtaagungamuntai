@@ -521,7 +521,13 @@ const absensi = {
         }
 
         const isLibur     = this.currentState === 'libur';
-        const hasBreak    = this._hasBreak();
+        const isExcused   = this.currentState === 'excused';
+        // Hari Izin/Cuti (excused) selalu tampilkan semua sesi (Clock In,
+        // Istirahat, Selesai Istirahat, Clock Out) meski _hasBreak() false
+        // (mis. accessInfo gagal dimuat) - backend selalu mengisi keempat
+        // field itu dengan label Izin/Cuti untuk hari yang di-excuse
+        // (lihat _markAttendanceRangeAsExcused di Attendance.gs).
+        const hasBreak    = this._hasBreak() || isExcused;
         const d           = this.attendanceData;
 
         // Tombol Masuk
@@ -622,8 +628,10 @@ const absensi = {
                 if (timeEl) timeEl.textContent = '--:--';
             }
 
-            // Sembunyikan item istirahat jika shift tidak punya istirahat
-            if ((type === 'break' || type === 'after-break') && !this._hasBreak()) {
+            // Sembunyikan item istirahat jika shift tidak punya istirahat -
+            // KECUALI hari ini status excused (Izin/Cuti), tetap tampilkan
+            // semua item supaya konsisten dengan card di atas.
+            if ((type === 'break' || type === 'after-break') && !this._hasBreak() && this.currentState !== 'excused') {
                 item.style.display = 'none';
             } else {
                 item.style.display = '';
