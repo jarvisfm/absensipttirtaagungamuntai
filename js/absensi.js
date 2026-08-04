@@ -74,9 +74,38 @@ const absensi = {
 
             this.attendanceData = today;
             this._activeSuratTugas = null;
+            this._activeExcusedRecord = null;
 
             // Tentukan state
-            if (!this.accessInfo || !this.accessInfo.canAccess) {
+            if (today.status === 'izin' || today.status === 'cuti') {
+                // Hari ini masuk rentang Izin/Cuti yang sudah disetujui
+                // penuh (lihat _markAttendanceRangeAsExcused di
+                // Attendance.gs) - dicek PALING AWAL, sebelum fallback
+                // !canAccess di bawah, supaya tidak ketimpa jadi 'libur'
+                // (backend sengaja set canAccess:false untuk hari yang
+                // di-excuse ini, tapi itu cuma buat kunci tombol absen
+                // manual - bukan berarti harus tampil sebagai "libur").
+                this.currentState = 'excused';
+                // Ambil tanggal selesai dari record Izin/Cuti aslinya (lihat
+                // excusedRefId/excusedRefType yang ditulis backend), untuk
+                // ditampilkan di banner (lihat updateUI) - mirip pola Dinas
+                // Luar di bawah.
+                try {
+                    if (today.excusedRefType === 'cuti') {
+                        const leaveRes = await api.getLeaves(effectiveId);
+                        if (leaveRes.success) {
+                            const rec = (leaveRes.data || []).find(l => String(l.id) === String(today.excusedRefId));
+                            if (rec) this._activeExcusedRecord = { type: 'cuti', tanggalSelesai: rec.endDate };
+                        }
+                    } else {
+                        const izinRes = await api.getIzin(effectiveId);
+                        if (izinRes.success) {
+                            const rec = (izinRes.data || []).find(i => String(i.id) === String(today.excusedRefId));
+                            if (rec) this._activeExcusedRecord = { type: 'izin', tanggalSelesai: rec.dateEnd || rec.date };
+                        }
+                    }
+                } catch (e) { /* banner tetap tampil, cuma tanpa tanggal selesai */ }
+            } else if (!this.accessInfo || !this.accessInfo.canAccess) {
                 this.currentState = 'libur';
             } else if (today.isDinasLuar) {
                 this.currentState = 'dinas';
@@ -90,12 +119,6 @@ const absensi = {
                         ) || null;
                     }
                 } catch (e) { /* banner tetap tampil, cuma tanpa tanggal selesai */ }
-            } else if (today.status === 'izin' || today.status === 'cuti') {
-                // Hari ini masuk rentang Izin/Cuti yang sudah disetujui
-                // penuh (lihat _markAttendanceRangeAsExcused di
-                // Attendance.gs) - bukan "selesai bekerja", jangan
-                // tampilkan pesan yang menyesatkan.
-                this.currentState = 'excused';
             } else if (today.clockOut) {
                 this.currentState = 'completed';
             } else if (today.breakStart && !today.breakEnd) {
@@ -480,6 +503,20 @@ const absensi = {
                 if (tanggalEl) tanggalEl.textContent = this._activeSuratTugas?.tanggalSelesai || '-';
             } else {
                 dinasInfo.style.display = 'none';
+            }
+        }
+
+        // Banner info Izin/Cuti (mirip pola banner Dinas Luar di atas)
+        const excusedInfo = document.getElementById('excused-info');
+        if (excusedInfo) {
+            if (this.currentState === 'excused') {
+                excusedInfo.style.display = 'block';
+                const typeLabelEl = document.getElementById('excused-type-label');
+                const tanggalEl   = document.getElementById('excused-tanggal');
+                if (typeLabelEl) typeLabelEl.textContent = this._activeExcusedRecord?.type === 'cuti' ? 'Cuti' : 'Izin';
+                if (tanggalEl)   tanggalEl.textContent   = this._activeExcusedRecord?.tanggalSelesai || '-';
+            } else {
+                excusedInfo.style.display = 'none';
             }
         }
 
