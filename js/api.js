@@ -150,6 +150,12 @@ const api = {
     async getAllSuratTugas() {
         return this.request('getAllSuratTugas');
     },
+    async approveSuratTugas(id, approver, catatan) {
+        return this.request('approveSuratTugas', { id, approver, catatan });
+    },
+    async rejectSuratTugas(id, approver, catatan) {
+        return this.request('rejectSuratTugas', { id, approver, catatan });
+    },
 
     // ========== LEAVES (CUTI) ==========
 
