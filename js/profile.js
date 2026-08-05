@@ -103,7 +103,15 @@ const profileManager = {
             document.getElementById('pf-terhitungMulai').value  = p.terhitungMulai || '';
             this.autoHitungMasaKerja();
             document.getElementById('pf-tahunPensiun').value    = p.tahunPensiun || '';
-            document.getElementById('pf-shift').value           = p.shift || 'Reguler (Sen-Kam)';
+            // Isi dropdown Jenis Jadwal dari konfigurasi terkini (halaman
+            // Jadwal Shift admin) - sama seperti di Edit Karyawan punya
+            // Admin (js/karyawan.js), supaya daftar Jenis Jadwal selalu
+            // sinkron di kedua sisi (tidak lagi daftar statis di sini).
+            if (window.populateJenisJadwalSelect) {
+                await populateJenisJadwalSelect('pf-shift', p.shift || 'Reguler (Sen-Kam)');
+            } else {
+                document.getElementById('pf-shift').value = p.shift || 'Reguler (Sen-Kam)';
+            }
 
             this.applyFieldPermissions();
 
