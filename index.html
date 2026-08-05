@@ -2745,126 +2745,27 @@
                     </div>
                 </div>
 
-                <!-- Shift Schedule Page -->
+                <!-- Shift Schedule Page (kini: pengaturan jam per Jenis Jadwal) -->
                 <div class="page" id="page-shift-schedule">
                     <div class="shift-schedule-container">
                         <div class="shift-schedule-header">
                             <div class="shift-schedule-title">
-                                <h2>Jadwal Shift Karyawan</h2>
-                                <p>Atur jadwal shift kerja karyawan per bulan</p>
+                                <h2>Jadwal Shift</h2>
+                                <p>Atur jam kerja (Masuk/Istirahat/Pulang) untuk tiap Jenis Jadwal - dipakai langsung oleh proses absen</p>
                             </div>
                             <div class="shift-schedule-actions">
-                                <button class="btn-secondary" id="btn-copy-schedule">
-                                    <i class="fas fa-copy"></i>
-                                    <span>Salin dari Bulan Lalu</span>
+                                <button class="btn-primary" id="ssc-btn-tambah-jenis">
+                                    <i class="fas fa-plus"></i>
+                                    <span>Tambah Jenis Jadwal</span>
                                 </button>
-                                <button class="btn-primary" id="btn-save-schedule">
+                                <button class="btn-primary" id="ssc-btn-simpan">
                                     <i class="fas fa-save"></i>
-                                    <span>Simpan Jadwal</span>
+                                    <span>Simpan Semua</span>
                                 </button>
                             </div>
                         </div>
 
-                        <div class="shift-schedule-filters">
-                            <div class="filter-row">
-                                <div class="filter-group">
-                                    <label>Bulan</label>
-                                    <select id="schedule-month">
-                                        <option value="0">Januari</option>
-                                        <option value="1">Februari</option>
-                                        <option value="2" selected>Maret</option>
-                                        <option value="3">April</option>
-                                        <option value="4">Mei</option>
-                                        <option value="5">Juni</option>
-                                        <option value="6">Juli</option>
-                                        <option value="7">Agustus</option>
-                                        <option value="8">September</option>
-                                        <option value="9">Oktober</option>
-                                        <option value="10">November</option>
-                                        <option value="11">Desember</option>
-                                    </select>
-                                </div>
-                                <div class="filter-group">
-                                    <label>Tahun</label>
-                                    <select id="schedule-year">
-                                        <option value="2025">2025</option>
-                                        <option value="2026" selected>2026</option>
-                                        <option value="2027">2027</option>
-                                    </select>
-                                </div>
-                                <div class="filter-group">
-                                    <label>Departemen</label>
-                                    <select id="schedule-dept-filter">
-                                        <option value="">Semua Departemen</option>
-                                        <option value="IT">IT</option>
-                                        <option value="HR">HR</option>
-                                        <option value="Finance">Finance</option>
-                                        <option value="Marketing">Marketing</option>
-                                        <option value="Operations">Operations</option>
-                                    </select>
-                                </div>
-                                <div class="filter-group search-group">
-                                    <label>Cari Karyawan</label>
-                                    <div class="search-input-wrapper">
-                                        <i class="fas fa-search"></i>
-                                        <input type="text" id="schedule-employee-search" placeholder="Nama karyawan...">
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="shift-legend">
-                                <span class="legend-label">Keterangan Shift:</span>
-                                <div class="legend-items" id="shift-legend-items">
-                                    <span class="legend-item shift-pagi"><i class="fas fa-sun"></i> Pagi</span>
-                                    <span class="legend-item shift-siang"><i class="fas fa-cloud-sun"></i> Siang</span>
-                                    <span class="legend-item shift-malam"><i class="fas fa-moon"></i> Malam</span>
-                                    <span class="legend-item shift-libur"><i class="fas fa-ban"></i> Libur</span>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="shift-schedule-table-wrapper">
-                            <div class="shift-schedule-table-container">
-                                <table class="shift-schedule-table" id="shift-schedule-table">
-                                    <thead>
-                                        <tr class="header-row">
-                                            <th class="employee-header sticky-col">Karyawan</th>
-                                            <!-- Dates will be generated by JS -->
-                                        </tr>
-                                    </thead>
-                                    <tbody id="shift-schedule-body">
-                                        <!-- Rows will be generated by JS -->
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-
-                        <div class="shift-schedule-summary">
-                            <div class="summary-card">
-                                <h4>Ringkasan Bulan Ini</h4>
-                                <div class="summary-stats" id="schedule-summary">
-                                    <div class="summary-item">
-                                        <span class="summary-label">Total Karyawan</span>
-                                        <span class="summary-value" id="summary-total-employees">0</span>
-                                    </div>
-                                    <div class="summary-item">
-                                        <span class="summary-label">Shift Pagi</span>
-                                        <span class="summary-value shift-pagi-count" id="summary-pagi">0</span>
-                                    </div>
-                                    <div class="summary-item">
-                                        <span class="summary-label">Shift Siang</span>
-                                        <span class="summary-value shift-siang-count" id="summary-siang">0</span>
-                                    </div>
-                                    <div class="summary-item">
-                                        <span class="summary-label">Shift Malam</span>
-                                        <span class="summary-value shift-malam-count" id="summary-malam">0</span>
-                                    </div>
-                                    <div class="summary-item">
-                                        <span class="summary-label">Libur</span>
-                                        <span class="summary-value shift-libur-count" id="summary-libur">0</span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+                        <div id="ssc-list"></div>
                     </div>
                 </div>
 
@@ -3327,6 +3228,7 @@
          terdeteksi di kamera. -->
     <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
     <script src="js/api.js"></script>
+    <script src="js/jenis-jadwal-util.js"></script>
     <script src="js/main.js"></script>
     <script src="js/auth.js"></script>
     <script src="js/router.js"></script>
