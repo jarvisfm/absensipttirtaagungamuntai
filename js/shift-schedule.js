@@ -127,7 +127,7 @@ const shiftSchedule = {
                     }
                 ]
             },
-            'Operator - 24 Jam Penuh': {
+            'Operator - 24 Jam': {
                 dayGroups: [
                     {
                         days: [0, 1, 2, 3, 4, 5, 6], label: 'Setiap Hari', batasLambat: '00:10', toleransi: 10,
@@ -138,7 +138,7 @@ const shiftSchedule = {
                     }
                 ]
             },
-            'Operator - 18 Jam (Babirik)': {
+            'Operator - 18 Jam': {
                 dayGroups: [
                     {
                         days: [0, 1, 2, 3, 4, 5, 6], label: 'Setiap Hari', batasLambat: '04:10', toleransi: 10,
@@ -149,7 +149,7 @@ const shiftSchedule = {
                     }
                 ]
             },
-            'Operator - 16 Jam (Danau Panggang)': {
+            'Operator - 16 Jam': {
                 dayGroups: [
                     {
                         days: [0, 1, 2, 3, 4, 5, 6], label: 'Setiap Hari', batasLambat: '05:10', toleransi: 10,
@@ -160,7 +160,7 @@ const shiftSchedule = {
                     }
                 ]
             },
-            'Operator - 13 Jam Split (Paminggir)': {
+            'Operator - 13 Jam': {
                 dayGroups: [
                     {
                         days: [0, 1, 2, 3, 4, 5, 6], label: 'Setiap Hari', batasLambat: '04:40', toleransi: 10,
