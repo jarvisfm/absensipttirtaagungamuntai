@@ -296,6 +296,8 @@ const adminEmployees = {
             modal.style.display = 'flex';
             document.body.style.overflow = 'hidden';
         }
+        // Isi dropdown Jenis Jadwal dari konfigurasi terkini (halaman Jadwal Shift)
+        if (window.populateJenisJadwalSelect) populateJenisJadwalSelect('emp-shift');
     },
 
     hideAddModal() {
@@ -415,7 +417,13 @@ editEmployee(id) {
     document.getElementById('edit-emp-username').value = emp.username || '';
     document.getElementById('edit-emp-department').value = emp.department || '';
     document.getElementById('edit-emp-position').value = emp.position || '';
-    document.getElementById('edit-emp-shift').value = emp.shift || 'Reguler (Sen-Kam)';
+    // Isi dropdown Jenis Jadwal dari konfigurasi terkini (halaman Jadwal Shift),
+    // baru set nilai terpilihnya - supaya <option> nya sudah ada sebelum di-assign.
+    if (window.populateJenisJadwalSelect) {
+        populateJenisJadwalSelect('edit-emp-shift', emp.shift || 'Reguler (Sen-Kam)');
+    } else {
+        document.getElementById('edit-emp-shift').value = emp.shift || 'Reguler (Sen-Kam)';
+    }
     document.getElementById('edit-emp-status').value = emp.status || 'active';
     document.getElementById('edit-emp-joindate').value = emp.joinDate || '';
     if (document.getElementById('edit-emp-role')) {
