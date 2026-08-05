@@ -1,405 +1,435 @@
 /**
- * Portal Karyawan - Shift Schedule
- * Employee shift schedule management for admin
+ * Portal Karyawan - Shift Schedule (Jadwal Shift)
+ * Fase ini: halaman "Jadwal Shift" diganti total jadi pengaturan JAM per
+ * Jenis Jadwal (field employee.shift) - bukan lagi kalender per-karyawan.
+ * Data ini yang benar-benar dipakai backend (checkAttendanceAccess) untuk
+ * buka/tutup sesi absen, jadi tidak ada lagi jam yang hardcode di kode.
  */
 
+const HARI_OPTIONS = [
+    { value: 0, label: 'Minggu' },
+    { value: 1, label: 'Senin' },
+    { value: 2, label: 'Selasa' },
+    { value: 3, label: 'Rabu' },
+    { value: 4, label: 'Kamis' },
+    { value: 5, label: 'Jumat' },
+    { value: 6, label: 'Sabtu' }
+];
+
+const SHIFT_TYPES_SETTING_KEY = 'shift_types_config';
+
 const shiftSchedule = {
-    employees: [],
-    shifts: [],
-    scheduleData: {},
-    currentMonth: new Date().getMonth(),
-    currentYear: new Date().getFullYear(),
-    filters: {
-        department: '',
-        search: ''
-    },
+    config: {},   // { "<Jenis Jadwal>": { dayGroups: [...] }, ... }
+    _dirty: false,
 
     async init() {
-        // Check if admin
         if (!auth.isAdmin()) {
             toast.error('Anda tidak memiliki akses ke halaman ini!');
             router.navigate('dashboard');
             return;
         }
-
         await this.loadData();
         this.bindEvents();
-        this.renderTable();
-        this.updateSummary();
+        this.render();
     },
 
     async loadData() {
-        // Load employees and shifts from API
         try {
-            const [empResult, shiftResult, settingsRes] = await Promise.all([
-                api.getEmployees(),
-                api.getShifts(),
-                api.getSettings()
-            ]);
-            this.employees = empResult.data || [];
-            this.shifts = shiftResult.data || [];
-
-            // Extract schedules from global settings string blobs
-            const loadedSchedules = {};
-            if (settingsRes.success && settingsRes.data) {
-                const globalSettings = settingsRes.data;
-                Object.keys(globalSettings).forEach(k => {
-                    if (k.startsWith('shift_schedule_')) {
-                        const monthKey = k.replace('shift_schedule_', '');
-                        try {
-                            loadedSchedules[monthKey] = JSON.parse(globalSettings[k]);
-                        } catch (e) { }
-                    }
-                });
-
-                if (Object.keys(loadedSchedules).length > 0) {
-                    this.scheduleData = loadedSchedules;
-                    storage.set('shift_schedule', loadedSchedules);
-                } else {
-                    this.scheduleData = storage.get('shift_schedule', {});
-                }
-            }
-        } catch (error) {
-            console.error('Error loading schedule data:', error);
-            this.employees = storage.get('admin_employees', []);
-            this.shifts = storage.get('shifts', []);
-            this.scheduleData = storage.get('shift_schedule', {});
+            const res = await api.getSettings();
+            const raw = res.success && res.data ? res.data[SHIFT_TYPES_SETTING_KEY] : null;
+            this.config = raw ? JSON.parse(raw) : this._defaultConfig();
+        } catch (e) {
+            console.error('Gagal memuat konfigurasi Jenis Jadwal:', e);
+            toast.error('Gagal memuat konfigurasi. Menampilkan nilai bawaan.');
+            this.config = this._defaultConfig();
         }
-
-        // Set current month/year from selectors
-        const monthSelect = document.getElementById('schedule-month');
-        const yearSelect = document.getElementById('schedule-year');
-
-        if (monthSelect) this.currentMonth = parseInt(monthSelect.value);
-        if (yearSelect) this.currentYear = parseInt(yearSelect.value);
-
-        // Generate sample data if empty (for demo)
-        this.generateSampleData();
+        this._dirty = false;
     },
 
-    generateSampleData() {
-        const key = `${this.currentYear}-${this.currentMonth}`;
-        if (!this.scheduleData[key]) {
-            this.scheduleData[key] = {};
-        }
-
-        // Generate random shifts for demo if no data exists
-        this.employees.forEach(emp => {
-            if (!this.scheduleData[key][emp.id]) {
-                this.scheduleData[key][emp.id] = {};
-                const daysInMonth = this.getDaysInMonth(this.currentMonth, this.currentYear);
-
-                for (let day = 1; day <= daysInMonth; day++) {
-                    const date = new Date(this.currentYear, this.currentMonth, day);
-                    const dayOfWeek = date.getDay();
-
-                    // Weekend = libur
-                    if (dayOfWeek === 0 || dayOfWeek === 6) {
-                        this.scheduleData[key][emp.id][day] = 'Libur';
-                    } else {
-                        // Random shift for weekdays
-                        const shifts = ['Pagi', 'Pagi', 'Pagi', 'Siang', 'Malam']; // Weighted towards Pagi
-                        const randomShift = shifts[Math.floor(Math.random() * shifts.length)];
-                        this.scheduleData[key][emp.id][day] = randomShift;
+    // Nilai bawaan ini SENGAJA persis meniru jam yang dulu hardcode di
+    // Attendance.gs, supaya kalau admin belum pernah menyimpan apa pun,
+    // jam kerja karyawan tidak berubah diam-diam.
+    _defaultConfig() {
+        return {
+            'Reguler (Sen-Kam)': {
+                dayGroups: [
+                    {
+                        days: [1, 2, 3, 4], label: 'Senin - Kamis', batasLambat: '08:10', toleransi: 0,
+                        sessions: [
+                            { label: 'Masuk', field: 'clockIn', time: '08:00', opensAt: '06:45' },
+                            { label: 'Istirahat Keluar', field: 'breakStart', time: '12:00', opensAt: '11:45' },
+                            { label: 'Istirahat Masuk', field: 'breakEnd', time: '13:30', opensAt: '13:15' },
+                            { label: 'Pulang', field: 'clockOut', time: '16:30', opensAt: '16:25' }
+                        ]
+                    },
+                    {
+                        days: [5], label: 'Jumat', batasLambat: '07:30', toleransi: 10,
+                        sessions: [
+                            { label: 'Masuk', field: 'clockIn', time: '07:30', opensAt: '06:45' },
+                            { label: 'Pulang', field: 'clockOut', time: '11:00', opensAt: '10:45' }
+                        ]
+                    },
+                    { days: [6], label: 'Sabtu', libur: true },
+                    { days: [0], label: 'Minggu', libur: true }
+                ]
+            },
+            'Jaga Malam': {
+                dayGroups: [
+                    {
+                        days: [1, 2, 3, 4, 5, 6], label: 'Senin - Sabtu', batasLambat: '21:00', toleransi: 10,
+                        sessions: [
+                            { label: 'Masuk', field: 'clockIn', time: '21:00', opensAt: '20:45' },
+                            { label: 'Istirahat', field: 'breakStart', time: '00:00', opensAt: '23:45' },
+                            { label: 'Pulang', field: 'clockOut', time: '05:00', opensAt: '04:45' }
+                        ]
+                    },
+                    { days: [0], label: 'Minggu', libur: true }
+                ]
+            },
+            // ── Bawah ini nilai awal untuk unit Operator yang polanya "1 blok
+            // jam per hari" (jam operasionalnya sama tiap hari, walau orang
+            // yang jaga gantian) - hasil pembacaan jadwal jaga fisik bulan
+            // Juli 2026. Admin bisa edit/hapus/tambah sendiri lewat halaman
+            // ini kapan saja.
+            //
+            // CATATAN: "SATPAM" dan "BNA Amuntai" SENGAJA belum saya
+            // tambahkan di sini - polanya beda (3 shift/hari, orang beda
+            // tiap shift, bergilir per hari) sehingga tidak cocok dengan
+            // model "1 Jenis Jadwal = jam tetap" seperti di bawah ini.
+            // Perlu mekanisme tambahan (baca jadwal jaga hari itu dari
+            // menu Jadwal Jaga Operator) - lihat penjelasan di chat.
+            'TRD': {
+                dayGroups: [
+                    {
+                        days: [0, 1, 2, 3, 4, 5, 6], label: 'Setiap Hari (jam bebas)', batasLambat: '23:59', toleransi: 0,
+                        sessions: [
+                            { label: 'Masuk', field: 'clockIn', time: '08:00', opensAt: '00:00' },
+                            { label: 'Pulang', field: 'clockOut', time: '23:59', opensAt: '00:00' }
+                        ]
                     }
-                }
+                ]
+            },
+            'Operator - 24 Jam Penuh': {
+                dayGroups: [
+                    {
+                        days: [0, 1, 2, 3, 4, 5, 6], label: 'Setiap Hari', batasLambat: '00:10', toleransi: 10,
+                        sessions: [
+                            { label: 'Masuk', field: 'clockIn', time: '00:00', opensAt: '00:00' },
+                            { label: 'Pulang', field: 'clockOut', time: '23:59', opensAt: '23:50' }
+                        ]
+                    }
+                ]
+            },
+            'Operator - 18 Jam (Babirik)': {
+                dayGroups: [
+                    {
+                        days: [0, 1, 2, 3, 4, 5, 6], label: 'Setiap Hari', batasLambat: '04:10', toleransi: 10,
+                        sessions: [
+                            { label: 'Masuk', field: 'clockIn', time: '04:00', opensAt: '03:45' },
+                            { label: 'Pulang', field: 'clockOut', time: '22:00', opensAt: '21:50' }
+                        ]
+                    }
+                ]
+            },
+            'Operator - 16 Jam (Danau Panggang)': {
+                dayGroups: [
+                    {
+                        days: [0, 1, 2, 3, 4, 5, 6], label: 'Setiap Hari', batasLambat: '05:10', toleransi: 10,
+                        sessions: [
+                            { label: 'Masuk', field: 'clockIn', time: '05:00', opensAt: '04:45' },
+                            { label: 'Pulang', field: 'clockOut', time: '21:00', opensAt: '20:50' }
+                        ]
+                    }
+                ]
+            },
+            'Operator - 13 Jam Split (Paminggir)': {
+                dayGroups: [
+                    {
+                        days: [0, 1, 2, 3, 4, 5, 6], label: 'Setiap Hari', batasLambat: '04:40', toleransi: 10,
+                        sessions: [
+                            { label: 'Masuk', field: 'clockIn', time: '04:30', opensAt: '04:15' },
+                            { label: 'Istirahat Keluar', field: 'breakStart', time: '13:00', opensAt: '12:45' },
+                            { label: 'Istirahat Masuk', field: 'breakEnd', time: '15:30', opensAt: '15:15' },
+                            { label: 'Pulang', field: 'clockOut', time: '20:00', opensAt: '19:50' }
+                        ]
+                    }
+                ]
             }
-        });
-
-        storage.set('shift_schedule', this.scheduleData);
+        };
     },
 
     bindEvents() {
-        // Month selector
-        const monthSelect = document.getElementById('schedule-month');
-        if (monthSelect) {
-            monthSelect.addEventListener('change', (e) => {
-                this.currentMonth = parseInt(e.target.value);
-                this.renderTable();
-                this.updateSummary();
-            });
-        }
+        const btnSimpan = document.getElementById('ssc-btn-simpan');
+        const btnTambah = document.getElementById('ssc-btn-tambah-jenis');
+        if (btnSimpan) btnSimpan.onclick = () => this.saveData();
+        if (btnTambah) btnTambah.onclick = () => this.addJenisJadwal();
+    },
 
-        // Year selector
-        const yearSelect = document.getElementById('schedule-year');
-        if (yearSelect) {
-            yearSelect.addEventListener('change', (e) => {
-                this.currentYear = parseInt(e.target.value);
-                this.renderTable();
-                this.updateSummary();
-            });
-        }
-
-        // Department filter
-        const deptFilter = document.getElementById('schedule-dept-filter');
-        if (deptFilter) {
-            deptFilter.addEventListener('change', (e) => {
-                this.filters.department = e.target.value;
-                this.renderTable();
-                this.updateSummary();
-            });
-        }
-
-        // Search filter
-        const searchInput = document.getElementById('schedule-employee-search');
-        if (searchInput) {
-            searchInput.addEventListener('input', (e) => {
-                this.filters.search = e.target.value.toLowerCase();
-                this.renderTable();
-                this.updateSummary();
-            });
-        }
-
-        // Save button
-        const saveBtn = document.getElementById('btn-save-schedule');
-        if (saveBtn) {
-            saveBtn.addEventListener('click', () => this.saveSchedule());
-        }
-
-        // Copy from last month button
-        const copyBtn = document.getElementById('btn-copy-schedule');
-        if (copyBtn) {
-            copyBtn.addEventListener('click', () => this.copyFromLastMonth());
+    async saveData() {
+        try {
+            const result = await api.saveSetting(SHIFT_TYPES_SETTING_KEY, JSON.stringify(this.config));
+            if (result && result.success) {
+                this._dirty = false;
+                toast.success('Jam kerja berhasil disimpan. Berlaku langsung untuk proses absen.');
+            } else {
+                toast.error('Gagal menyimpan. Coba lagi.');
+            }
+        } catch (e) {
+            console.error('Gagal menyimpan konfigurasi Jenis Jadwal:', e);
+            toast.error('Gagal menyimpan. Periksa koneksi internet Anda.');
         }
     },
 
-    getDaysInMonth(month, year) {
-        return new Date(year, month + 1, 0).getDate();
+    addJenisJadwal() {
+        const nama = prompt('Nama Jenis Jadwal baru (harus sama persis dengan yang dipilih di form Tambah/Edit Karyawan):');
+        if (!nama || !nama.trim()) return;
+        const key = nama.trim();
+        if (this.config[key]) {
+            toast.warning('Jenis Jadwal ini sudah ada.');
+            return;
+        }
+        this.config[key] = {
+            dayGroups: [
+                { days: [1, 2, 3, 4, 5], label: 'Senin - Jumat', batasLambat: '08:00', toleransi: 10,
+                  sessions: [
+                      { label: 'Masuk', field: 'clockIn', time: '08:00', opensAt: '07:45' },
+                      { label: 'Pulang', field: 'clockOut', time: '16:00', opensAt: '15:45' }
+                  ] },
+                { days: [6], label: 'Sabtu', libur: true },
+                { days: [0], label: 'Minggu', libur: true }
+            ]
+        };
+        this._markDirty();
+        this.render();
     },
 
-    getDayName(dayIndex) {
-        const days = ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'];
-        return days[dayIndex];
+    removeJenisJadwal(key) {
+        if (!confirm(`Hapus Jenis Jadwal "${key}"? Karyawan yang masih pakai jenis ini nanti otomatis dianggap "Reguler (Sen-Kam)" sampai diganti.`)) return;
+        delete this.config[key];
+        this._markDirty();
+        this.render();
     },
 
-    getFilteredEmployees() {
-        return this.employees.filter(emp => {
-            const matchDept = !this.filters.department || emp.department === this.filters.department;
-            const matchSearch = !this.filters.search ||
-                emp.name.toLowerCase().includes(this.filters.search) ||
-                emp.email.toLowerCase().includes(this.filters.search);
-            return matchDept && matchSearch;
+    addDayGroup(shiftKey) {
+        this.config[shiftKey].dayGroups.push({
+            days: [], label: 'Grup Baru', batasLambat: '08:00', toleransi: 0,
+            sessions: [{ label: 'Masuk', field: 'clockIn', time: '08:00', opensAt: '07:45' }]
         });
+        this._markDirty();
+        this.render();
     },
 
-    renderTable() {
-        const headerRow = document.querySelector('#shift-schedule-table thead tr');
-        const tbody = document.getElementById('shift-schedule-body');
+    removeDayGroup(shiftKey, groupIdx) {
+        this.config[shiftKey].dayGroups.splice(groupIdx, 1);
+        this._markDirty();
+        this.render();
+    },
 
-        if (!headerRow || !tbody) return;
+    addSession(shiftKey, groupIdx) {
+        const group = this.config[shiftKey].dayGroups[groupIdx];
+        if (!group.sessions) group.sessions = [];
+        group.sessions.push({ label: 'Sesi Baru', field: 'clockIn', time: '08:00', opensAt: '07:45' });
+        this._markDirty();
+        this.render();
+    },
 
-        // Clear existing date headers (keep employee header)
-        const existingDateHeaders = headerRow.querySelectorAll('.date-header-col');
-        existingDateHeaders.forEach(th => th.remove());
+    removeSession(shiftKey, groupIdx, sessionIdx) {
+        this.config[shiftKey].dayGroups[groupIdx].sessions.splice(sessionIdx, 1);
+        this._markDirty();
+        this.render();
+    },
 
-        // Get days in current month
-        const daysInMonth = this.getDaysInMonth(this.currentMonth, this.currentYear);
+    _markDirty() { this._dirty = true; },
 
-        // Generate date headers
-        for (let day = 1; day <= daysInMonth; day++) {
-            const date = new Date(this.currentYear, this.currentMonth, day);
-            const dayOfWeek = date.getDay();
-            const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+    render() {
+        const wrap = document.getElementById('ssc-list');
+        if (!wrap) return;
 
-            const th = document.createElement('th');
-            th.className = `date-header-col ${isWeekend ? 'weekend' : ''}`;
-            th.innerHTML = `
-                <div class="date-header ${isWeekend ? 'weekend' : ''}">
-                    <span class="date-day">${this.getDayName(dayOfWeek)}</span>
-                    <span class="date-number">${day}</span>
-                </div>
-            `;
-            headerRow.appendChild(th);
-        }
-
-        // Clear tbody
-        tbody.innerHTML = '';
-
-        // Get filtered employees
-        const filteredEmployees = this.getFilteredEmployees();
-
-        if (filteredEmployees.length === 0) {
-            tbody.innerHTML = `
-                <tr>
-                    <td colspan="${daysInMonth + 1}" class="shift-schedule-empty">
-                        <i class="fas fa-users-slash"></i>
-                        <p>Tidak ada karyawan yang sesuai dengan filter</p>
-                    </td>
-                </tr>
-            `;
+        const keys = Object.keys(this.config);
+        if (!keys.length) {
+            wrap.innerHTML = '<p class="ssc-empty-msg">Belum ada Jenis Jadwal. Klik "Tambah Jenis Jadwal" untuk mulai.</p>';
             return;
         }
 
-        // Generate employee rows
-        const key = `${this.currentYear}-${this.currentMonth}`;
-        const monthData = this.scheduleData[key] || {};
+        wrap.innerHTML = keys.map(key => this._renderShiftCard(key)).join('');
+        this._bindCardEvents();
+    },
 
-        filteredEmployees.forEach(emp => {
-            const tr = document.createElement('tr');
-            tr.setAttribute('data-employee-id', emp.id);
+    _renderShiftCard(shiftKey) {
+        const shiftConfig = this.config[shiftKey];
+        const groupsHtml = (shiftConfig.dayGroups || []).map((g, gIdx) => this._renderDayGroup(shiftKey, g, gIdx)).join('');
 
-            // Employee cell (sticky)
-            const empCell = document.createElement('td');
-            empCell.className = 'sticky-col';
-            empCell.innerHTML = `
-                <div class="employee-cell">
-                    <img src="${getAvatarUrl(emp)}" alt="${emp.name}" class="employee-avatar">
-                    <div class="employee-info">
-                        <span class="employee-name">${emp.name}</span>
-                        <span class="employee-dept">${emp.department}</span>
+        return `
+            <div class="ssc-card" data-shift="${this._escAttr(shiftKey)}">
+                <div class="ssc-card-header">
+                    <h3>${this._escAttr(shiftKey)}</h3>
+                    <button class="btn-icon-danger ssc-remove-shift" data-shift="${this._escAttr(shiftKey)}" title="Hapus Jenis Jadwal">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+                <div class="ssc-groups">${groupsHtml}</div>
+                <button class="btn-secondary ssc-add-group" data-shift="${this._escAttr(shiftKey)}">
+                    <i class="fas fa-plus"></i> Tambah Kelompok Hari
+                </button>
+            </div>
+        `;
+    },
+
+    _renderDayGroup(shiftKey, group, groupIdx) {
+        if (group.libur) {
+            return `
+                <div class="ssc-group ssc-group-libur" data-shift="${this._escAttr(shiftKey)}" data-group="${groupIdx}">
+                    <div class="ssc-group-row">
+                        <input type="text" class="ssc-input ssc-group-label" data-field="label" placeholder="Nama kelompok (mis. Minggu)" value="${this._escAttr(group.label || '')}">
+                        ${this._renderDayCheckboxes(shiftKey, groupIdx, group.days || [])}
+                        <label class="ssc-libur-toggle">
+                            <input type="checkbox" class="ssc-libur-checkbox" checked> Libur (tidak ada sesi absen)
+                        </label>
+                        <button class="btn-icon-danger ssc-remove-group" title="Hapus kelompok"><i class="fas fa-trash"></i></button>
                     </div>
                 </div>
             `;
-            tr.appendChild(empCell);
+        }
 
-            // Shift cells for each day
-            for (let day = 1; day <= daysInMonth; day++) {
-                const date = new Date(this.currentYear, this.currentMonth, day);
-                const dayOfWeek = date.getDay();
-                const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+        const sessionsHtml = (group.sessions || []).map((s, sIdx) => `
+            <div class="ssc-session-row" data-session="${sIdx}">
+                <input type="text" class="ssc-input ssc-session-label" data-field="label" placeholder="Label (mis. Masuk)" value="${this._escAttr(s.label || '')}">
+                <select class="ssc-input ssc-session-field" data-field="field">
+                    <option value="clockIn" ${s.field === 'clockIn' ? 'selected' : ''}>Masuk (clockIn)</option>
+                    <option value="breakStart" ${s.field === 'breakStart' ? 'selected' : ''}>Istirahat Keluar (breakStart)</option>
+                    <option value="breakEnd" ${s.field === 'breakEnd' ? 'selected' : ''}>Istirahat Masuk (breakEnd)</option>
+                    <option value="clockOut" ${s.field === 'clockOut' ? 'selected' : ''}>Pulang (clockOut)</option>
+                </select>
+                <label>Jam target <input type="time" class="ssc-input ssc-session-time" data-field="time" value="${this._escAttr(s.time || '')}"></label>
+                <label>Mulai bisa absen <input type="time" class="ssc-input ssc-session-opens" data-field="opensAt" value="${this._escAttr(s.opensAt || '')}"></label>
+                <button class="btn-icon-danger ssc-remove-session" title="Hapus sesi"><i class="fas fa-trash"></i></button>
+            </div>
+        `).join('');
 
-                const currentShift = monthData[emp.id]?.[day] || (isWeekend ? 'Libur' : '');
+        return `
+            <div class="ssc-group" data-shift="${this._escAttr(shiftKey)}" data-group="${groupIdx}">
+                <div class="ssc-group-row">
+                    <input type="text" class="ssc-input ssc-group-label" data-field="label" placeholder="Nama kelompok (mis. Senin-Kamis)" value="${this._escAttr(group.label || '')}">
+                    ${this._renderDayCheckboxes(shiftKey, groupIdx, group.days || [])}
+                    <label class="ssc-libur-toggle">
+                        <input type="checkbox" class="ssc-libur-checkbox"> Libur (tidak ada sesi absen)
+                    </label>
+                    <button class="btn-icon-danger ssc-remove-group" title="Hapus kelompok"><i class="fas fa-trash"></i></button>
+                </div>
+                <div class="ssc-batas-row">
+                    <label>Batas terlambat <input type="time" class="ssc-input ssc-batas-lambat" data-field="batasLambat" value="${this._escAttr(group.batasLambat || '')}"></label>
+                    <label>Toleransi (menit) <input type="number" min="0" class="ssc-input ssc-toleransi" data-field="toleransi" value="${group.toleransi != null ? group.toleransi : 0}"></label>
+                </div>
+                <div class="ssc-sessions">${sessionsHtml}</div>
+                <button class="btn-secondary ssc-add-session" data-shift="${this._escAttr(shiftKey)}" data-group="${groupIdx}">
+                    <i class="fas fa-plus"></i> Tambah Sesi
+                </button>
+            </div>
+        `;
+    },
 
-                const td = document.createElement('td');
-                td.className = `shift-select-cell ${isWeekend ? 'weekend' : ''}`;
+    _renderDayCheckboxes(shiftKey, groupIdx, selectedDays) {
+        const boxes = HARI_OPTIONS.map(h => `
+            <label class="ssc-day-chip">
+                <input type="checkbox" class="ssc-day-checkbox" value="${h.value}" ${selectedDays.includes(h.value) ? 'checked' : ''}>
+                ${h.label}
+            </label>
+        `).join('');
+        return `<div class="ssc-days">${boxes}</div>`;
+    },
 
-                // Create shift select dropdown
-                const select = document.createElement('select');
-                select.className = `shift-select ${currentShift ? 'shift-' + currentShift.toLowerCase() : ''}`;
-                select.setAttribute('data-employee-id', emp.id);
-                select.setAttribute('data-day', day);
+    _bindCardEvents() {
+        const wrap = document.getElementById('ssc-list');
+        if (!wrap) return;
 
-                // Add options
-                select.innerHTML = `
-                    <option value="">-</option>
-                    ${this.shifts.map(shift => `
-                        <option value="${shift.name}" ${currentShift === shift.name ? 'selected' : ''}>
-                            ${shift.name}
-                        </option>
-                    `).join('')}
-                    <option value="Libur" ${currentShift === 'Libur' ? 'selected' : ''}>Libur</option>
-                `;
-
-                // Add change event
-                select.addEventListener('change', (e) => {
-                    this.updateShift(emp.id, day, e.target.value);
-                    // Update class for styling
-                    select.className = `shift-select ${e.target.value ? 'shift-' + e.target.value.toLowerCase() : ''}`;
-                    this.updateSummary();
-                });
-
-                td.appendChild(select);
-                tr.appendChild(td);
-            }
-
-            tbody.appendChild(tr);
+        wrap.querySelectorAll('.ssc-remove-shift').forEach(btn => {
+            btn.onclick = () => this.removeJenisJadwal(btn.dataset.shift);
         });
-    },
+        wrap.querySelectorAll('.ssc-add-group').forEach(btn => {
+            btn.onclick = () => this.addDayGroup(btn.dataset.shift);
+        });
+        wrap.querySelectorAll('.ssc-remove-group').forEach(btn => {
+            const groupEl = btn.closest('.ssc-group');
+            btn.onclick = () => this.removeDayGroup(groupEl.dataset.shift, parseInt(groupEl.dataset.group, 10));
+        });
+        wrap.querySelectorAll('.ssc-add-session').forEach(btn => {
+            btn.onclick = () => this.addSession(btn.dataset.shift, parseInt(btn.dataset.group, 10));
+        });
+        wrap.querySelectorAll('.ssc-remove-session').forEach(btn => {
+            const groupEl = btn.closest('.ssc-group');
+            const sessionEl = btn.closest('.ssc-session-row');
+            btn.onclick = () => this.removeSession(groupEl.dataset.shift, parseInt(groupEl.dataset.group, 10), parseInt(sessionEl.dataset.session, 10));
+        });
 
-    updateShift(employeeId, day, shiftValue) {
-        const key = `${this.currentYear}-${this.currentMonth}`;
+        wrap.querySelectorAll('.ssc-group').forEach(groupEl => {
+            const shiftKey = groupEl.dataset.shift;
+            const groupIdx = parseInt(groupEl.dataset.group, 10);
+            const group = this.config[shiftKey].dayGroups[groupIdx];
 
-        if (!this.scheduleData[key]) {
-            this.scheduleData[key] = {};
-        }
-        if (!this.scheduleData[key][employeeId]) {
-            this.scheduleData[key][employeeId] = {};
-        }
+            const labelInput = groupEl.querySelector('.ssc-group-label');
+            if (labelInput) labelInput.oninput = () => { group.label = labelInput.value; this._markDirty(); };
 
-        this.scheduleData[key][employeeId][day] = shiftValue;
+            groupEl.querySelectorAll('.ssc-day-checkbox').forEach(cb => {
+                cb.onchange = () => {
+                    const day = parseInt(cb.value, 10);
+                    group.days = group.days || [];
+                    if (cb.checked) {
+                        if (!group.days.includes(day)) group.days.push(day);
+                    } else {
+                        group.days = group.days.filter(d => d !== day);
+                    }
+                    this._markDirty();
+                };
+            });
 
-        // Auto save to localStorage
-        storage.set('shift_schedule', this.scheduleData);
-    },
-
-    async saveSchedule() {
-        try {
-            const saveBtn = document.getElementById('btn-save-schedule');
-            if (saveBtn) saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Menyimpan...';
-
-            const key = `${this.currentYear}-${this.currentMonth}`;
-            const monthData = this.scheduleData[key] || {};
-
-            // Push exact month map configuration to Database API Global Settings
-            await api.saveSetting(`shift_schedule_${key}`, JSON.stringify(monthData));
-
-            // Maintain cache locally
-            storage.set('shift_schedule', this.scheduleData);
-
-            if (saveBtn) saveBtn.innerHTML = '<i class="fas fa-save"></i> Simpan Jadwal';
-            toast.success('Jadwal shift berhasil disimpan ke Server!');
-        } catch (error) {
-            console.error('Save error', error);
-            const saveBtn = document.getElementById('btn-save-schedule');
-            if (saveBtn) saveBtn.innerHTML = '<i class="fas fa-save"></i> Simpan Jadwal';
-            toast.error('Gagal menyimpan jadwal ke server!');
-        }
-    },
-
-    copyFromLastMonth() {
-        const lastMonth = this.currentMonth === 0 ? 11 : this.currentMonth - 1;
-        const lastYear = this.currentMonth === 0 ? this.currentYear - 1 : this.currentYear;
-
-        const lastKey = `${lastYear}-${lastMonth}`;
-        const currentKey = `${this.currentYear}-${this.currentMonth}`;
-
-        if (!this.scheduleData[lastKey]) {
-            toast.error('Tidak ada data jadwal di bulan sebelumnya!');
-            return;
-        }
-
-        if (confirm('Apakah Anda yakin ingin menyalin jadwal dari bulan lalu?')) {
-            // Copy data from last month
-            this.scheduleData[currentKey] = JSON.parse(JSON.stringify(this.scheduleData[lastKey]));
-            storage.set('shift_schedule', this.scheduleData);
-
-            this.renderTable();
-            this.updateSummary();
-            toast.success('Jadwal bulan lalu berhasil disalin!');
-        }
-    },
-
-    updateSummary() {
-        const key = `${this.currentYear}-${this.currentMonth}`;
-        const monthData = this.scheduleData[key] || {};
-        const filteredEmployees = this.getFilteredEmployees();
-
-        let pagiCount = 0;
-        let siangCount = 0;
-        let malamCount = 0;
-        let liburCount = 0;
-
-        filteredEmployees.forEach(emp => {
-            const empData = monthData[emp.id] || {};
-            Object.values(empData).forEach(shift => {
-                switch (shift) {
-                    case 'Pagi': pagiCount++; break;
-                    case 'Siang': siangCount++; break;
-                    case 'Malam': malamCount++; break;
-                    case 'Libur': liburCount++; break;
+            const liburCb = groupEl.querySelector('.ssc-libur-checkbox');
+            if (liburCb) liburCb.onchange = () => {
+                if (liburCb.checked) {
+                    group.libur = true;
+                    delete group.sessions;
+                    delete group.batasLambat;
+                    delete group.toleransi;
+                } else {
+                    delete group.libur;
+                    group.sessions = [{ label: 'Masuk', field: 'clockIn', time: '08:00', opensAt: '07:45' }];
+                    group.batasLambat = '08:00';
+                    group.toleransi = 0;
                 }
+                this._markDirty();
+                this.render();
+            };
+
+            const batasInput = groupEl.querySelector('.ssc-batas-lambat');
+            if (batasInput) batasInput.oninput = () => { group.batasLambat = batasInput.value; this._markDirty(); };
+
+            const toleransiInput = groupEl.querySelector('.ssc-toleransi');
+            if (toleransiInput) toleransiInput.oninput = () => { group.toleransi = parseInt(toleransiInput.value, 10) || 0; this._markDirty(); };
+
+            groupEl.querySelectorAll('.ssc-session-row').forEach(sessionEl => {
+                const sessionIdx = parseInt(sessionEl.dataset.session, 10);
+                const session = group.sessions[sessionIdx];
+
+                const labelEl = sessionEl.querySelector('.ssc-session-label');
+                if (labelEl) labelEl.oninput = () => { session.label = labelEl.value; this._markDirty(); };
+
+                const fieldEl = sessionEl.querySelector('.ssc-session-field');
+                if (fieldEl) fieldEl.onchange = () => { session.field = fieldEl.value; this._markDirty(); };
+
+                const timeEl = sessionEl.querySelector('.ssc-session-time');
+                if (timeEl) timeEl.oninput = () => { session.time = timeEl.value; this._markDirty(); };
+
+                const opensEl = sessionEl.querySelector('.ssc-session-opens');
+                if (opensEl) opensEl.oninput = () => { session.opensAt = opensEl.value; this._markDirty(); };
             });
         });
+    },
 
-        // Update summary elements
-        const totalEl = document.getElementById('summary-total-employees');
-        const pagiEl = document.getElementById('summary-pagi');
-        const siangEl = document.getElementById('summary-siang');
-        const malamEl = document.getElementById('summary-malam');
-        const liburEl = document.getElementById('summary-libur');
-
-        if (totalEl) totalEl.textContent = filteredEmployees.length;
-        if (pagiEl) pagiEl.textContent = pagiCount;
-        if (siangEl) siangEl.textContent = siangCount;
-        if (malamEl) malamEl.textContent = malamCount;
-        if (liburEl) liburEl.textContent = liburCount;
+    _escAttr(str) {
+        return String(str || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
     }
 };
 
-// Global init function
-window.initShiftSchedule = () => {
-    shiftSchedule.init();
-};
+function initShiftSchedule() { shiftSchedule.init(); }
 
-// Expose shiftSchedule object
 window.shiftSchedule = shiftSchedule;
+window.initShiftSchedule = initShiftSchedule;
