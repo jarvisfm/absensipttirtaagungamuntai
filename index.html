@@ -2120,6 +2120,13 @@
             <!-- Tab Keluarga -->
             <div id="tabcontent-keluarga" style="display:none;">
                 <div class="form-group">
+                    <label style="font-weight:600;">Link KTP (Karyawan)</label>
+                    <input type="url" id="p-fileKTP" placeholder="https://drive.google.com/file/d/..."
+                        oninput="karyawanManager.updateKtpPreview()"
+                        style="width:100%;padding:6px 10px;border:1px solid var(--border-color);border-radius:6px;font-family:inherit;">
+                    <div id="p-fileKTP-preview" style="position:relative;height:180px;border:1px solid var(--border-color);border-radius:8px;overflow:hidden;background:var(--bg-secondary,#f8f9fa);margin-top:8px;display:none;"></div>
+                </div>
+                <div class="form-group" style="margin-top:1.5rem;">
                     <label style="font-weight:600;">Nama Pasangan (Suami/Istri)</label>
                     <input type="text" id="p-namaPasangan" placeholder="Nama pasangan">
                 </div>
