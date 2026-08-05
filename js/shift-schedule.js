@@ -98,6 +98,24 @@ const shiftSchedule = {
             // model "1 Jenis Jadwal = jam tetap" seperti di bawah ini.
             // Perlu mekanisme tambahan (baca jadwal jaga hari itu dari
             // menu Jadwal Jaga Operator) - lihat penjelasan di chat.
+            // CATATAN: "SATPAM" & unit seperti BNA Amuntai polanya 3 shift/hari
+            // dengan orang berbeda tiap shift, bergilir per hari - belum bisa
+            // divalidasi presisi per-shift tanpa membaca jadwal jaga hari itu
+            // (lihat menu Jadwal Jaga Operator). Untuk sementara SATPAM diberi
+            // 1 sesi jam bebas (mirip TRD) supaya karyawan tetap bisa absen
+            // dengan wajar - nanti diperbaiki jadi presisi per-shift kalau
+            // mekanisme baca-jadwal-hari-ini sudah dibangun.
+            'SATPAM': {
+                dayGroups: [
+                    {
+                        days: [0, 1, 2, 3, 4, 5, 6], label: 'Setiap Hari (jam bebas - belum per-shift)', batasLambat: '23:59', toleransi: 0,
+                        sessions: [
+                            { label: 'Masuk', field: 'clockIn', time: '07:00', opensAt: '00:00' },
+                            { label: 'Pulang', field: 'clockOut', time: '23:59', opensAt: '00:00' }
+                        ]
+                    }
+                ]
+            },
             'TRD': {
                 dayGroups: [
                     {
