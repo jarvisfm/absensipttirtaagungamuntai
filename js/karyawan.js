@@ -253,6 +253,11 @@ const karyawanManager = {
 
             document.getElementById('p-namaPasangan').value = pasangan?.nama || '';
             this.renderPasanganDocBlocks(pasangan || {});
+
+            // Link KTP (Karyawan) - preview otomatis begitu link ke-load,
+            // sama seperti field KTP di Edit Profil punya user (js/profile.js).
+            document.getElementById('p-fileKTP').value = p.fileKTP || '';
+            this.updateKtpPreview();
             document.getElementById('p-namaAyah').value     = ayah?.nama || '';
             document.getElementById('p-namaIbu').value      = ibu?.nama || '';
 
@@ -273,7 +278,7 @@ const karyawanManager = {
             'p-tempatLahir','p-tanggalLahir','p-golonganDarah','p-noTelp','p-npwp','p-ktp',
             'p-email','p-statusPekerjaan','p-statusKaryawan','p-pendidikan','p-jabatan',
             'p-unitWilayah','p-bagian','p-pangkat','p-golongan','p-gajiPokok',
-            'p-terhitungMulai','p-masaKerja','p-tahunPensiun','p-shift',
+            'p-terhitungMulai','p-masaKerja','p-tahunPensiun','p-shift','p-fileKTP',
             'p-namaPasangan','p-namaAyah','p-namaIbu','p-username','p-password'];
 
         fields.forEach(id => {
@@ -293,7 +298,22 @@ const karyawanManager = {
         document.getElementById('foto-placeholder').style.display = 'block';
         document.getElementById('anak-list').innerHTML = '';
         this.renderPasanganDocBlocks();
+        this.updateKtpPreview();
         document.getElementById('karyawan-foto-file').value = '';
+    },
+
+    // Preview "Link KTP (Karyawan)" - persis pola updateKtpUserPreview di
+    // js/profile.js, auto-update tiap kali link diketik/tempel.
+    updateKtpPreview() {
+        const input = document.getElementById('p-fileKTP');
+        const previewEl = document.getElementById('p-fileKTP-preview');
+        if (!input || !previewEl) return;
+        const rawUrl = input.value;
+        previewEl.style.display = rawUrl ? 'block' : 'none';
+        const previewUrl = this.normalizeDriveLink(rawUrl);
+        previewEl.innerHTML = previewUrl
+            ? `<iframe src="${this._esc(previewUrl)}" style="width:100%;height:100%;border:none;"></iframe>`
+            : `<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:6px;color:var(--text-muted);"><i class="fas fa-file-circle-xmark"></i><span style="font-size:0.75rem;">${rawUrl ? 'Link tidak valid' : 'Belum ada link'}</span></div>`;
     },
 
     // Blok 1 field dokumen (link + preview) untuk 1 anak - dipakai 4x
@@ -516,6 +536,7 @@ const karyawanManager = {
             noTelp:           document.getElementById('p-noTelp').value.trim(),
             npwp:             document.getElementById('p-npwp').value.trim(),
             ktp:              document.getElementById('p-ktp').value.trim(),
+            fileKTP:          document.getElementById('p-fileKTP')?.value.trim() || '',
             email:            document.getElementById('p-email').value.trim(),
             statusPekerjaan:  document.getElementById('p-statusPekerjaan').value,
             statusKaryawan:   document.getElementById('p-statusKaryawan').value,
