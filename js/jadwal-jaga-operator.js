@@ -69,6 +69,7 @@ const jadwalJagaOperator = {
     year: new Date().getFullYear(),
     data: null,       // { days: {...}, teams: {...}(khusus TRD), signatures: {...} }
     _allSettings: {}, // cache semua settings dari server (supaya save 1 key tidak perlu reload semua)
+    _employees: [],   // semua karyawan berjabatan "Operator" (dari getKaryawanList)
     _dirty: false,
 
     async init() {
@@ -78,6 +79,7 @@ const jadwalJagaOperator = {
             return;
         }
 
+        await this._loadEmployees();
         this._populateUnitSelect();
         this._populateMonthYearSelect();
         this.bindEvents();
@@ -87,6 +89,34 @@ const jadwalJagaOperator = {
             this.unitKey = unitSelect.value;
             await this.loadAndRender();
         }
+    },
+
+    // Ambil karyawan berjabatan "Operator" (case-insensitive) - ini yang
+    // muncul sebagai pilihan petugas. Nama bebas-teks (Fase 1) sudah
+    // diganti jadi pilih dari daftar ini supaya bisa dicocokkan otomatis
+    // dengan karyawan yang login saat proses absen (lihat Attendance.gs).
+    async _loadEmployees() {
+        try {
+            const res = await api.getKaryawanList();
+            const all = (res.success && res.data) ? res.data : [];
+            this._employees = all.filter(e => String(e.jabatan || '').trim().toLowerCase() === 'operator');
+        } catch (e) {
+            console.error('Gagal memuat daftar karyawan Operator:', e);
+            toast.error('Gagal memuat daftar karyawan Operator.');
+            this._employees = [];
+        }
+    },
+
+    // Karyawan Operator yang ditugaskan di unit ini saja (berdasarkan Unit
+    // Wilayah). TRD sengaja tidak difilter per-unit di sini karena masih
+    // pakai sistem tim bebas-teks (lihat catatan di OPERATOR_UNITS).
+    _employeesForUnit(unitKey) {
+        return this._employees.filter(e => String(e.unitWilayah || '') === unitKey);
+    },
+
+    _employeeName(id) {
+        const emp = this._employees.find(e => String(e.id) === String(id));
+        return emp ? emp.nama : '';
     },
 
     _populateUnitSelect() {
@@ -271,6 +301,7 @@ const jadwalJagaOperator = {
         if (!wrap) return;
         const days = this._daysInMonth();
         const isGrup = unit.pattern === 'multi-grup';
+        const unitEmployees = this._employeesForUnit(this.unitKey);
 
         let rows = '';
         for (let d = 1; d <= days; d++) {
@@ -280,7 +311,15 @@ const jadwalJagaOperator = {
             if (!this.data.days[d]) this.data.days[d] = dayData;
 
             unit.sessions.forEach((sess, idx) => {
-                const val = dayData.sessions[sess.key] || '';
+                const rawVal = dayData.sessions[sess.key];
+                const selectedIds = isGrup
+                    ? (Array.isArray(rawVal) ? rawVal.map(String) : [])
+                    : (rawVal ? [String(rawVal)] : []);
+
+                const optionsHtml = unitEmployees.map(emp => `
+                    <option value="${emp.id}" ${selectedIds.includes(String(emp.id)) ? 'selected' : ''}>${this._escAttr(emp.nama)}</option>
+                `).join('');
+
                 rows += `<tr class="${rowClass}">`;
                 if (idx === 0) {
                     rows += `<td rowspan="${unit.sessions.length}">${d}</td>`;
@@ -288,9 +327,11 @@ const jadwalJagaOperator = {
                 }
                 rows += `<td>${sess.label}<br><span class="jjo-jam">${sess.time}</span></td>`;
                 rows += `<td>
-                    <input type="text" class="jjo-input" data-day="${d}" data-session="${sess.key}"
-                        value="${this._escAttr(val)}"
-                        placeholder="${isGrup ? 'Nama1, Nama2, Nama3' : 'Nama petugas'}">
+                    <select class="jjo-select" data-day="${d}" data-session="${sess.key}" ${isGrup ? 'multiple size="4"' : ''}>
+                        ${!isGrup ? '<option value="">- Kosong -</option>' : ''}
+                        ${optionsHtml}
+                    </select>
+                    ${unitEmployees.length === 0 ? '<div class="jjo-no-emp">Belum ada karyawan Operator di unit ini</div>' : ''}
                 </td>`;
                 if (idx === 0) {
                     rows += `<td rowspan="${unit.sessions.length}">
@@ -309,7 +350,7 @@ const jadwalJagaOperator = {
                         <th>No</th>
                         <th>Hari, Tanggal</th>
                         <th>Jam</th>
-                        <th>Nama Petugas${isGrup ? ' <small>(pisahkan koma kalau lebih dari 1)</small>' : ''}</th>
+                        <th>Nama Petugas${isGrup ? ' <small>(Ctrl/Cmd+klik untuk pilih lebih dari 1)</small>' : ''}</th>
                         <th>Keterangan</th>
                     </tr>
                 </thead>
@@ -323,6 +364,7 @@ const jadwalJagaOperator = {
         const wrap = document.getElementById('jjo-table-wrap');
         if (!wrap) return;
         const days = this._daysInMonth();
+        const unitEmployees = this._employeesForUnit(this.unitKey);
 
         let rows = '';
         for (let d = 1; d <= days; d++) {
@@ -331,12 +373,22 @@ const jadwalJagaOperator = {
             const dayData = this.data.days[d] || { petugas: '', keterangan: '' };
             if (!this.data.days[d]) this.data.days[d] = dayData;
 
+            const selectedId = dayData.petugas ? String(dayData.petugas) : '';
+            const optionsHtml = unitEmployees.map(emp => `
+                <option value="${emp.id}" ${selectedId === String(emp.id) ? 'selected' : ''}>${this._escAttr(emp.nama)}</option>
+            `).join('');
+
             rows += `<tr class="${rowClass}">
                 <td>${d}</td>
                 <td>${info.hariName}<br>${info.tanggalStr}</td>
                 <td>${unit.jamLabel}</td>
-                <td><input type="text" class="jjo-input" data-day="${d}" data-field="petugas"
-                        value="${this._escAttr(dayData.petugas || '')}" placeholder="Nama petugas"></td>
+                <td>
+                    <select class="jjo-select" data-day="${d}" data-field="petugas">
+                        <option value="">- Kosong -</option>
+                        ${optionsHtml}
+                    </select>
+                    ${unitEmployees.length === 0 ? '<div class="jjo-no-emp">Belum ada karyawan Operator di unit ini</div>' : ''}
+                </td>
                 <td><input type="text" class="jjo-input" data-day="${d}" data-field="keterangan"
                         value="${this._escAttr(dayData.keterangan || '')}" placeholder="Catatan (opsional)"></td>
             </tr>`;
@@ -420,6 +472,30 @@ const jadwalJagaOperator = {
                     this.data.days[day].sessions[session] = input.value;
                 } else if (field) {
                     this.data.days[day][field] = input.value;
+                }
+                this._markDirty();
+            };
+        });
+
+        // Dropdown pilih petugas (menggantikan teks bebas - Fase 2b). Untuk
+        // sesi multi-grup (mis. BNA Amuntai) selectnya "multiple", nilainya
+        // array ID karyawan; selain itu 1 ID saja (atau '' kalau kosong).
+        document.querySelectorAll('#jjo-table-wrap .jjo-select').forEach(sel => {
+            sel.onchange = () => {
+                const day = sel.dataset.day;
+                const session = sel.dataset.session;
+                const field = sel.dataset.field;
+                if (!this.data.days[day]) this.data.days[day] = {};
+
+                if (session) {
+                    if (!this.data.days[day].sessions) this.data.days[day].sessions = {};
+                    if (sel.multiple) {
+                        this.data.days[day].sessions[session] = Array.from(sel.selectedOptions).map(o => o.value).filter(Boolean);
+                    } else {
+                        this.data.days[day].sessions[session] = sel.value;
+                    }
+                } else if (field) {
+                    this.data.days[day][field] = sel.value;
                 }
                 this._markDirty();
             };
@@ -511,8 +587,9 @@ const jadwalJagaOperator = {
                 const info = this._dayInfo(d);
                 const dayData = this.data.days[d] || { sessions: {}, keterangan: '' };
                 unit.sessions.forEach((sess, idx) => {
-                    const namaRaw = (dayData.sessions && dayData.sessions[sess.key]) || '';
-                    const namaHtml = namaRaw.split(',').map(n => n.trim()).filter(Boolean).join('<br>') || '-';
+                    const rawVal = dayData.sessions && dayData.sessions[sess.key];
+                    const ids = Array.isArray(rawVal) ? rawVal : (rawVal ? [rawVal] : []);
+                    const namaHtml = ids.map(id => this._escAttr(this._employeeName(id))).filter(Boolean).join('<br>') || '-';
                     rows += `<tr>`;
                     if (idx === 0) {
                         rows += `<td rowspan="${unit.sessions.length}">${d}</td>`;
@@ -533,10 +610,11 @@ const jadwalJagaOperator = {
             for (let d = 1; d <= days; d++) {
                 const info = this._dayInfo(d);
                 const dayData = this.data.days[d] || { petugas: '', keterangan: '' };
+                const namaPetugas = this._employeeName(dayData.petugas) || '-';
                 rows += `<tr>
                     <td>${d}</td><td>${info.hariName}<br>${info.tanggalStr}</td>
                     <td>${unit.jamLabel}</td>
-                    <td>${this._escAttr(dayData.petugas || '-')}</td>
+                    <td>${this._escAttr(namaPetugas)}</td>
                     <td>${this._escAttr(dayData.keterangan || '')}</td>
                 </tr>`;
             }
