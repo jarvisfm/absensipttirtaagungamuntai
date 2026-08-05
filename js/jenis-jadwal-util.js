@@ -36,10 +36,10 @@ async function getJenisJadwalOptions() {
         'Jaga Malam',
         'SATPAM',
         'TRD',
-        'Operator - 24 Jam Penuh',
-        'Operator - 18 Jam (Babirik)',
-        'Operator - 16 Jam (Danau Panggang)',
-        'Operator - 13 Jam Split (Paminggir)'
+        'Operator - 24 Jam',
+        'Operator - 18 Jam',
+        'Operator - 16 Jam',
+        'Operator - 13 Jam'
     ];
 }
 
