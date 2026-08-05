@@ -199,14 +199,32 @@ const shiftSchedule = {
     },
 
     addJenisJadwal() {
-        const nama = prompt('Nama Jenis Jadwal baru (harus sama persis dengan yang dipilih di form Tambah/Edit Karyawan):');
-        if (!nama || !nama.trim()) return;
-        const key = nama.trim();
-        if (this.config[key]) {
+        const input = document.getElementById('ssc-new-jenis-nama');
+        if (input) input.value = '';
+        const modal = document.getElementById('modal-tambah-jenis-jadwal');
+        if (modal) {
+            modal.style.display = 'flex';
+            setTimeout(() => input?.focus(), 50);
+        }
+    },
+
+    closeAddJenisJadwalModal() {
+        const modal = document.getElementById('modal-tambah-jenis-jadwal');
+        if (modal) modal.style.display = 'none';
+    },
+
+    confirmAddJenisJadwal() {
+        const input = document.getElementById('ssc-new-jenis-nama');
+        const nama = (input?.value || '').trim();
+        if (!nama) {
+            toast.error('Nama Jenis Jadwal wajib diisi.');
+            return;
+        }
+        if (this.config[nama]) {
             toast.warning('Jenis Jadwal ini sudah ada.');
             return;
         }
-        this.config[key] = {
+        this.config[nama] = {
             dayGroups: [
                 { days: [1, 2, 3, 4, 5], label: 'Senin - Jumat', batasLambat: '08:00', toleransi: 10,
                   sessions: [
@@ -219,6 +237,7 @@ const shiftSchedule = {
         };
         this._markDirty();
         this.render();
+        this.closeAddJenisJadwalModal();
     },
 
     removeJenisJadwal(key) {
