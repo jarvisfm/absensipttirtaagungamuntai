@@ -636,3 +636,53 @@
 .btn-icon-danger:hover {
     background: rgba(239, 68, 68, 0.1);
 }
+
+/* Mobile Responsive - JADWAL SHIFT (.ssc-*) */
+@media (max-width: 768px) {
+    .ssc-card {
+        padding: var(--spacing-md);
+    }
+
+    .ssc-group-row {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .ssc-group-label {
+        min-width: 0;
+        width: 100%;
+    }
+
+    .ssc-days {
+        width: 100%;
+    }
+
+    .ssc-batas-row {
+        flex-direction: column;
+        align-items: stretch;
+        gap: var(--spacing-sm);
+    }
+
+    .ssc-session-row {
+        align-items: stretch;
+    }
+
+    .ssc-batas-row label,
+    .ssc-session-row label {
+        width: 100%;
+    }
+
+    .ssc-input {
+        width: 100%;
+        box-sizing: border-box;
+    }
+
+    /* Tombol hapus (trash icon) - jangan ikut dipaksa full-width oleh
+       align-items:stretch, cukup rata kiri supaya tetap kompak & tidak
+       "mengambang" terpisah seperti sebelumnya. */
+    .ssc-group-row > .btn-icon-danger,
+    .ssc-session-row > .btn-icon-danger {
+        width: auto;
+        align-self: flex-start;
+    }
+}
