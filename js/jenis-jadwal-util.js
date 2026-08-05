@@ -28,8 +28,19 @@ async function getJenisJadwalOptions() {
         console.error('Gagal memuat daftar Jenis Jadwal dari konfigurasi:', e);
     }
     // Fallback kalau gagal dimuat / admin belum pernah menyimpan apa pun di
-    // halaman Jadwal Shift - supaya form tetap bisa dipakai.
-    return ['Reguler (Sen-Kam)', 'Jaga Malam'];
+    // halaman Jadwal Shift - persis meniru daftar bawaan di shift-schedule.js
+    // (_defaultConfig) supaya dropdown ini tetap lengkap sejak awal, sebelum
+    // admin sempat buka & "Simpan Semua" di halaman Jadwal Shift.
+    return [
+        'Reguler (Sen-Kam)',
+        'Jaga Malam',
+        'SATPAM',
+        'TRD',
+        'Operator - 24 Jam Penuh',
+        'Operator - 18 Jam (Babirik)',
+        'Operator - 16 Jam (Danau Panggang)',
+        'Operator - 13 Jam Split (Paminggir)'
+    ];
 }
 
 /**
