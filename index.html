@@ -2767,6 +2767,27 @@
 
                         <div id="ssc-list"></div>
                     </div>
+
+                    <!-- Modal Tambah Jenis Jadwal - menggantikan window.prompt() -->
+                    <div class="modal-overlay" id="modal-tambah-jenis-jadwal" style="display:none;">
+                        <div class="modal-container" style="max-width:420px;width:92%;">
+                            <div class="modal-header">
+                                <h3><i class="fas fa-calendar-plus"></i> Tambah Jenis Jadwal</h3>
+                                <button class="btn-close-modal" onclick="shiftSchedule.closeAddJenisJadwalModal()">&times;</button>
+                            </div>
+                            <div style="padding:0 1.25rem 1.25rem;">
+                                <label style="font-weight:600;font-size:0.85rem;">Nama Jenis Jadwal</label>
+                                <input type="text" id="ssc-new-jenis-nama" placeholder="mis. Reguler (Sen-Kam)" style="width:100%;margin-top:6px;padding:10px;border:1px solid var(--border-color);border-radius:8px;font-family:inherit;" maxlength="100" onkeydown="if(event.key==='Enter'){event.preventDefault();shiftSchedule.confirmAddJenisJadwal();}">
+                                <small style="color:var(--text-muted);display:block;margin-top:6px;">Harus sama persis dengan nama yang nanti dipilih di form Tambah/Edit Karyawan.</small>
+                                <div style="display:flex;gap:8px;margin-top:1.25rem;">
+                                    <button class="btn-secondary" style="flex:1;" onclick="shiftSchedule.closeAddJenisJadwalModal()">Batal</button>
+                                    <button class="btn-primary" style="flex:1;" onclick="shiftSchedule.confirmAddJenisJadwal()">
+                                        <i class="fas fa-plus"></i> Tambah
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Jadwal Jaga Operator Page -->
