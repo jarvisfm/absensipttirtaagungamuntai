@@ -47,6 +47,12 @@ const faceRecognition = {
     // gerakan menoleh (kiri/kanan lalu balik menghadap kamera) terekam
     // selama sesi kamera ini berjalan.
     livenessDetected: false,
+    // Sedang dalam masa retry otomatis karena percobaan verifikasi
+    // sebelumnya wajahnya tidak cocok dengan foto profil (lihat
+    // capturePhoto()) - dipakai buat tampilan tombol & cegah toast error
+    // berulang tiap retry (lihat _mismatchToastShown).
+    _faceMismatchRetrying: false,
+    _mismatchToastShown: false,
     // Posisi horizontal ujung hidung relatif terhadap lebar wajah (yaw
     // ratio) beda-beda tiap orang (bentuk wajah, sudut & jarak kamera) -
     // angka mutlak yang sama untuk semua orang gampang meleset. Makanya
@@ -77,6 +83,7 @@ const faceRecognition = {
         this._yawBaselineCount = 0;
         this._stableFaceSince = null;
         this._autoCaptureNextAllowedAt = 0;
+        this._mismatchToastShown = false;
         this._lastFaceMatch = null;
         this.position = null;
         this._destroyRealMap();
@@ -459,9 +466,12 @@ const faceRecognition = {
 
             // Liveness (menoleh) sudah TIDAK lagi jadi syarat - tombol/auto-
             // capture cukup butuh wajah terdeteksi. Identitas tetap dicek di
-            // capturePhoto() lewat pencocokan ke foto profil.
-            const readyToCapture = detected;
-            this._updateCaptureButtonState(detected, readyToCapture);
+            // capturePhoto() lewat pencocokan ke foto profil. Selama masih
+            // dalam masa retry karena wajah sebelumnya tidak cocok, jangan
+            // tampilkan tombol seolah "siap/normal" - biar jelas sistem
+            // masih mencoba verifikasi ulang, bukan berhenti/macet.
+            const readyToCapture = detected && !this._faceMismatchRetrying;
+            this._updateCaptureButtonState(detected, readyToCapture, this._faceMismatchRetrying);
 
             // Auto-capture: begitu wajah stabil terdeteksi (>=800ms) DAN
             // lokasi sudah terverifikasi DAN tidak sedang cooldown dari
@@ -502,7 +512,7 @@ const faceRecognition = {
     // wajah/liveness belum lolos verifikasi, supaya karyawan tahu sistem
     // masih memproses (bukan macet/diam) - baru berubah jadi tombol aktif
     // normal begitu benar-benar siap.
-    _updateCaptureButtonState(detected, ready) {
+    _updateCaptureButtonState(detected, ready, mismatchRetrying) {
         const captureBtn = document.getElementById('btn-capture');
         if (!captureBtn || this.photoCaptured) return;
         captureBtn.disabled = !ready;
@@ -511,6 +521,9 @@ const faceRecognition = {
         if (ready) {
             if (icon) icon.className = 'fas fa-check-circle';
             if (label) label.textContent = 'Absen Sekarang';
+        } else if (mismatchRetrying) {
+            if (icon) icon.className = 'fas fa-redo fa-spin';
+            if (label) label.textContent = 'Wajah tidak cocok, mencoba lagi...';
         } else {
             if (icon) icon.className = 'fas fa-spinner fa-spin';
             if (label) label.textContent = detected ? 'Memverifikasi otomatis...' : 'Menunggu wajah...';
@@ -1099,10 +1112,15 @@ const faceRecognition = {
             if (this.faceRecognitionEnabled) {
                 const identity = await this._verifyFaceIdentity();
                 if (identity.checked && !identity.matched) {
-                    toast.error('Wajah tidak cocok dengan foto profil Anda. Absen dibatalkan - pastikan yang absen adalah pemilik akun ini.');
+                    if (!this._mismatchToastShown) {
+                        this._mismatchToastShown = true;
+                        toast.error('Wajah tidak cocok dengan foto profil Anda. Sistem akan coba verifikasi ulang otomatis - posisikan wajah Anda dengan jelas di kamera.');
+                    }
+                    this._faceMismatchRetrying = true;
                     if (captureBtnEl) captureBtnEl.disabled = !this.faceDetected;
                     return;
                 }
+                this._faceMismatchRetrying = false;
                 if (!identity.checked) {
                     // Fail-open: verifikasi TIDAK sempat dilakukan sama
                     // sekali (foto profil bermasalah/belum ada/model gagal
@@ -1166,6 +1184,7 @@ const faceRecognition = {
         this._yawBaselineCount = 0;
         this._stableFaceSince = null;
         this._autoCaptureNextAllowedAt = 0;
+        this._mismatchToastShown = false;
         this._lastFaceMatch = null;
 
         // Reset preview
