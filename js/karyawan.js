@@ -728,19 +728,48 @@ const karyawanManager = {
 
     async deleteKaryawan(id) {
         const p = this.karyawanList.find(p => String(p.id) === String(id));
-        if (!confirm(`Hapus karyawan "${p?.nama || id}"? Data ini tidak dapat dikembalikan.`)) return;
-
-        try {
-            const result = await api.deleteKaryawan(id);
-            if (result.success) {
-                toast.success('Karyawan berhasil dihapus');
-                await this.loadKaryawan();
-            } else {
-                toast.error(result.error || 'Gagal menghapus');
+        this._confirmDelete(
+            'Hapus Karyawan?',
+            `Hapus karyawan "${p?.nama || id}"? Data ini tidak dapat dikembalikan.`,
+            async () => {
+                try {
+                    const result = await api.deleteKaryawan(id);
+                    if (result.success) {
+                        toast.success('Karyawan berhasil dihapus');
+                        await this.loadKaryawan();
+                    } else {
+                        toast.error(result.error || 'Gagal menghapus');
+                    }
+                } catch (e) {
+                    toast.error('Terjadi kesalahan');
+                }
             }
-        } catch (e) {
-            toast.error('Terjadi kesalahan');
-        }
+        );
+    },
+
+    // Modal konfirmasi hapus bergaya sama dengan modal lain di aplikasi ini
+    // (menggantikan confirm() bawaan browser yang tampilannya polos/kaku).
+    // Dipakai lewat: this._confirmDelete(judul, pesan, async () => { ...aksi hapus... })
+    _confirmDelete(title, message, onConfirm) {
+        document.getElementById('modal-confirm-danger-title').textContent = title;
+        document.getElementById('modal-confirm-danger-message').textContent = message;
+
+        const btn = document.getElementById('modal-confirm-danger-btn');
+        // Ganti listener lama dulu (clone node) supaya tidak numpuk kalau
+        // modal ini dipakai berkali-kali untuk aksi hapus yang berbeda-beda.
+        const newBtn = btn.cloneNode(true);
+        btn.parentNode.replaceChild(newBtn, btn);
+        newBtn.addEventListener('click', async () => {
+            newBtn.disabled = true;
+            this._closeConfirmDangerModal();
+            await onConfirm();
+        });
+
+        document.getElementById('modal-confirm-danger').style.display = 'flex';
+    },
+
+    _closeConfirmDangerModal() {
+        document.getElementById('modal-confirm-danger').style.display = 'none';
     },
 
     closeModal() {
