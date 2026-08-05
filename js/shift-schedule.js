@@ -105,29 +105,72 @@ const shiftSchedule = {
             // 1 sesi jam bebas (mirip TRD) supaya karyawan tetap bisa absen
             // dengan wajar - nanti diperbaiki jadi presisi per-shift kalau
             // mekanisme baca-jadwal-hari-ini sudah dibangun.
+            // ── BNA Amuntai & SATPAM: 3 shift/hari (Pagi/Siang/Malam),
+            // orangnya gantian - jam absennya BUKAN ditentukan dari hari
+            // dalam minggu, tapi dari "jadwal jaga hari ini" di menu
+            // Jadwal Jaga Operator (rosterCheck: true + shiftOptions,
+            // bukan dayGroups biasa). Lihat _renderRosterCheckCard().
+            'Operator - BNA Amuntai (3 Sesi)': {
+                rosterCheck: true,
+                shiftOptions: {
+                    pagi:  { label: 'Pagi',  batasLambat: '08:10', toleransi: 10, sessions: [
+                        { label: 'Masuk', field: 'clockIn', time: '08:00', opensAt: '07:45' },
+                        { label: 'Pulang', field: 'clockOut', time: '16:00', opensAt: '15:50' }
+                    ] },
+                    siang: { label: 'Siang', batasLambat: '16:10', toleransi: 10, sessions: [
+                        { label: 'Masuk', field: 'clockIn', time: '16:00', opensAt: '15:45' },
+                        { label: 'Pulang', field: 'clockOut', time: '23:00', opensAt: '22:50' }
+                    ] },
+                    malam: { label: 'Malam', batasLambat: '23:10', toleransi: 10, sessions: [
+                        { label: 'Masuk', field: 'clockIn', time: '23:00', opensAt: '22:45' },
+                        { label: 'Pulang', field: 'clockOut', time: '08:00', opensAt: '07:50' }
+                    ] }
+                }
+            },
             'SATPAM': {
-                dayGroups: [
-                    {
-                        days: [0, 1, 2, 3, 4, 5, 6], label: 'Setiap Hari (jam bebas - belum per-shift)', batasLambat: '23:59', toleransi: 0,
-                        sessions: [
-                            { label: 'Masuk', field: 'clockIn', time: '07:00', opensAt: '00:00' },
-                            { label: 'Pulang', field: 'clockOut', time: '23:59', opensAt: '00:00' }
-                        ]
-                    }
-                ]
+                rosterCheck: true,
+                shiftOptions: {
+                    pagi:  { label: 'Pagi',  batasLambat: '07:10', toleransi: 10, sessions: [
+                        { label: 'Masuk', field: 'clockIn', time: '07:00', opensAt: '06:45' },
+                        { label: 'Pulang', field: 'clockOut', time: '15:00', opensAt: '14:50' }
+                    ] },
+                    siang: { label: 'Siang', batasLambat: '15:10', toleransi: 10, sessions: [
+                        { label: 'Masuk', field: 'clockIn', time: '15:00', opensAt: '14:45' },
+                        { label: 'Pulang', field: 'clockOut', time: '23:00', opensAt: '22:50' }
+                    ] },
+                    malam: { label: 'Malam', batasLambat: '23:10', toleransi: 10, sessions: [
+                        { label: 'Masuk', field: 'clockIn', time: '23:00', opensAt: '22:45' },
+                        { label: 'Pulang', field: 'clockOut', time: '07:00', opensAt: '06:50' }
+                    ] }
+                }
             },
             'TRD': {
+                // Sama persis seperti Reguler (Senin-Jumat) - jadwal jaga tim
+                // piket (lihat menu Jadwal Jaga Operator) cuma referensi
+                // regu on-call, TIDAK menggerbang absen.
                 dayGroups: [
                     {
-                        days: [0, 1, 2, 3, 4, 5, 6], label: 'Setiap Hari (jam bebas)', batasLambat: '23:59', toleransi: 0,
+                        days: [1, 2, 3, 4], label: 'Senin - Kamis', batasLambat: '08:10', toleransi: 0,
                         sessions: [
-                            { label: 'Masuk', field: 'clockIn', time: '08:00', opensAt: '00:00' },
-                            { label: 'Pulang', field: 'clockOut', time: '23:59', opensAt: '00:00' }
+                            { label: 'Masuk', field: 'clockIn', time: '08:00', opensAt: '06:45' },
+                            { label: 'Istirahat Keluar', field: 'breakStart', time: '12:00', opensAt: '11:45' },
+                            { label: 'Istirahat Masuk', field: 'breakEnd', time: '13:30', opensAt: '13:15' },
+                            { label: 'Pulang', field: 'clockOut', time: '16:30', opensAt: '16:25' }
                         ]
-                    }
+                    },
+                    {
+                        days: [5], label: 'Jumat', batasLambat: '07:30', toleransi: 10,
+                        sessions: [
+                            { label: 'Masuk', field: 'clockIn', time: '07:30', opensAt: '06:45' },
+                            { label: 'Pulang', field: 'clockOut', time: '11:00', opensAt: '10:45' }
+                        ]
+                    },
+                    { days: [6], label: 'Sabtu', libur: true },
+                    { days: [0], label: 'Minggu', libur: true }
                 ]
             },
             'Operator - 24 Jam': {
+                rosterCheck: true, // dicek dari jadwal jaga harian (menu Jadwal Jaga Operator)
                 dayGroups: [
                     {
                         days: [0, 1, 2, 3, 4, 5, 6], label: 'Setiap Hari', batasLambat: '00:10', toleransi: 10,
@@ -139,6 +182,7 @@ const shiftSchedule = {
                 ]
             },
             'Operator - 18 Jam': {
+                rosterCheck: true, // dicek dari jadwal jaga harian (menu Jadwal Jaga Operator)
                 dayGroups: [
                     {
                         days: [0, 1, 2, 3, 4, 5, 6], label: 'Setiap Hari', batasLambat: '04:10', toleransi: 10,
@@ -150,6 +194,7 @@ const shiftSchedule = {
                 ]
             },
             'Operator - 16 Jam': {
+                rosterCheck: true, // dicek dari jadwal jaga harian (menu Jadwal Jaga Operator)
                 dayGroups: [
                     {
                         days: [0, 1, 2, 3, 4, 5, 6], label: 'Setiap Hari', batasLambat: '05:10', toleransi: 10,
@@ -161,6 +206,7 @@ const shiftSchedule = {
                 ]
             },
             'Operator - 13 Jam': {
+                rosterCheck: true, // dicek dari jadwal jaga harian (menu Jadwal Jaga Operator)
                 dayGroups: [
                     {
                         days: [0, 1, 2, 3, 4, 5, 6], label: 'Setiap Hari', batasLambat: '04:40', toleransi: 10,
@@ -294,12 +340,25 @@ const shiftSchedule = {
 
     _renderShiftCard(shiftKey) {
         const shiftConfig = this.config[shiftKey];
+
+        // Jenis Jadwal dengan shiftOptions (BNA Amuntai, SATPAM) - jamnya
+        // ditentukan per shift (Pagi/Siang/Malam), bukan per hari-dalam-
+        // minggu. "Hari ini pakai shift yang mana" dibaca dari menu Jadwal
+        // Jaga Operator (rosterCheck), bukan diatur di sini.
+        if (shiftConfig.shiftOptions) {
+            return this._renderRosterCheckCard(shiftKey, shiftConfig);
+        }
+
+        const rosterBadge = shiftConfig.rosterCheck
+            ? '<span class="ssc-roster-badge" title="Karyawan dengan Jenis Jadwal ini juga harus terjadwal di menu Jadwal Jaga Operator hari itu, baru bisa absen">🔒 Dicek dari Jadwal Jaga Operator</span>'
+            : '';
+
         const groupsHtml = (shiftConfig.dayGroups || []).map((g, gIdx) => this._renderDayGroup(shiftKey, g, gIdx)).join('');
 
         return `
             <div class="ssc-card" data-shift="${this._escAttr(shiftKey)}">
                 <div class="ssc-card-header">
-                    <h3>${this._escAttr(shiftKey)}</h3>
+                    <h3>${this._escAttr(shiftKey)} ${rosterBadge}</h3>
                     <button class="btn-icon-danger ssc-remove-shift" data-shift="${this._escAttr(shiftKey)}" title="Hapus Jenis Jadwal">
                         <i class="fas fa-trash"></i>
                     </button>
@@ -312,10 +371,54 @@ const shiftSchedule = {
         `;
     },
 
+    // Kartu untuk Jenis Jadwal dengan 3 shift bergilir (Pagi/Siang/Malam) -
+    // "siapa dapat shift apa hari ini" diatur di menu Jadwal Jaga Operator,
+    // di sini admin cuma atur JAM tiap shift-nya saja.
+    _renderRosterCheckCard(shiftKey, shiftConfig) {
+        const optionsHtml = Object.keys(shiftConfig.shiftOptions).map(optKey => {
+            const opt = shiftConfig.shiftOptions[optKey];
+            const sessionsHtml = (opt.sessions || []).map((s, sIdx) => `
+                <div class="ssc-session-row" data-session="${sIdx}">
+                    <input type="text" class="ssc-input ssc-so-session-label" data-field="label" placeholder="Label" value="${this._escAttr(s.label || '')}">
+                    <select class="ssc-input ssc-so-session-field" data-field="field">
+                        <option value="clockIn" ${s.field === 'clockIn' ? 'selected' : ''}>Masuk (clockIn)</option>
+                        <option value="clockOut" ${s.field === 'clockOut' ? 'selected' : ''}>Pulang (clockOut)</option>
+                    </select>
+                    <label>Jam target <input type="time" class="ssc-input ssc-so-session-time" data-field="time" value="${this._escAttr(s.time || '')}"></label>
+                    <label>Mulai bisa absen <input type="time" class="ssc-input ssc-so-session-opens" data-field="opensAt" value="${this._escAttr(s.opensAt || '')}"></label>
+                </div>
+            `).join('');
+
+            return `
+                <div class="ssc-shift-option" data-shift="${this._escAttr(shiftKey)}" data-opt="${optKey}">
+                    <div class="ssc-shift-option-header">
+                        <input type="text" class="ssc-input ssc-so-label" data-field="label" value="${this._escAttr(opt.label || optKey)}">
+                        <label>Batas terlambat <input type="time" class="ssc-input ssc-so-batas" data-field="batasLambat" value="${this._escAttr(opt.batasLambat || '')}"></label>
+                        <label>Toleransi (menit) <input type="number" min="0" class="ssc-input ssc-so-toleransi" data-field="toleransi" value="${opt.toleransi != null ? opt.toleransi : 0}"></label>
+                    </div>
+                    <div class="ssc-sessions">${sessionsHtml}</div>
+                </div>
+            `;
+        }).join('');
+
+        return `
+            <div class="ssc-card" data-shift="${this._escAttr(shiftKey)}">
+                <div class="ssc-card-header">
+                    <h3>${this._escAttr(shiftKey)} <span class="ssc-roster-badge" title="Siapa dapat shift Pagi/Siang/Malam hari ini diatur di menu Jadwal Jaga Operator, bukan di sini">🔒 3 shift bergilir - siapa dapat shift apa diatur di Jadwal Jaga Operator</span></h3>
+                    <button class="btn-icon-danger ssc-remove-shift" data-shift="${this._escAttr(shiftKey)}" title="Hapus Jenis Jadwal">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+                <div class="ssc-shift-options">${optionsHtml}</div>
+            </div>
+        `;
+    },
+
     _renderDayGroup(shiftKey, group, groupIdx) {
         if (group.libur) {
             return `
                 <div class="ssc-group ssc-group-libur" data-shift="${this._escAttr(shiftKey)}" data-group="${groupIdx}">
+
                     <div class="ssc-group-row">
                         <input type="text" class="ssc-input ssc-group-label" data-field="label" placeholder="Nama kelompok (mis. Minggu)" value="${this._escAttr(group.label || '')}">
                         ${this._renderDayCheckboxes(shiftKey, groupIdx, group.days || [])}
@@ -382,6 +485,40 @@ const shiftSchedule = {
         wrap.querySelectorAll('.ssc-remove-shift').forEach(btn => {
             btn.onclick = () => this.removeJenisJadwal(btn.dataset.shift);
         });
+
+        // ── Kartu shiftOptions (BNA Amuntai / SATPAM) ──
+        wrap.querySelectorAll('.ssc-shift-option').forEach(optEl => {
+            const shiftKey = optEl.dataset.shift;
+            const optKey = optEl.dataset.opt;
+            const opt = this.config[shiftKey].shiftOptions[optKey];
+
+            const labelEl = optEl.querySelector('.ssc-so-label');
+            if (labelEl) labelEl.oninput = () => { opt.label = labelEl.value; this._markDirty(); };
+
+            const batasEl = optEl.querySelector('.ssc-so-batas');
+            if (batasEl) batasEl.oninput = () => { opt.batasLambat = batasEl.value; this._markDirty(); };
+
+            const toleransiEl = optEl.querySelector('.ssc-so-toleransi');
+            if (toleransiEl) toleransiEl.oninput = () => { opt.toleransi = parseInt(toleransiEl.value, 10) || 0; this._markDirty(); };
+
+            optEl.querySelectorAll('.ssc-session-row').forEach(sessionEl => {
+                const sessionIdx = parseInt(sessionEl.dataset.session, 10);
+                const session = opt.sessions[sessionIdx];
+
+                const sLabel = sessionEl.querySelector('.ssc-so-session-label');
+                if (sLabel) sLabel.oninput = () => { session.label = sLabel.value; this._markDirty(); };
+
+                const sField = sessionEl.querySelector('.ssc-so-session-field');
+                if (sField) sField.onchange = () => { session.field = sField.value; this._markDirty(); };
+
+                const sTime = sessionEl.querySelector('.ssc-so-session-time');
+                if (sTime) sTime.oninput = () => { session.time = sTime.value; this._markDirty(); };
+
+                const sOpens = sessionEl.querySelector('.ssc-so-session-opens');
+                if (sOpens) sOpens.oninput = () => { session.opensAt = sOpens.value; this._markDirty(); };
+            });
+        });
+
         wrap.querySelectorAll('.ssc-add-group').forEach(btn => {
             btn.onclick = () => this.addDayGroup(btn.dataset.shift);
         });
