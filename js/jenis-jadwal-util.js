@@ -34,6 +34,7 @@ async function getJenisJadwalOptions() {
     return [
         'Reguler (Sen-Kam)',
         'Jaga Malam',
+        'Operator - BNA Amuntai (3 Sesi)',
         'SATPAM',
         'TRD',
         'Operator - 24 Jam',
