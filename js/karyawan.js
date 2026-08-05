@@ -10,6 +10,7 @@ const karyawanManager = {
     riwayatPendidikanKaryawan: [],
     riwayatKgbKaryawan: [],
     riwayatGolonganKaryawan: [],
+    riwayatKaryawanKaryawan: [],
     riwayatMutasiKaryawan: [],
 
     async init() {
@@ -102,7 +103,7 @@ const karyawanManager = {
     },
 
     switchTab(tab) {
-        ['profil','kekaryawanan','keluarga','akun','pendidikan','kgb','golongan','mutasi'].forEach(t => {
+        ['profil','kekaryawanan','keluarga','akun','pendidikan','kgb','golongan','mutasi','riwayatkaryawan'].forEach(t => {
             const content = document.getElementById(`tabcontent-${t}`);
             const btn     = document.getElementById(`tab-${t}`);
             if (content) content.style.display = t === tab ? 'block' : 'none';
@@ -130,10 +131,12 @@ const karyawanManager = {
         this.riwayatKgbKaryawan = [];
         this.riwayatGolonganKaryawan = [];
         this.riwayatMutasiKaryawan = [];
+        this.riwayatKaryawanKaryawan = [];
         this.renderRiwayatPendidikanAdmin();
         this.renderRiwayatKgbAdmin();
         this.renderRiwayatGolonganAdmin();
         this.renderRiwayatMutasiAdmin();
+        this.renderRiwayatKaryawanAdmin();
 
         const pdkBlocked = document.getElementById('k-pendidikan-blocked');
         const pdkContent = document.getElementById('k-pendidikan-content');
@@ -143,6 +146,8 @@ const karyawanManager = {
         const golContent = document.getElementById('k-golongan-content');
         const mtsBlocked = document.getElementById('k-mutasi-blocked');
         const mtsContent = document.getElementById('k-mutasi-content');
+        const rkBlocked = document.getElementById('k-riwayatkaryawan-blocked');
+        const rkContent = document.getElementById('k-riwayatkaryawan-content');
         if (pdkBlocked) pdkBlocked.style.display = id ? 'none' : 'block';
         if (pdkContent) pdkContent.style.display = id ? 'block' : 'none';
         if (kgbBlocked) kgbBlocked.style.display = id ? 'none' : 'block';
@@ -151,6 +156,8 @@ const karyawanManager = {
         if (golContent) golContent.style.display = id ? 'block' : 'none';
         if (mtsBlocked) mtsBlocked.style.display = id ? 'none' : 'block';
         if (mtsContent) mtsContent.style.display = id ? 'block' : 'none';
+        if (rkBlocked) rkBlocked.style.display = id ? 'none' : 'block';
+        if (rkContent) rkContent.style.display = id ? 'block' : 'none';
 
         if (id) {
             this.loadDetailForEdit(id);
@@ -158,6 +165,7 @@ const karyawanManager = {
             this.loadRiwayatKgbAdmin(id);
             this.loadRiwayatGolonganAdmin(id);
             this.loadRiwayatMutasiAdmin(id);
+            this.loadRiwayatKaryawanAdmin(id);
         } else if (window.populateJenisJadwalSelect) {
             // Tambah Karyawan baru - isi dropdown Jenis Jadwal dari
             // konfigurasi terkini juga (loadDetailForEdit tidak dipanggil
@@ -1466,6 +1474,162 @@ const karyawanManager = {
             if (result.success) {
                 toast.success('Riwayat mutasi dihapus');
                 await this.loadRiwayatMutasiAdmin(this.editingId);
+            } else {
+                toast.error(result.error || 'Gagal menghapus');
+            }
+        } catch (e) {
+            toast.error('Terjadi kesalahan');
+        }
+    },
+
+    // ========== TAB RIWAYAT KARYAWAN (Admin - Edit Karyawan) ==========
+
+    async loadRiwayatKaryawanAdmin(karyawanId) {
+        try {
+            const result = await api.getRiwayatKaryawan(karyawanId);
+            this.riwayatKaryawanKaryawan = (result.success && result.data) ? result.data : [];
+        } catch (e) {
+            console.error('Error load riwayat karyawan:', e);
+            this.riwayatKaryawanKaryawan = [];
+        }
+        this.renderRiwayatKaryawanAdmin();
+    },
+
+    renderRiwayatKaryawanAdmin() {
+        const tbody = document.getElementById('k-riwayatkaryawan-list');
+        if (!tbody) return;
+
+        if (this.riwayatKaryawanKaryawan.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:2rem;color:var(--text-muted);">Belum ada riwayat karyawan yang disimpan.</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = this.riwayatKaryawanKaryawan.map(r => `
+            <tr>
+                <td style="padding:10px 12px;">${this._esc(r.jenisKepegawaian || '-')}</td>
+                <td style="padding:10px 12px;">${this._esc(r.statusKepegawaian || '-')}</td>
+                <td style="padding:10px 12px;">${this._esc(this._formatTanggalID(r.tmtCapeg) || '-')}</td>
+                <td style="padding:10px 12px;">${this._esc(r.nomorSK || '-')}</td>
+                <td style="padding:10px 12px;">
+                    ${r.fileDokumenUrl
+                        ? `<button type="button" onclick="window.open('${r.fileDokumenUrl}', '_blank')" style="background:none;border:1px solid var(--border-color);color:var(--text-muted);padding:6px 12px;border-radius:6px;cursor:pointer;font-size:0.8rem;white-space:nowrap;"><i class="fas fa-download"></i> Unduh</button>`
+                        : `<span style="color:var(--text-muted);font-size:0.8rem;font-style:italic;">Belum ada</span>`}
+                </td>
+                <td style="padding:10px 12px;">
+                    <button type="button" onclick="karyawanManager.editRiwayatKaryawanAdmin('${r.id}')" style="background:none;border:1px solid var(--border-color);color:var(--text-muted);padding:6px 10px;border-radius:6px;cursor:pointer;font-size:0.8rem;margin-right:4px;"><i class="fas fa-pen"></i></button>
+                    <button type="button" onclick="karyawanManager.deleteRiwayatKaryawanAdmin('${r.id}')" style="background:#EF4444;color:#fff;border:none;padding:6px 10px;border-radius:6px;cursor:pointer;font-size:0.8rem;"><i class="fas fa-trash"></i></button>
+                </td>
+            </tr>
+        `).join('');
+    },
+
+    openRiwayatKaryawanModalAdmin() {
+        if (!this.editingId) { toast.error('Simpan data profil karyawan terlebih dahulu.'); return; }
+        this.resetRiwayatKaryawanFormAdmin();
+        document.getElementById('modal-k-riwayatkaryawan-form').style.display = 'flex';
+    },
+
+    closeRiwayatKaryawanModalAdmin() {
+        document.getElementById('modal-k-riwayatkaryawan-form').style.display = 'none';
+    },
+
+    editRiwayatKaryawanAdmin(id) {
+        const r = this.riwayatKaryawanKaryawan.find(x => String(x.id) === String(id));
+        if (!r) return;
+
+        document.getElementById('k-rk-id').value                    = r.id;
+        document.getElementById('k-rk-jenisKepegawaian').value       = r.jenisKepegawaian || '';
+        document.getElementById('k-rk-statusKepegawaian').value      = r.statusKepegawaian || '';
+        document.getElementById('k-rk-nomorSK').value                = r.nomorSK || '';
+        document.getElementById('k-rk-tanggalSK').value              = r.tanggalSK || '';
+        document.getElementById('k-rk-tmtCapeg').value                = r.tmtCapeg || '';
+        document.getElementById('k-rk-namaJabatanMengangkat').value  = r.namaJabatanMengangkat || '';
+        document.getElementById('k-rk-dokumen-url').value            = r.fileDokumenUrl || '';
+
+        document.getElementById('k-rk-form-title').innerHTML = '<i class="fas fa-id-card"></i> Edit Riwayat Karyawan';
+        document.getElementById('k-rk-btn-batal').style.display = 'inline-flex';
+
+        this.updateRiwayatKaryawanPreviewAdmin();
+        document.getElementById('modal-k-riwayatkaryawan-form').style.display = 'flex';
+    },
+
+    resetRiwayatKaryawanFormAdmin() {
+        document.getElementById('k-rk-id').value = '';
+        document.getElementById('k-rk-jenisKepegawaian').value = '';
+        document.getElementById('k-rk-statusKepegawaian').value = '';
+        document.getElementById('k-rk-nomorSK').value = '';
+        document.getElementById('k-rk-tanggalSK').value = '';
+        document.getElementById('k-rk-tmtCapeg').value = '';
+        document.getElementById('k-rk-namaJabatanMengangkat').value = '';
+        document.getElementById('k-rk-dokumen-url').value = '';
+
+        document.getElementById('k-rk-form-title').innerHTML = '<i class="fas fa-id-card"></i> Tambah Riwayat Karyawan';
+        document.getElementById('k-rk-btn-batal').style.display = 'none';
+        this.updateRiwayatKaryawanPreviewAdmin();
+    },
+
+    updateRiwayatKaryawanPreviewAdmin() {
+        const container = document.getElementById('k-rk-dokumen-preview');
+        if (!container) return;
+        const rawUrl = document.getElementById('k-rk-dokumen-url').value;
+        const previewUrl = this.normalizeDriveLink(rawUrl);
+
+        container.innerHTML = previewUrl
+            ? `<iframe src="${this._esc(previewUrl)}" style="width:100%;height:100%;border:none;"></iframe>`
+            : `<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:8px;color:var(--text-muted);"><i class="fas fa-file-circle-xmark" style="font-size:1.5rem;"></i><span style="font-size:0.8rem;">${rawUrl ? 'Link Google Drive tidak valid' : 'Belum ada link dokumen'}</span></div>`;
+    },
+
+    async saveRiwayatKaryawanAdmin() {
+        if (!this.editingId) { toast.error('Simpan data profil karyawan terlebih dahulu.'); return; }
+
+        const id                = document.getElementById('k-rk-id').value;
+        const jenisKepegawaian  = document.getElementById('k-rk-jenisKepegawaian').value;
+        const statusKepegawaian = document.getElementById('k-rk-statusKepegawaian').value;
+
+        if (!jenisKepegawaian) { toast.error('Jenis Kepegawaian wajib dipilih!'); return; }
+        if (!statusKepegawaian) { toast.error('Status Kepegawaian wajib dipilih!'); return; }
+
+        const rawDokumenUrl = document.getElementById('k-rk-dokumen-url').value.trim();
+        const fileDokumenUrl = rawDokumenUrl ? this.normalizeDriveLink(rawDokumenUrl) : '';
+
+        if (rawDokumenUrl && !fileDokumenUrl) { toast.error('Link Dokumen SK CAPEG bukan link Google Drive yang valid! Pastikan link dari "Get link" / "Bagikan" di Drive.'); return; }
+
+        const data = {
+            id:                     id || undefined,
+            userId:                 this.editingId,
+            jenisKepegawaian,
+            statusKepegawaian,
+            nomorSK:                document.getElementById('k-rk-nomorSK').value.trim(),
+            tanggalSK:              document.getElementById('k-rk-tanggalSK').value,
+            tmtCapeg:               document.getElementById('k-rk-tmtCapeg').value,
+            namaJabatanMengangkat:  document.getElementById('k-rk-namaJabatanMengangkat').value.trim(),
+            fileDokumenUrl
+        };
+
+        try {
+            const result = await api.saveRiwayatKaryawan(data);
+            if (!result.success) {
+                toast.error(result.error || 'Gagal menyimpan Riwayat Karyawan');
+                return;
+            }
+
+            toast.success('Riwayat Karyawan berhasil disimpan!');
+            this.resetRiwayatKaryawanFormAdmin();
+            this.closeRiwayatKaryawanModalAdmin();
+            await this.loadRiwayatKaryawanAdmin(this.editingId);
+        } catch (e) {
+            console.error('Error simpan riwayat karyawan:', e);
+            toast.error('Terjadi kesalahan saat menyimpan Riwayat Karyawan');
+        }
+    },
+
+    async deleteRiwayatKaryawanAdmin(id) {
+        if (!confirm('Hapus riwayat karyawan ini? (Link dokumen hanya dihapus dari aplikasi, file aslinya di Google Drive tidak terhapus)')) return;
+        try {
+            const result = await api.deleteRiwayatKaryawan(id);
+            if (result.success) {
+                toast.success('Riwayat Karyawan dihapus');
+                await this.loadRiwayatKaryawanAdmin(this.editingId);
             } else {
                 toast.error(result.error || 'Gagal menghapus');
             }
