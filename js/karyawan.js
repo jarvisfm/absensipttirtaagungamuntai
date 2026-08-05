@@ -158,6 +158,11 @@ const karyawanManager = {
             this.loadRiwayatKgbAdmin(id);
             this.loadRiwayatGolonganAdmin(id);
             this.loadRiwayatMutasiAdmin(id);
+        } else if (window.populateJenisJadwalSelect) {
+            // Tambah Karyawan baru - isi dropdown Jenis Jadwal dari
+            // konfigurasi terkini juga (loadDetailForEdit tidak dipanggil
+            // di jalur ini karena belum ada id).
+            populateJenisJadwalSelect('p-shift');
         }
 
         document.getElementById('modal-karyawan').style.display = 'flex';
@@ -222,7 +227,12 @@ const karyawanManager = {
             document.getElementById('p-terhitungMulai').value  = p.terhitungMulai || '';
             this.autoHitungMasaKerja();
             document.getElementById('p-tahunPensiun').value    = p.tahunPensiun || '';
-            document.getElementById('p-shift').value           = p.shift || 'Reguler (Sen-Kam)';
+            // Isi dropdown Jenis Jadwal dari konfigurasi terkini (halaman Jadwal Shift)
+            if (window.populateJenisJadwalSelect) {
+                await populateJenisJadwalSelect('p-shift', p.shift || 'Reguler (Sen-Kam)');
+            } else {
+                document.getElementById('p-shift').value = p.shift || 'Reguler (Sen-Kam)';
+            }
             const approverEl = document.getElementById('p-locationExemptApproverId');
             if (approverEl) approverEl.value = p.locationExemptApproverId || '';
 
