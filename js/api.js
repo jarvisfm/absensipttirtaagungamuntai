@@ -570,6 +570,17 @@ const api = {
     },
     async deleteRiwayatGolongan(id) {
         return this.request('deleteRiwayatGolongan', { id });
+    },
+
+    // ========== RIWAYAT KARYAWAN (link Google Drive Dokumen SK CAPEG) ==========
+    async getRiwayatKaryawan(userId) {
+        return this.request('getRiwayatKaryawan', { userId });
+    },
+    async saveRiwayatKaryawan(data) {
+        return this.request('saveRiwayatKaryawan', data);
+    },
+    async deleteRiwayatKaryawan(id) {
+        return this.request('deleteRiwayatKaryawan', { id });
     }
 
 };  // ← penutup object api
