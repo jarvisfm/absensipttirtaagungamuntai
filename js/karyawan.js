@@ -1554,6 +1554,16 @@ const karyawanManager = {
         document.getElementById('modal-k-riwayatkaryawan-form').style.display = 'none';
     },
 
+    // Field-field seputar CAPEG (Nomor SK, Tanggal SK, TMT CAPEG, Nama
+    // Jabatan Mengangkat, Dokumen SK) hanya relevan untuk status "Calon
+    // Karyawan". Begitu status diganti ke "Karyawan", field-field tsb
+    // disembunyikan (CAPEG sudah selesai/tidak berlaku lagi).
+    toggleRiwayatKaryawanCapegFieldsAdmin() {
+        const status = document.getElementById('k-rk-statusKepegawaian').value;
+        const box = document.getElementById('k-rk-capeg-fields');
+        if (box) box.style.display = (status === 'Calon Karyawan') ? 'block' : 'none';
+    },
+
     editRiwayatKaryawanAdmin(id) {
         const r = this.riwayatKaryawanKaryawan.find(x => String(x.id) === String(id));
         if (!r) return;
@@ -1570,6 +1580,7 @@ const karyawanManager = {
         document.getElementById('k-rk-form-title').innerHTML = '<i class="fas fa-id-card"></i> Edit Riwayat Karyawan';
         document.getElementById('k-rk-btn-batal').style.display = 'inline-flex';
 
+        this.toggleRiwayatKaryawanCapegFieldsAdmin();
         this.updateRiwayatKaryawanPreviewAdmin();
         document.getElementById('modal-k-riwayatkaryawan-form').style.display = 'flex';
     },
@@ -1586,6 +1597,7 @@ const karyawanManager = {
 
         document.getElementById('k-rk-form-title').innerHTML = '<i class="fas fa-id-card"></i> Tambah Riwayat Karyawan';
         document.getElementById('k-rk-btn-batal').style.display = 'none';
+        this.toggleRiwayatKaryawanCapegFieldsAdmin();
         this.updateRiwayatKaryawanPreviewAdmin();
     },
 
@@ -1610,7 +1622,13 @@ const karyawanManager = {
         if (!jenisKepegawaian) { toast.error('Jenis Kepegawaian wajib dipilih!'); return; }
         if (!statusKepegawaian) { toast.error('Status Kepegawaian wajib dipilih!'); return; }
 
-        const rawDokumenUrl = document.getElementById('k-rk-dokumen-url').value.trim();
+        // Field CAPEG hanya berlaku untuk status "Calon Karyawan" - kalau
+        // statusnya sudah "Karyawan", field-nya disembunyikan di form (lihat
+        // toggleRiwayatKaryawanCapegFieldsAdmin), jadi di sini juga tidak
+        // dikirim/disimpan supaya tidak ada data CAPEG basi yang nyangkut.
+        const isCapeg = statusKepegawaian === 'Calon Karyawan';
+
+        const rawDokumenUrl = isCapeg ? document.getElementById('k-rk-dokumen-url').value.trim() : '';
         const fileDokumenUrl = rawDokumenUrl ? this.normalizeDriveLink(rawDokumenUrl) : '';
 
         if (rawDokumenUrl && !fileDokumenUrl) { toast.error('Link Dokumen SK CAPEG bukan link Google Drive yang valid! Pastikan link dari "Get link" / "Bagikan" di Drive.'); return; }
@@ -1620,10 +1638,10 @@ const karyawanManager = {
             userId:                 this.editingId,
             jenisKepegawaian,
             statusKepegawaian,
-            nomorSK:                document.getElementById('k-rk-nomorSK').value.trim(),
-            tanggalSK:              document.getElementById('k-rk-tanggalSK').value,
-            tmtCapeg:               document.getElementById('k-rk-tmtCapeg').value,
-            namaJabatanMengangkat:  document.getElementById('k-rk-namaJabatanMengangkat').value.trim(),
+            nomorSK:                isCapeg ? document.getElementById('k-rk-nomorSK').value.trim() : '',
+            tanggalSK:              isCapeg ? document.getElementById('k-rk-tanggalSK').value : '',
+            tmtCapeg:               isCapeg ? document.getElementById('k-rk-tmtCapeg').value : '',
+            namaJabatanMengangkat:  isCapeg ? document.getElementById('k-rk-namaJabatanMengangkat').value.trim() : '',
             fileDokumenUrl
         };
 
