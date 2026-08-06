@@ -33,6 +33,7 @@ const absensi = {
     });
 
     await this.loadAccessInfo();
+    this.updateShiftInfoCard();
     await this.loadTodayAttendance();
     await this.loadAttendanceHistory();
     this.initLiveClock();
@@ -57,6 +58,30 @@ const absensi = {
         console.error('Error checkAttendanceAccess:', e);
     }
 },
+
+    // Isi kartu "Shift Anda" (nama shift + jam kerja) di bagian atas halaman
+    // Absensi dari hasil checkAttendanceAccess() - supaya SELALU mengikuti
+    // Jenis Jadwal karyawan yang sebenarnya (termasuk sesi Operator hasil
+    // pencocokan Jadwal Jaga Operator hari ini), bukan teks statis "Pagi
+    // 08:00-17:00" seperti sebelumnya.
+    updateShiftInfoCard() {
+        const nameEl = document.getElementById('current-shift-name');
+        const timeEl = document.getElementById('current-shift-time');
+        if (!nameEl || !timeEl) return;
+
+        if (!this.accessInfo || !this.accessInfo.canAccess) {
+            nameEl.textContent = 'Libur';
+            timeEl.textContent = (this.accessInfo && this.accessInfo.message) || 'Tidak ada jadwal hari ini';
+            return;
+        }
+
+        nameEl.textContent = this.accessInfo.shift || '-';
+
+        const sessions = this.accessInfo.sessions || [];
+        const masuk  = sessions.find(s => s.field === 'clockIn');
+        const pulang = sessions.find(s => s.field === 'clockOut');
+        timeEl.textContent = (masuk && pulang) ? `${masuk.time} - ${pulang.time}` : '-';
+    },
 
     async loadTodayAttendance() {
     const user = auth.getCurrentUser();
