@@ -2660,27 +2660,27 @@
             <div id="k-rk-capeg-fields">
             <div class="form-row two-col">
                 <div class="form-group">
-                    <label>Nomor Surat Keputusan CAPEG</label>
+                    <label id="k-rk-label-nomorSK">Nomor Surat Keputusan CAPEG</label>
                     <input type="text" id="k-rk-nomorSK" placeholder="Contoh: 824/038-SI/BKPSDM/2022">
                 </div>
                 <div class="form-group">
-                    <label>Tanggal SK CAPEG</label>
+                    <label id="k-rk-label-tanggalSK">Tanggal SK CAPEG</label>
                     <input type="date" id="k-rk-tanggalSK">
                 </div>
             </div>
             <div class="form-row two-col">
                 <div class="form-group">
-                    <label>TMT CAPEG</label>
+                    <label id="k-rk-label-tmt">TMT CAPEG</label>
                     <input type="date" id="k-rk-tmtCapeg">
                 </div>
                 <div class="form-group">
-                    <label>Nama Jabatan yang Mengangkat CAPEG</label>
+                    <label id="k-rk-label-jabatan">Nama Jabatan yang Mengangkat CAPEG</label>
                     <input type="text" id="k-rk-namaJabatanMengangkat" placeholder="Contoh: Direktur Utama">
                 </div>
             </div>
 
             <div class="form-group">
-                <label>Link Google Drive - Dokumen SK CAPEG</label>
+                <label id="k-rk-label-dokumen">Link Google Drive - Dokumen SK CAPEG</label>
                 <input type="url" id="k-rk-dokumen-url" placeholder="Tempel link share Google Drive Dokumen SK CAPEG di sini"
                     oninput="karyawanManager.updateRiwayatKaryawanPreviewAdmin()">
                 <small style="color:var(--text-muted);">Pastikan sharing file diset ke "Anyone with the link".</small>
@@ -3783,30 +3783,30 @@
                 <div id="pf-rk-capeg-fields">
                 <div class="form-row two-col">
                     <div class="form-group">
-                        <label>Nomor Surat Keputusan CAPEG</label>
+                        <label id="pf-rk-label-nomorSK">Nomor Surat Keputusan CAPEG</label>
                         <input type="text" id="pf-rk-nomorSK" placeholder="Contoh: 824/038-SI/BKPSDM/2022">
                     </div>
                     <div class="form-group">
-                        <label>Tanggal SK CAPEG</label>
+                        <label id="pf-rk-label-tanggalSK">Tanggal SK CAPEG</label>
                         <input type="date" id="pf-rk-tanggalSK">
                     </div>
                 </div>
                 <div class="form-row two-col">
                     <div class="form-group">
-                        <label>TMT CAPEG</label>
+                        <label id="pf-rk-label-tmt">TMT CAPEG</label>
                         <input type="date" id="pf-rk-tmtCapeg">
                     </div>
                     <div class="form-group">
-                        <label>Nama Jabatan yang Mengangkat CAPEG</label>
+                        <label id="pf-rk-label-jabatan">Nama Jabatan yang Mengangkat CAPEG</label>
                         <input type="text" id="pf-rk-namaJabatanMengangkat" placeholder="Contoh: Direktur Utama">
                     </div>
                 </div>
 
                 <div class="form-group">
-                    <label>Link Google Drive - Dokumen SK CAPEG</label>
+                    <label id="pf-rk-label-dokumen">Link Google Drive - Dokumen SK CAPEG</label>
                     <input type="url" id="pf-rk-dokumen-url" placeholder="Tempel link share Google Drive Dokumen SK CAPEG di sini"
                         oninput="profileManager.updateRiwayatKaryawanPreview()">
-                    <small style="color:var(--text-muted);">Upload file SK CAPEG ke Google Drive Anda, atur akses "Anyone with the link", lalu tempel link-nya di sini.</small>
+                    <small style="color:var(--text-muted);" id="pf-rk-label-dokumen-small">Upload file SK CAPEG ke Google Drive Anda, atur akses "Anyone with the link", lalu tempel link-nya di sini.</small>
                 </div>
                 <div class="form-group">
                     <label style="font-size:0.8rem;color:var(--text-muted);">Preview Dokumen</label>
