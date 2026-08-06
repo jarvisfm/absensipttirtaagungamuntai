@@ -247,6 +247,8 @@ const shiftSchedule = {
     addJenisJadwal() {
         const input = document.getElementById('ssc-new-jenis-nama');
         if (input) input.value = '';
+        const rosterCheckbox = document.getElementById('ssc-new-jenis-roster');
+        if (rosterCheckbox) rosterCheckbox.checked = false;
         const modal = document.getElementById('modal-tambah-jenis-jadwal');
         if (modal) {
             modal.style.display = 'flex';
@@ -270,17 +272,37 @@ const shiftSchedule = {
             toast.warning('Jenis Jadwal ini sudah ada.');
             return;
         }
-        this.config[nama] = {
-            dayGroups: [
-                { days: [1, 2, 3, 4, 5], label: 'Senin - Jumat', batasLambat: '08:00', toleransi: 10,
-                  sessions: [
-                      { label: 'Masuk', field: 'clockIn', time: '08:00', opensAt: '07:45' },
-                      { label: 'Pulang', field: 'clockOut', time: '16:00', opensAt: '15:45' }
-                  ] },
-                { days: [6], label: 'Sabtu', libur: true },
-                { days: [0], label: 'Minggu', libur: true }
-            ]
-        };
+
+        const isRoster = document.getElementById('ssc-new-jenis-roster')?.checked;
+
+        this.config[nama] = isRoster
+            // Jadwal Operator (roster harian) - berlaku "Setiap Hari" dan
+            // ditandai rosterCheck:true supaya Attendance.gs mewajibkan
+            // karyawan terjadwal dulu di menu Jadwal Jaga Operator sebelum
+            // bisa absen (persis pola "Operator - 24 Jam" dkk bawaan).
+            // Jam & sesinya (Masuk/Istirahat/Pulang) tetap bisa diatur
+            // manual di kartu ini sama seperti Jenis Jadwal biasa.
+            ? {
+                rosterCheck: true,
+                dayGroups: [
+                    { days: [0, 1, 2, 3, 4, 5, 6], label: 'Setiap Hari', batasLambat: '08:10', toleransi: 10,
+                      sessions: [
+                          { label: 'Masuk', field: 'clockIn', time: '08:00', opensAt: '07:45' },
+                          { label: 'Pulang', field: 'clockOut', time: '16:00', opensAt: '15:45' }
+                      ] }
+                ]
+            }
+            : {
+                dayGroups: [
+                    { days: [1, 2, 3, 4, 5], label: 'Senin - Jumat', batasLambat: '08:00', toleransi: 10,
+                      sessions: [
+                          { label: 'Masuk', field: 'clockIn', time: '08:00', opensAt: '07:45' },
+                          { label: 'Pulang', field: 'clockOut', time: '16:00', opensAt: '15:45' }
+                      ] },
+                    { days: [6], label: 'Sabtu', libur: true },
+                    { days: [0], label: 'Minggu', libur: true }
+                ]
+            };
         this._markDirty();
         this.render();
         this.closeAddJenisJadwalModal();
@@ -291,6 +313,47 @@ const shiftSchedule = {
         delete this.config[key];
         this._markDirty();
         this.render();
+    },
+
+    // Betulkan Jenis Jadwal lama (dibuat sebelum ada opsi roster di modal
+    // Tambah) supaya jadi roster Operator yang sebenarnya: rosterCheck:true
+    // + berlaku "Setiap Hari" (bukan Senin-Jumat) - dicek dari menu Jadwal
+    // Jaga Operator sebelum karyawan boleh absen. Jam & sesi yang sudah
+    // diatur admin sebelumnya (kelompok hari pertama) TETAP dipakai, cuma
+    // hari berlakunya yang diubah jadi Setiap Hari dan kelompok hari
+    // "libur" (mis. Sabtu/Minggu) dibuang karena Operator biasanya tetap
+    // jaga di akhir pekan.
+    makeShiftIntoRoster(shiftKey) {
+        const shiftConfig = this.config[shiftKey];
+        if (!shiftConfig || shiftConfig.rosterCheck) return;
+
+        if (!confirm(`Jadikan "${shiftKey}" sebagai Jenis Jadwal Operator (roster harian)?\n\nJam kerja yang sudah diatur akan dipakai untuk SEMUA hari (Setiap Hari, termasuk Sabtu/Minggu), dan mulai sekarang karyawan dengan Jenis Jadwal ini WAJIB terjadwal dulu di menu "Jadwal Jaga Operator" sebelum bisa absen.`)) return;
+
+        const dayGroups = shiftConfig.dayGroups || [];
+        const acuan = dayGroups.find(g => !g.libur) || dayGroups[0] || {
+            batasLambat: '08:00', toleransi: 10,
+            sessions: [
+                { label: 'Masuk', field: 'clockIn', time: '08:00', opensAt: '07:45' },
+                { label: 'Pulang', field: 'clockOut', time: '16:00', opensAt: '15:45' }
+            ]
+        };
+
+        this.config[shiftKey] = {
+            rosterCheck: true,
+            dayGroups: [
+                {
+                    days: [0, 1, 2, 3, 4, 5, 6],
+                    label: 'Setiap Hari',
+                    batasLambat: acuan.batasLambat,
+                    toleransi: acuan.toleransi || 0,
+                    sessions: acuan.sessions || []
+                }
+            ]
+        };
+
+        this._markDirty();
+        this.render();
+        toast.success(`"${shiftKey}" sekarang jadi roster Operator - jangan lupa klik "Simpan Semua" di bawah.`);
     },
 
     addDayGroup(shiftKey) {
@@ -353,15 +416,30 @@ const shiftSchedule = {
             ? '<span class="ssc-roster-badge" title="Karyawan dengan Jenis Jadwal ini juga harus terjadwal di menu Jadwal Jaga Operator hari itu, baru bisa absen">🔒 Dicek dari Jadwal Jaga Operator</span>'
             : '';
 
+        // Jenis Jadwal lama yang dibuat sebelum ada opsi "Ini Jenis Jadwal
+        // Operator (roster harian)" di modal Tambah - kalau namanya
+        // kelihatan seperti Operator (mis. "Operator - 18 Jam (Babirik)")
+        // tapi belum rosterCheck, sediakan tombol untuk membetulkannya di
+        // sini, tanpa perlu hapus & buat ulang (nanti kehilangan jam yang
+        // sudah diatur admin).
+        const makeRosterBtn = !shiftConfig.rosterCheck
+            ? `<button class="btn-secondary ssc-make-roster" data-shift="${this._escAttr(shiftKey)}" title="Jadikan Jenis Jadwal ini roster harian Operator (berlaku Setiap Hari, dicek dari Jadwal Jaga Operator)" style="font-size:0.75rem;padding:4px 10px;">
+                <i class="fas fa-people-arrows"></i> Jadikan Jadwal Operator
+              </button>`
+            : '';
+
         const groupsHtml = (shiftConfig.dayGroups || []).map((g, gIdx) => this._renderDayGroup(shiftKey, g, gIdx)).join('');
 
         return `
             <div class="ssc-card" data-shift="${this._escAttr(shiftKey)}">
                 <div class="ssc-card-header">
                     <h3>${this._escAttr(shiftKey)} ${rosterBadge}</h3>
-                    <button class="btn-icon-danger ssc-remove-shift" data-shift="${this._escAttr(shiftKey)}" title="Hapus Jenis Jadwal">
-                        <i class="fas fa-trash"></i>
-                    </button>
+                    <div style="display:flex;align-items:center;gap:6px;">
+                        ${makeRosterBtn}
+                        <button class="btn-icon-danger ssc-remove-shift" data-shift="${this._escAttr(shiftKey)}" title="Hapus Jenis Jadwal">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
                 </div>
                 <div class="ssc-groups">${groupsHtml}</div>
                 <button class="btn-secondary ssc-add-group" data-shift="${this._escAttr(shiftKey)}">
@@ -484,6 +562,10 @@ const shiftSchedule = {
 
         wrap.querySelectorAll('.ssc-remove-shift').forEach(btn => {
             btn.onclick = () => this.removeJenisJadwal(btn.dataset.shift);
+        });
+
+        wrap.querySelectorAll('.ssc-make-roster').forEach(btn => {
+            btn.onclick = () => this.makeShiftIntoRoster(btn.dataset.shift);
         });
 
         // ── Kartu shiftOptions (BNA Amuntai / SATPAM) ──
