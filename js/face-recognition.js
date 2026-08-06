@@ -720,6 +720,15 @@ const faceRecognition = {
             infoEl.textContent = `Anda terdeteksi ${ctx.distance}m dari ${ctx.nearest.nama}. Anda tetap boleh absen - jelaskan dulu sedang di mana/mengerjakan apa.`;
         }
         if (modal) modal.style.display = 'flex';
+
+        // Modal ini pakai latar semi-transparan (lihat .modal-overlay di
+        // modal.css: rgba(0,0,0,0.5)) - kalau loop deteksi wajah dibiarkan
+        // tetap jalan di belakangnya, kotak hijau/overlay kamera yang
+        // menyala-mati tiap 150ms tetap kelihatan "kedap-kedip" tembus dari
+        // balik modal. Hentikan dulu selama modal ini terbuka, nanti
+        // dinyalakan lagi di submitOutOfRadiusNote()/cancelOutOfRadiusNote()
+        // (lewat _restartCameraIfNeeded()) begitu modalnya ditutup.
+        this._stopFaceDetectionLoop();
     },
 
     // Foto dokumentasi bersifat OPSIONAL (beda dengan catatan yang wajib) -
@@ -763,7 +772,16 @@ const faceRecognition = {
         const tracks = this.stream ? this.stream.getVideoTracks() : [];
         const stillLive = tracks.length > 0 && tracks.every(t => t.readyState === 'live');
         if (!stillLive) {
+            // Stream sudah mati - initCamera() minta stream baru, lalu
+            // otomatis menyalakan lagi loop deteksi wajahnya sendiri begitu
+            // video metadata siap (lihat video.onloadedmetadata di dalamnya).
             this.initCamera();
+        } else if (this.modelsLoaded && !this.photoCaptured) {
+            // Stream masih hidup (mis. modal cuma dibuka lalu ditutup tanpa
+            // sempat ambil foto) - loop deteksinya tadi sengaja dihentikan
+            // di _promptOutOfRadiusNote() supaya tidak kedap-kedip tembus
+            // dari balik modal yang semi-transparan. Nyalakan lagi di sini.
+            this._startFaceDetectionLoop();
         }
     },
 
