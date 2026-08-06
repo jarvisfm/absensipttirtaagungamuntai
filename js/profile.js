@@ -1203,6 +1203,18 @@ const profileManager = {
         const tbody = document.getElementById('pf-riwayatkaryawan-list');
         if (!tbody) return;
 
+        // Header kolom "TMT (CAPEG)" ikut menyesuaikan status baris paling
+        // baru (baris teratas, sudah terurut dari TMT terbaru): kalau
+        // riwayat terkini "Calon Karyawan" -> "TMT CAPEG", kalau sudah
+        // "Karyawan" -> "TMT" saja. Tabel ini bisa berisi banyak baris
+        // dengan status berbeda-beda, jadi headernya cuma bisa mengikuti
+        // status yang paling relevan/terkini, bukan tiap baris.
+        const thTmt = document.getElementById('pf-rk-th-tmt');
+        if (thTmt) {
+            const terbaru = this.riwayatKaryawan[0];
+            thTmt.textContent = (terbaru && terbaru.statusKepegawaian === 'Karyawan') ? 'TMT' : 'TMT CAPEG';
+        }
+
         if (this.riwayatKaryawan.length === 0) {
             tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:2rem;color:var(--text-muted);">Belum ada riwayat karyawan yang disimpan.</td></tr>';
             return;
