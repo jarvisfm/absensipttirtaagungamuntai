@@ -515,7 +515,7 @@ const absensi = {
         if (statusRing) {
             statusRing.className = 'status-ring';
             const states = {
-                libur:      { cls: 'waiting',   text: 'Hari Libur',       sub: 'Tidak ada jadwal kerja hari ini' },
+                libur:      { cls: 'waiting',   text: 'Hari Libur',       sub: (this.accessInfo && this.accessInfo.message) || 'Tidak ada jadwal kerja hari ini' },
                 waiting:    { cls: 'waiting',   text: 'Siap Absen Masuk', sub: 'Tekan tombol di bawah untuk absen' },
                 'clocked-in': { cls: 'active',  text: 'Sedang Bekerja',   sub: 'Semangat bekerja!' },
                 'on-break': { cls: 'on-break',  text: 'Sedang Istirahat', sub: 'Nikmati waktu istirahat Anda' },
