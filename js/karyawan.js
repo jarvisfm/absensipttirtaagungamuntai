@@ -1554,14 +1554,28 @@ const karyawanManager = {
         document.getElementById('modal-k-riwayatkaryawan-form').style.display = 'none';
     },
 
-    // Field-field seputar CAPEG (Nomor SK, Tanggal SK, TMT CAPEG, Nama
-    // Jabatan Mengangkat, Dokumen SK) hanya relevan untuk status "Calon
-    // Karyawan". Begitu status diganti ke "Karyawan", field-field tsb
-    // disembunyikan (CAPEG sudah selesai/tidak berlaku lagi).
+    // Label field-field seputar CAPEG (Nomor SK, Tanggal SK, TMT, Nama
+    // Jabatan Mengangkat, Dokumen SK) menyebut "CAPEG" hanya relevan kalau
+    // statusnya "Calon Karyawan". Kalau statusnya sudah "Karyawan", kata
+    // "CAPEG" di label dihilangkan - tapi field-nya sendiri TETAP tampil
+    // dan tetap bisa diisi/disimpan seperti biasa.
     toggleRiwayatKaryawanCapegFieldsAdmin() {
         const status = document.getElementById('k-rk-statusKepegawaian').value;
-        const box = document.getElementById('k-rk-capeg-fields');
-        if (box) box.style.display = (status === 'Calon Karyawan') ? 'block' : 'none';
+        const isCapeg = status === 'Calon Karyawan';
+
+        const set = (id, textCapeg, textNonCapeg) => {
+            const el = document.getElementById(id);
+            if (el) el.textContent = isCapeg ? textCapeg : textNonCapeg;
+        };
+        set('k-rk-label-nomorSK', 'Nomor Surat Keputusan CAPEG', 'Nomor Surat Keputusan');
+        set('k-rk-label-tanggalSK', 'Tanggal SK CAPEG', 'Tanggal SK');
+        set('k-rk-label-tmt', 'TMT CAPEG', 'TMT');
+        set('k-rk-label-jabatan', 'Nama Jabatan yang Mengangkat CAPEG', 'Nama Jabatan yang Mengangkat');
+        set('k-rk-label-dokumen', 'Link Google Drive - Dokumen SK CAPEG', 'Link Google Drive - Dokumen SK');
+        const urlInput = document.getElementById('k-rk-dokumen-url');
+        if (urlInput) urlInput.placeholder = isCapeg
+            ? 'Tempel link share Google Drive Dokumen SK CAPEG di sini'
+            : 'Tempel link share Google Drive Dokumen SK di sini';
     },
 
     editRiwayatKaryawanAdmin(id) {
@@ -1622,26 +1636,20 @@ const karyawanManager = {
         if (!jenisKepegawaian) { toast.error('Jenis Kepegawaian wajib dipilih!'); return; }
         if (!statusKepegawaian) { toast.error('Status Kepegawaian wajib dipilih!'); return; }
 
-        // Field CAPEG hanya berlaku untuk status "Calon Karyawan" - kalau
-        // statusnya sudah "Karyawan", field-nya disembunyikan di form (lihat
-        // toggleRiwayatKaryawanCapegFieldsAdmin), jadi di sini juga tidak
-        // dikirim/disimpan supaya tidak ada data CAPEG basi yang nyangkut.
-        const isCapeg = statusKepegawaian === 'Calon Karyawan';
-
-        const rawDokumenUrl = isCapeg ? document.getElementById('k-rk-dokumen-url').value.trim() : '';
+        const rawDokumenUrl = document.getElementById('k-rk-dokumen-url').value.trim();
         const fileDokumenUrl = rawDokumenUrl ? this.normalizeDriveLink(rawDokumenUrl) : '';
 
-        if (rawDokumenUrl && !fileDokumenUrl) { toast.error('Link Dokumen SK CAPEG bukan link Google Drive yang valid! Pastikan link dari "Get link" / "Bagikan" di Drive.'); return; }
+        if (rawDokumenUrl && !fileDokumenUrl) { toast.error('Link Dokumen SK bukan link Google Drive yang valid! Pastikan link dari "Get link" / "Bagikan" di Drive.'); return; }
 
         const data = {
             id:                     id || undefined,
             userId:                 this.editingId,
             jenisKepegawaian,
             statusKepegawaian,
-            nomorSK:                isCapeg ? document.getElementById('k-rk-nomorSK').value.trim() : '',
-            tanggalSK:              isCapeg ? document.getElementById('k-rk-tanggalSK').value : '',
-            tmtCapeg:               isCapeg ? document.getElementById('k-rk-tmtCapeg').value : '',
-            namaJabatanMengangkat:  isCapeg ? document.getElementById('k-rk-namaJabatanMengangkat').value.trim() : '',
+            nomorSK:                document.getElementById('k-rk-nomorSK').value.trim(),
+            tanggalSK:              document.getElementById('k-rk-tanggalSK').value,
+            tmtCapeg:               document.getElementById('k-rk-tmtCapeg').value,
+            namaJabatanMengangkat:  document.getElementById('k-rk-namaJabatanMengangkat').value.trim(),
             fileDokumenUrl
         };
 
