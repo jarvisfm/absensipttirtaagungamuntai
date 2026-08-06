@@ -747,6 +747,26 @@ const faceRecognition = {
         if (preview) preview.style.display = 'none';
     },
 
+    /**
+     * Cek apakah stream kamera ABSEN (getUserMedia, bukan foto dokumentasi
+     * luar radius) masih hidup - lalu nyalakan ulang kalau ternyata sudah
+     * mati. Dipanggil setelah modal catatan luar radius ditutup, karena
+     * input foto dokumentasinya pakai capture="environment" yang di HP
+     * membuka APLIKASI KAMERA BAWAAN (bukan cuma galeri) - browser jadi
+     * di-background sebentar, dan kebanyakan browser mobile OTOMATIS
+     * MEMATIKAN stream getUserMedia saat halaman di-background (cuma 1
+     * aplikasi yang boleh pakai hardware kamera dalam satu waktu). Begitu
+     * kembali ke halaman, video absen jadi blank/hitam kalau tidak
+     * dinyalakan ulang di sini.
+     */
+    _restartCameraIfNeeded() {
+        const tracks = this.stream ? this.stream.getVideoTracks() : [];
+        const stillLive = tracks.length > 0 && tracks.every(t => t.readyState === 'live');
+        if (!stillLive) {
+            this.initCamera();
+        }
+    },
+
     submitOutOfRadiusNote() {
         const textarea = document.getElementById('out-of-radius-note-text');
         const note = textarea ? textarea.value.trim() : '';
@@ -769,6 +789,7 @@ const faceRecognition = {
         }
 
         this.checkCanSubmit();
+        this._restartCameraIfNeeded();
     },
 
     cancelOutOfRadiusNote() {
@@ -777,6 +798,7 @@ const faceRecognition = {
         // locationVerified tetap false - karyawan bisa klik "Coba Lagi" lokasi
         const retryBtn = document.getElementById('btn-retry-location');
         if (retryBtn) retryBtn.style.display = 'flex';
+        this._restartCameraIfNeeded();
     },
 
     initLocation() {
