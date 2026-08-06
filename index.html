@@ -2650,13 +2650,14 @@
                 </div>
                 <div class="form-group">
                     <label>Status Kepegawaian *</label>
-                    <select id="k-rk-statusKepegawaian">
+                    <select id="k-rk-statusKepegawaian" onchange="karyawanManager.toggleRiwayatKaryawanCapegFieldsAdmin()">
                         <option value="">-- Pilih Status Kepegawaian --</option>
                         <option value="Calon Karyawan">Calon Karyawan</option>
                         <option value="Karyawan">Karyawan</option>
                     </select>
                 </div>
             </div>
+            <div id="k-rk-capeg-fields">
             <div class="form-row two-col">
                 <div class="form-group">
                     <label>Nomor Surat Keputusan CAPEG</label>
@@ -2689,6 +2690,7 @@
                 <div id="k-rk-dokumen-preview" style="position:relative;height:340px;border:1px solid var(--border-color);border-radius:8px;overflow:hidden;background:var(--bg-secondary,#f8f9fa);">
                     <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:8px;color:var(--text-muted);"><i class="fas fa-file-circle-xmark" style="font-size:1.5rem;"></i><span style="font-size:0.8rem;">Belum ada link dokumen</span></div>
                 </div>
+            </div>
             </div>
 
             <div class="form-actions">
@@ -3771,13 +3773,14 @@
                     </div>
                     <div class="form-group">
                         <label>Status Kepegawaian *</label>
-                        <select id="pf-rk-statusKepegawaian">
+                        <select id="pf-rk-statusKepegawaian" onchange="profileManager.toggleRiwayatKaryawanCapegFields()">
                             <option value="">-- Pilih Status Kepegawaian --</option>
                             <option value="Calon Karyawan">Calon Karyawan</option>
                             <option value="Karyawan">Karyawan</option>
                         </select>
                     </div>
                 </div>
+                <div id="pf-rk-capeg-fields">
                 <div class="form-row two-col">
                     <div class="form-group">
                         <label>Nomor Surat Keputusan CAPEG</label>
@@ -3810,6 +3813,7 @@
                     <div id="pf-rk-dokumen-preview" style="position:relative;height:340px;border:1px solid var(--border-color);border-radius:8px;overflow:hidden;background:var(--bg-secondary,#f8f9fa);">
                         <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:8px;color:var(--text-muted);"><i class="fas fa-file-circle-xmark" style="font-size:1.5rem;"></i><span style="font-size:0.8rem;">Belum ada link dokumen</span></div>
                     </div>
+                </div>
                 </div>
 
                 <div class="form-actions">
