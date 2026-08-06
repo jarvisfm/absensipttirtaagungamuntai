@@ -9,7 +9,7 @@ const dashboard = {
     async init() {
         await this.loadData();
 
-        this.updateWelcomeCard();
+        await this.updateWelcomeCard();
         this.updateBirthdayCard();
         this.updateStats();
         this.updateSessionInfo();
@@ -70,7 +70,7 @@ const dashboard = {
         }
     },
 
-    updateWelcomeCard() {
+    async updateWelcomeCard() {
         const welcomeCard = document.querySelector('.welcome-card');
         const greetingEl = document.querySelector('.welcome-content h2');
         const shiftEl = document.getElementById('welcome-shift');
@@ -107,42 +107,33 @@ const dashboard = {
         // Update card class for different gradient
         welcomeCard.className = `welcome-card ${className}`;
 
-        // Update shift info
-        const shifts = storage.get('shifts', []);
-        let currentShiftName = auth.getCurrentUser()?.shift || 'Pagi';
-
-        // Automated shift lookup from admin schedule
-        try {
-            const userId = String(auth.getCurrentUser()?.id);
-            const schedules = storage.get('shift_schedule', {});
-            const todayObj = new Date();
-            const currentYear = todayObj.getFullYear();
-            const currentMonth = todayObj.getMonth();
-            const currentDay = todayObj.getDate();
-            const key = `${currentYear}-${currentMonth}`;
-
-            console.log('Dashboard Shift Sync - Key:', key, 'UserId:', userId, 'Day:', currentDay);
-
-            if (schedules[key] && schedules[key][userId]) {
-                const assignedShift = schedules[key][userId][currentDay];
-                console.log('Dashboard Shift Sync - Found Shift:', assignedShift);
-                if (assignedShift) {
-                    currentShiftName = assignedShift;
-                }
-            } else {
-                console.log('Dashboard Shift Sync - Missing Schedule key or User record.');
-            }
-        } catch (e) {
-            console.error('Error reading shift schedule:', e);
-        }
-
-        const activeShift = shifts.find(s => s.name === currentShiftName) || shifts[0] || { name: 'Pagi', startTime: '08:00', endTime: '17:00' };
-
+        // Info Shift: SEKARANG diambil dari checkAttendanceAccess() di backend
+        // (sumber yang sama dipakai halaman Absensi) - bukan lagi dari
+        // localStorage 'shifts'/'shift_schedule' (peninggalan versi lama,
+        // tidak pernah tahu soal Jenis Jadwal per karyawan atau Jadwal Jaga
+        // Operator, makanya selalu nampilin "Pagi (08:00-17:00)" default
+        // walau Jenis Jadwal karyawan sudah diganti admin).
         if (shiftEl) {
-            if (currentShiftName === 'Libur') {
-                shiftEl.textContent = `Shift: Libur (Tidak ada jadwal)`;
-            } else {
-                shiftEl.textContent = `Shift: ${activeShift.name} (${activeShift.startTime} - ${activeShift.endTime})`;
+            shiftEl.textContent = 'Shift: Memuat...';
+            try {
+                const currentUser = auth.getCurrentUser();
+                const userId = currentUser?.employeeId || currentUser?.id;
+                const result = await api.checkAttendanceAccess(userId);
+
+                if (result && result.success && result.data && result.data.canAccess) {
+                    const info = result.data;
+                    const sessions = info.sessions || [];
+                    const masuk  = sessions.find(s => s.field === 'clockIn');
+                    const pulang = sessions.find(s => s.field === 'clockOut');
+                    const jamKerja = (masuk && pulang) ? `${masuk.time} - ${pulang.time}` : '';
+                    shiftEl.textContent = jamKerja ? `Shift: ${info.shift} (${jamKerja})` : `Shift: ${info.shift}`;
+                } else {
+                    const msg = (result && result.data && result.data.message) || 'Tidak ada jadwal';
+                    shiftEl.textContent = `Shift: Libur (${msg})`;
+                }
+            } catch (e) {
+                console.error('Gagal ambil info shift untuk welcome card:', e);
+                shiftEl.textContent = 'Shift: -';
             }
         }
     },
