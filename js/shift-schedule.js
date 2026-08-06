@@ -225,8 +225,33 @@ const shiftSchedule = {
     bindEvents() {
         const btnSimpan = document.getElementById('ssc-btn-simpan');
         const btnTambah = document.getElementById('ssc-btn-tambah-jenis');
+        const btnPulihkan = document.getElementById('ssc-btn-pulihkan-default');
         if (btnSimpan) btnSimpan.onclick = () => this.saveData();
         if (btnTambah) btnTambah.onclick = () => this.addJenisJadwal();
+        if (btnPulihkan) btnPulihkan.onclick = () => this.restoreMissingDefaults();
+    },
+
+    // Kembalikan Jenis Jadwal bawaan (Reguler, Jaga Malam, SATPAM, TRD,
+    // Operator - BNA Amuntai, Operator - 24/18/16/13 Jam) yang pernah
+    // terhapus (mis. tidak sengaja diklik "Hapus" lalu ke-save). HANYA
+    // menambahkan yang namanya BELUM ada di config sekarang - Jenis Jadwal
+    // yang sudah ada (termasuk yang sudah admin ganti nama/jamnya, seperti
+    // "Operator - 18 Jam (Babirik)") TIDAK disentuh/ditimpa sama sekali.
+    restoreMissingDefaults() {
+        const defaults = this._defaultConfig();
+        const missingKeys = Object.keys(defaults).filter(k => !this.config[k]);
+
+        if (missingKeys.length === 0) {
+            toast.success('Semua Jenis Jadwal bawaan sudah ada, tidak ada yang perlu dipulihkan.');
+            return;
+        }
+
+        if (!confirm(`Jenis Jadwal bawaan berikut belum ada / pernah terhapus dan akan ditambahkan kembali:\n\n${missingKeys.join('\n')}\n\nJenis Jadwal lain yang sudah ada TIDAK akan diubah. Lanjutkan?`)) return;
+
+        missingKeys.forEach(k => { this.config[k] = defaults[k]; });
+        this._markDirty();
+        this.render();
+        toast.success(`${missingKeys.length} Jenis Jadwal bawaan dipulihkan - jangan lupa klik "Simpan Semua".`);
     },
 
     async saveData() {
