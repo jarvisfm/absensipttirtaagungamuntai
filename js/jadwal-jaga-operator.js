@@ -1,6 +1,10 @@
 /**
  * Portal Karyawan - Jadwal Jaga Operator
- * Fase 1: pengaturan & cetak jadwal jaga operator per unit (belum terhubung ke absen).
+ * Atur & cetak jadwal jaga per unit operator - SUDAH terhubung ke proses
+ * absen (lihat checkOperatorRosterForToday() di Operatorschdule.gs, dipanggil
+ * dari checkAttendanceAccess() di Attendance.gs). Karyawan dengan Jenis
+ * Jadwal "Operator - ..."/SATPAM cuma bisa absen di hari yang namanya
+ * benar-benar tercatat di jadwal ini.
  *
  * Konsep: pola jadwal (jam, jumlah sesi, jumlah orang/sesi) adalah properti UNIT,
  * bukan properti karyawan - jadi cukup dikonfigurasi sekali per unit di OPERATOR_UNITS,
