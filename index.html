@@ -2972,6 +2972,15 @@
                                 <label style="font-weight:600;font-size:0.85rem;">Nama Jenis Jadwal</label>
                                 <input type="text" id="ssc-new-jenis-nama" placeholder="mis. Reguler (Sen-Kam)" style="width:100%;margin-top:6px;padding:10px;border:1px solid var(--border-color);border-radius:8px;font-family:inherit;" maxlength="100" onkeydown="if(event.key==='Enter'){event.preventDefault();shiftSchedule.confirmAddJenisJadwal();}">
                                 <small style="color:var(--text-muted);display:block;margin-top:6px;">Harus sama persis dengan nama yang nanti dipilih di form Tambah/Edit Karyawan.</small>
+
+                                <label style="display:flex;align-items:flex-start;gap:8px;margin-top:1rem;font-size:0.85rem;cursor:pointer;">
+                                    <input type="checkbox" id="ssc-new-jenis-roster" style="margin-top:3px;">
+                                    <span>
+                                        <strong>Ini Jenis Jadwal Operator (roster harian)</strong><br>
+                                        <span style="color:var(--text-muted);">Centang kalau jam absennya berlaku "Setiap Hari" (bukan Senin-Jumat) dan harus dicek dari menu <em>Jadwal Jaga Operator</em> - sama seperti "Operator - 24 Jam" / "SATPAM" dkk. Kalau tidak dicentang, Jenis Jadwal baru pakai pola Senin-Jumat biasa.</span>
+                                    </span>
+                                </label>
+
                                 <div style="display:flex;gap:8px;margin-top:1.25rem;">
                                     <button class="btn-secondary" style="flex:1;" onclick="shiftSchedule.closeAddJenisJadwalModal()">Batal</button>
                                     <button class="btn-primary" style="flex:1;" onclick="shiftSchedule.confirmAddJenisJadwal()">
