@@ -1520,6 +1520,15 @@ const karyawanManager = {
         const tbody = document.getElementById('k-riwayatkaryawan-list');
         if (!tbody) return;
 
+        // Header kolom "TMT (CAPEG)" ikut menyesuaikan status baris paling
+        // baru (baris teratas, sudah terurut dari TMT terbaru) - sama pola
+        // dengan js/profile.js.
+        const thTmt = document.getElementById('k-rk-th-tmt');
+        if (thTmt) {
+            const terbaru = this.riwayatKaryawanKaryawan[0];
+            thTmt.textContent = (terbaru && terbaru.statusKepegawaian === 'Karyawan') ? 'TMT' : 'TMT CAPEG';
+        }
+
         if (this.riwayatKaryawanKaryawan.length === 0) {
             tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:2rem;color:var(--text-muted);">Belum ada riwayat karyawan yang disimpan.</td></tr>';
             return;
