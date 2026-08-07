@@ -75,7 +75,9 @@ const absensi = {
             return;
         }
 
-        nameEl.textContent = this.accessInfo.shift || '-';
+        nameEl.textContent = this.accessInfo.activeSessionLabel
+            ? `${this.accessInfo.shift} - ${this.accessInfo.activeSessionLabel}`
+            : (this.accessInfo.shift || '-');
 
         const sessions = this.accessInfo.sessions || [];
         const masuk  = sessions.find(s => s.field === 'clockIn');
