@@ -592,10 +592,18 @@ const absensi = {
         const hasBreak    = this._hasBreak() || isExcused;
         const d           = this.attendanceData;
 
-        // Tombol Masuk
+        // Tombol Masuk - selain "sudah absen atau belum", ikut cek jendela
+        // sesi (_isSessionOpen) supaya tombol tidak tampil aktif/hijau kalau
+        // memang belum/sudah lewat jam yang diizinkan (lihat handleClockIn()
+        // yang mengecek hal sama saat diklik - di sini disamakan supaya
+        // tampilan tombolnya konsisten, bukan cuma ketahuan ditolak setelah
+        // diklik).
+        const sesiMasuk = this._getSessions().find(s => s.field === 'clockIn');
+        const masukBelumBuka = !!sesiMasuk && !this._isSessionOpen(sesiMasuk.opensAt);
+
         const btnIn = document.getElementById('btn-clock-in');
         if (btnIn) {
-            btnIn.disabled = !!d.clockIn || isLibur;
+            btnIn.disabled = !!d.clockIn || isLibur || masukBelumBuka;
             const el = document.getElementById('clock-in-time');
             if (d.clockIn) {
                 btnIn.classList.add('completed');
@@ -621,10 +629,15 @@ const absensi = {
             if (btnBreak) btnBreak.style.display = 'none';
             if (btnAfterBreak) btnAfterBreak.style.display = 'none';
         } else {
+            const sesiIstirahat = this._getSessions().find(s => s.field === 'breakStart');
+            const istirahatBelumBuka = !!sesiIstirahat && !this._isSessionOpen(sesiIstirahat.opensAt);
+            const sesiSetelahIstirahat = this._getSessions().find(s => s.field === 'breakEnd');
+            const setelahIstirahatBelumBuka = !!sesiSetelahIstirahat && !this._isSessionOpen(sesiSetelahIstirahat.opensAt);
+
             if (breakSection) breakSection.style.display = '';
             if (btnBreak) {
                 btnBreak.style.display = '';
-                btnBreak.disabled = !d.clockIn || !!d.breakStart || !!d.clockOut;
+                btnBreak.disabled = !d.clockIn || !!d.breakStart || !!d.clockOut || istirahatBelumBuka;
                 const el = document.getElementById('break-time');
                 if (d.breakStart) {
                     btnBreak.classList.add('completed');
@@ -636,7 +649,7 @@ const absensi = {
             }
             if (btnAfterBreak) {
                 btnAfterBreak.style.display = '';
-                btnAfterBreak.disabled = !d.breakStart || !!d.breakEnd || !!d.clockOut;
+                btnAfterBreak.disabled = !d.breakStart || !!d.breakEnd || !!d.clockOut || setelahIstirahatBelumBuka;
                 const elAfter = document.getElementById('after-break-time');
                 if (d.breakEnd) {
                     btnAfterBreak.classList.add('completed');
@@ -648,10 +661,13 @@ const absensi = {
             }
         }
 
-        // Tombol Pulang
+        // Tombol Pulang - ikut cek jendela sesi juga, sama seperti Masuk di atas.
+        const sesiPulang = this._getSessions().find(s => s.field === 'clockOut');
+        const pulangBelumBuka = !!sesiPulang && !this._isSessionOpen(sesiPulang.opensAt);
+
         const btnOut = document.getElementById('btn-clock-out');
         if (btnOut) {
-            btnOut.disabled = !d.clockIn || !!d.clockOut;
+            btnOut.disabled = !d.clockIn || !!d.clockOut || pulangBelumBuka;
             const el = document.getElementById('clock-out-time');
             if (d.clockOut) {
                 btnOut.classList.add('completed');
