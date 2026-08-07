@@ -1086,12 +1086,25 @@ const faceRecognition = {
     capturePhoto() {
         if (!this.video || !this.canvas) return;
 
+        // Jaring pengaman ANTI-DOBEL-SUBMIT: kalau proses capture SEDANG
+        // berjalan (baik dipicu klik manual atau auto-capture dari loop
+        // deteksi), abaikan panggilan susulan sampai proses ini selesai/
+        // gagal. Tanpa ini, klik manual yang kebetulan bersamaan dengan
+        // auto-capture (atau auto-capture yang keduanya sempat lolos
+        // giliran karena verifikasi wajah/identitas makan waktu lebih dari
+        // 150ms sebelum this.photoCaptured sempat di-set true) bisa
+        // memicu confirmAttendance() 2x - absen tercatat dobel di
+        // database DAN notifikasi sukses juga muncul dobel.
+        if (this._captureInFlight) return;
+        this._captureInFlight = true;
+
         // Sekarang cuma ada 1 tombol ("Absen Sekarang") yang sekaligus ambil
         // foto & submit absensi - jadi lokasi WAJIB divalidasi duluan di sini,
         // sebelum foto diambil, supaya tidak ada foto yang "kepotong di
         // tengah" gara-gara ternyata lokasinya belum/tidak valid.
         if (!this.locationVerified) {
             toast.error('Lokasi belum terverifikasi. Mohon tunggu sebentar, lalu coba lagi.');
+            this._captureInFlight = false;
             return;
         }
 
@@ -1139,6 +1152,7 @@ const faceRecognition = {
             if (!faceOk) {
                 toast.error('Wajah tidak terdeteksi. Pastikan wajah Anda terlihat jelas di kamera, lalu coba lagi.');
                 if (captureBtnEl) captureBtnEl.disabled = !this.faceDetected;
+                this._captureInFlight = false;
                 return;
             }
 
@@ -1158,6 +1172,7 @@ const faceRecognition = {
                     }
                     this._faceMismatchRetrying = true;
                     if (captureBtnEl) captureBtnEl.disabled = !this.faceDetected;
+                    this._captureInFlight = false;
                     return;
                 }
                 this._faceMismatchRetrying = false;
@@ -1206,6 +1221,7 @@ const faceRecognition = {
             if (captureBtn) captureBtn.style.display = 'none';
 
             this.photoCaptured = true;
+            this._captureInFlight = false;
 
             // Langsung lanjut submit absensi otomatis - tidak perlu klik
             // tombol konfirmasi terpisah lagi (dulu ada 2 tombol, sekarang
@@ -1216,6 +1232,7 @@ const faceRecognition = {
 
     retakePhoto() {
         this.photoCaptured = false;
+        this._captureInFlight = false;
         this.faceDetected = false;
         this.livenessDetected = false;
         this._headWasTurned = false;
