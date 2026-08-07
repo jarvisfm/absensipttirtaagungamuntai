@@ -537,11 +537,19 @@ const absensi = {
         const statusText    = document.querySelector('.status-text');
         const statusSubtext = document.querySelector('.status-subtext');
 
+        // Sesi Masuk hari ini (dipakai buat teks status di bawah, dan buat
+        // nonaktifkan tombol Masuk lebih ke bawah) - dihitung di awal supaya
+        // bisa dipakai state 'waiting' juga.
+        const sesiMasukUntukStatus = this._getSessions().find(s => s.field === 'clockIn');
+        const portalMasukBelumBuka = !!sesiMasukUntukStatus && !this._isSessionOpen(sesiMasukUntukStatus.opensAt);
+
         if (statusRing) {
             statusRing.className = 'status-ring';
             const states = {
                 libur:      { cls: 'waiting',   text: 'Hari Libur',       sub: (this.accessInfo && this.accessInfo.message) || 'Tidak ada jadwal kerja hari ini' },
-                waiting:    { cls: 'waiting',   text: 'Siap Absen Masuk', sub: 'Tekan tombol di bawah untuk absen' },
+                waiting:    portalMasukBelumBuka
+                    ? { cls: 'waiting', text: 'Menunggu Jam Masuk', sub: `Absen baru bisa dimulai pukul ${sesiMasukUntukStatus.opensAt}` }
+                    : { cls: 'waiting', text: 'Siap Absen Masuk', sub: 'Tekan tombol di bawah untuk absen' },
                 'clocked-in': { cls: 'active',  text: 'Sedang Bekerja',   sub: 'Semangat bekerja!' },
                 'on-break': { cls: 'on-break',  text: 'Sedang Istirahat', sub: 'Nikmati waktu istirahat Anda' },
                 completed:  { cls: 'completed', text: 'Selesai Bekerja',  sub: 'Terima kasih atas kerja kerasnya!' },
