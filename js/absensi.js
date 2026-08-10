@@ -347,9 +347,31 @@ const absensi = {
     _isSessionOpen(opensAt) {
         if (!opensAt) return true;
         const now = dateTime.now();
-        const nowMin = now.getHours() * 60 + now.getMinutes();
+        const nowMin = this._getWitaMinutesOfDay(now);
         const openMin = this._toMinutes(opensAt);
         return nowMin >= openMin;
+    },
+
+    // "Jam:menit sekarang" (dalam total menit sejak 00:00) tapi dihitung
+    // eksplisit pakai timezone WITA (Asia/Makassar) - BUKAN
+    // now.getHours()/now.getMinutes() native yang ikut timezone
+    // PERANGKAT/browser karyawan (belum tentu WITA kalau setelan zona
+    // waktu HP-nya kebetulan bukan WITA). dateTime.now() sendiri sudah
+    // benar (disinkron ke jam server, kebal dari jam HP diubah-ubah),
+    // tapi getHours()/getMinutes() di JS selalu mengikuti timezone
+    // perangkat saat membaca Date, jadi perlu dikunci manual ke WITA di
+    // sini - pola sama seperti _getDayOfWeekSafe() di backend
+    // (Attendance.gs).
+    _getWitaMinutesOfDay(date) {
+        const parts = new Intl.DateTimeFormat('en-GB', {
+            timeZone: 'Asia/Makassar',
+            hour: '2-digit',
+            minute: '2-digit',
+            hourCycle: 'h23'
+        }).formatToParts(date);
+        const hh = parseInt((parts.find(p => p.type === 'hour') || {}).value, 10) || 0;
+        const mm = parseInt((parts.find(p => p.type === 'minute') || {}).value, 10) || 0;
+        return hh * 60 + mm;
     },
 
     // Ambil sesi hari ini dari accessInfo
