@@ -76,13 +76,46 @@ const absensi = {
         }
 
         nameEl.textContent = this.accessInfo.activeSessionLabel
-            ? `${this.accessInfo.shift} - ${this.accessInfo.activeSessionLabel}`
+            ? `${this._cleanShiftBaseName(this.accessInfo.shift)} ${this.accessInfo.activeSessionLabel}`
             : (this.accessInfo.shift || '-');
 
         const sessions = this.accessInfo.sessions || [];
         const masuk  = sessions.find(s => s.field === 'clockIn');
         const pulang = sessions.find(s => s.field === 'clockOut');
         timeEl.textContent = (masuk && pulang) ? `${masuk.time} - ${pulang.time}` : '-';
+    },
+
+    // Rapikan nama shift mentah (mis. "Operator - BNA Amuntai (3 Sesi)")
+    // jadi "Operator BNA Amuntai" - buang keterangan "(N Sesi)" & tanda "-"
+    // supaya enak dibaca saat digabung dengan label sesi (Pagi/Siang/Malam).
+    _cleanShiftBaseName(raw) {
+        return String(raw || '')
+            .replace(/\s*\(\d+\s*Sesi\)\s*/gi, ' ')
+            .replace(/\s*-\s*/g, ' ')
+            .replace(/\s+/g, ' ')
+            .trim();
+    },
+
+    // Format label shift buat kolom "Shift" di tabel Riwayat Absensi.
+    // Shift multi-sesi (Operator/SATPAM dgn Pagi/Siang/Malam) tersimpan di
+    // backend sebagai "Operator - BNA Amuntai (3 Sesi) - Pagi" (lihat
+    // saveAttendanceData() di Attendance.gs) - di sini dirapikan jadi
+    // "Operator BNA Amuntai Pagi". Shift satu sesi (mis. "TRD") yang tidak
+    // punya akhiran Pagi/Siang/Malam dibiarkan apa adanya, tidak diubah.
+    _formatShiftDisplay(raw) {
+        const shift = String(raw || '').trim();
+        if (!shift) return '-';
+
+        const SESSION_LABELS = ['Pagi', 'Siang', 'Malam'];
+        const parts = shift.split(' - ').map(p => p.trim());
+        const lastPart = parts[parts.length - 1];
+
+        if (parts.length < 2 || !SESSION_LABELS.includes(lastPart)) {
+            return shift;
+        }
+
+        const baseName = this._cleanShiftBaseName(parts.slice(0, -1).join(' - '));
+        return baseName ? `${baseName} ${lastPart}` : lastPart;
     },
 
     async loadTodayAttendance() {
@@ -293,7 +326,7 @@ const absensi = {
         return `
             <tr${isToday ? ' class="row-today"' : ''}>
                 <td>${dateStr}${isToday ? '<span class="today-tag">Hari Ini</span>' : ''}</td>
-                <td style="font-size:0.82rem;">${record.shift || '-'}</td>
+                <td style="font-size:0.82rem;">${this._formatShiftDisplay(record.shift)}</td>
                 <td style="font-weight:600;color:#10b981;">${record.clockIn || '–'}</td>
                 <td style="color:var(--text-muted);">${record.breakStart || '–'}</td>
                 <td style="color:var(--text-muted);">${record.breakEnd || '–'}</td>
