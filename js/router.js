@@ -124,7 +124,23 @@ const router = {
         
         // Trigger page-specific init functions
         this.triggerPageInit(page);
-        
+
+        // Pemulihan khusus untuk halaman face-recognition kalau dicapai
+        // LEWAT TOMBOL BACK/FORWARD BROWSER (pushState=false, bukan lewat
+        // klik tombol Clock In/Istirahat dkk di Absensi yang selalu lewat
+        // navigate() -> pushState=true). Di jalur ini TIDAK ADA panggilan
+        // faceRecognition.init() lain yang menyusul, jadi aman dipicu di
+        // sini tanpa risiko bentrok/dobel seperti kalau ditaruh di
+        // triggerPageInit() (lihat catatan di sana). Kamera lama sudah
+        // dimatikan stopCamera() saat sebelumnya ditinggal pindah halaman -
+        // tanpa ini videonya tetap hitam sampai user klik tombol lagi dari
+        // Absensi.
+        if (!pushState && page === 'face-recognition'
+            && window.faceRecognition && faceRecognition.currentAction
+            && !faceRecognition.stream && !faceRecognition.photoCaptured) {
+            faceRecognition.init(faceRecognition.currentAction);
+        }
+
         // Scroll to top
         document.querySelector('.page-content').scrollTop = 0;
     },
@@ -139,20 +155,16 @@ const router = {
                 if (window.initAbsensi) window.initAbsensi();
                 break;
             case 'face-recognition':
-                // Kamera di halaman ini CUMA dinyalakan lewat tombol Clock In/
-                // Istirahat dkk di Absensi (absensi.js memanggil
-                // faceRecognition.init(action) langsung, bukan lewat sini).
-                // Kalau halaman ini dicapai LEWAT TOMBOL BACK/FORWARD BROWSER
-                // (bukan lewat tombol tsb), kode di atas cuma menampilkan lagi
-                // halamannya tanpa menyalakan ulang kamera - videonya jadi
-                // hitam karena stream lama sudah dimatikan stopCamera() saat
-                // sebelumnya ditinggal pindah halaman. Kalau ada action yang
-                // masih tertunda (belum sempat capture foto) dan kameranya
-                // memang sedang tidak aktif, nyalakan ulang di sini.
-                if (window.faceRecognition && faceRecognition.currentAction
-                    && !faceRecognition.stream && !faceRecognition.photoCaptured) {
-                    faceRecognition.init(faceRecognition.currentAction);
-                }
+                // Kamera di halaman ini SENGAJA tidak dinyalakan di sini -
+                // absensi.js yang memanggil faceRecognition.init(action)
+                // langsung setiap kali tombol Clock In/Istirahat dkk diklik.
+                // Kalau kode reinit ditaruh di sini, dia ikut jalan SETIAP
+                // kali (termasuk navigasi normal lewat tombol tsb), bentrok
+                // dengan panggilan init() dari absensi.js yang menyusul
+                // ~100ms kemudian - 2 init() nyaris bersamaan bikin video
+                // malah gagal dapat stream (hitam). Pemulihan utk kasus
+                // "kembali lewat tombol Back browser" ditangani terpisah,
+                // cuma di jalur popstate - lihat showPage().
                 break;
             case 'izin':
                 if (window.initIzin) window.initIzin();
