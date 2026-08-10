@@ -75,13 +75,30 @@ const jadwalJagaOperator = {
     _allSettings: {}, // cache semua settings dari server (supaya save 1 key tidak perlu reload semua)
     _employees: [],   // semua karyawan berjabatan "Operator" (dari getKaryawanList)
     _dirty: false,
+    // Diisi begitu halaman ini dibuka oleh Asmen (BUKAN admin) yang ditunjuk
+    // sebagai pemegang jadwal 1 unit tertentu (lihat operatorScheduleUnit di
+    // Data Karyawan) - kalau terisi, dropdown Unit dikunci ke unit ini saja,
+    // Asmen tidak bisa lihat/pilih unit lain. null/'' berarti tidak
+    // dibatasi (kasus normal: admin, bisa akses semua unit).
+    _restrictedUnit: null,
 
     async init() {
-        if (!auth.isAdmin()) {
+        // Yang boleh buka halaman ini: (1) Admin - akses semua unit seperti
+        // biasa, atau (2) karyawan berjabatan Asmen (auth.isAsmen(), sudah
+        // sadar soal Mode Karyawan admin rangkap) YANG DITUNJUK admin
+        // sebagai pemegang jadwal unit tertentu (operatorScheduleUnit di
+        // Data Karyawan tidak kosong) - dikunci cuma ke unit itu saja.
+        const isAdminUser = auth.isAdmin();
+        const assignedUnit = (!isAdminUser && auth.isAsmen() && auth.currentUser)
+            ? (auth.currentUser.operatorScheduleUnit || '')
+            : '';
+
+        if (!isAdminUser && !assignedUnit) {
             toast.error('Anda tidak memiliki akses ke halaman ini!');
             router.navigate('dashboard');
             return;
         }
+        this._restrictedUnit = assignedUnit || null;
 
         await this._loadEmployees();
         this._populateUnitSelect();
@@ -89,7 +106,23 @@ const jadwalJagaOperator = {
         this.bindEvents();
 
         const unitSelect = document.getElementById('jjo-unit');
-        if (unitSelect && unitSelect.value) {
+
+        if (this._restrictedUnit) {
+            // Asmen pemegang 1 unit - langsung kunci & tampilkan unit itu,
+            // dropdown-nya dikunci (disabled) supaya tidak bisa ganti unit
+            // lain. Selebihnya (isi nama petugas, simpan, cetak) PERSIS
+            // sama seperti admin - Asmen memang sengaja diberi hak kelola
+            // penuh utk unit yang jadi tanggung jawabnya.
+            if (unitSelect) {
+                unitSelect.value = this._restrictedUnit;
+                unitSelect.disabled = true;
+            }
+            this.unitKey = this._restrictedUnit;
+            const isTrd = this.unitKey === 'TRD';
+            const cabangWrap = document.getElementById('jjo-cabang-wrap');
+            if (cabangWrap) cabangWrap.style.display = isTrd ? '' : 'none';
+            await this.loadAndRender();
+        } else if (unitSelect && unitSelect.value) {
             this.unitKey = unitSelect.value;
             await this.loadAndRender();
         }
@@ -126,8 +159,12 @@ const jadwalJagaOperator = {
     _populateUnitSelect() {
         const sel = document.getElementById('jjo-unit');
         if (!sel) return;
-        sel.innerHTML = '<option value="">-- Pilih Unit --</option>' +
-            Object.keys(OPERATOR_UNITS).map(key =>
+        // Asmen yang dikunci ke 1 unit (this._restrictedUnit) cuma dikasih
+        // 1 opsi itu saja di dropdown - unit lain tidak boleh kelihatan
+        // sama sekali, bukan cuma "terkunci" tapi tetap ada di daftar.
+        const keys = this._restrictedUnit ? [this._restrictedUnit] : Object.keys(OPERATOR_UNITS);
+        sel.innerHTML = (this._restrictedUnit ? '' : '<option value="">-- Pilih Unit --</option>') +
+            keys.map(key =>
                 `<option value="${key}">${OPERATOR_UNITS[key].label}</option>`
             ).join('');
     },
