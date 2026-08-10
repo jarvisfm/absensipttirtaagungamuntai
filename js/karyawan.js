@@ -580,7 +580,36 @@ const karyawanManager = {
             // Upload foto jika ada
             const fotoFile = document.getElementById('karyawan-foto-file')?.files[0];
             if (fotoFile && savedId) {
-                await this.uploadFoto(savedId, fotoFile);
+                const newFotoUrl = await this.uploadFoto(savedId, fotoFile);
+
+                // Kalau admin kebetulan mengedit data DIRINYA SENDIRI lewat
+                // panel Kelola Karyawan ini (bukan lewat "Edit Profil" di
+                // profile.js), sesi login (auth.currentUser.avatar) juga
+                // harus disinkronkan - kalau tidak, foto acuan yang dipakai
+                // face-recognition.js saat admin itu sendiri absen akan
+                // tetap memakai foto LAMA sampai admin logout/login ulang.
+                // Lihat catatan yang sama di profile.js saveMyProfile().
+                if (newFotoUrl) {
+                    const currentUser = auth.getCurrentUser ? auth.getCurrentUser() : null;
+                    // Untuk akun Admin, ID di sesi login (currentUser.id)
+                    // adalah ID di sheet "Users", BUKAN ID di sheet
+                    // "Employees" - ID Employees-nya ada di
+                    // currentUser.employeeId (sama seperti pola myId di
+                    // profile.js/auth.js). Karyawan biasa (bukan admin)
+                    // memang id sesi = id Employees.
+                    const myEmployeeId = (currentUser && currentUser.role === 'admin')
+                        ? currentUser.employeeId
+                        : (currentUser ? currentUser.id : null);
+                    if (currentUser && myEmployeeId && String(myEmployeeId) === String(savedId)) {
+                        currentUser.avatar = newFotoUrl;
+                        if (typeof storage !== 'undefined') storage.set('session', currentUser);
+                        if (auth.updateUserUI) auth.updateUserUI();
+                        if (typeof faceRecognition !== 'undefined') {
+                            faceRecognition._referenceDescriptor = null;
+                            faceRecognition._referenceDescriptorAvatarUrl = null;
+                        }
+                    }
+                }
             }
 
             toast.success(this.editingId ? 'Data karyawan berhasil diperbarui!' : 'Karyawan berhasil ditambahkan!');
@@ -594,17 +623,24 @@ const karyawanManager = {
     },
 
     async uploadFoto(id, file) {
+        // Balikin URL foto baru dari backend (dibutuhkan pemanggil untuk
+        // menyinkronkan sesi login kalau yang diedit adalah admin itu
+        // sendiri - lihat saveKaryawan()). null kalau upload gagal.
         return new Promise((resolve) => {
             const reader = new FileReader();
             reader.onload = async (e) => {
                 const base64 = e.target.result.split(',')[1];
                 const mimeType = file.type;
+                let fotoUrl = null;
                 try {
-                    await api.uploadFotoKaryawan(id, base64, mimeType);
+                    const result = await api.uploadFotoKaryawan(id, base64, mimeType);
+                    if (result && result.success && result.data && result.data.fotoUrl) {
+                        fotoUrl = result.data.fotoUrl;
+                    }
                 } catch (err) {
                     console.error('Upload foto gagal:', err);
                 }
-                resolve();
+                resolve(fotoUrl);
             };
             reader.readAsDataURL(file);
         });
