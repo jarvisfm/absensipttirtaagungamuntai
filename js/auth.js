@@ -85,6 +85,7 @@ const auth = {
                 userAvatarArea.addEventListener('click', () => this.openProfileModal());
             }
         }
+        this._setupBiometricLogin(); // NEW
     },
 
     async handleLogin(e) {
@@ -156,6 +157,7 @@ const auth = {
             this.startSessionWatcher();
 
             toast.success(`Selamat datang, ${user.name}!`);
+            this._maybeOfferBiometricEnrollment(username, password); // NEW
         } catch (error) {
             console.error('Login error:', error);
             toast.error('Terjadi kesalahan saat login');
@@ -701,6 +703,209 @@ const auth = {
 
     getCurrentUser() {
         return this.currentUser;
+    },
+
+    // ================= Login Sidik Jari (WebAuthn) — TAMBAHAN =================
+    // Fitur tambahan, TIDAK mengganti login username/password yang sudah
+    // ada. Sidik jari/Face Unlock HP cuma dipakai untuk membuka kunci
+    // kredensial yang sudah tersimpan di HP ini; setelah verifikasi sukses,
+    // login tetap lewat api.login() seperti biasa (backend Auth.gs tidak
+    // perlu diubah sama sekali).
+    //
+    // Catatan keamanan: username & password disimpan di localStorage HP
+    // ini (level keamanan yang sama dengan data sesi yang sudah disimpan
+    // app ini sekarang) supaya bisa dipakai ulang otomatis setelah sidik
+    // jari terverifikasi. Sebaiknya cuma diaktifkan di HP pribadi yang
+    // memang sudah dikunci PIN/sidik jari oleh pemiliknya, bukan HP
+    // bersama/kantor.
+    BIOMETRIC_KEY: 'biometricLogin',
+    BIOMETRIC_DISMISS_KEY: 'biometricPromptDismissed',
+
+    async _isBiometricAvailable() {
+        return !!(window.PublicKeyCredential &&
+            PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable &&
+            await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable());
+    },
+
+    _bufToBase64(buf) {
+        return btoa(String.fromCharCode(...new Uint8Array(buf)));
+    },
+    _base64ToBuf(base64) {
+        const binary = atob(base64);
+        const bytes = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+        return bytes.buffer;
+    },
+
+    // Dipanggil sekali dari init() - munculkan tombol "Masuk dengan Sidik
+    // Jari" di layar login KALAU perangkat ini sudah pernah setup
+    // sebelumnya dan masih mendukung platform authenticator.
+    async _setupBiometricLogin() {
+        const btn = document.getElementById('btn-biometric-login');
+        if (!btn) return;
+        const saved = storage.get(this.BIOMETRIC_KEY);
+        const available = await this._isBiometricAvailable();
+        if (saved && saved.credentialId && available) {
+            btn.style.display = 'flex';
+            btn.addEventListener('click', () => this.loginWithBiometric());
+        }
+    },
+
+    // Dipanggil dari handleLogin() setelah login username/password sukses -
+    // tawarkan aktifkan sidik jari kalau perangkat mendukung & belum
+    // pernah diaktifkan/ditolak sebelumnya di HP ini.
+    async _maybeOfferBiometricEnrollment(username, password) {
+        if (storage.get(this.BIOMETRIC_KEY) || storage.get(this.BIOMETRIC_DISMISS_KEY)) return;
+        if (!(await this._isBiometricAvailable())) return;
+        this._pendingBiometricCreds = { username, password };
+        const modal = document.getElementById('modal-biometric-enable');
+        if (modal) modal.style.display = 'flex';
+    },
+
+    declineBiometricPrompt() {
+        const modal = document.getElementById('modal-biometric-enable');
+        if (modal) modal.style.display = 'none';
+        storage.set(this.BIOMETRIC_DISMISS_KEY, true);
+        this._pendingBiometricCreds = null;
+    },
+
+    // User tap "Aktifkan" di modal - daftarkan sidik jari/Face Unlock
+    // perangkat ini lewat WebAuthn (platform authenticator).
+    async confirmEnableBiometric() {
+        const modal = document.getElementById('modal-biometric-enable');
+        if (modal) modal.style.display = 'none';
+        const creds = this._pendingBiometricCreds;
+        this._pendingBiometricCreds = null;
+        if (!creds) return;
+
+        try {
+            const credential = await navigator.credentials.create({
+                publicKey: {
+                    challenge: crypto.getRandomValues(new Uint8Array(32)),
+                    rp: { name: 'Portal Karyawan TAA', id: location.hostname },
+                    user: {
+                        id: crypto.getRandomValues(new Uint8Array(16)),
+                        name: creds.username,
+                        displayName: creds.username
+                    },
+                    pubKeyCredParams: [
+                        { type: 'public-key', alg: -7 },
+                        { type: 'public-key', alg: -257 }
+                    ],
+                    authenticatorSelection: {
+                        authenticatorAttachment: 'platform',
+                        userVerification: 'required',
+                        residentKey: 'preferred'
+                    },
+                    timeout: 60000,
+                    attestation: 'none'
+                }
+            });
+            if (!credential) throw new Error('Pendaftaran dibatalkan');
+
+            storage.set(this.BIOMETRIC_KEY, {
+                credentialId: this._bufToBase64(credential.rawId),
+                username: creds.username,
+                password: creds.password
+            });
+
+            const btn = document.getElementById('btn-biometric-login');
+            if (btn) {
+                btn.style.display = 'flex';
+                btn.addEventListener('click', () => this.loginWithBiometric());
+            }
+            toast.success('Login sidik jari berhasil diaktifkan di perangkat ini');
+        } catch (error) {
+            console.error('Gagal mendaftarkan sidik jari:', error);
+            toast.error('Gagal mengaktifkan sidik jari. Login manual tetap bisa dipakai.');
+        }
+    },
+
+    // Tombol "Masuk dengan Sidik Jari" di layar login.
+    async loginWithBiometric() {
+        const saved = storage.get(this.BIOMETRIC_KEY);
+        if (!saved || !saved.credentialId) {
+            toast.error('Sidik jari belum diaktifkan di perangkat ini');
+            return;
+        }
+        const btn = document.getElementById('btn-biometric-login');
+        if (btn) btn.classList.add('loading');
+
+        try {
+            const assertion = await navigator.credentials.get({
+                publicKey: {
+                    challenge: crypto.getRandomValues(new Uint8Array(32)),
+                    rpId: location.hostname,
+                    allowCredentials: [{
+                        id: this._base64ToBuf(saved.credentialId),
+                        type: 'public-key',
+                        transports: ['internal']
+                    }],
+                    userVerification: 'required',
+                    timeout: 60000
+                }
+            });
+            if (!assertion) throw new Error('Verifikasi dibatalkan');
+
+            // Verifikasi sidik jari sukses - lanjutkan login normal pakai
+            // username & password yang tersimpan (proses sama persis
+            // dengan handleLogin(), termasuk sessionToken 1-perangkat).
+            const result = await api.login(saved.username, saved.password);
+            if (!result.success || !result.data) {
+                toast.error(result.error || 'Login gagal, silakan login manual');
+                // Kredensial tersimpan sudah tidak valid (mis. password
+                // sudah diganti) - hapus supaya tidak terus gagal.
+                storage.remove(this.BIOMETRIC_KEY);
+                if (btn) btn.style.display = 'none';
+                return;
+            }
+
+            const user = {
+                id: result.data.id,
+                employeeId: result.data.employeeId || null,
+                username: result.data.username,
+                name: result.data.name,
+                role: result.data.role,
+                employeeRole: result.data.employeeRole || '',
+                department: result.data.department || '',
+                position: result.data.position || '',
+                shift: result.data.shift || '',
+                avatar: result.data.avatar || '',
+                nik: result.data.nik || '',
+                jabatan: result.data.jabatan || '',
+                unitKerja: result.data.unitKerja || '',
+                unitWilayah: result.data.unitWilayah || '',
+                bagian: result.data.bagian || '',
+                pangkat: result.data.pangkat || '',
+                golongan: result.data.golongan || '',
+                sessionToken: result.data.sessionToken || '',
+                loginTime: new Date().toISOString(),
+                expiresAt: Date.now() + this.SESSION_DURATION_MS
+            };
+
+            this.currentUser = user;
+            storage.set('session', user);
+            storage.remove('lastHiddenAt');
+            this.updateUserUI();
+            this.showApp();
+            this.startSessionWatcher();
+            toast.success(`Selamat datang, ${user.name}!`);
+        } catch (error) {
+            console.error('Biometric login error:', error);
+            toast.error('Verifikasi sidik jari gagal atau dibatalkan');
+        } finally {
+            if (btn) btn.classList.remove('loading');
+        }
+    },
+
+    // Matikan login sidik jari di perangkat ini (mis. dipanggil dari menu
+    // Pengaturan kalau mau dibuatkan tombolnya nanti).
+    disableBiometricLogin() {
+        storage.remove(this.BIOMETRIC_KEY);
+        storage.remove(this.BIOMETRIC_DISMISS_KEY);
+        const btn = document.getElementById('btn-biometric-login');
+        if (btn) btn.style.display = 'none';
+        toast.info('Login sidik jari dinonaktifkan di perangkat ini');
     }
 };
 
