@@ -449,8 +449,9 @@ const profileManager = {
 
             // Upload foto jika ada
             const fotoFile = document.getElementById('pf-foto-file')?.files[0];
+            let newFotoUrl = null;
             if (fotoFile) {
-                await this.uploadFoto(fotoFile);
+                newFotoUrl = await this.uploadFoto(fotoFile);
             }
 
             toast.success('Profil berhasil diperbarui!');
@@ -459,6 +460,26 @@ const profileManager = {
             const user = auth.getCurrentUser ? auth.getCurrentUser() : null;
             if (user) {
                 user.name = nama;
+                // PENTING: foto baru punya URL Drive yang berbeda dari yang
+                // lama (lihat uploadFotoKaryawan di backend - file lama
+                // dihapus, file baru dibuat dengan ID baru). Kalau
+                // user.avatar di sesi login tidak ikut diperbarui di sini,
+                // face-recognition.js akan terus memakai foto profil LAMA
+                // sebagai acuan pencocokan wajah (session cuma dimuat ulang
+                // saat login) - akibatnya ganti foto profil ke wajah orang
+                // lain tidak akan pernah membuat absen ditolak selama sesi
+                // login yang sama, karena sistem masih membandingkan ke
+                // foto lama, bukan yang baru.
+                if (newFotoUrl) {
+                    user.avatar = newFotoUrl;
+                    // Buang cache descriptor wajah lama di faceRecognition
+                    // supaya absen berikutnya menghitung ulang dari foto
+                    // profil yang baru, bukan memakai hasil hitung foto lama.
+                    if (typeof faceRecognition !== 'undefined') {
+                        faceRecognition._referenceDescriptor = null;
+                        faceRecognition._referenceDescriptorAvatarUrl = null;
+                    }
+                }
                 if (typeof storage !== 'undefined') storage.set('session', user);
                 if (auth.updateUserUI) auth.updateUserUI();
             }
@@ -473,17 +494,25 @@ const profileManager = {
     },
 
     async uploadFoto(file) {
+        // Balikin URL foto baru (dari backend) supaya pemanggil bisa
+        // menyinkronkan user.avatar di sesi login - lihat catatan di
+        // saveMyProfile(). Balikin null kalau upload gagal (biarkan sesi
+        // login apa adanya, jangan menimpanya dengan sesuatu yang salah).
         return new Promise((resolve) => {
             const reader = new FileReader();
             reader.onload = async (e) => {
                 const base64 = e.target.result.split(',')[1];
                 const mimeType = file.type;
+                let fotoUrl = null;
                 try {
-                    await api.uploadFotoKaryawan(this.myId, base64, mimeType);
+                    const result = await api.uploadFotoKaryawan(this.myId, base64, mimeType);
+                    if (result && result.success && result.data && result.data.fotoUrl) {
+                        fotoUrl = result.data.fotoUrl;
+                    }
                 } catch (err) {
                     console.error('Upload foto gagal:', err);
                 }
-                resolve();
+                resolve(fotoUrl);
             };
             reader.readAsDataURL(file);
         });
