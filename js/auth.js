@@ -134,6 +134,7 @@ const auth = {
                     pangkat: result.data.pangkat || '',
                     golongan: result.data.golongan || '',
                     sessionToken: result.data.sessionToken || '',
+                    operatorScheduleUnit: result.data.operatorScheduleUnit || '',
                     loginTime: new Date().toISOString(),
                     expiresAt: Date.now() + this.SESSION_DURATION_MS
                 };
@@ -646,6 +647,17 @@ const auth = {
 
         const bottomNavApprovalDirektur = document.getElementById('bottom-nav-approval-direktur');
         if (bottomNavApprovalDirektur) bottomNavApprovalDirektur.classList.toggle('hidden', !this.isDirektur());
+
+        // Menu "Jadwal Jaga Operator" versi Asmen - beda dari menu admin
+        // (yang ada di sidebar Menu Admin & selalu bisa akses semua unit).
+        // Ini cuma muncul untuk Asmen (isAsmen(), sudah sadar Mode Karyawan)
+        // YANG DITUNJUK admin sebagai pemegang jadwal 1 unit tertentu
+        // (operatorScheduleUnit tidak kosong - lihat Data Karyawan).
+        const navJadwalOperatorAsmen = document.getElementById('nav-jadwal-jaga-operator-asmen');
+        if (navJadwalOperatorAsmen) {
+            const showForAsmen = this.isAsmen() && !!(this.currentUser && this.currentUser.operatorScheduleUnit);
+            navJadwalOperatorAsmen.classList.toggle('hidden', !showForAsmen);
+        }
     },
 
     isLoggedIn() {
@@ -956,6 +968,7 @@ const auth = {
                 pangkat: result.data.pangkat || '',
                 golongan: result.data.golongan || '',
                 sessionToken: result.data.sessionToken || '',
+                operatorScheduleUnit: result.data.operatorScheduleUnit || '',
                 loginTime: new Date().toISOString(),
                 expiresAt: Date.now() + this.SESSION_DURATION_MS
             };
