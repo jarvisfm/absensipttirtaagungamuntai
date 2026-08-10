@@ -76,29 +76,31 @@ const jadwalJagaOperator = {
     _employees: [],   // semua karyawan berjabatan "Operator" (dari getKaryawanList)
     _dirty: false,
     // Diisi begitu halaman ini dibuka oleh Asmen (BUKAN admin) yang ditunjuk
-    // sebagai pemegang jadwal 1 unit tertentu (lihat operatorScheduleUnit di
-    // Data Karyawan) - kalau terisi, dropdown Unit dikunci ke unit ini saja,
-    // Asmen tidak bisa lihat/pilih unit lain. null/'' berarti tidak
-    // dibatasi (kasus normal: admin, bisa akses semua unit).
-    _restrictedUnit: null,
+    // sebagai pemegang jadwal 1 atau lebih unit tertentu (lihat
+    // operatorScheduleUnit di Data Karyawan, teks dipisah koma kalau lebih
+    // dari 1 unit) - kalau terisi, dropdown Unit cuma berisi unit-unit ini
+    // saja, Asmen tidak bisa lihat/pilih unit lain. Array kosong berarti
+    // tidak dibatasi (kasus normal: admin, selalu bisa akses SEMUA unit).
+    _restrictedUnits: [],
 
     async init() {
         // Yang boleh buka halaman ini: (1) Admin - akses semua unit seperti
-        // biasa, atau (2) karyawan berjabatan Asmen (auth.isAsmen(), sudah
-        // sadar soal Mode Karyawan admin rangkap) YANG DITUNJUK admin
-        // sebagai pemegang jadwal unit tertentu (operatorScheduleUnit di
-        // Data Karyawan tidak kosong) - dikunci cuma ke unit itu saja.
+        // biasa, TIDAK PERNAH dibatasi field operatorScheduleUnit, atau
+        // (2) karyawan berjabatan Asmen (auth.isAsmen(), sudah sadar soal
+        // Mode Karyawan admin rangkap) YANG DITUNJUK admin sebagai
+        // pemegang jadwal 1/lebih unit (operatorScheduleUnit di Data
+        // Karyawan tidak kosong) - dikunci cuma ke unit-unit itu saja.
         const isAdminUser = auth.isAdmin();
-        const assignedUnit = (!isAdminUser && auth.isAsmen() && auth.currentUser)
-            ? (auth.currentUser.operatorScheduleUnit || '')
-            : '';
+        const assignedUnits = (!isAdminUser && auth.isAsmen() && auth.currentUser)
+            ? String(auth.currentUser.operatorScheduleUnit || '').split(',').map(s => s.trim()).filter(Boolean)
+            : [];
 
-        if (!isAdminUser && !assignedUnit) {
+        if (!isAdminUser && assignedUnits.length === 0) {
             toast.error('Anda tidak memiliki akses ke halaman ini!');
             router.navigate('dashboard');
             return;
         }
-        this._restrictedUnit = assignedUnit || null;
+        this._restrictedUnits = assignedUnits;
 
         await this._loadEmployees();
         this._populateUnitSelect();
@@ -107,17 +109,21 @@ const jadwalJagaOperator = {
 
         const unitSelect = document.getElementById('jjo-unit');
 
-        if (this._restrictedUnit) {
-            // Asmen pemegang 1 unit - langsung kunci & tampilkan unit itu,
-            // dropdown-nya dikunci (disabled) supaya tidak bisa ganti unit
-            // lain. Selebihnya (isi nama petugas, simpan, cetak) PERSIS
-            // sama seperti admin - Asmen memang sengaja diberi hak kelola
-            // penuh utk unit yang jadi tanggung jawabnya.
+        if (this._restrictedUnits.length > 0) {
+            // Asmen pemegang 1/lebih unit - default-kan ke unit pertama di
+            // daftarnya. Kalau cuma pegang 1 unit, dropdown dikunci
+            // (disabled) karena tidak ada pilihan lain yang relevan; kalau
+            // pegang beberapa unit, dropdown tetap AKTIF supaya bisa
+            // pindah-pindah, tapi isinya sudah dibatasi cuma unit-unit
+            // miliknya (lihat _populateUnitSelect). Selebihnya (isi nama
+            // petugas, simpan, cetak) PERSIS sama seperti admin - Asmen
+            // memang sengaja diberi hak kelola penuh utk unit yang jadi
+            // tanggung jawabnya.
             if (unitSelect) {
-                unitSelect.value = this._restrictedUnit;
-                unitSelect.disabled = true;
+                unitSelect.value = this._restrictedUnits[0];
+                unitSelect.disabled = this._restrictedUnits.length === 1;
             }
-            this.unitKey = this._restrictedUnit;
+            this.unitKey = this._restrictedUnits[0];
             const isTrd = this.unitKey === 'TRD';
             const cabangWrap = document.getElementById('jjo-cabang-wrap');
             if (cabangWrap) cabangWrap.style.display = isTrd ? '' : 'none';
@@ -159,11 +165,15 @@ const jadwalJagaOperator = {
     _populateUnitSelect() {
         const sel = document.getElementById('jjo-unit');
         if (!sel) return;
-        // Asmen yang dikunci ke 1 unit (this._restrictedUnit) cuma dikasih
-        // 1 opsi itu saja di dropdown - unit lain tidak boleh kelihatan
-        // sama sekali, bukan cuma "terkunci" tapi tetap ada di daftar.
-        const keys = this._restrictedUnit ? [this._restrictedUnit] : Object.keys(OPERATOR_UNITS);
-        sel.innerHTML = (this._restrictedUnit ? '' : '<option value="">-- Pilih Unit --</option>') +
+        // Asmen yang dikunci ke unit tertentu (this._restrictedUnits) cuma
+        // dikasih unit-unit itu saja di dropdown - unit lain tidak boleh
+        // kelihatan sama sekali, bukan cuma "terkunci" tapi tetap ada di
+        // daftar. Urutannya mengikuti OPERATOR_UNITS (bukan urutan simpan
+        // admin) supaya konsisten dengan tampilan dropdown Data Karyawan.
+        const keys = this._restrictedUnits.length > 0
+            ? Object.keys(OPERATOR_UNITS).filter(k => this._restrictedUnits.includes(k))
+            : Object.keys(OPERATOR_UNITS);
+        sel.innerHTML = (this._restrictedUnits.length > 0 ? '' : '<option value="">-- Pilih Unit --</option>') +
             keys.map(key =>
                 `<option value="${key}">${OPERATOR_UNITS[key].label}</option>`
             ).join('');
