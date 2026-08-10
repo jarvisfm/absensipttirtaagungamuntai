@@ -1533,6 +1533,27 @@
                                     <input type="password" id="pf-password" placeholder="Kosongkan jika tidak ingin mengubah">
                                     <small style="color:var(--text-muted);">Kosongkan jika tidak ingin mengubah password</small>
                                 </div>
+
+                                <!-- ===== Login Sidik Jari (WebAuthn) — TAMBAHAN ===== -->
+                                <div class="form-group" style="margin-top:1.5rem;padding-top:1.25rem;border-top:1px solid var(--border-color);">
+                                    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+                                        <div>
+                                            <label style="margin-bottom:2px;">Login Sidik Jari</label>
+                                            <p style="font-size:0.8rem;color:var(--text-muted);margin:0;">Aktifkan untuk login lebih cepat pakai sidik jari/Face Unlock di perangkat ini. Username &amp; password tetap bisa dipakai kapan saja.</p>
+                                        </div>
+                                        <label class="toggle-switch" style="flex-shrink:0;">
+                                            <input type="checkbox" id="pf-biometric-toggle" onchange="auth.toggleBiometricSetting(this)">
+                                            <span class="toggle-slider"></span>
+                                        </label>
+                                    </div>
+                                </div>
+
+                                <div class="form-group">
+                                    <label>Daftar Sidik Jari Terdaftar</label>
+                                    <div id="pf-biometric-device-list" style="margin-top:0.5rem;">
+                                        <p style="font-size:0.85rem;color:var(--text-muted);">Memuat...</p>
+                                    </div>
+                                </div>
                             </div>
 
                             <!-- Tab Pendidikan (Riwayat SD/SMP/SMA/S1/S2 + link Ijazah & Transkrip) -->
@@ -3159,6 +3180,32 @@
                     <button type="button" onclick="auth.confirmEnableBiometric()"
                         style="flex:1;padding:0.75rem;border-radius:8px;border:none;background:var(--color-primary-gradient);color:#fff;font-weight:600;cursor:pointer;">
                         <i class="fas fa-fingerprint"></i> Aktifkan
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal konfirmasi password sebelum aktifkan sidik jari lewat menu
+         Edit Profil > Akun (toggle "Login Sidik Jari"). -->
+    <div class="modal-overlay" id="modal-biometric-confirm-password" style="display:none;">
+        <div class="modal-container" style="max-width:380px;">
+            <div style="padding:2rem 1.5rem 1.5rem; text-align:center;">
+                <div style="width:72px;height:72px;border-radius:50%;background:rgba(245,158,11,0.1);display:flex;align-items:center;justify-content:center;margin:0 auto 1.25rem;">
+                    <i class="fas fa-fingerprint" style="font-size:1.9rem;color:var(--color-primary);"></i>
+                </div>
+                <h3 style="font-size:1.15rem;font-weight:700;margin-bottom:0.4rem;color:var(--text-primary);">Aktifkan Login Sidik Jari</h3>
+                <p style="color:var(--text-muted);font-size:0.85rem;margin-bottom:1rem;">Masukkan password akun Anda untuk konfirmasi.</p>
+                <input type="password" id="pf-biometric-confirm-password-input" placeholder="Password akun"
+                    style="width:100%;padding:0.65rem 0.85rem;border-radius:8px;border:1px solid var(--border-color);margin-bottom:1.25rem;box-sizing:border-box;">
+                <div style="display:flex;gap:0.75rem;">
+                    <button type="button" onclick="auth.cancelBiometricPasswordConfirm()"
+                        style="flex:1;padding:0.75rem;border-radius:8px;border:1px solid var(--border-color);background:var(--bg-secondary);color:var(--text-primary);font-weight:600;cursor:pointer;">
+                        Batal
+                    </button>
+                    <button type="button" onclick="auth.submitBiometricPasswordConfirm()"
+                        style="flex:1;padding:0.75rem;border-radius:8px;border:none;background:var(--color-primary-gradient);color:#fff;font-weight:600;cursor:pointer;">
+                        Konfirmasi
                     </button>
                 </div>
             </div>
