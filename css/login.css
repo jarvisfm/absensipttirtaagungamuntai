@@ -499,3 +499,35 @@
     align-items: center;
     gap: 4px;
 }
+
+/* ================= Login Sidik Jari (WebAuthn) — TAMBAHAN ================= */
+.btn-biometric {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--spacing-sm);
+    width: 100%;
+    padding: var(--spacing-md);
+    margin-top: var(--spacing-sm);
+    background: transparent;
+    color: var(--color-primary-dark);
+    border: 1.5px solid var(--color-primary);
+    border-radius: var(--border-radius);
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.btn-biometric:hover {
+    background: rgba(245, 158, 11, 0.08);
+}
+
+.btn-biometric.loading {
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+.btn-biometric i {
+    font-size: 1.1rem;
+}
