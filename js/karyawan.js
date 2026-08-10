@@ -244,7 +244,15 @@ const karyawanManager = {
             const approverEl = document.getElementById('p-locationExemptApproverId');
             if (approverEl) approverEl.value = p.locationExemptApproverId || '';
             const opScheduleEl = document.getElementById('p-operatorScheduleUnit');
-            if (opScheduleEl) opScheduleEl.value = p.operatorScheduleUnit || '';
+            if (opScheduleEl) {
+                // Disimpan sebagai teks dipisah koma (mis. "SPAM Alabio,SPAM Banjang")
+                // - dipecah lagi di sini supaya tiap unit yang cocok otomatis
+                // ke-select di <select multiple>.
+                const selectedUnits = String(p.operatorScheduleUnit || '').split(',').map(s => s.trim()).filter(Boolean);
+                Array.from(opScheduleEl.options).forEach(opt => {
+                    opt.selected = selectedUnits.includes(opt.value);
+                });
+            }
 
             // Tab Keluarga
             const keluarga = p.keluarga || [];
@@ -295,7 +303,7 @@ const karyawanManager = {
         const approverResetEl = document.getElementById('p-locationExemptApproverId');
         if (approverResetEl) approverResetEl.value = '';
         const opScheduleResetEl = document.getElementById('p-operatorScheduleUnit');
-        if (opScheduleResetEl) opScheduleResetEl.value = '';
+        if (opScheduleResetEl) Array.from(opScheduleResetEl.options).forEach(opt => opt.selected = false);
 
         document.getElementById('foto-preview').src = '';
         document.getElementById('foto-preview').style.display = 'none';
@@ -557,7 +565,7 @@ const karyawanManager = {
             tahunPensiun:     document.getElementById('p-tahunPensiun').value.trim(),
             shift:            document.getElementById('p-shift').value,
             locationExemptApproverId: document.getElementById('p-locationExemptApproverId')?.value || '',
-            operatorScheduleUnit: document.getElementById('p-operatorScheduleUnit')?.value || '',
+            operatorScheduleUnit: Array.from(document.getElementById('p-operatorScheduleUnit')?.selectedOptions || []).map(o => o.value).join(','),
             username:         document.getElementById('p-username').value.trim(),
             keluarga
         };
