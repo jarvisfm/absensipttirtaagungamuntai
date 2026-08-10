@@ -54,6 +54,10 @@ const profileManager = {
                 btn.style.borderBottom = t === tab ? '2px solid var(--color-primary)' : '2px solid transparent';
             }
         });
+        // NEW: muat status & daftar Login Sidik Jari tiap kali tab Akun dibuka
+        if (tab === 'akun' && window.auth && auth.renderBiometricSettings) {
+            auth.renderBiometricSettings();
+        }
     },
 
     async loadMyProfile() {
