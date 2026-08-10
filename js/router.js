@@ -139,7 +139,20 @@ const router = {
                 if (window.initAbsensi) window.initAbsensi();
                 break;
             case 'face-recognition':
-                // Face recognition is initialized with action parameter
+                // Kamera di halaman ini CUMA dinyalakan lewat tombol Clock In/
+                // Istirahat dkk di Absensi (absensi.js memanggil
+                // faceRecognition.init(action) langsung, bukan lewat sini).
+                // Kalau halaman ini dicapai LEWAT TOMBOL BACK/FORWARD BROWSER
+                // (bukan lewat tombol tsb), kode di atas cuma menampilkan lagi
+                // halamannya tanpa menyalakan ulang kamera - videonya jadi
+                // hitam karena stream lama sudah dimatikan stopCamera() saat
+                // sebelumnya ditinggal pindah halaman. Kalau ada action yang
+                // masih tertunda (belum sempat capture foto) dan kameranya
+                // memang sedang tidak aktif, nyalakan ulang di sini.
+                if (window.faceRecognition && faceRecognition.currentAction
+                    && !faceRecognition.stream && !faceRecognition.photoCaptured) {
+                    faceRecognition.init(faceRecognition.currentAction);
+                }
                 break;
             case 'izin':
                 if (window.initIzin) window.initIzin();
