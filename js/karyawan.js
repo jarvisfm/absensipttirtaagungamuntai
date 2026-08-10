@@ -39,12 +39,14 @@ const karyawanManager = {
         document.getElementById('karyawan-search')?.addEventListener('input', () => this.renderTable());
         document.getElementById('karyawan-status-filter')?.addEventListener('change', () => this.renderTable());
         document.getElementById('karyawan-jenis-filter')?.addEventListener('change', () => this.renderTable());
+        document.getElementById('karyawan-role-filter')?.addEventListener('change', () => this.renderTable());
     },
 
     getFiltered() {
         const search = (document.getElementById('karyawan-search')?.value || '').toLowerCase();
         const status = document.getElementById('karyawan-status-filter')?.value || '';
         const jenis  = document.getElementById('karyawan-jenis-filter')?.value || '';
+        const role   = document.getElementById('karyawan-role-filter')?.value || '';
 
         return this.karyawanList.filter(p => {
             const matchSearch = !search ||
@@ -52,7 +54,8 @@ const karyawanManager = {
                 (p.nik  || '').toLowerCase().includes(search);
             const matchStatus = !status || String(p.statusKaryawan).toUpperCase() === status;
             const matchJenis  = !jenis  || p.statusPekerjaan === jenis;
-            return matchSearch && matchStatus && matchJenis;
+            const matchRole   = !role   || String(p.role || 'staff').toLowerCase() === role;
+            return matchSearch && matchStatus && matchJenis && matchRole;
         });
     },
 
