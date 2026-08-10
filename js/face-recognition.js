@@ -721,6 +721,15 @@ const faceRecognition = {
         }
         if (modal) modal.style.display = 'flex';
 
+        // Kunci scroll body selama modal ini terbuka. Modal-nya position:fixed,
+        // tapi TANPA ini halaman di belakangnya (yang isinya video kamera live
+        // absen, terus repaint tiap frame) masih ikut bisa discroll bareng
+        // konten modal saat karyawan slide ke bawah di form catatan+foto -
+        // ikut bergesernya latar belakang video itu yang kelihatan seperti
+        // kedap-kedip di HP. Dibuka lagi di submitOutOfRadiusNote()/
+        // cancelOutOfRadiusNote() begitu modal ditutup.
+        this._lockBodyScroll();
+
         // Modal ini pakai latar semi-transparan (lihat .modal-overlay di
         // modal.css: rgba(0,0,0,0.5)) - kalau loop deteksi wajah dibiarkan
         // tetap jalan di belakangnya, kotak hijau/overlay kamera yang
@@ -785,6 +794,32 @@ const faceRecognition = {
         }
     },
 
+    /**
+     * Kunci/buka scroll halaman di belakang modal luar-radius - lihat catatan
+     * di _promptOutOfRadiusNote(). Pakai teknik position:fixed pada <body>
+     * (bukan cuma overflow:hidden) supaya aman juga untuk Safari iOS, yang
+     * kadang tetap membolehkan "rubber-band scroll" background walau body
+     * sudah overflow:hidden.
+     */
+    _lockBodyScroll() {
+        this._scrollLockY = window.scrollY || document.documentElement.scrollTop || 0;
+        document.body.style.position = 'fixed';
+        document.body.style.top = `-${this._scrollLockY}px`;
+        document.body.style.left = '0';
+        document.body.style.right = '0';
+        document.body.style.width = '100%';
+    },
+
+    _unlockBodyScroll() {
+        document.body.style.position = '';
+        document.body.style.top = '';
+        document.body.style.left = '';
+        document.body.style.right = '';
+        document.body.style.width = '';
+        window.scrollTo(0, this._scrollLockY || 0);
+        this._scrollLockY = 0;
+    },
+
     submitOutOfRadiusNote() {
         const textarea = document.getElementById('out-of-radius-note-text');
         const note = textarea ? textarea.value.trim() : '';
@@ -798,6 +833,7 @@ const faceRecognition = {
 
         const modal = document.getElementById('modal-out-of-radius-note');
         if (modal) modal.style.display = 'none';
+        this._unlockBodyScroll();
 
         const statusEl = document.getElementById('location-status');
         if (statusEl) {
@@ -813,6 +849,7 @@ const faceRecognition = {
     cancelOutOfRadiusNote() {
         const modal = document.getElementById('modal-out-of-radius-note');
         if (modal) modal.style.display = 'none';
+        this._unlockBodyScroll();
         // locationVerified tetap false - karyawan bisa klik "Coba Lagi" lokasi
         const retryBtn = document.getElementById('btn-retry-location');
         if (retryBtn) retryBtn.style.display = 'flex';
