@@ -243,6 +243,8 @@ const karyawanManager = {
             }
             const approverEl = document.getElementById('p-locationExemptApproverId');
             if (approverEl) approverEl.value = p.locationExemptApproverId || '';
+            const opScheduleEl = document.getElementById('p-operatorScheduleUnit');
+            if (opScheduleEl) opScheduleEl.value = p.operatorScheduleUnit || '';
 
             // Tab Keluarga
             const keluarga = p.keluarga || [];
@@ -292,6 +294,8 @@ const karyawanManager = {
 
         const approverResetEl = document.getElementById('p-locationExemptApproverId');
         if (approverResetEl) approverResetEl.value = '';
+        const opScheduleResetEl = document.getElementById('p-operatorScheduleUnit');
+        if (opScheduleResetEl) opScheduleResetEl.value = '';
 
         document.getElementById('foto-preview').src = '';
         document.getElementById('foto-preview').style.display = 'none';
@@ -553,6 +557,7 @@ const karyawanManager = {
             tahunPensiun:     document.getElementById('p-tahunPensiun').value.trim(),
             shift:            document.getElementById('p-shift').value,
             locationExemptApproverId: document.getElementById('p-locationExemptApproverId')?.value || '',
+            operatorScheduleUnit: document.getElementById('p-operatorScheduleUnit')?.value || '',
             username:         document.getElementById('p-username').value.trim(),
             keluarga
         };
