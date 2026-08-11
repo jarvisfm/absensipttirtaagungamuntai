@@ -560,3 +560,14 @@ function initBackToTopButton() {
     });
 }
 document.addEventListener('DOMContentLoaded', initBackToTopButton);
+
+// Siapkan Firebase Cloud Messaging (kalau firebaseConfig di
+// push-notifications.js sudah diisi - kalau belum, init() diam saja/tidak
+// melakukan apa-apa). Ini CUMA menyiapkan listener pesan masuk; MEMINTA IZIN
+// notifikasi & mendaftarkan perangkat baru dilakukan terpisah lewat tombol
+// eksplisit "Aktifkan Notifikasi HP" di Edit Profil > Akun (lihat auth.js/
+// profile.js) - supaya user yang memutuskan sendiri, bukan dikagetkan popup
+// izin begitu buka app.
+if (window.pushNotif) {
+    document.addEventListener('DOMContentLoaded', () => pushNotif.init());
+}
