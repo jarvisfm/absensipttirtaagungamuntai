@@ -1564,6 +1564,13 @@
                                         <p style="font-size:0.85rem;color:var(--text-muted);">Memuat...</p>
                                     </div>
                                 </div>
+
+                                <!-- ===== Notifikasi HP (Firebase Cloud Messaging) — TAMBAHAN ===== -->
+                                <div class="form-group" style="margin-top:1.5rem;padding-top:1.25rem;border-top:1px solid var(--border-color);">
+                                    <label style="margin-bottom:2px;">Notifikasi HP</label>
+                                    <p style="font-size:0.8rem;color:var(--text-muted);margin:0 0 10px;">Dapatkan notifikasi pengingat absensi (mis. belum Clock In) langsung ke HP, walau aplikasi ini tidak sedang dibuka.</p>
+                                    <div id="pf-push-notif-status"></div>
+                                </div>
                             </div>
 
                             <!-- Tab Pendidikan (Riwayat SD/SMP/SMA/S1/S2 + link Ijazah & Transkrip) -->
@@ -3542,7 +3549,16 @@
          absen wajah tidak bisa lolos kalau wajah tidak benar-benar
          terdeteksi di kamera. -->
     <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+    <!-- Firebase (compat build) - dipakai push-notifications.js untuk Cloud
+         Messaging (notifikasi HP). Compat build dipilih (bukan modular v9+)
+         supaya sintaks firebase.initializeApp()/firebase.messaging() di
+         push-notifications.js tetap jalan tanpa perlu bundler/build step,
+         konsisten dengan cara semua library lain dimuat di app ini (lewat
+         <script> CDN langsung). -->
+    <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-messaging-compat.js"></script>
     <script src="js/api.js"></script>
+    <script src="js/push-notifications.js"></script>
     <script src="js/jenis-jadwal-util.js"></script>
     <script src="js/main.js"></script>
     <script src="js/auth.js"></script>
