@@ -522,3 +522,27 @@ window.formUtils = formUtils;
 window.animations = animations;
 window.updateCompanyUI = updateCompanyUI;
 window.onDOMReady = onDOMReady;
+
+// Tombol "kembali ke atas" - berlaku di semua halaman (bukan cuma Data
+// Karyawan), karena yang discroll bukan <body> tapi div.page-content (lihat
+// router.js). Muncul begitu sudah scroll agak jauh, klik = scroll halus ke
+// atas. Dipasang sekali dan tetap nempel walau halaman SPA-nya gonta-ganti
+// (.page-content adalah container tetap, isinya saja yang diganti router).
+function initBackToTopButton() {
+    const btn = document.getElementById('back-to-top-btn');
+    const container = document.getElementById('page-content');
+    if (!btn || !container) return;
+
+    const SHOW_AFTER_PX = 300;
+    const toggleVisibility = () => {
+        btn.classList.toggle('show', container.scrollTop > SHOW_AFTER_PX);
+    };
+
+    container.addEventListener('scroll', toggleVisibility, { passive: true });
+    toggleVisibility();
+
+    btn.addEventListener('click', () => {
+        container.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+}
+document.addEventListener('DOMContentLoaded', initBackToTopButton);
