@@ -25,10 +25,6 @@ const settings = {
             const allSettings = settingsResult.data || {};
 
             // System settings
-            if (allSettings.late_tolerance !== undefined) {
-                const el = document.getElementById('setting-late-tolerance');
-                if (el) el.value = allSettings.late_tolerance;
-            }
             // PENTING: Google Sheets otomatis mengubah teks "true"/"false"
             // yang disimpan jadi tipe boolean asli, dan dibaca balik sebagai
             // "TRUE"/"FALSE" (huruf besar semua) - bukan "true" huruf kecil
@@ -83,7 +79,6 @@ const settings = {
     },
 
     async saveSystemSettings() {
-        const lateTolerance    = document.getElementById('setting-late-tolerance');
         const faceRecognition  = document.getElementById('setting-face-recognition');
         const locationTracking = document.getElementById('setting-location-tracking');
         const locationRadius   = document.getElementById('setting-location-radius');
@@ -112,7 +107,6 @@ const settings = {
 
         try {
             await api.saveSettingsBulk({
-                late_tolerance:    lateTolerance    ? lateTolerance.value              : '15',
                 face_recognition:  faceRecognition  ? String(faceRecognition.checked)  : 'true',
                 location_tracking: locationTracking ? String(locationTracking.checked) : 'true',
                 location_radius:   locationRadius   ? locationRadius.value             : '100',
