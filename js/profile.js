@@ -58,6 +58,10 @@ const profileManager = {
         if (tab === 'akun' && window.auth && auth.renderBiometricSettings) {
             auth.renderBiometricSettings();
         }
+        // NEW: muat status Notifikasi HP tiap kali tab Akun dibuka
+        if (tab === 'akun' && window.pushNotif && pushNotif.renderStatus) {
+            pushNotif.renderStatus();
+        }
     },
 
     async loadMyProfile() {
