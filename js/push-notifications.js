@@ -130,7 +130,11 @@ const pushNotif = {
                         style="background:none;border:none;color:var(--color-danger);cursor:pointer;font-size:0.8rem;font-weight:600;">
                         <i class="fas fa-bell-slash"></i> Matikan
                     </button>
-                </div>`;
+                </div>
+                <button type="button" onclick="pushNotif.sendTestNotification()"
+                    style="margin-top:8px;background:none;border:1px solid var(--color-primary);color:var(--color-primary);padding:6px 14px;border-radius:8px;cursor:pointer;font-weight:600;font-size:0.8rem;">
+                    <i class="fas fa-paper-plane"></i> Kirim Notifikasi Uji Coba
+                </button>`;
             return;
         }
 
@@ -155,6 +159,23 @@ const pushNotif = {
         await this.unregister();
         this.renderStatus();
         toast.info('Notifikasi HP dimatikan di perangkat ini');
+    },
+
+    async sendTestNotification() {
+        const currentUser = auth.getCurrentUser();
+        const userId = currentUser?.employeeId || currentUser?.id;
+        if (!userId) return;
+        try {
+            const result = await api.testPush(userId);
+            if (result.success) {
+                toast.success('Notifikasi uji coba dikirim - tunggu beberapa detik.');
+            } else {
+                toast.error(result.error || 'Gagal mengirim notifikasi uji coba.');
+            }
+        } catch (e) {
+            console.error('Gagal kirim notifikasi uji coba:', e);
+            toast.error('Gagal mengirim notifikasi uji coba.');
+        }
     },
 
     _showForegroundNotification(payload) {
