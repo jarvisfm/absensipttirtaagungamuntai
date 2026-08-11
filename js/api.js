@@ -103,6 +103,11 @@ const api = {
         return this.request('deletePushToken', { token });
     },
 
+    async testPush(userId) {
+        if (!API_BASE_URL) return { success: false, error: 'Backend tidak aktif' };
+        return this.request('testPush', { userId });
+    },
+
     async changePassword(userId, oldPassword, newPassword) {
         if (!API_BASE_URL) {
             return { success: true, data: { message: 'Password changed (local)' } };
