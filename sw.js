@@ -12,14 +12,14 @@
  * - Request cross-origin lain (CDN font-awesome, face-api.js, Leaflet,
  *   dst) - dibiarkan lewat langsung ke network seperti biasa.
  *
- * Kalau nanti mau tambah push notification, event 'push' &
- * 'notificationclick' bisa ditambahkan di file ini juga.
+ * Push notification (event 'push' & 'notificationclick') ditambahkan di
+ * bawah - lihat komentar masing-masing.
  */
 
 // PENTING: naikkan angka versi ini (mis. jadi 'v2') tiap kali index.html/
 // css/js diubah & di-deploy ulang - supaya HP karyawan otomatis ambil versi
 // baru, bukan kepakai cache lama terus-menerus.
-const CACHE_NAME = 'taa-portal-v5';
+const CACHE_NAME = 'taa-portal-v6';
 
 // File shell inti yang di-precache saat install, supaya app langsung bisa
 // dibuka (walau offline) begitu pernah dibuka online minimal 1x.
@@ -78,6 +78,51 @@ self.addEventListener('fetch', (event) => {
                 .catch(() => cached); // offline & tidak ada di cache -> biarkan gagal wajar
 
             return cached || networkFetch;
+        })
+    );
+});
+
+/**
+ * Notifikasi masuk saat app TERTUTUP/di-background (kalau app sedang
+ * dibuka/foreground, ditangani langsung di push-notifications.js lewat
+ * messaging.onMessage(), BUKAN lewat sini - browser tidak mengirim event
+ * 'push' ke service worker untuk tab yang sedang aktif memegang koneksi
+ * messaging).
+ *
+ * Payload FCM webpush datang sebagai JSON biasa (bukan perlu SDK Firebase
+ * di sini) - bentuknya { notification: { title, body }, data: {...} }
+ * sesuai yang dikirim backend (lihat Operatorschdule.gs/PushNotification.gs
+ * _sendFcmPushToToken()).
+ */
+self.addEventListener('push', (event) => {
+    let payload = {};
+    try { payload = event.data ? event.data.json() : {}; } catch (e) { /* biarkan kosong */ }
+
+    const notif = payload.notification || {};
+    const title = notif.title || 'Portal Karyawan TAA';
+    const options = {
+        body: notif.body || '',
+        icon: 'assets/icons/icon-192.png',
+        badge: 'assets/icons/icon-192.png',
+        data: payload.data || {},
+        tag: 'taa-reminder' // notifikasi baru menimpa yang lama, tidak numpuk di tray
+    };
+
+    event.waitUntil(self.registration.showNotification(title, options));
+});
+
+// Tap notifikasi -> fokus ke tab yang sudah terbuka kalau ada, atau buka
+// tab baru ke halaman utama app kalau belum ada tab yang terbuka sama sekali.
+self.addEventListener('notificationclick', (event) => {
+    event.notification.close();
+    event.waitUntil(
+        self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+            for (const client of clientList) {
+                if (client.url.indexOf(self.location.origin) === 0 && 'focus' in client) {
+                    return client.focus();
+                }
+            }
+            if (self.clients.openWindow) return self.clients.openWindow('./');
         })
     );
 });
