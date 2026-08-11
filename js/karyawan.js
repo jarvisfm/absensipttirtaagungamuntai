@@ -839,6 +839,14 @@ const karyawanManager = {
         // Ganti listener lama dulu (clone node) supaya tidak numpuk kalau
         // modal ini dipakai berkali-kali untuk aksi hapus yang berbeda-beda.
         const newBtn = btn.cloneNode(true);
+        // PENTING: cloneNode() ikut menyalin atribut "disabled" apa adanya.
+        // Kalau sebelumnya modal ini pernah dipakai dan tombolnya sempat
+        // di-disable (baris di bawah, biar tidak keklik dobel), clone
+        // berikutnya bakal ikut lahir dalam keadaan disabled - dan tombol
+        // yang sudah disabled tidak akan pernah memicu event click lagi
+        // sama sekali. Makanya "Hapus" berhenti berfungsi setelah dipakai
+        // sekali. Reset eksplisit di sini supaya selalu aktif tiap dibuka.
+        newBtn.disabled = false;
         btn.parentNode.replaceChild(newBtn, btn);
         newBtn.addEventListener('click', async () => {
             newBtn.disabled = true;
