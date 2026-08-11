@@ -73,7 +73,7 @@ const jadwalJagaOperator = {
     year: new Date().getFullYear(),
     data: null,       // { days: {...}, teams: {...}(khusus TRD), signatures: {...} }
     _allSettings: {}, // cache semua settings dari server (supaya save 1 key tidak perlu reload semua)
-    _employees: [],   // semua karyawan berjabatan "Operator" (dari getKaryawanList)
+    _employees: [],   // semua karyawan Jenis Jadwal-nya termasuk pola jaga operator (lihat _isOperatorShift)
     _dirty: false,
     // Diisi begitu halaman ini dibuka oleh Asmen (BUKAN admin) yang ditunjuk
     // sebagai pemegang jadwal 1 atau lebih unit tertentu (lihat
@@ -134,20 +134,37 @@ const jadwalJagaOperator = {
         }
     },
 
-    // Ambil karyawan berjabatan "Operator" (case-insensitive) - ini yang
-    // muncul sebagai pilihan petugas. Nama bebas-teks (Fase 1) sudah
+    // Ambil karyawan yang Jenis Jadwal-nya termasuk pola jaga operator - ini
+    // yang muncul sebagai pilihan petugas. Nama bebas-teks (Fase 1) sudah
     // diganti jadi pilih dari daftar ini supaya bisa dicocokkan otomatis
     // dengan karyawan yang login saat proses absen (lihat Attendance.gs).
+    //
+    // SENGAJA memakai field "Jenis Jadwal" (p-shift, dropdown terstruktur),
+    // BUKAN field "Jabatan" (teks bebas) - supaya admin bisa isi Jabatan
+    // apa saja (mis. "Operator Senior", "Kepala Regu") tanpa mempengaruhi
+    // siapa yang muncul di daftar petugas jaga ini.
     async _loadEmployees() {
         try {
             const res = await api.getKaryawanList();
             const all = (res.success && res.data) ? res.data : [];
-            this._employees = all.filter(e => String(e.jabatan || '').trim().toLowerCase() === 'operator');
+            this._employees = all.filter(e => this._isOperatorShift(e.shift));
         } catch (e) {
             console.error('Gagal memuat daftar karyawan Operator:', e);
             toast.error('Gagal memuat daftar karyawan Operator.');
             this._employees = [];
         }
+    },
+
+    // true kalau Jenis Jadwal karyawan ini salah satu pola jaga unit operator
+    // (lihat pilihan "Jenis Jadwal" di Data Karyawan / daftar OPERATOR_UNITS
+    // di atas: Operator - BNA Amuntai/24 Jam/18 Jam/16 Jam/13 Jam, SATPAM,
+    // TRD). Kalau nanti ada Jenis Jadwal operator baru ditambah di dropdown
+    // p-shift, cukup pastikan namanya diawali "Operator" (atau tambahkan
+    // exact-match baru di sini kalau namanya tidak diawali "Operator", 
+    // seperti SATPAM/TRD).
+    _isOperatorShift(shift) {
+        const s = String(shift || '').trim().toLowerCase();
+        return s.startsWith('operator') || s === 'satpam' || s === 'trd';
     },
 
     // Karyawan Operator yang ditugaskan di unit ini saja (berdasarkan Unit
