@@ -94,8 +94,12 @@ function _toMinutesSafe(timeStr) {
 }
 
 /**
- * Status 1 SESI ("Hadir Tepat Waktu"/"Hadir Terlambat") - dibandingkan ke
- * "jam target" (bukan batas toleransi terlambat) sesi itu di jadwal.
+ * Status 1 SESI - dibandingkan ke "jam target" (bukan batas toleransi
+ * terlambat) sesi itu di jadwal:
+ * - Masuk/Istirahat Keluar/Istirahat Masuk: "Hadir Tepat Waktu" kalau <=
+ *   jam target, "Hadir Terlambat" kalau lewat.
+ * - Pulang (clockOut): SELALU "Pulang Biasa", tidak pernah dinilai
+ *   terlambat - pulang lewat jam target itu wajar, bukan pelanggaran.
  * Mengembalikan null kalau nilainya bukan jam (mis. "Cuti Tahunan"/"Izin"/
  * label Dinas Luar) atau jam target-nya tidak ketemu - supaya rendering-nya
  * fallback ke tampilan apa adanya untuk kasus itu.
@@ -108,6 +112,15 @@ function getSessionAttendanceLabel(configAll, shiftRaw, dateStr, field, actualVa
     const sesi = sessions ? sessions.find(s => s.field === field) : null;
     const targetMinutes = sesi ? _toMinutesSafe(sesi.time) : null;
     if (targetMinutes == null) return null;
+
+    // Sesi Pulang (clockOut) SENGAJA tidak dinilai tepat waktu/terlambat -
+    // pulang lewat jam target itu wajar (karyawan masih di tempat kerja
+    // lebih lama, bukan soal kedisiplinan seperti telat Masuk), jadi
+    // labelnya cuma penanda "Pulang Biasa", bukan Hadir Tepat Waktu/
+    // Terlambat.
+    if (field === 'clockOut') {
+        return { late: false, text: 'Pulang Biasa' };
+    }
 
     return actualMinutes > targetMinutes
         ? { late: true, text: 'Hadir Terlambat' }
