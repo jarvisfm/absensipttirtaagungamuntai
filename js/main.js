@@ -531,18 +531,32 @@ window.onDOMReady = onDOMReady;
 function initBackToTopButton() {
     const btn = document.getElementById('back-to-top-btn');
     const container = document.getElementById('page-content');
-    if (!btn || !container) return;
+    if (!btn) return;
 
     const SHOW_AFTER_PX = 300;
+
+    // Struktur CSS app ini pakai min-height (bukan height tetap) di
+    // .app-container/.main-content, jadi kalau isi halaman lebih panjang
+    // dari layar, yang benar-benar discroll itu seluruh window/document,
+    // BUKAN div #page-content (walau CSS-nya overflow-y:auto, dia baru
+    // jadi elemen yang scroll kalau tinggi kontennya kebetulan melebihi
+    // tinggi parent yang benar-benar dibatasi vh). Supaya aman di kedua
+    // kemungkinan, pantau & scroll-kan dua-duanya sekaligus.
+    const getScrollTop = () => Math.max(
+        window.scrollY || document.documentElement.scrollTop || 0,
+        container ? container.scrollTop : 0
+    );
     const toggleVisibility = () => {
-        btn.classList.toggle('show', container.scrollTop > SHOW_AFTER_PX);
+        btn.classList.toggle('show', getScrollTop() > SHOW_AFTER_PX);
     };
 
-    container.addEventListener('scroll', toggleVisibility, { passive: true });
+    window.addEventListener('scroll', toggleVisibility, { passive: true });
+    if (container) container.addEventListener('scroll', toggleVisibility, { passive: true });
     toggleVisibility();
 
     btn.addEventListener('click', () => {
-        container.scrollTo({ top: 0, behavior: 'smooth' });
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        if (container) container.scrollTo({ top: 0, behavior: 'smooth' });
     });
 }
 document.addEventListener('DOMContentLoaded', initBackToTopButton);
