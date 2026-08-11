@@ -119,7 +119,7 @@ function getSessionAttendanceLabel(configAll, shiftRaw, dateStr, field, actualVa
     // labelnya cuma penanda "Pulang Biasa", bukan Hadir Tepat Waktu/
     // Terlambat.
     if (field === 'clockOut') {
-        return { late: false, text: 'Pulang Biasa' };
+        return { late: false, text: 'Pulang' };
     }
 
     return actualMinutes > targetMinutes
