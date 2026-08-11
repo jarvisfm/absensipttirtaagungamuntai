@@ -1457,3 +1457,47 @@ img {
 .sidebar-overlay.show {
     display: block;
 }
+
+/* Tombol "kembali ke atas" - muncul di halaman mana pun begitu konten
+   (.page-content) discroll ke bawah, lihat initBackToTopButton() di
+   main.js. */
+#back-to-top-btn {
+    position: fixed;
+    right: 20px;
+    bottom: 20px;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    border: none;
+    background: var(--color-primary-gradient);
+    color: #fff;
+    font-size: 1.1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    z-index: 150;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(10px);
+    transition: opacity 0.2s ease, transform 0.2s ease, visibility 0.2s ease;
+}
+
+#back-to-top-btn.show {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+}
+
+#back-to-top-btn:hover {
+    filter: brightness(1.05);
+}
+
+/* Naikkan sedikit di mobile supaya tidak ketutupan bottom-nav */
+@media (max-width: 768px) {
+    #back-to-top-btn {
+        right: 16px;
+        bottom: calc(16px + var(--bottom-nav-height, 60px));
+    }
+}
