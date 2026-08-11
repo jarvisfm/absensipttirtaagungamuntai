@@ -92,6 +92,17 @@ const api = {
         return this.request('verifyPasswordOnly', { userId, role, password });
     },
 
+    // ========== NOTIFIKASI HP (Firebase Cloud Messaging) — TAMBAHAN ==========
+    async savePushToken(userId, token, device) {
+        if (!API_BASE_URL) return { success: false, error: 'Backend tidak aktif' };
+        return this.request('savePushToken', { userId, token, device });
+    },
+
+    async deletePushToken(token) {
+        if (!API_BASE_URL) return { success: false, error: 'Backend tidak aktif' };
+        return this.request('deletePushToken', { token });
+    },
+
     async changePassword(userId, oldPassword, newPassword) {
         if (!API_BASE_URL) {
             return { success: true, data: { message: 'Password changed (local)' } };
