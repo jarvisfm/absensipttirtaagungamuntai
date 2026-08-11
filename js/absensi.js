@@ -290,12 +290,13 @@ const absensi = {
     if (!tbody) return;
 
     if (historyData.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7"><div class="history-empty"><i class="fas fa-calendar-day"></i><span>Belum ada riwayat absensi di bulan ini.</span></div></td></tr>';
+        tbody.innerHTML = '<tr><td colspan="6"><div class="history-empty"><i class="fas fa-calendar-day"></i><span>Belum ada riwayat absensi di bulan ini.</span></div></td></tr>';
         return;
     }
 
     const months = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Ags','Sep','Okt','Nov','Des'];
     const todayYMD = (typeof dateTime !== 'undefined' && dateTime.getLocalDate) ? dateTime.getLocalDate() : '';
+    const shiftTypesConfigFull = this._shiftTypesConfigFullCache || null;
 
     tbody.innerHTML = historyData.map(record => {
         // Format tanggal
@@ -303,38 +304,56 @@ const absensi = {
         const dateStr = (y && m && d) ? `${d} ${months[parseInt(m)-1]} ${y}` : '-';
         const isToday = todayYMD && record.date === todayYMD;
 
-        // Status badge
         const statusLower = String(record.status || '').toLowerCase();
-        let badge = '<span class="badge-status">Menunggu</span>';
-        if (statusLower === 'hadir' || statusLower === 'ontime') {
-            badge = '<span class="badge-status success">Hadir</span>';
-        } else if (statusLower === 'terlambat' || statusLower === 'late') {
-            badge = '<span class="badge-status warning">Hadir (Terlambat)</span>';
-        } else if (statusLower === 'pulang awal') {
-            badge = '<span class="badge-status danger">Pulang Awal</span>';
-        } else if (statusLower === 'izin' || statusLower === 'cuti') {
-            // Hari yang otomatis "diisi" begitu Izin/Cuti disetujui penuh
-            // (lihat _markAttendanceRangeAsExcused di Attendance.gs) -
-            // BUKAN status menunggu, jadi jangan jatuh ke badge default.
-            // Pakai teks jenisnya sendiri (mis. "Cuti Tahunan"/"Sakit")
-            // yang sudah tersimpan di kolom clockIn.
-            badge = `<span class="badge-status info">${record.clockIn || (statusLower === 'izin' ? 'Izin' : 'Cuti')}</span>`;
-        } else if (statusLower === 'pending' || statusLower === 'waiting') {
-            badge = '<span class="badge-status">Pending</span>';
-        }
+
+        // Hari Izin/Cuti (otomatis "diisi" begitu disetujui penuh - lihat
+        // _markAttendanceRangeAsExcused di Attendance.gs) - jam di 4 kolom
+        // sesi diganti teks jenisnya sendiri (mis. "Cuti Tahunan"), BUKAN
+        // jam sungguhan, jadi tidak usah dihitung status per sesi.
+        const isExcused = statusLower === 'izin' || statusLower === 'cuti';
+
+        // 4 sesi kosong semua (tidak clockIn/breakStart/breakEnd/clockOut
+        // sama sekali, dan bukan hari Izin/Cuti) - dianggap "Tidak Hadir".
+        const allSessionsEmpty = !isExcused && !record.clockIn && !record.breakStart && !record.breakEnd && !record.clockOut;
+
+        // Status PER SESI ("Hadir Tepat Waktu"/"Hadir Terlambat") - dihitung
+        // pakai jadwal shift hari itu (lihat session-status.js). null kalau
+        // nilainya bukan jam (mis. hari Izin/Cuti) atau jam target-nya tidak
+        // ketemu - fallback tidak nampilkan apa-apa (biar jamnya apa adanya).
+        const sessionLabel = (field, actualValue) => {
+            if (isExcused || !actualValue) return '';
+            const lbl = getSessionAttendanceLabel(shiftTypesConfigFull, record.shift, record.date, field, actualValue);
+            if (!lbl) return '';
+            const color = lbl.late ? '#D97706' : '#059669';
+            return `<br><small style="color:${color};font-weight:600;font-size:0.7rem;">${lbl.text}</small>`;
+        };
+
+        const clockInCell = allSessionsEmpty
+            ? '<span style="color:#EF4444;font-weight:600;">Tidak Hadir</span>'
+            : `${record.clockIn || '–'}${sessionLabel('clockIn', record.clockIn)}`;
 
         return `
             <tr${isToday ? ' class="row-today"' : ''}>
                 <td>${dateStr}${isToday ? '<span class="today-tag">Hari Ini</span>' : ''}</td>
                 <td style="font-size:0.82rem;">${this._formatShiftDisplay(record.shift)}</td>
-                <td style="font-weight:600;color:#10b981;">${record.clockIn || '–'}</td>
-                <td style="color:var(--text-muted);">${record.breakStart || '–'}</td>
-                <td style="color:var(--text-muted);">${record.breakEnd || '–'}</td>
-                <td style="font-weight:600;color:#EF4444;">${record.clockOut || '–'}</td>
-                <td>${badge}</td>
+                <td style="font-weight:600;color:#10b981;">${clockInCell}</td>
+                <td style="color:var(--text-muted);">${record.breakStart || '–'}${sessionLabel('breakStart', record.breakStart)}</td>
+                <td style="color:var(--text-muted);">${record.breakEnd || '–'}${sessionLabel('breakEnd', record.breakEnd)}</td>
+                <td style="font-weight:600;color:#EF4444;">${record.clockOut || '–'}${sessionLabel('clockOut', record.clockOut)}</td>
             </tr>
         `;
     }).join('');
+
+    // Konfigurasi jam per Jenis Jadwal (buat hitung status per sesi di atas)
+    // - dimuat SEKALI lalu di-cache, kalau belum ada cache-nya, muat dulu
+    // lalu render ULANG supaya label per sesi langsung muncul tanpa perlu
+    // ganti bulan/reload manual.
+    if (!this._shiftTypesConfigFullCache) {
+        getShiftTypesConfigFull().then(config => {
+            this._shiftTypesConfigFullCache = config;
+            this.renderHistory(historyData);
+        }).catch(() => { /* biarkan tampil tanpa label per sesi kalau gagal dimuat */ });
+    }
 },
 
     _toMinutes(timeStr) {
