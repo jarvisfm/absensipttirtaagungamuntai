@@ -109,6 +109,12 @@ const adminReports = {
             this.officeLocations = [{ nama: 'Kantor', lat: settingsData.office_lat, lng: settingsData.office_lng }];
         }
 
+        // Konfigurasi jam per Jenis Jadwal (lihat session-status.js) - dipakai
+        // renderAttendanceReports()/renderAttendanceMobileCards() buat hitung
+        // status PER SESI ("Hadir Tepat Waktu"/"Hadir Terlambat"), gantinya
+        // kolom "Status" per hari yang sudah dihapus.
+        this.shiftTypesConfigFull = await getShiftTypesConfigFull();
+
         // Fallback ke localStorage hanya untuk bagian yang benar-benar kosong/gagal
         if (employees.length === 0) employees = storage.get('admin_employees', []);
         if (attendances.length === 0) attendances = storage.get('attendance', []);
@@ -535,7 +541,7 @@ const adminReports = {
         });
 
         if (employees.length === 0) {
-            container.innerHTML = '<tr><td colspan="10" style="text-align:center;padding:2rem;">Tidak ada data karyawan</td></tr>';
+            container.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:2rem;">Tidak ada data karyawan</td></tr>';
             return;
         }
 
@@ -560,7 +566,7 @@ const adminReports = {
 
             html += `
                 <tr class="employee-group-header" style="background:var(--bg-secondary,#f8f9fa);">
-                    <td colspan="10" style="padding:12px 16px;">
+                    <td colspan="9" style="padding:12px 16px;">
                         <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
                             <div style="display:flex;align-items:center;gap:10px;">
                                 <div style="width:38px;height:38px;border-radius:50%;background:${color};color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:0.85rem;flex-shrink:0;">${initials}</div>
@@ -585,23 +591,16 @@ const adminReports = {
                     <td style="padding:8px 12px;">Kembali</td>
                     <td style="padding:8px 12px;">Pulang</td>
                     <td style="padding:8px 12px;">Lokasi</td>
-                    <td style="padding:8px 12px;">Status</td>
                     <td style="padding:8px 12px;">Foto</td>
                 </tr>
             `;
 
             if (rows.length === 0) {
-                html += `<tr><td colspan="9" style="text-align:center;padding:1.5rem;color:var(--text-muted);font-size:0.85rem;"><i class="fas fa-calendar-times" style="margin-right:6px;"></i>Tidak ada data absensi pada periode ini</td></tr>`;
+                html += `<tr><td colspan="8" style="text-align:center;padding:1.5rem;color:var(--text-muted);font-size:0.85rem;"><i class="fas fa-calendar-times" style="margin-right:6px;"></i>Tidak ada data absensi pada periode ini</td></tr>`;
             } else {
                 rows.forEach(row => {
                     const [y, m, d] = (row.date || '').split('-');
                     const dateStr = (y && m && d) ? `${d} ${months[parseInt(m)-1]} ${y}` : '-';
-                    const statusLower = String(row.status || '').toLowerCase();
-                    let statusBadge = '<span class="badge-status">–</span>';
-                    if (statusLower === 'hadir' || statusLower === 'ontime') statusBadge = '<span class="badge-status success">Hadir</span>';
-                    else if (statusLower === 'terlambat' || statusLower === 'late') statusBadge = '<span class="badge-status warning">Hadir (Terlambat)</span>';
-                    else if (statusLower === 'izin' || statusLower === 'cuti') statusBadge = `<span class="badge-status info">${row.clockIn || (statusLower === 'izin' ? 'Izin' : 'Cuti')}</span>`;
-                    else if (statusLower === 'pending' || statusLower === 'waiting') statusBadge = '<span class="badge-status">Pending</span>';
 
                     const coords = this._parseLatLng(row.verificationLocation);
                     const coordLabel = coords ? `${coords.lat.toFixed(5)}, ${coords.lng.toFixed(5)}` : '';
@@ -620,6 +619,17 @@ const adminReports = {
                     const faceReviewBadge = (faceFlagRaw === 'true')
                         ? `<br><span onclick="adminReports.showFaceMatchInfo('${row.faceMatchScore || ''}')" style="display:inline-block;margin-top:4px;background:#FEF3C7;color:#D97706;font-size:0.65rem;font-weight:600;padding:1px 6px;border-radius:10px;cursor:pointer;"><i class="fas fa-user-shield"></i> Perlu Review <i class="fas fa-circle-info" style="font-size:0.6rem;"></i></span>`
                         : '';
+
+                    // Status PER SESI ("Hadir Tepat Waktu"/"Hadir Terlambat") -
+                    // gantinya kolom "Status" per hari yang sudah dihapus.
+                    // null (mis. utk "Cuti Tahunan"/Dinas Luar) berarti tidak
+                    // ditampilkan apa-apa, jamnya tetap tampil apa adanya.
+                    const sessionStatusHtml = (field, actualValue) => {
+                        const lbl = getSessionAttendanceLabel(this.shiftTypesConfigFull, row.shift, row.date, field, actualValue);
+                        if (!lbl) return '';
+                        const color = lbl.late ? '#D97706' : '#059669';
+                        return `<br><small style="color:${color};font-weight:600;font-size:0.68rem;">${lbl.text}</small>`;
+                    };
 
                     // GPS per sesi (Masuk/Istirahat/Kembali/Pulang) - ikon kecil
                     // yang bisa diklik, muncul di sebelah jam kalau ada titik
@@ -656,20 +666,19 @@ const adminReports = {
 
                     html += `
                         <tr style="border-bottom:1px solid var(--border-color,#e5e7eb);">
-                            <td style="padding:10px 12px;font-size:0.85rem;">${dateStr}</td>
+                            <td style="padding:10px 12px;font-size:0.85rem;">${dateStr}${dinasLuarBadge}</td>
                             <td style="padding:10px 12px;font-size:0.82rem;">${row.shift || '-'}</td>
-                            <td style="padding:10px 12px;font-weight:600;color:#10b981;">${row.clockIn || '–'}${sessionGps('clockInLocation')}${oorBadge('clockIn')}</td>
-                            <td style="padding:10px 12px;color:var(--text-muted);">${row.breakStart || '–'}${sessionGps('breakStartLocation')}${oorBadge('breakStart')}</td>
-                            <td style="padding:10px 12px;color:var(--text-muted);">${row.breakEnd || '–'}${sessionGps('breakEndLocation')}${oorBadge('breakEnd')}</td>
-                            <td style="padding:10px 12px;font-weight:600;color:#EF4444;">${row.clockOut || '–'}${sessionGps('clockOutLocation')}${oorBadge('clockOut')}</td>
+                            <td style="padding:10px 12px;font-weight:600;color:#10b981;">${row.clockIn || '–'}${sessionStatusHtml('clockIn', row.clockIn)}${sessionGps('clockInLocation')}${oorBadge('clockIn')}</td>
+                            <td style="padding:10px 12px;color:var(--text-muted);">${row.breakStart || '–'}${sessionStatusHtml('breakStart', row.breakStart)}${sessionGps('breakStartLocation')}${oorBadge('breakStart')}</td>
+                            <td style="padding:10px 12px;color:var(--text-muted);">${row.breakEnd || '–'}${sessionStatusHtml('breakEnd', row.breakEnd)}${sessionGps('breakEndLocation')}${oorBadge('breakEnd')}</td>
+                            <td style="padding:10px 12px;font-weight:600;color:#EF4444;">${row.clockOut || '–'}${sessionStatusHtml('clockOut', row.clockOut)}${sessionGps('clockOutLocation')}${oorBadge('clockOut')}</td>
                             <td style="padding:10px 12px;font-size:0.75rem;max-width:160px;">${lokasiHtml}</td>
-                            <td style="padding:10px 12px;">${statusBadge}${dinasLuarBadge}</td>
                             <td style="padding:10px 12px;">${fotoHtml}${faceReviewBadge}</td>
                         </tr>
                     `;
                 });
             }
-            html += `<tr><td colspan="9" style="padding:8px;background:transparent;border:none;"></td></tr>`;
+            html += `<tr><td colspan="8" style="padding:8px;background:transparent;border:none;"></td></tr>`;
         });
 
         container.innerHTML = html;
@@ -743,12 +752,6 @@ const adminReports = {
                 rows.forEach(row => {
                     const [y, m, d] = (row.date || '').split('-');
                     const dateStr = (y && m && d) ? `${d} ${months[parseInt(m)-1]} ${y}` : '-';
-                    const statusLower = String(row.status || '').toLowerCase();
-                    let statusBadge = '<span class="badge-status">–</span>';
-                    if (statusLower === 'hadir' || statusLower === 'ontime') statusBadge = '<span class="badge-status success">Hadir</span>';
-                    else if (statusLower === 'terlambat' || statusLower === 'late') statusBadge = '<span class="badge-status warning">Hadir (Terlambat)</span>';
-                    else if (statusLower === 'izin' || statusLower === 'cuti') statusBadge = `<span class="badge-status info">${row.clockIn || (statusLower === 'izin' ? 'Izin' : 'Cuti')}</span>`;
-                    else if (statusLower === 'pending' || statusLower === 'waiting') statusBadge = '<span class="badge-status">Pending</span>';
 
                     const coords = this._parseLatLng(row.verificationLocation);
                     const coordLabel = coords ? `${coords.lat.toFixed(5)}, ${coords.lng.toFixed(5)}` : '';
@@ -765,6 +768,14 @@ const adminReports = {
                     const faceReviewBadgeM = (faceFlagRawM === 'true')
                         ? `<span onclick="adminReports.showFaceMatchInfo('${row.faceMatchScore || ''}')" style="display:inline-block;background:#FEF3C7;color:#D97706;font-size:0.65rem;font-weight:600;padding:1px 6px;border-radius:10px;cursor:pointer;white-space:nowrap;"><i class="fas fa-user-shield"></i> Review</span>`
                         : '';
+
+                    // Status PER SESI - sama seperti versi tabel desktop.
+                    const sessionStatusHtmlM = (field, actualValue) => {
+                        const lbl = getSessionAttendanceLabel(this.shiftTypesConfigFull, row.shift, row.date, field, actualValue);
+                        if (!lbl) return '';
+                        const color = lbl.late ? '#D97706' : '#059669';
+                        return `<br><small style="color:${color};font-weight:600;font-size:0.68rem;">${lbl.text}</small>`;
+                    };
 
                     // GPS per sesi (Masuk/Istirahat/Kembali/Pulang) - sama
                     // seperti versi tabel desktop.
@@ -799,14 +810,14 @@ const adminReports = {
                         <div style="padding:10px 0;border-top:1px solid var(--border-color,#e5e7eb);">
                             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
                                 <span style="font-weight:600;font-size:0.85rem;">${dateStr}</span>
-                                <span>${statusBadge}${dinasLuarBadgeM}</span>
+                                <span>${dinasLuarBadgeM}</span>
                             </div>
                             <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:0.78rem;color:var(--text-muted);margin-bottom:6px;">
                                 <div>Shift: <span style="color:var(--text-primary,#111);">${row.shift || '-'}</span></div>
-                                <div>Masuk: <span style="color:#10b981;font-weight:600;">${row.clockIn || '–'}</span>${sessionGps('clockInLocation')}${oorBadgeM('clockIn')}</div>
-                                <div>Istirahat: ${row.breakStart || '–'}${sessionGps('breakStartLocation')}${oorBadgeM('breakStart')}</div>
-                                <div>Kembali: ${row.breakEnd || '–'}${sessionGps('breakEndLocation')}${oorBadgeM('breakEnd')}</div>
-                                <div>Pulang: <span style="color:#EF4444;font-weight:600;">${row.clockOut || '–'}</span>${sessionGps('clockOutLocation')}${oorBadgeM('clockOut')}</div>
+                                <div>Masuk: <span style="color:#10b981;font-weight:600;">${row.clockIn || '–'}</span>${sessionStatusHtmlM('clockIn', row.clockIn)}${sessionGps('clockInLocation')}${oorBadgeM('clockIn')}</div>
+                                <div>Istirahat: ${row.breakStart || '–'}${sessionStatusHtmlM('breakStart', row.breakStart)}${sessionGps('breakStartLocation')}${oorBadgeM('breakStart')}</div>
+                                <div>Kembali: ${row.breakEnd || '–'}${sessionStatusHtmlM('breakEnd', row.breakEnd)}${sessionGps('breakEndLocation')}${oorBadgeM('breakEnd')}</div>
+                                <div>Pulang: <span style="color:#EF4444;font-weight:600;">${row.clockOut || '–'}</span>${sessionStatusHtmlM('clockOut', row.clockOut)}${sessionGps('clockOutLocation')}${oorBadgeM('clockOut')}</div>
                             </div>
                             <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
                                 <div style="flex:1;min-width:0;">${lokasiHtml}</div>
