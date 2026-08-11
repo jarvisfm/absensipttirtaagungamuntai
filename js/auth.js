@@ -1023,7 +1023,21 @@ const auth = {
             const devices = (result.success && Array.isArray(result.data)) ? result.data : [];
 
             if (devices.length === 0) {
-                listEl.innerHTML = '<p style="font-size:0.85rem;color:var(--text-muted);">Belum ada perangkat yang mengaktifkan login sidik jari.</p>';
+                // Sebelumnya cuma teks pasif ("Belum ada perangkat...") -
+                // sekarang langsung kasih jalan pendaftaran di sini juga
+                // (bukan cuma lewat toggle "Aktifkan Login Sidik Jari" di
+                // atasnya, atau nunggu ditawari lewat modal di halaman
+                // login), supaya user yang belum punya sidik jari terdaftar
+                // bisa langsung daftar dari sini.
+                listEl.innerHTML = `
+                    <div style="text-align:center;padding:18px 12px;border:1px dashed var(--border-color);border-radius:8px;">
+                        <i class="fas fa-fingerprint" style="font-size:1.6rem;color:var(--color-primary);margin-bottom:8px;display:block;"></i>
+                        <p style="font-size:0.85rem;color:var(--text-muted);margin:0 0 10px;">Anda belum mendaftarkan sidik jari di perangkat ini.</p>
+                        <button type="button" onclick="auth.startBiometricEnrollmentFromList()"
+                            style="background:var(--color-primary-gradient);color:#fff;border:none;padding:8px 18px;border-radius:8px;cursor:pointer;font-weight:600;font-size:0.85rem;">
+                            <i class="fas fa-fingerprint"></i> Daftarkan Sidik Jari Sekarang
+                        </button>
+                    </div>`;
                 return;
             }
 
@@ -1061,13 +1075,22 @@ const auth = {
             // Batalkan centang dulu sampai password dikonfirmasi & WebAuthn
             // berhasil didaftarkan.
             checkboxEl.checked = false;
-            const modal = document.getElementById('modal-biometric-confirm-password');
-            const input = document.getElementById('pf-biometric-confirm-password-input');
-            if (input) input.value = '';
-            if (modal) modal.style.display = 'flex';
+            this.startBiometricEnrollmentFromList();
         } else {
             this.disableBiometricLogin();
         }
+    },
+
+    // Buka modal konfirmasi password untuk mulai mendaftarkan sidik jari -
+    // dipakai bareng oleh toggle "Aktifkan Login Sidik Jari" DAN tombol
+    // "Daftarkan Sidik Jari Sekarang" di state kosong daftar sidik jari
+    // (lihat renderBiometricSettings()), supaya user yang belum sempat
+    // notice togglenya tetap bisa langsung daftar dari sana.
+    startBiometricEnrollmentFromList() {
+        const modal = document.getElementById('modal-biometric-confirm-password');
+        const input = document.getElementById('pf-biometric-confirm-password-input');
+        if (input) input.value = '';
+        if (modal) modal.style.display = 'flex';
     },
 
     cancelBiometricPasswordConfirm() {
