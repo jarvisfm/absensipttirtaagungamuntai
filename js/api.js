@@ -221,6 +221,16 @@ const api = {
         return this.request('submitLeave', data);
     },
 
+    // Preview durasi cuti (hari kerja - Sabtu/Minggu/tanggal merah nasional
+    // dikecualikan) SEBELUM submit, supaya angka yang tampil di form sudah
+    // sama persis dengan yang nanti benar-benar dipotong dari kuota. Tidak
+    // ada mode localStorage fallback (tanpa backend, cuma dipakai fallback
+    // hitung mentah di cuti.js langsung).
+    async previewLeaveDuration(startDate, endDate) {
+        if (!API_BASE_URL) return { success: false, error: 'Backend tidak aktif' };
+        return this.request('previewLeaveDuration', { startDate, endDate });
+    },
+
     async approveLeave(id, approver, catatan) {
         if (!API_BASE_URL) {
             const all = storage.get('leaves', []);
