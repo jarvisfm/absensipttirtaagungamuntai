@@ -162,19 +162,38 @@ const cuti = {
         const endDate = document.getElementById('leave-end');
         const duration = document.getElementById('leave-duration');
 
-        const calculateDuration = () => {
-            if (startDate.value && endDate.value) {
-                const start = new Date(startDate.value);
-                const end = new Date(endDate.value);
-                const diffTime = end - start;
-                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+        const calculateDuration = async () => {
+            if (!startDate.value || !endDate.value) return;
 
-                if (diffDays > 0) {
-                    duration.value = `${diffDays} hari`;
-                } else {
-                    duration.value = '0 hari';
+            // SEBELUMNYA cuma selisih tanggal kalender mentah (+1) - tidak
+            // mengecualikan Sabtu/Minggu/tanggal merah nasional sama sekali,
+            // jadi rentang "12-18 Agustus" tampil "7 hari" walau yang
+            // benar-benar dipotong dari kuota nanti cuma hari kerjanya saja.
+            // Sekarang minta backend hitung yang sebenarnya (lihat
+            // previewLeaveDuration() di Leave.gs - pakai kalender hari libur
+            // nasional resmi Google, otomatis kecualikan Sabtu/Minggu/
+            // tanggal merah) supaya angka yang tampil di sini SAMA PERSIS
+            // dengan yang nanti benar-benar tersimpan saat submit.
+            try {
+                const result = await api.previewLeaveDuration(startDate.value, endDate.value);
+                if (result.success) {
+                    duration.value = `${result.data.duration} hari`;
+                    return;
                 }
+            } catch (e) {
+                console.error('Gagal ambil preview durasi cuti dari server:', e);
             }
+
+            // Fallback kalau backend tidak aktif/gagal dihubungi - selisih
+            // kalender mentah (TIDAK mengecualikan Sabtu/Minggu/tanggal
+            // merah, cuma supaya form tidak kosong sama sekali). Angka
+            // final yang sebenarnya tetap dihitung ulang otomatis oleh
+            // server saat submit, terlepas dari apa yang tampil di sini.
+            const start = new Date(startDate.value);
+            const end = new Date(endDate.value);
+            const diffTime = end - start;
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+            duration.value = diffDays > 0 ? `${diffDays} hari` : '0 hari';
         };
 
         if (startDate && endDate && !this._dateListenerAttached) {
