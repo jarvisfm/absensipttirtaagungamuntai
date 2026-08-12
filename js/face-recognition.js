@@ -508,10 +508,13 @@ const faceRecognition = {
         tick();
     },
 
-    // Ubah tampilan tombol "Absen Sekarang" jadi status loading selama
-    // wajah/liveness belum lolos verifikasi, supaya karyawan tahu sistem
-    // masih memproses (bukan macet/diam) - baru berubah jadi tombol aktif
-    // normal begitu benar-benar siap.
+    // Update tampilan indikator status "Absen Sekarang" (SEKARANG BUKAN
+    // TOMBOL LAGI - lihat index.html, elemen id="btn-capture" sudah diubah
+    // jadi <div> dengan pointer-events:none) selama proses verifikasi
+    // wajah/liveness berjalan, supaya karyawan tahu sistem masih memproses
+    // (bukan macet/diam). Foto tetap diambil & disubmit OTOMATIS lewat
+    // auto-capture di _startFaceDetectionLoop() - tidak pernah menunggu
+    // ditekan, jadi teksnya sengaja tidak pernah berbunyi ajakan klik.
     _updateCaptureButtonState(detected, ready, mismatchRetrying) {
         const captureBtn = document.getElementById('btn-capture');
         if (!captureBtn || this.photoCaptured) return;
@@ -519,8 +522,8 @@ const faceRecognition = {
         const icon = captureBtn.querySelector('i');
         const label = captureBtn.querySelector('span');
         if (ready) {
-            if (icon) icon.className = 'fas fa-check-circle';
-            if (label) label.textContent = 'Absen Sekarang';
+            if (icon) icon.className = 'fas fa-spinner fa-spin';
+            if (label) label.textContent = 'Wajah terverifikasi, memproses...';
         } else if (mismatchRetrying) {
             if (icon) icon.className = 'fas fa-redo fa-spin';
             if (label) label.textContent = 'Wajah tidak cocok, mencoba lagi...';
