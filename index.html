@@ -1550,6 +1550,15 @@
                                         <p style="font-size:0.85rem;color:var(--text-muted);">Memuat...</p>
                                     </div>
                                 </div>
+
+                                <!-- ===== Notifikasi HP (Firebase Cloud Messaging) — TAMBAHAN ===== -->
+                                <div class="form-group" style="margin-top:1.5rem;padding-top:1.25rem;border-top:1px solid var(--border-color);">
+                                    <label style="margin-bottom:2px;">Notifikasi HP</label>
+                                    <p style="font-size:0.8rem;color:var(--text-muted);margin:0 0 0.75rem;">Aktifkan untuk dapat notifikasi langsung ke perangkat ini (mis. persetujuan izin/cuti, pengingat absen) tanpa perlu buka aplikasi terus-menerus.</p>
+                                    <div id="pf-push-notif-status">
+                                        <p style="font-size:0.85rem;color:var(--text-muted);">Memuat...</p>
+                                    </div>
+                                </div>
                             </div>
 
                             <!-- Tab Pendidikan (Riwayat SD/SMP/SMA/S1/S2 + link Ijazah & Transkrip) -->
@@ -3508,6 +3517,13 @@
          absen wajah tidak bisa lolos kalau wajah tidak benar-benar
          terdeteksi di kamera. -->
     <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+    <!-- Firebase (compat SDK): dipakai js/push-notifications.js untuk kirim
+         notifikasi HP (Firebase Cloud Messaging). Kalau firebaseConfig di
+         push-notifications.js belum diisi Admin, modul itu otomatis diam
+         (degradasi sopan) - script ini tetap aman dimuat lebih dulu. -->
+    <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-messaging-compat.js"></script>
+    <script src="js/push-notifications.js"></script>
     <script src="js/api.js"></script>
     <script src="js/jenis-jadwal-util.js"></script>
     <script src="js/main.js"></script>
