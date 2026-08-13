@@ -125,6 +125,11 @@ const karyawanManager = {
         this.resetForm();
         this.switchTab('profil');
         this._populateApproverDropdown(id);
+        // Karyawan baru: belum ada Bagian dipilih, jadi dropdown Asmen
+        // kosong dulu - terisi begitu admin pilih Bagian (lihat
+        // onBagianChange()). loadDetailForEdit() di bawah akan mengisinya
+        // ulang untuk kasus Edit Karyawan.
+        if (!id) this._populateAsmenDropdown('', '');
 
         // Tab Pendidikan & Riwayat Mutasi butuh id karyawan yang sudah
         // tersimpan (baru bisa ditautkan ke karyawannya). Kalau ini
@@ -196,6 +201,45 @@ const karyawanManager = {
         select.innerHTML = '<option value="">-- Pilih approver --</option>' + options;
     },
 
+    /**
+     * Isi dropdown "Asmen Penyetuju Izin/Cuti" berdasarkan Bagian yang
+     * sedang dipilih di form (sama sumber datanya dengan yang dulu dipakai
+     * staff sendiri di form Izin/Cuti - api.getAsmenByBagian - cuma sekarang
+     * yang mengatur Admin lewat Edit Karyawan, bukan staff tiap kali
+     * mengajukan).
+     */
+    async _populateAsmenDropdown(bagian, selectedId) {
+        const select = document.getElementById('p-asmenPenyetujuId');
+        if (!select) return;
+
+        if (!bagian) {
+            select.innerHTML = '<option value="">-- Pilih Bagian dahulu --</option>';
+            return;
+        }
+
+        select.innerHTML = '<option value="">Memuat...</option>';
+        try {
+            const result = await api.getAsmenByBagian(bagian);
+            const list = result.data || [];
+            select.innerHTML = list.length
+                ? '<option value="">-- Pilih Asmen --</option>' +
+                  list.map(a => `<option value="${a.id}">${this._esc(a.nama)}</option>`).join('')
+                : '<option value="">Tidak ada Asmen untuk bagian ini</option>';
+            if (selectedId) select.value = selectedId;
+        } catch (error) {
+            console.error('Gagal memuat daftar Asmen:', error);
+            select.innerHTML = '<option value="">Gagal memuat daftar Asmen</option>';
+        }
+    },
+
+    // Dipanggil dari onchange select #p-bagian - muat ulang daftar Asmen
+    // sesuai Bagian yang baru dipilih (tanpa nilai terpilih, karena Bagian
+    // berubah berarti Asmen lama kemungkinan sudah tidak relevan).
+    onBagianChange() {
+        const bagian = document.getElementById('p-bagian')?.value || '';
+        this._populateAsmenDropdown(bagian, '');
+    },
+
     async loadDetailForEdit(id) {
         try {
             const result = await api.getKaryawanDetail(id);
@@ -246,6 +290,10 @@ const karyawanManager = {
             }
             const approverEl = document.getElementById('p-locationExemptApproverId');
             if (approverEl) approverEl.value = p.locationExemptApproverId || '';
+            // Asmen Penyetuju Izin/Cuti - daftarnya tergantung Bagian, jadi
+            // dimuat ulang (async) dengan bagian karyawan ini, lalu di-set
+            // ke nilai yang sudah tersimpan.
+            await this._populateAsmenDropdown(p.bagian || '', p.asmenPenyetujuId || '');
             const opScheduleEl = document.getElementById('p-operatorScheduleUnit');
             if (opScheduleEl) {
                 // Disimpan sebagai teks dipisah koma (mis. "SPAM Alabio,SPAM Banjang")
@@ -305,6 +353,8 @@ const karyawanManager = {
 
         const approverResetEl = document.getElementById('p-locationExemptApproverId');
         if (approverResetEl) approverResetEl.value = '';
+        const asmenResetEl = document.getElementById('p-asmenPenyetujuId');
+        if (asmenResetEl) asmenResetEl.innerHTML = '<option value="">-- Pilih Bagian dahulu --</option>';
         const opScheduleResetEl = document.getElementById('p-operatorScheduleUnit');
         if (opScheduleResetEl) Array.from(opScheduleResetEl.options).forEach(opt => opt.selected = false);
 
@@ -568,6 +618,7 @@ const karyawanManager = {
             tahunPensiun:     document.getElementById('p-tahunPensiun').value.trim(),
             shift:            document.getElementById('p-shift').value,
             locationExemptApproverId: document.getElementById('p-locationExemptApproverId')?.value || '',
+            asmenPenyetujuId: document.getElementById('p-asmenPenyetujuId')?.value || '',
             operatorScheduleUnit: Array.from(document.getElementById('p-operatorScheduleUnit')?.selectedOptions || []).map(o => o.value).join(','),
             username:         document.getElementById('p-username').value.trim(),
             keluarga
