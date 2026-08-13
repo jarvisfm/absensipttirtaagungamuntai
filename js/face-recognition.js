@@ -17,10 +17,14 @@ const faceRecognition = {
     modelsLoaded: false,
     faceDetected: false,
     // Dikontrol dari toggle "Face Recognition" di halaman Settings admin -
-    // lihat _loadFaceRecognitionSetting(). Default true (tetap aktif)
-    // sebelum settingnya sempat dimuat, supaya tidak "bocor" jadi nonaktif
-    // kalau pengecekan setting-nya sendiri gagal/lambat.
-    faceRecognitionEnabled: true,
+    // lihat _loadFaceRecognitionSetting(). Default FALSE (nonaktif) sesuai
+    // permintaan - foto pas absen tetap wajib diambil seperti biasa, tapi
+    // TANPA verifikasi wajah/liveness apa pun sampai admin menyalakan toggle
+    // ini secara sadar. Begitu dinyalakan, yang berjalan adalah liveness
+    // BARU (deteksi kedipan mata, lihat livenessDetected/_trackBlink di
+    // bawah) - bukan lagi versi lama yang cuma cek "ada wajah atau tidak"
+    // (itu yang bisa ditembus foto/kertas dicetak).
+    faceRecognitionEnabled: false,
     // Model tambahan untuk RECOGNITION (mengenali identitas, bukan cuma
     // mendeteksi ada-tidaknya wajah) - dipakai untuk mencocokkan wajah yang
     // difoto saat absen dengan foto profil karyawan yang bersangkutan, supaya
@@ -65,6 +69,29 @@ const faceRecognition = {
     YAW_TURN_THRESHOLD: 0.12,   // deviasi dari baseline sejauh ini = dianggap menoleh
     YAW_RETURN_THRESHOLD: 0.06, // deviasi di bawah ini = dianggap sudah menghadap kamera lagi
     _headWasTurned: false,
+    // ---- Liveness check (deteksi kedipan mata) ----
+    // Dipilih menggantikan liveness "menoleh" di atas (yang tetap dibiarkan
+    // ada kodenya, tapi TIDAK dipakai) karena kedip 1x jauh lebih cepat
+    // dilakukan orang & lebih cepat kelihatan hasilnya di sistem - keluhan
+    // sebelumnya adalah liveness kepakai (menoleh+kedip) lama diverifikasi
+    // dan kadang beberapa kali kedip tidak terdeteksi. EAR (Eye Aspect
+    // Ratio) dihitung dari landmark mata tiap tick deteksi (lihat
+    // _trackBlink) - baseline "mata terbuka normal" dikalibrasi otomatis
+    // di awal tiap sesi kamera sama seperti baseline menoleh, TAPI dengan
+    // jumlah sampel kalibrasi yang sengaja dibuat sedikit (lihat
+    // EAR_CALIBRATION_SAMPLES) dan ambang batas yang sengaja dibuat longgar
+    // (EAR_CLOSE_RATIO/EAR_OPEN_RATIO) supaya kedipan wajar (bukan kedip
+    // dibuat-buat lambat) tetap kena kedeteksi tanpa perlu user menunggu
+    // lama atau mengulang-ulang. Foto/kertas yang ditodongkan ke kamera
+    // tidak akan pernah bisa "berkedip" (rasio matanya diam persis sama),
+    // jadi ini tetap jadi pertahanan utama terhadap serangan foto statis.
+    _earBaseline: null,
+    _earBaselineSum: 0,
+    _earBaselineCount: 0,
+    _eyesClosed: false,
+    EAR_CALIBRATION_SAMPLES: 5,
+    EAR_CLOSE_RATIO: 0.78, // EAR turun di bawah baseline * rasio ini -> dianggap merem
+    EAR_OPEN_RATIO: 0.88,  // EAR naik balik di atas baseline * rasio ini (sambil sempat merem) -> dianggap 1 kedipan lengkap
     _detectLoopId: null,
     _leafletMap: null,
     _outOfRadiusNote: null,
@@ -81,6 +108,10 @@ const faceRecognition = {
         this._yawBaseline = null;
         this._yawBaselineSum = 0;
         this._yawBaselineCount = 0;
+        this._earBaseline = null;
+        this._earBaselineSum = 0;
+        this._earBaselineCount = 0;
+        this._eyesClosed = false;
         this._stableFaceSince = null;
         this._autoCaptureNextAllowedAt = 0;
         this._mismatchToastShown = false;
@@ -148,12 +179,14 @@ const faceRecognition = {
     },
 
     /**
-     * Baca toggle "Face Recognition" dari Settings admin. Kalau OFF, seluruh
-     * pengecekan wajah (deteksi ada-tidaknya wajah, MAUPUN pencocokan
-     * identitas ke foto profil) dilewati - absen kembali seperti sebelum
-     * ada fitur ini (cukup ambil foto & kirim). Kalau gagal dimuat (mis.
-     * error jaringan), default AKTIF (fail-safe ke arah lebih ketat, bukan
-     * lebih longgar).
+     * Baca toggle "Face Recognition" dari Settings admin. Default toggle ini
+     * sekarang OFF - kalau OFF (atau belum pernah diatur admin sama sekali),
+     * seluruh pengecekan wajah (deteksi ada-tidaknya wajah, liveness kedip
+     * mata, MAUPUN pencocokan identitas ke foto profil) dilewati - absen
+     * cukup ambil foto & kirim seperti alur lama sebelum ada fitur ini.
+     * Begitu admin menyalakan toggle ini, yang aktif adalah liveness BARU
+     * (kedip mata). Kalau gagal dimuat (mis. error jaringan), tetap default
+     * NONAKTIF supaya konsisten dengan default barunya.
      */
     async _loadFaceRecognitionSetting() {
         try {
@@ -167,11 +200,11 @@ const faceRecognition = {
                 this.faceRecognitionEnabled = String(result.data.face_recognition).toLowerCase() === 'true'
                     || result.data.face_recognition === true;
             } else {
-                this.faceRecognitionEnabled = true;
+                this.faceRecognitionEnabled = false;
             }
         } catch (e) {
-            console.error('Gagal memuat setting Face Recognition, dianggap aktif:', e);
-            this.faceRecognitionEnabled = true;
+            console.error('Gagal memuat setting Face Recognition, dianggap nonaktif (default):', e);
+            this.faceRecognitionEnabled = false;
         }
     },
 
@@ -425,6 +458,7 @@ const faceRecognition = {
         this._faceFirstDetectedAt = null;
         this._noFaceWarnShown = false;
         this._turnHintShown = false;
+        this._blinkHintShown = false;
 
         // Self-scheduling (setTimeout dipanggil ulang SETELAH tick
         // sebelumnya benar-benar selesai) - BUKAN setInterval. Kalau
@@ -442,16 +476,30 @@ const faceRecognition = {
             }
 
             let detected = false;
+            let landmarks = null;
             try {
-                const result = await faceapi
-                    .detectSingleFace(this.video, new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.5 }));
-                detected = !!result;
+                if (!this.livenessDetected) {
+                    // Kedipan belum terekam - butuh landmark mata tiap tick
+                    // buat _trackBlink(). Begitu livenessDetected true, tidak
+                    // perlu landmark lagi (lebih ringan), cukup cek wajah
+                    // masih ada di frame sampai foto diambil.
+                    const result = await faceapi
+                        .detectSingleFace(this.video, new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.5 }))
+                        .withFaceLandmarks();
+                    detected = !!result;
+                    landmarks = result ? result.landmarks : null;
+                } else {
+                    const result = await faceapi
+                        .detectSingleFace(this.video, new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.5 }));
+                    detected = !!result;
+                }
             } catch (e) {
                 detected = false;
             }
 
             this.faceDetected = detected;
             if (detected && !this._faceFirstDetectedAt) this._faceFirstDetectedAt = Date.now();
+            if (landmarks) this._trackBlink(landmarks);
             this._updateFaceOverlay(detected);
 
             // Lacak berapa lama wajah terdeteksi TERUS-MENERUS tanpa putus -
@@ -464,28 +512,27 @@ const faceRecognition = {
                 this._stableFaceSince = null;
             }
 
-            // Liveness (menoleh) sudah TIDAK lagi jadi syarat - tombol/auto-
-            // capture cukup butuh wajah terdeteksi. Identitas tetap dicek di
-            // capturePhoto() lewat pencocokan ke foto profil. Selama masih
-            // dalam masa retry karena wajah sebelumnya tidak cocok, jangan
-            // tampilkan tombol seolah "siap/normal" - biar jelas sistem
-            // masih mencoba verifikasi ulang, bukan berhenti/macet.
-            const readyToCapture = detected && !this._faceMismatchRetrying;
+            // Liveness kedip mata WAJIB sebelum tombol/auto-capture dianggap
+            // siap (lihat livenessDetected/_trackBlink) - foto/kertas statis
+            // tidak akan pernah bisa berkedip, jadi ini mencegah kasus foto
+            // dicetak lolos absen. Identitas (cocok/tidak dengan foto
+            // profil) tetap dicek terpisah di capturePhoto().
+            const readyToCapture = detected && this.livenessDetected && !this._faceMismatchRetrying;
             this._updateCaptureButtonState(detected, readyToCapture, this._faceMismatchRetrying);
 
             // Auto-capture: begitu wajah stabil terdeteksi (>=800ms) DAN
-            // lokasi sudah terverifikasi DAN tidak sedang cooldown dari
-            // percobaan sebelumnya (mis. baru saja gagal cocok/tidak ada
-            // wajah di frame final) - langsung panggil capturePhoto() tanpa
-            // perlu user menekan tombol. capturePhoto() sendiri yang
-            // menentukan sukses/gagal (termasuk cocok/tidak dengan foto
-            // profil) dan langsung lanjut submit otomatis kalau berhasil.
+            // kedipan sudah terekam (liveness) DAN lokasi sudah terverifikasi
+            // DAN tidak sedang cooldown dari percobaan sebelumnya - langsung
+            // panggil capturePhoto() tanpa perlu user menekan tombol.
+            // capturePhoto() sendiri yang menentukan sukses/gagal (termasuk
+            // cocok/tidak dengan foto profil) dan langsung lanjut submit
+            // otomatis kalau berhasil.
             const stableEnough = this._stableFaceSince && (Date.now() - this._stableFaceSince) >= 800;
             const cooldownOk = Date.now() >= (this._autoCaptureNextAllowedAt || 0);
-            if (stableEnough && cooldownOk && this.locationVerified && !this.photoCaptured) {
+            if (stableEnough && cooldownOk && this.livenessDetected && this.locationVerified && !this.photoCaptured) {
                 // Jangan coba lagi otomatis sebelum jeda ini lewat - hindari
                 // spam percobaan/toast kalau capturePhoto() gagal (mis. wajah
-                // tidak cocok dengan foto profil).
+                // tidak terdeteksi lagi di frame final).
                 this._autoCaptureNextAllowedAt = Date.now() + 3000;
                 this.capturePhoto();
             }
@@ -497,6 +544,9 @@ const faceRecognition = {
                 if (!detected && !this._noFaceWarnShown && sinceStart > 15000) {
                     this._noFaceWarnShown = true;
                     toast.error('Wajah tidak terdeteksi. Pastikan wajah terlihat jelas di kamera dan pencahayaan cukup.');
+                } else if (detected && !this.livenessDetected && !this._blinkHintShown && sinceStart > 8000) {
+                    this._blinkHintShown = true;
+                    toast.info('Silakan berkedip sekali secara normal di depan kamera untuk verifikasi.');
                 }
             }
 
@@ -527,6 +577,9 @@ const faceRecognition = {
         } else if (mismatchRetrying) {
             if (icon) icon.className = 'fas fa-redo fa-spin';
             if (label) label.textContent = 'Wajah tidak cocok, mencoba lagi...';
+        } else if (detected && !this.livenessDetected) {
+            if (icon) icon.className = 'fas fa-eye';
+            if (label) label.textContent = 'Wajah terdeteksi, silakan berkedip...';
         } else {
             if (icon) icon.className = 'fas fa-spinner fa-spin';
             if (label) label.textContent = detected ? 'Memverifikasi otomatis...' : 'Menunggu wajah...';
@@ -588,6 +641,79 @@ const faceRecognition = {
         }
     },
 
+    // Jarak Euclidean 2D antar 2 titik landmark {x,y}.
+    _dist(a, b) {
+        return Math.hypot(a.x - b.x, a.y - b.y);
+    },
+
+    /**
+     * Hitung EAR (Eye Aspect Ratio) 1 mata dari 6 titik landmarknya (urutan
+     * dlib/face-api.js: titik 0 & 3 = sudut kiri/kanan mata, titik 1,2,4,5 =
+     * tepi kelopak atas/bawah). Rasio ini besar saat mata terbuka dan
+     * mengecil tajam saat merem - dasar dari _trackBlink() di bawah.
+     */
+    _calcEAR(eye) {
+        if (!eye || eye.length < 6) return null;
+        const horizontal = this._dist(eye[0], eye[3]);
+        if (horizontal < 1) return null;
+        const vertical = this._dist(eye[1], eye[5]) + this._dist(eye[2], eye[4]);
+        return vertical / (2 * horizontal);
+    },
+
+    /**
+     * Hitung EAR rata-rata kedua mata tiap frame, lalu lacak transisi
+     * "melek -> merem -> melek" sebagai 1 kedipan alami (liveness). Foto/
+     * kertas yang ditodongkan ke kamera tidak akan pernah bisa "berkedip"
+     * (rasio matanya diam persis sama tiap frame), jadi ini jadi pertahanan
+     * utama terhadap serangan foto statis - dipilih ketimbang liveness
+     * menoleh (_trackHeadTurn di atas, sudah tidak dipakai) karena kedip
+     * jauh lebih cepat dilakukan orang & lebih cepat kelihatan hasilnya di
+     * sini, sehingga tidak bikin user menunggu lama seperti sebelumnya.
+     */
+    _trackBlink(landmarks) {
+        if (!landmarks) return;
+        try {
+            const leftEAR = this._calcEAR(landmarks.getLeftEye());
+            const rightEAR = this._calcEAR(landmarks.getRightEye());
+            if (leftEAR === null || rightEAR === null) return;
+            const ear = (leftEAR + rightEAR) / 2;
+
+            // Tahap kalibrasi: kumpulkan beberapa sampel EAR pertama sebagai
+            // baseline "mata terbuka normal". Sampel yang jauh beda dari
+            // rata-rata sejauh ini diabaikan (kemungkinan besar kebetulan
+            // lagi berkedip pas kalibrasi), supaya baseline tidak keburu
+            // rendah gara-gara itu. Jumlah sampelnya sengaja sedikit (lihat
+            // EAR_CALIBRATION_SAMPLES) supaya kalibrasi kelar dalam
+            // hitungan sepersekian detik, bukan bikin user menunggu.
+            if (this._earBaseline === null) {
+                const runningAvg = this._earBaselineCount > 0 ? (this._earBaselineSum / this._earBaselineCount) : null;
+                if (runningAvg === null || Math.abs(ear - runningAvg) < 0.06) {
+                    this._earBaselineSum += ear;
+                    this._earBaselineCount++;
+                }
+                if (this._earBaselineCount >= this.EAR_CALIBRATION_SAMPLES) {
+                    this._earBaseline = this._earBaselineSum / this._earBaselineCount;
+                }
+                return; // belum mulai lacak kedipan selama masih kalibrasi
+            }
+
+            const closeLimit = this._earBaseline * this.EAR_CLOSE_RATIO;
+            const openLimit = this._earBaseline * this.EAR_OPEN_RATIO;
+
+            if (ear < closeLimit) {
+                this._eyesClosed = true;
+            } else if (ear > openLimit && this._eyesClosed) {
+                // Sempat merem, sekarang melek lagi -> 1 kedipan lengkap
+                // terekam.
+                this.livenessDetected = true;
+                this._eyesClosed = false;
+            }
+        } catch (e) {
+            // Landmark gagal dihitung di frame ini - lewati, dicoba lagi di
+            // tick berikutnya (150ms kemudian).
+        }
+    },
+
     _stopFaceDetectionLoop() {
         this._detectionActive = false;
         if (this._detectLoopId) {
@@ -596,9 +722,9 @@ const faceRecognition = {
         }
     },
 
-    // Ubah tampilan frame & teks panduan sesuai status deteksi wajah -
-    // verifikasi (identitas ke foto profil) berjalan otomatis di
-    // capturePhoto(), tidak ada lagi tahap liveness manual.
+    // Ubah tampilan frame & teks panduan sesuai status deteksi wajah &
+    // liveness (kedip mata) - verifikasi identitas ke foto profil berjalan
+    // otomatis terpisah di capturePhoto().
     _updateFaceOverlay(detected) {
         const frame = document.querySelector('#face-overlay .face-frame');
         const guideIcon = document.querySelector('#face-overlay .face-guide i');
@@ -609,8 +735,10 @@ const faceRecognition = {
         if (guideText) {
             if (!detected) {
                 guideText.textContent = 'Wajah tidak terlihat - posisikan wajah di dalam frame';
+            } else if (!this.livenessDetected && !this.photoCaptured) {
+                guideText.textContent = 'Wajah terdeteksi - silakan berkedip sekali secara normal';
             } else if (!this.photoCaptured) {
-                guideText.textContent = 'Wajah terdeteksi - memverifikasi otomatis, tetap diam sebentar...';
+                guideText.textContent = 'Wajah terverifikasi - memverifikasi otomatis, tetap diam sebentar...';
             } else {
                 guideText.textContent = 'Wajah terverifikasi - siap absen';
             }
@@ -1148,6 +1276,16 @@ const faceRecognition = {
             return;
         }
 
+        // Jaga-jaga (defense in depth) - normalnya auto-capture di loop
+        // deteksi sudah tidak akan memanggil capturePhoto() sebelum
+        // livenessDetected true (lihat _startFaceDetectionLoop), tapi
+        // dicek ulang di sini supaya tetap aman kalau capturePhoto()
+        // suatu saat dipanggil dari jalur lain.
+        if (this.faceRecognitionEnabled && !this.livenessDetected) {
+            this._captureInFlight = false;
+            return;
+        }
+
         const captureBtnEl = document.getElementById('btn-capture');
         if (captureBtnEl) captureBtnEl.disabled = true;
 
@@ -1206,14 +1344,19 @@ const faceRecognition = {
             if (this.faceRecognitionEnabled) {
                 const identity = await this._verifyFaceIdentity();
                 if (identity.checked && !identity.matched) {
+                    // Wajah TIDAK cocok dengan foto profil - TIDAK diloloskan
+                    // sebagai "wajah terverifikasi cocok", TAPI absen tetap
+                    // diproses (tidak diblokir/diminta mengulang berkali-
+                    // kali) supaya karyawan yang tetap harus absen tidak
+                    // terjebak gara-gara kondisi kamera/pencahayaan yang
+                    // meleset. faceMatchFlag di confirmAttendance() otomatis
+                    // bernilai true di kasus ini (distance-nya > threshold >
+                    // FACE_MATCH_CONFIDENT_ZONE), jadi tercatat & bisa
+                    // ditinjau ulang oleh admin lewat foto absennya.
                     if (!this._mismatchToastShown) {
                         this._mismatchToastShown = true;
-                        toast.error('Wajah tidak cocok dengan foto profil Anda. Sistem akan coba verifikasi ulang otomatis - posisikan wajah Anda dengan jelas di kamera.');
+                        toast.warning('Wajah tidak cocok dengan foto profil Anda. Absen tetap diproses, tapi ditandai untuk ditinjau admin.');
                     }
-                    this._faceMismatchRetrying = true;
-                    if (captureBtnEl) captureBtnEl.disabled = !this.faceDetected;
-                    this._captureInFlight = false;
-                    return;
                 }
                 this._faceMismatchRetrying = false;
                 if (!identity.checked) {
@@ -1279,6 +1422,10 @@ const faceRecognition = {
         this._yawBaseline = null;
         this._yawBaselineSum = 0;
         this._yawBaselineCount = 0;
+        this._earBaseline = null;
+        this._earBaselineSum = 0;
+        this._earBaselineCount = 0;
+        this._eyesClosed = false;
         this._stableFaceSince = null;
         this._autoCaptureNextAllowedAt = 0;
         this._mismatchToastShown = false;
