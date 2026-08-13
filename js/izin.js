@@ -22,9 +22,11 @@ const izin = {
             dateInput.valueAsDate = new Date();
         }
 
-        // Dropdown "Pilih Asmen" hanya untuk role staff (lihat submitIzinData
-        // di backend - staff wajib pilih Asmen penyetuju sesuai bagiannya)
-        this._setupAsmenDropdown();
+        // NOTE: dropdown "Pilih Asmen" di form ini sudah DIHAPUS - Asmen
+        // penyetuju sekarang diatur Admin per-karyawan lewat Edit Karyawan
+        // > tab Kekaryawanan (field asmenPenyetujuId), backend mengambilnya
+        // otomatis di submitIzinData (Izin.gs). Alur approval-nya sendiri
+        // (asmen -> manajer -> direktur) TIDAK berubah.
 
         // Kalau user sedang dalam periode Izin ATAU Cuti yang sudah disetujui
         // (hari ini masuk rentang tanggalnya), kunci form pengajuan sampai
@@ -433,15 +435,11 @@ const izin = {
         }
 
         const currentUser = auth.getCurrentUser();
-        const asmenSelect = document.getElementById('izin-asmen');
-        const asmenId = asmenSelect ? asmenSelect.value : '';
 
-        // Asmen penyetuju cuma wajib untuk Surat Permohonan Izin (izin_harian).
-        // Izin Keluar Kantor/Sakit/dll tidak butuh Asmen sama sekali.
-        if (currentUser?.role === 'staff' && isIzinHarian && !asmenId) {
-            toast.error('Silakan pilih Asmen penyetuju!');
-            return;
-        }
+        // NOTE: dulu di sini ada validasi "wajib pilih Asmen penyetuju" -
+        // sekarang tidak perlu lagi karena Asmen sudah diatur Admin per-
+        // karyawan (lihat Edit Karyawan > Kekaryawanan), backend yang
+        // otomatis mengambilnya (Izin.gs > submitIzinData).
 
         const typeLabels = {
             'sick':         'Sakit',
@@ -471,8 +469,7 @@ const izin = {
             reason:        reason,
             jamKeluar:     isKeluarKantor ? jamKeluar : '',
             jamMasuk:      isKeluarKantor ? jamMasuk  : '',
-            hasAttachment: !!this.currentFile,
-            asmenId:       isIzinHarian ? (asmenId || '') : ''
+            hasAttachment: !!this.currentFile
         };
 
         try {
