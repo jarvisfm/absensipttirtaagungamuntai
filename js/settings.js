@@ -107,7 +107,7 @@ const settings = {
 
         try {
             await api.saveSettingsBulk({
-                face_recognition:  faceRecognition  ? String(faceRecognition.checked)  : 'true',
+                face_recognition:  faceRecognition  ? String(faceRecognition.checked)  : 'false',
                 location_tracking: locationTracking ? String(locationTracking.checked) : 'true',
                 location_radius:   locationRadius   ? locationRadius.value             : '100',
                 office_locations:  JSON.stringify(validLocations),
