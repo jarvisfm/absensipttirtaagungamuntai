@@ -114,6 +114,11 @@
         <!-- Mobile Sidebar Overlay -->
         <div class="sidebar-overlay" id="sidebar-overlay"></div>
 
+        <!-- Tombol "kembali ke atas" - lihat initBackToTopButton() di main.js -->
+        <button id="back-to-top-btn" type="button" aria-label="Kembali ke atas" title="Kembali ke atas">
+            <i class="fas fa-arrow-up"></i>
+        </button>
+
         <!-- Sidebar -->
         <aside class="sidebar" id="sidebar">
             <div class="sidebar-header">
@@ -179,6 +184,12 @@
                             <a href="#" class="nav-link">
                                 <i class="fas fa-stamp"></i>
                                 <span>Approval Direktur</span>
+                            </a>
+                        </li>
+                        <li class="nav-item hidden" id="nav-jadwal-jaga-operator-asmen" data-page="jadwal-jaga-operator">
+                            <a href="#" class="nav-link">
+                                <i class="fas fa-user-clock"></i>
+                                <span>Jadwal Jaga Operator</span>
                             </a>
                         </li>
                         <li class="nav-item" data-page="profile">
@@ -618,7 +629,6 @@
                                             <th>Istirahat</th>
                                             <th>Kembali</th>
                                             <th>Pulang</th>
-                                            <th>Status</th>
                                         </tr>
                                     </thead>
                                     <tbody id="attendance-history">
@@ -676,8 +686,8 @@
                                         </div>
                                     </div>
                                     <div class="camera-controls">
-                                        <button class="btn-camera" id="btn-capture" disabled><i
-                                                class="fas fa-check-circle"></i><span>Absen Sekarang</span></button>
+                                        <div class="btn-camera" id="btn-capture" style="pointer-events:none;cursor:default;"><i
+                                                class="fas fa-spinner fa-spin"></i><span>Menunggu wajah...</span></div>
                                         <button class="btn-camera btn-secondary" id="btn-retake"
                                             style="display: none;"><i
                                                 class="fas fa-redo"></i><span>Ulangi</span></button>
@@ -852,10 +862,12 @@
                                             <option value="keluar_kantor">Izin Keluar Kantor</option>
                                         </select>
                                     </div>
-                                    <!-- "Pilih Asmen Penyetuju" DIPINDAH ke Edit Karyawan (Admin) > tab
-                                         Kekaryawanan, di bawah "Approver Absen Luar Radius" - lihat
-                                         field p-asmenPenyetujuId. Sekarang admin yang atur asmen per
-                                         karyawan, staff tidak perlu pilih lagi di sini. -->
+                                    <div class="form-group" id="izin-asmen-group" style="display:none;">
+                                        <label for="izin-asmen">Pilih Asmen Penyetuju</label>
+                                        <select id="izin-asmen">
+                                            <option value="">Pilih Asmen...</option>
+                                        </select>
+                                    </div>
                                         <div class="form-row two-col" id="izin-date-single-row">
                                             <div class="form-group"><label for="izin-date">Tanggal</label><input type="date"
                                                     id="izin-date" required></div>
@@ -1134,10 +1146,12 @@
                                             Sisa cuti hanya berlaku untuk Cuti Tahunan
                                         </small>
                                     </div>
-                                    <!-- "Pilih Asmen Penyetuju" DIPINDAH ke Edit Karyawan (Admin) > tab
-                                         Kekaryawanan, di bawah "Approver Absen Luar Radius" - lihat
-                                         field p-asmenPenyetujuId. Sekarang admin yang atur asmen per
-                                         karyawan, staff tidak perlu pilih lagi di sini. -->
+                                    <div class="form-group" id="cuti-asmen-group" style="display:none;">
+                                        <label for="cuti-asmen">Pilih Asmen Penyetuju</label>
+                                        <select id="cuti-asmen">
+                                            <option value="">Pilih Asmen...</option>
+                                        </select>
+                                    </div>
                                     <div class="form-row two-col">
                                         <div class="form-group"><label for="leave-start">Tanggal Mulai</label><input
                                                 type="date" id="leave-start" required></div>
@@ -1554,10 +1568,8 @@
                                 <!-- ===== Notifikasi HP (Firebase Cloud Messaging) — TAMBAHAN ===== -->
                                 <div class="form-group" style="margin-top:1.5rem;padding-top:1.25rem;border-top:1px solid var(--border-color);">
                                     <label style="margin-bottom:2px;">Notifikasi HP</label>
-                                    <p style="font-size:0.8rem;color:var(--text-muted);margin:0 0 0.75rem;">Aktifkan untuk dapat notifikasi langsung ke perangkat ini (mis. persetujuan izin/cuti, pengingat absen) tanpa perlu buka aplikasi terus-menerus.</p>
-                                    <div id="pf-push-notif-status">
-                                        <p style="font-size:0.85rem;color:var(--text-muted);">Memuat...</p>
-                                    </div>
+                                    <p style="font-size:0.8rem;color:var(--text-muted);margin:0 0 10px;">Dapatkan notifikasi pengingat absensi (mis. belum Clock In) langsung ke HP, walau aplikasi ini tidak sedang dibuka.</p>
+                                    <div id="pf-push-notif-status"></div>
                                 </div>
                             </div>
 
@@ -1839,6 +1851,15 @@
                         <option value="Outsourcing">Outsourcing</option>
                     </select>
                 </div>
+                <div class="filter-group">
+                    <select id="karyawan-role-filter">
+                        <option value="">Semua Role</option>
+                        <option value="staff">Staff</option>
+                        <option value="asmen">Asmen (Asisten Manajer)</option>
+                        <option value="manajer">Manajer</option>
+                        <option value="direktur">Direktur</option>
+                    </select>
+                </div>
             </div>
         </div>
 
@@ -2043,7 +2064,7 @@
                 <div class="form-row two-col">
                     <div class="form-group">
                         <label for="p-bagian">Bagian</label>
-                        <select id="p-bagian" onchange="karyawanManager.onBagianChange()">
+                        <select id="p-bagian" onchange="karyawanManager.onBagianChangeForAsmenPenyetuju()">
                             <option value="">-- Pilih Bagian --</option>
                             <option value="SPI">SPI</option>
                             <option value="UMUM DAN KEPEGAWAIAN">UMUM DAN KEPEGAWAIAN</option>
@@ -2062,6 +2083,31 @@
                             <option value="direktur">Direktur</option>
                         </select>
                     </div>
+                </div>
+                <div class="form-group">
+                    <label for="p-operatorScheduleUnit">Pemegang Jadwal Jaga Operator (khusus Asmen) <small>(Ctrl/Cmd+klik untuk pilih lebih dari 1 unit)</small></label>
+                    <select id="p-operatorScheduleUnit" multiple size="6">
+                        <optgroup label="Unit Wilayah">
+                            <option value="BNA Amuntai">BNA Amuntai</option>
+                            <option value="SPAM Alabio">SPAM Alabio</option>
+                            <option value="SPAM Jarang Kuantan">SPAM Jarang Kuantan</option>
+                            <option value="SPAM Sungai Tabukan">SPAM Sungai Tabukan</option>
+                            <option value="SPAM Muara Tapus">SPAM Muara Tapus</option>
+                            <option value="SPAM Telaga Silaba">SPAM Telaga Silaba</option>
+                            <option value="SPAM Rantau Bujur">SPAM Rantau Bujur</option>
+                            <option value="SPAM Muara Baruh">SPAM Muara Baruh</option>
+                            <option value="SPAM Banjang">SPAM Banjang</option>
+                            <option value="SPAM Tangkawang">SPAM Tangkawang</option>
+                            <option value="SPAM Babirik">SPAM Babirik</option>
+                            <option value="SPAM Danau Panggang">SPAM Danau Panggang</option>
+                            <option value="SPAM Paminggir">SPAM Paminggir</option>
+                        </optgroup>
+                        <optgroup label="Unit Jaga (Non-Wilayah)">
+                            <option value="SATPAM">SATPAM</option>
+                            <option value="TRD">TRD</option>
+                        </optgroup>
+                    </select>
+                    <small style="color:var(--text-muted);">Jangan pilih apapun kalau tidak perlu. Kalau dipilih 1 atau lebih, karyawan ini (biasanya Asmen) akan dapat menu "Jadwal Jaga Operator" di sidebar-nya sendiri, TAPI cuma bisa lihat/atur unit-unit yang dipilih di sini - unit lain tidak nampak. Admin sendiri selalu bisa akses SEMUA unit, tidak dibatasi field ini. Tidak berpengaruh ke alur approval Izin/Cuti (field Role di atas).</small>
                 </div>
                 <div class="form-row two-col">
                     <div class="form-group">
@@ -2151,12 +2197,12 @@
                     </select>
                     <small style="color:var(--text-muted);display:block;margin-top:2px;">Setiap kali karyawan ini absen dan benar-benar sedang di luar radius, laporan berisi jam & alasan akan dikirim ke approver ini untuk ditinjau (absennya sendiri tetap tersimpan seperti biasa).</small>
                 </div>
-                <div class="form-group" style="margin-top:1rem;">
+                <div class="form-group" id="p-asmenPenyetuju-group" style="margin-top:1rem;padding-top:1rem;border-top:1px solid var(--border-color);">
                     <label style="font-size:0.8rem;font-weight:600;">Asmen Penyetuju Izin/Cuti (khusus Staff)</label>
                     <select id="p-asmenPenyetujuId">
                         <option value="">-- Pilih Asmen --</option>
                     </select>
-                    <small style="color:var(--text-muted);display:block;margin-top:2px;">Asmen yang akan otomatis jadi penyetuju tahap pertama tiap kali karyawan ini mengajukan Surat Permohonan Izin atau Cuti. Cuma dipakai kalau Role karyawan ini "Staff" - daftar Asmen mengikuti Bagian yang dipilih di atas.</small>
+                    <small style="color:var(--text-muted);display:block;margin-top:2px;">Asmen ini otomatis jadi penyetuju pertama tiap kali karyawan ini mengajukan Izin/Cuti - staff tidak perlu memilih Asmen sendiri lagi di form pengajuannya. Daftar mengikuti Bagian yang dipilih di atas.</small>
                 </div>
             </div>
 
@@ -2200,11 +2246,11 @@
                 <p style="font-size:0.85rem;color:var(--text-muted);margin-bottom:1rem;">Akun ini digunakan karyawan untuk login ke aplikasi absensi.</p>
                 <div class="form-group">
                     <label>Username *</label>
-                    <input type="text" id="p-username" placeholder="Username untuk login">
+                    <input type="text" id="p-username" placeholder="Username untuk login" autocomplete="off">
                 </div>
                 <div class="form-group">
                     <label>Password</label>
-                    <input type="password" id="p-password" placeholder="Kosongkan jika tidak ingin mengubah">
+                    <input type="password" id="p-password" placeholder="Kosongkan jika tidak ingin mengubah" autocomplete="new-password">
                     <small style="color:var(--text-muted);">Password default: 1234</small>
                 </div>
             </div>
@@ -3092,18 +3138,11 @@
                                 </div>
                                 <div class="system-settings">
                                     <div class="setting-item">
-                                        <div class="setting-info"><span class="setting-name">Toleransi
-                                                Keterlambatan</span><span class="setting-desc">Batas waktu toleransi
-                                                keterlambatan (menit)</span></div>
-                                        <div class="setting-control"><input type="number" id="setting-late-tolerance"
-                                                value="15" min="0" max="60"></div>
-                                    </div>
-                                    <div class="setting-item">
                                         <div class="setting-info"><span class="setting-name">Face
-                                                Recognition</span><span class="setting-desc">Wajib verifikasi wajah + kedipan mata (liveness) saat
-                                                absensi. Nonaktif = absen cukup ambil foto biasa tanpa verifikasi wajah.</span></div>
+                                                Recognition</span><span class="setting-desc">Wajib verifikasi wajah saat
+                                                absensi</span></div>
                                         <div class="setting-control"><label class="toggle-switch"><input type="checkbox"
-                                                    id="setting-face-recognition"><span
+                                                    id="setting-face-recognition" checked><span
                                                     class="toggle-slider"></span></label></div>
                                     </div>
                                     <div class="setting-item">
@@ -3517,14 +3556,16 @@
          absen wajah tidak bisa lolos kalau wajah tidak benar-benar
          terdeteksi di kamera. -->
     <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
-    <!-- Firebase (compat SDK): dipakai js/push-notifications.js untuk kirim
-         notifikasi HP (Firebase Cloud Messaging). Kalau firebaseConfig di
-         push-notifications.js belum diisi Admin, modul itu otomatis diam
-         (degradasi sopan) - script ini tetap aman dimuat lebih dulu. -->
-    <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-messaging-compat.js"></script>
-    <script src="js/push-notifications.js"></script>
+    <!-- Firebase (compat build) - dipakai push-notifications.js untuk Cloud
+         Messaging (notifikasi HP). Compat build dipilih (bukan modular v9+)
+         supaya sintaks firebase.initializeApp()/firebase.messaging() di
+         push-notifications.js tetap jalan tanpa perlu bundler/build step,
+         konsisten dengan cara semua library lain dimuat di app ini (lewat
+         <script> CDN langsung). -->
+    <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-messaging-compat.js"></script>
     <script src="js/api.js"></script>
+    <script src="js/push-notifications.js"></script>
     <script src="js/jenis-jadwal-util.js"></script>
     <script src="js/main.js"></script>
     <script src="js/auth.js"></script>
@@ -3545,6 +3586,7 @@
     <script src="js/admin-reports.js"></script>
     <script src="js/admin-surat-tugas.js"></script>
     <script src="js/shift-schedule.js"></script>
+    <script src="js/session-status.js"></script>
     <script src="js/jadwal-jaga-operator.js"></script>
     <script src="js/settings.js"></script>
     <script src="js/mobile.js"></script>
