@@ -90,8 +90,8 @@ const faceRecognition = {
     _earBaselineCount: 0,
     _eyesClosed: false,
     EAR_CALIBRATION_SAMPLES: 5,
-    EAR_CLOSE_RATIO: 0.78, // EAR turun di bawah baseline * rasio ini -> dianggap merem
-    EAR_OPEN_RATIO: 0.88,  // EAR naik balik di atas baseline * rasio ini (sambil sempat merem) -> dianggap 1 kedipan lengkap
+    EAR_CLOSE_RATIO: 0.80, // EAR turun di bawah baseline * rasio ini -> dianggap merem
+    EAR_OPEN_RATIO: 0.85,  // EAR naik balik di atas baseline * rasio ini (sambil sempat merem) -> dianggap 1 kedipan lengkap
     _detectLoopId: null,
     _leafletMap: null,
     _outOfRadiusNote: null,
@@ -308,7 +308,16 @@ const faceRecognition = {
             const MODEL_URL = 'https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js@master/weights';
             await Promise.all([
                 faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
-                faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL)
+                faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
+                // Versi "tiny" dari model landmark - jauh lebih ringan/cepat
+                // dari faceLandmark68Net di atas, dipakai KHUSUS buat lacak
+                // kedipan tiap tick (150ms) di _startFaceDetectionLoop
+                // supaya loop-nya tetap responsif (tidak "lama"/berat) di HP
+                // atau laptop yang speknya pas-pasan. Model penuh
+                // (faceLandmark68Net) tetap dipakai untuk pencocokan
+                // identitas final di _verifyFaceIdentity() yang cuma jalan
+                // sekali saat submit, jadi akurasinya tidak dikorbankan.
+                faceapi.nets.faceLandmark68TinyNet.loadFromUri(MODEL_URL)
             ]);
             this.modelsLoaded = true;
             return true;
@@ -485,7 +494,7 @@ const faceRecognition = {
                     // masih ada di frame sampai foto diambil.
                     const result = await faceapi
                         .detectSingleFace(this.video, new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.5 }))
-                        .withFaceLandmarks();
+                        .withFaceLandmarks(true); // true = pakai model landmark "tiny" (ringan) - lihat _loadFaceModels
                     detected = !!result;
                     landmarks = result ? result.landmarks : null;
                 } else {
@@ -687,7 +696,7 @@ const faceRecognition = {
             // hitungan sepersekian detik, bukan bikin user menunggu.
             if (this._earBaseline === null) {
                 const runningAvg = this._earBaselineCount > 0 ? (this._earBaselineSum / this._earBaselineCount) : null;
-                if (runningAvg === null || Math.abs(ear - runningAvg) < 0.06) {
+                if (runningAvg === null || Math.abs(ear - runningAvg) < 0.09) {
                     this._earBaselineSum += ear;
                     this._earBaselineCount++;
                 }
