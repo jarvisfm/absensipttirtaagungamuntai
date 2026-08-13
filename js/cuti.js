@@ -212,7 +212,11 @@ const cuti = {
             this._typeListenerAttached = true;
         }
 
-        this._setupAsmenDropdown();
+        // NOTE: dropdown "Pilih Asmen" di form ini sudah DIHAPUS - Asmen
+        // penyetuju sekarang diatur Admin per-karyawan lewat Edit Karyawan
+        // > tab Kekaryawanan (field asmenPenyetujuId), backend mengambilnya
+        // otomatis di submitLeaveData (Leave.gs). Alur approval-nya sendiri
+        // (asmen -> manajer -> direktur) TIDAK berubah.
     },
 
     // Tampilkan & isi dropdown "Pilih Asmen" kalau user yang login role-nya
@@ -300,13 +304,11 @@ const cuti = {
         };
 
         const currentUser = auth.getCurrentUser();
-        const asmenSelect = document.getElementById('cuti-asmen');
-        const asmenId = asmenSelect ? asmenSelect.value : '';
 
-        if (currentUser?.role === 'staff' && !asmenId) {
-            toast.error('Silakan pilih Asmen penyetuju!');
-            return;
-        }
+        // NOTE: dulu di sini ada validasi "wajib pilih Asmen penyetuju" -
+        // sekarang tidak perlu lagi karena Asmen sudah diatur Admin per-
+        // karyawan (lihat Edit Karyawan > Kekaryawanan), backend yang
+        // otomatis mengambilnya (Leave.gs > submitLeaveData).
 
         const leaveData = {
             // Admin dual-role (mis. M. Azemi) pakai employeeId, karyawan biasa pakai id
@@ -318,8 +320,7 @@ const cuti = {
             duration: diffDays,
             reason: reason.value,
             address: address?.value || '',
-            phone: phone?.value || '',
-            asmenId: asmenId || ''
+            phone: phone?.value || ''
         };
 
         try {
