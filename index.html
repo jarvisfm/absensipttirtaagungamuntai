@@ -114,11 +114,6 @@
         <!-- Mobile Sidebar Overlay -->
         <div class="sidebar-overlay" id="sidebar-overlay"></div>
 
-        <!-- Tombol "kembali ke atas" - lihat initBackToTopButton() di main.js -->
-        <button id="back-to-top-btn" type="button" aria-label="Kembali ke atas" title="Kembali ke atas">
-            <i class="fas fa-arrow-up"></i>
-        </button>
-
         <!-- Sidebar -->
         <aside class="sidebar" id="sidebar">
             <div class="sidebar-header">
@@ -184,12 +179,6 @@
                             <a href="#" class="nav-link">
                                 <i class="fas fa-stamp"></i>
                                 <span>Approval Direktur</span>
-                            </a>
-                        </li>
-                        <li class="nav-item hidden" id="nav-jadwal-jaga-operator-asmen" data-page="jadwal-jaga-operator">
-                            <a href="#" class="nav-link">
-                                <i class="fas fa-user-clock"></i>
-                                <span>Jadwal Jaga Operator</span>
                             </a>
                         </li>
                         <li class="nav-item" data-page="profile">
@@ -629,6 +618,7 @@
                                             <th>Istirahat</th>
                                             <th>Kembali</th>
                                             <th>Pulang</th>
+                                            <th>Status</th>
                                         </tr>
                                     </thead>
                                     <tbody id="attendance-history">
@@ -686,8 +676,8 @@
                                         </div>
                                     </div>
                                     <div class="camera-controls">
-                                        <div class="btn-camera" id="btn-capture" style="pointer-events:none;cursor:default;"><i
-                                                class="fas fa-spinner fa-spin"></i><span>Menunggu wajah...</span></div>
+                                        <button class="btn-camera" id="btn-capture" disabled><i
+                                                class="fas fa-check-circle"></i><span>Absen Sekarang</span></button>
                                         <button class="btn-camera btn-secondary" id="btn-retake"
                                             style="display: none;"><i
                                                 class="fas fa-redo"></i><span>Ulangi</span></button>
@@ -1560,13 +1550,6 @@
                                         <p style="font-size:0.85rem;color:var(--text-muted);">Memuat...</p>
                                     </div>
                                 </div>
-
-                                <!-- ===== Notifikasi HP (Firebase Cloud Messaging) — TAMBAHAN ===== -->
-                                <div class="form-group" style="margin-top:1.5rem;padding-top:1.25rem;border-top:1px solid var(--border-color);">
-                                    <label style="margin-bottom:2px;">Notifikasi HP</label>
-                                    <p style="font-size:0.8rem;color:var(--text-muted);margin:0 0 10px;">Dapatkan notifikasi pengingat absensi (mis. belum Clock In) langsung ke HP, walau aplikasi ini tidak sedang dibuka.</p>
-                                    <div id="pf-push-notif-status"></div>
-                                </div>
                             </div>
 
                             <!-- Tab Pendidikan (Riwayat SD/SMP/SMA/S1/S2 + link Ijazah & Transkrip) -->
@@ -1847,15 +1830,6 @@
                         <option value="Outsourcing">Outsourcing</option>
                     </select>
                 </div>
-                <div class="filter-group">
-                    <select id="karyawan-role-filter">
-                        <option value="">Semua Role</option>
-                        <option value="staff">Staff</option>
-                        <option value="asmen">Asmen (Asisten Manajer)</option>
-                        <option value="manajer">Manajer</option>
-                        <option value="direktur">Direktur</option>
-                    </select>
-                </div>
             </div>
         </div>
 
@@ -2080,31 +2054,6 @@
                         </select>
                     </div>
                 </div>
-                <div class="form-group">
-                    <label for="p-operatorScheduleUnit">Pemegang Jadwal Jaga Operator (khusus Asmen) <small>(Ctrl/Cmd+klik untuk pilih lebih dari 1 unit)</small></label>
-                    <select id="p-operatorScheduleUnit" multiple size="6">
-                        <optgroup label="Unit Wilayah">
-                            <option value="BNA Amuntai">BNA Amuntai</option>
-                            <option value="SPAM Alabio">SPAM Alabio</option>
-                            <option value="SPAM Jarang Kuantan">SPAM Jarang Kuantan</option>
-                            <option value="SPAM Sungai Tabukan">SPAM Sungai Tabukan</option>
-                            <option value="SPAM Muara Tapus">SPAM Muara Tapus</option>
-                            <option value="SPAM Telaga Silaba">SPAM Telaga Silaba</option>
-                            <option value="SPAM Rantau Bujur">SPAM Rantau Bujur</option>
-                            <option value="SPAM Muara Baruh">SPAM Muara Baruh</option>
-                            <option value="SPAM Banjang">SPAM Banjang</option>
-                            <option value="SPAM Tangkawang">SPAM Tangkawang</option>
-                            <option value="SPAM Babirik">SPAM Babirik</option>
-                            <option value="SPAM Danau Panggang">SPAM Danau Panggang</option>
-                            <option value="SPAM Paminggir">SPAM Paminggir</option>
-                        </optgroup>
-                        <optgroup label="Unit Jaga (Non-Wilayah)">
-                            <option value="SATPAM">SATPAM</option>
-                            <option value="TRD">TRD</option>
-                        </optgroup>
-                    </select>
-                    <small style="color:var(--text-muted);">Jangan pilih apapun kalau tidak perlu. Kalau dipilih 1 atau lebih, karyawan ini (biasanya Asmen) akan dapat menu "Jadwal Jaga Operator" di sidebar-nya sendiri, TAPI cuma bisa lihat/atur unit-unit yang dipilih di sini - unit lain tidak nampak. Admin sendiri selalu bisa akses SEMUA unit, tidak dibatasi field ini. Tidak berpengaruh ke alur approval Izin/Cuti (field Role di atas).</small>
-                </div>
                 <div class="form-row two-col">
                     <div class="form-group">
                         <label>Pangkat</label>
@@ -2242,11 +2191,11 @@
                 <p style="font-size:0.85rem;color:var(--text-muted);margin-bottom:1rem;">Akun ini digunakan karyawan untuk login ke aplikasi absensi.</p>
                 <div class="form-group">
                     <label>Username *</label>
-                    <input type="text" id="p-username" placeholder="Username untuk login" autocomplete="off">
+                    <input type="text" id="p-username" placeholder="Username untuk login">
                 </div>
                 <div class="form-group">
                     <label>Password</label>
-                    <input type="password" id="p-password" placeholder="Kosongkan jika tidak ingin mengubah" autocomplete="new-password">
+                    <input type="password" id="p-password" placeholder="Kosongkan jika tidak ingin mengubah">
                     <small style="color:var(--text-muted);">Password default: 1234</small>
                 </div>
             </div>
@@ -3134,6 +3083,13 @@
                                 </div>
                                 <div class="system-settings">
                                     <div class="setting-item">
+                                        <div class="setting-info"><span class="setting-name">Toleransi
+                                                Keterlambatan</span><span class="setting-desc">Batas waktu toleransi
+                                                keterlambatan (menit)</span></div>
+                                        <div class="setting-control"><input type="number" id="setting-late-tolerance"
+                                                value="15" min="0" max="60"></div>
+                                    </div>
+                                    <div class="setting-item">
                                         <div class="setting-info"><span class="setting-name">Face
                                                 Recognition</span><span class="setting-desc">Wajib verifikasi wajah saat
                                                 absensi</span></div>
@@ -3552,16 +3508,7 @@
          absen wajah tidak bisa lolos kalau wajah tidak benar-benar
          terdeteksi di kamera. -->
     <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
-    <!-- Firebase (compat build) - dipakai push-notifications.js untuk Cloud
-         Messaging (notifikasi HP). Compat build dipilih (bukan modular v9+)
-         supaya sintaks firebase.initializeApp()/firebase.messaging() di
-         push-notifications.js tetap jalan tanpa perlu bundler/build step,
-         konsisten dengan cara semua library lain dimuat di app ini (lewat
-         <script> CDN langsung). -->
-    <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-messaging-compat.js"></script>
     <script src="js/api.js"></script>
-    <script src="js/push-notifications.js"></script>
     <script src="js/jenis-jadwal-util.js"></script>
     <script src="js/main.js"></script>
     <script src="js/auth.js"></script>
@@ -3582,7 +3529,6 @@
     <script src="js/admin-reports.js"></script>
     <script src="js/admin-surat-tugas.js"></script>
     <script src="js/shift-schedule.js"></script>
-    <script src="js/session-status.js"></script>
     <script src="js/jadwal-jaga-operator.js"></script>
     <script src="js/settings.js"></script>
     <script src="js/mobile.js"></script>
