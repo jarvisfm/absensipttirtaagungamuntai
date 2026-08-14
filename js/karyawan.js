@@ -184,6 +184,26 @@ const karyawanManager = {
         document.getElementById('modal-karyawan').style.display = 'flex';
     },
 
+    // Unit Wilayah & Unit Jaga cuma menyimpan 1 nilai yang sama
+    // ("unitWilayah") - jadi begitu salah satu diisi, yang lain WAJIB
+    // dikosongkan supaya tidak ambigu field mana yang dipakai saat simpan
+    // (lihat collectFormData-nya, sekitar baris 611 sebelum perubahan ini).
+    onUnitWilayahChange() {
+        const val = document.getElementById('p-unitWilayah')?.value || '';
+        if (val) {
+            const unitJagaEl = document.getElementById('p-unitJaga');
+            if (unitJagaEl) unitJagaEl.value = '';
+        }
+    },
+
+    onUnitJagaChange() {
+        const val = document.getElementById('p-unitJaga')?.value || '';
+        if (val) {
+            const unitWilayahEl = document.getElementById('p-unitWilayah');
+            if (unitWilayahEl) unitWilayahEl.value = '';
+        }
+    },
+
     /**
      * Isi dropdown "Approver Absen Luar Radius" dengan daftar karyawan
      * (kecuali karyawan yang sedang diedit sendiri - tidak masuk akal jadi
@@ -273,7 +293,14 @@ const karyawanManager = {
 
             document.getElementById('p-pendidikan').value      = p.pendidikan || '';
             document.getElementById('p-jabatan').value         = p.jabatan || '';
-            document.getElementById('p-unitWilayah').value     = p.unitWilayah || '';
+            // Unit Wilayah & Unit Jaga - SECARA DATA cuma 1 field ("unitWilayah"),
+            // dipisah jadi 2 dropdown di form ini saja supaya SATPAM/TRD tidak
+            // tercampur di daftar Unit Wilayah (lihat onUnitWilayahChange()/
+            // onUnitJagaChange() di bawah). Yang mana yang ke-isi tergantung
+            // nilai unitWilayah yang tersimpan.
+            const unitJagaValues = ['SATPAM', 'TRD'];
+            document.getElementById('p-unitWilayah').value = unitJagaValues.includes(p.unitWilayah) ? '' : (p.unitWilayah || '');
+            document.getElementById('p-unitJaga').value    = unitJagaValues.includes(p.unitWilayah) ? p.unitWilayah : '';
             document.getElementById('p-bagian').value          = p.bagian || '';
             document.getElementById('p-role').value            = p.role || 'staff';
             document.getElementById('p-pangkat').value         = p.pangkat || '';
@@ -339,7 +366,7 @@ const karyawanManager = {
         const fields = ['karyawan-id','p-nik','p-nama','p-jenisKelamin','p-statusPernikahan',
             'p-tempatLahir','p-tanggalLahir','p-golonganDarah','p-noTelp','p-npwp','p-ktp',
             'p-email','p-statusPekerjaan','p-statusKaryawan','p-pendidikan','p-jabatan',
-            'p-unitWilayah','p-bagian','p-pangkat','p-golongan','p-gajiPokok',
+            'p-unitWilayah','p-unitJaga','p-bagian','p-pangkat','p-golongan','p-gajiPokok',
             'p-terhitungMulai','p-masaKerja','p-tahunPensiun','p-shift','p-fileKTP',
             'p-namaPasangan','p-namaAyah','p-namaIbu','p-username','p-password'];
 
@@ -608,7 +635,14 @@ const karyawanManager = {
             statusKaryawan:   document.getElementById('p-statusKaryawan').value,
             pendidikan:       document.getElementById('p-pendidikan').value,
             jabatan:          document.getElementById('p-jabatan').value.trim(),
-            unitWilayah:      document.getElementById('p-unitWilayah').value.trim(),
+            // Unit Wilayah & Unit Jaga di form ini dipisah jadi 2 dropdown,
+            // tapi TETAP disimpan sebagai SATU field ("unitWilayah") persis
+            // seperti sebelumnya - supaya surat Izin/Cuti, tabel Data
+            // Karyawan, dan Jadwal Jaga Operator tidak perlu tahu apa-apa
+            // soal pemisahan ini (lihat onUnitWilayahChange()/
+            // onUnitJagaChange() di atas yang menjamin cuma salah satu
+            // dropdown ini yang terisi).
+            unitWilayah:      document.getElementById('p-unitJaga').value.trim() || document.getElementById('p-unitWilayah').value.trim(),
             bagian:           document.getElementById('p-bagian').value.trim(),
             role:             document.getElementById('p-role').value,
             pangkat:          document.getElementById('p-pangkat').value.trim(),
