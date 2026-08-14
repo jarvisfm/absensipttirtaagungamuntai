@@ -90,8 +90,21 @@ const faceRecognition = {
     _earBaselineCount: 0,
     _eyesClosed: false,
     EAR_CALIBRATION_SAMPLES: 5,
-    EAR_CLOSE_RATIO: 0.80, // EAR turun di bawah baseline * rasio ini -> dianggap merem
+    EAR_CLOSE_RATIO: 0.82, // EAR turun di bawah baseline * rasio ini -> dianggap merem
     EAR_OPEN_RATIO: 0.85,  // EAR naik balik di atas baseline * rasio ini (sambil sempat merem) -> dianggap 1 kedipan lengkap
+    // Kalau sudah sekian detik sejak kalibrasi kelar tapi kedipan masih
+    // belum kedeteksi (mis. kamera murah/pencahayaan kurang bikin gerakan
+    // matanya kurang kentara buat model landmark "tiny" yang dipakai) -
+    // ambang batasnya dilonggarkan BERTAHAP tiap RELAX_STEP_MS, supaya
+    // pada akhirnya tetap kedeteksi tanpa harus tunggu lama/berkali-kali.
+    // TETAP AMAN dari foto/kertas statis - longgar berapa pun tidak akan
+    // pernah membuat EAR foto "bergerak", karena rasionya memang diam
+    // persis sama tiap frame (tidak ada variasi sama sekali untuk
+    // dideteksi sebagai kedipan).
+    EAR_RELAX_STEP_MS: 2500,
+    EAR_RELAX_STEP_AMOUNT: 0.03,
+    EAR_RELAX_MAX_STEPS: 3,
+    _blinkWaitStartedAt: null,
     _detectLoopId: null,
     _leafletMap: null,
     _outOfRadiusNote: null,
@@ -112,6 +125,7 @@ const faceRecognition = {
         this._earBaselineSum = 0;
         this._earBaselineCount = 0;
         this._eyesClosed = false;
+        this._blinkWaitStartedAt = null;
         this._stableFaceSince = null;
         this._autoCaptureNextAllowedAt = 0;
         this._mismatchToastShown = false;
@@ -560,7 +574,12 @@ const faceRecognition = {
             }
 
             if (this._detectionActive) {
-                this._detectLoopId = setTimeout(tick, 150);
+                // Selama masih menunggu kedipan, pindai lebih rapat (100ms)
+                // supaya kedipan yang cepat tidak kelewat di antara 2 sample -
+                // begitu kedipan sudah terekam, balik ke 150ms (lebih hemat
+                // baterai/CPU, karena tinggal cek wajah masih ada atau tidak).
+                const nextDelay = this.livenessDetected ? 150 : 100;
+                this._detectLoopId = setTimeout(tick, nextDelay);
             }
         };
 
@@ -702,11 +721,21 @@ const faceRecognition = {
                 }
                 if (this._earBaselineCount >= this.EAR_CALIBRATION_SAMPLES) {
                     this._earBaseline = this._earBaselineSum / this._earBaselineCount;
+                    this._blinkWaitStartedAt = Date.now(); // mulai hitung mundur pelonggaran dari sini
                 }
                 return; // belum mulai lacak kedipan selama masih kalibrasi
             }
 
-            const closeLimit = this._earBaseline * this.EAR_CLOSE_RATIO;
+            // Pelonggaran bertahap - lihat penjelasan di EAR_RELAX_STEP_MS.
+            let relaxSteps = 0;
+            if (this._blinkWaitStartedAt) {
+                relaxSteps = Math.min(
+                    this.EAR_RELAX_MAX_STEPS,
+                    Math.floor((Date.now() - this._blinkWaitStartedAt) / this.EAR_RELAX_STEP_MS)
+                );
+            }
+            const relaxAmount = relaxSteps * this.EAR_RELAX_STEP_AMOUNT;
+            const closeLimit = this._earBaseline * (this.EAR_CLOSE_RATIO + relaxAmount);
             const openLimit = this._earBaseline * this.EAR_OPEN_RATIO;
 
             if (ear < closeLimit) {
@@ -1435,6 +1464,7 @@ const faceRecognition = {
         this._earBaselineSum = 0;
         this._earBaselineCount = 0;
         this._eyesClosed = false;
+        this._blinkWaitStartedAt = null;
         this._stableFaceSince = null;
         this._autoCaptureNextAllowedAt = 0;
         this._mismatchToastShown = false;
