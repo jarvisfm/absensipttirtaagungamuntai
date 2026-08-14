@@ -298,10 +298,11 @@ const karyawanManager = {
             if (opScheduleEl) {
                 // Disimpan sebagai teks dipisah koma (mis. "SPAM Alabio,SPAM Banjang")
                 // - dipecah lagi di sini supaya tiap unit yang cocok otomatis
-                // ke-select di <select multiple>.
+                // ke-centang di checklist-nya (dulu <select multiple>, sekarang
+                // checkbox biasa - format data TIDAK berubah).
                 const selectedUnits = String(p.operatorScheduleUnit || '').split(',').map(s => s.trim()).filter(Boolean);
-                Array.from(opScheduleEl.options).forEach(opt => {
-                    opt.selected = selectedUnits.includes(opt.value);
+                opScheduleEl.querySelectorAll('.op-schedule-unit-checkbox').forEach(cb => {
+                    cb.checked = selectedUnits.includes(cb.value);
                 });
             }
 
@@ -356,7 +357,7 @@ const karyawanManager = {
         const asmenResetEl = document.getElementById('p-asmenPenyetujuId');
         if (asmenResetEl) asmenResetEl.innerHTML = '<option value="">-- Pilih Bagian dahulu --</option>';
         const opScheduleResetEl = document.getElementById('p-operatorScheduleUnit');
-        if (opScheduleResetEl) Array.from(opScheduleResetEl.options).forEach(opt => opt.selected = false);
+        if (opScheduleResetEl) opScheduleResetEl.querySelectorAll('.op-schedule-unit-checkbox').forEach(cb => cb.checked = false);
 
         document.getElementById('foto-preview').src = '';
         document.getElementById('foto-preview').style.display = 'none';
@@ -619,7 +620,7 @@ const karyawanManager = {
             shift:            document.getElementById('p-shift').value,
             locationExemptApproverId: document.getElementById('p-locationExemptApproverId')?.value || '',
             asmenPenyetujuId: document.getElementById('p-asmenPenyetujuId')?.value || '',
-            operatorScheduleUnit: Array.from(document.getElementById('p-operatorScheduleUnit')?.selectedOptions || []).map(o => o.value).join(','),
+            operatorScheduleUnit: Array.from(document.querySelectorAll('#p-operatorScheduleUnit .op-schedule-unit-checkbox:checked')).map(cb => cb.value).join(','),
             username:         document.getElementById('p-username').value.trim(),
             keluarga
         };
