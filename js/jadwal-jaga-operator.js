@@ -384,9 +384,25 @@ const jadwalJagaOperator = {
                     ? (Array.isArray(rawVal) ? rawVal.map(String) : [])
                     : (rawVal ? [String(rawVal)] : []);
 
-                const optionsHtml = unitEmployees.map(emp => `
-                    <option value="${emp.id}" ${selectedIds.includes(String(emp.id)) ? 'selected' : ''}>${this._escAttr(emp.nama)}</option>
-                `).join('');
+                // Sesi multi-grup (mis. BNA Amuntai) - checkbox biasa (klik
+                // langsung per nama, tanpa perlu tahan Ctrl/Cmd seperti
+                // <select multiple> dulu). Format tersimpan TETAP array ID
+                // karyawan, tidak berubah - lihat _bindInputs() di bawah.
+                const petugasFieldHtml = isGrup
+                    ? `<div class="jjo-checkbox-group" data-day="${d}" data-session="${sess.key}">
+                        ${unitEmployees.map(emp => `
+                            <label class="jjo-checkbox-item">
+                                <input type="checkbox" class="jjo-petugas-checkbox" data-day="${d}" data-session="${sess.key}" value="${emp.id}" ${selectedIds.includes(String(emp.id)) ? 'checked' : ''}>
+                                <span>${this._escAttr(emp.nama)}</span>
+                            </label>
+                        `).join('')}
+                    </div>`
+                    : `<select class="jjo-select" data-day="${d}" data-session="${sess.key}">
+                        <option value="">- Kosong -</option>
+                        ${unitEmployees.map(emp => `
+                            <option value="${emp.id}" ${selectedIds.includes(String(emp.id)) ? 'selected' : ''}>${this._escAttr(emp.nama)}</option>
+                        `).join('')}
+                    </select>`;
 
                 rows += `<tr class="${rowClass}">`;
                 if (idx === 0) {
@@ -395,10 +411,7 @@ const jadwalJagaOperator = {
                 }
                 rows += `<td>${sess.label}<br><span class="jjo-jam">${sess.time}</span></td>`;
                 rows += `<td>
-                    <select class="jjo-select" data-day="${d}" data-session="${sess.key}" ${isGrup ? 'multiple size="4"' : ''}>
-                        ${!isGrup ? '<option value="">- Kosong -</option>' : ''}
-                        ${optionsHtml}
-                    </select>
+                    ${petugasFieldHtml}
                     ${unitEmployees.length === 0 ? '<div class="jjo-no-emp">Belum ada karyawan Operator di unit ini</div>' : ''}
                 </td>`;
                 if (idx === 0) {
@@ -418,7 +431,7 @@ const jadwalJagaOperator = {
                         <th>No</th>
                         <th>Hari, Tanggal</th>
                         <th>Jam</th>
-                        <th>Nama Petugas${isGrup ? ' <small>(Ctrl/Cmd+klik untuk pilih lebih dari 1)</small>' : ''}</th>
+                        <th>Nama Petugas${isGrup ? ' <small>(centang boleh lebih dari 1)</small>' : ''}</th>
                         <th>Keterangan</th>
                     </tr>
                 </thead>
@@ -546,8 +559,8 @@ const jadwalJagaOperator = {
         });
 
         // Dropdown pilih petugas (menggantikan teks bebas - Fase 2b). Untuk
-        // sesi multi-grup (mis. BNA Amuntai) selectnya "multiple", nilainya
-        // array ID karyawan; selain itu 1 ID saja (atau '' kalau kosong).
+        // sesi NON-grup, tetap 1 ID saja (atau '' kalau kosong) lewat select
+        // biasa di bawah ini.
         document.querySelectorAll('#jjo-table-wrap .jjo-select').forEach(sel => {
             sel.onchange = () => {
                 const day = sel.dataset.day;
@@ -557,14 +570,32 @@ const jadwalJagaOperator = {
 
                 if (session) {
                     if (!this.data.days[day].sessions) this.data.days[day].sessions = {};
-                    if (sel.multiple) {
-                        this.data.days[day].sessions[session] = Array.from(sel.selectedOptions).map(o => o.value).filter(Boolean);
-                    } else {
-                        this.data.days[day].sessions[session] = sel.value;
-                    }
+                    this.data.days[day].sessions[session] = sel.value;
                 } else if (field) {
                     this.data.days[day][field] = sel.value;
                 }
+                this._markDirty();
+            };
+        });
+
+        // Checkbox pilih petugas untuk sesi multi-grup (mis. BNA Amuntai) -
+        // Fase 2c: ganti <select multiple> jadi checkbox biasa supaya lebih
+        // gampang dipakai (klik langsung per nama, tanpa perlu tahan
+        // Ctrl/Cmd - terutama merepotkan di HP). Formatnya TETAP array ID
+        // karyawan sama seperti sebelumnya, jadi data yang sudah tersimpan
+        // di sheet & backend tidak perlu diubah sama sekali.
+        document.querySelectorAll('#jjo-table-wrap .jjo-petugas-checkbox').forEach(cb => {
+            cb.onchange = () => {
+                const day = cb.dataset.day;
+                const session = cb.dataset.session;
+                if (!this.data.days[day]) this.data.days[day] = {};
+                if (!this.data.days[day].sessions) this.data.days[day].sessions = {};
+
+                const groupSelector = `.jjo-petugas-checkbox[data-day="${day}"][data-session="${session}"]`;
+                const checkedIds = Array.from(document.querySelectorAll(groupSelector))
+                    .filter(el => el.checked)
+                    .map(el => el.value);
+                this.data.days[day].sessions[session] = checkedIds;
                 this._markDirty();
             };
         });
