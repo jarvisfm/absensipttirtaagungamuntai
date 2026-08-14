@@ -853,18 +853,20 @@ const faceRecognition = {
     },
 
     /**
-     * Ambil alamat asli dari koordinat GPS (reverse geocoding) pakai
-     * Nominatim/OpenStreetMap - gratis, tanpa API key, sama seperti peta
-     * yang sudah dipakai di _renderRealMap(). Balikin '' kalau gagal
-     * (offline, timeout, dll) supaya pemanggilnya bisa fallback ke teks lain.
+     * Ambil alamat asli dari koordinat GPS (reverse geocoding) - lewat
+     * BACKEND (Attendance.gs > reverseGeocodeCoords()), BUKAN fetch()
+     * langsung ke Nominatim dari browser seperti sebelumnya. Nominatim
+     * sering menolak/tidak konsisten kasih izin CORS untuk pemanggilan
+     * langsung dari browser (kebijakan pemakaian mereka memang lebih
+     * mengarahkan ke pemanggilan server-ke-server, bukan client-side),
+     * jadi dipindah ke backend yang sama sekali tidak kena batasan CORS.
+     * Balikin '' kalau gagal (offline, timeout, dll) supaya pemanggilnya
+     * bisa fallback ke teks lain.
      */
     async _reverseGeocode(lat, lng) {
         try {
-            const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`;
-            const res = await fetch(url, { headers: { 'Accept-Language': 'id' } });
-            if (!res.ok) throw new Error('reverse geocode gagal: ' + res.status);
-            const data = await res.json();
-            return data && data.display_name ? data.display_name : '';
+            const result = await api.reverseGeocode(lat, lng);
+            return (result && result.success && result.data) ? (result.data.address || '') : '';
         } catch (e) {
             console.error('Gagal ambil alamat dari koordinat:', e);
             return '';
