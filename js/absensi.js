@@ -368,7 +368,26 @@ const absensi = {
         const now = dateTime.now();
         const nowMin = this._getWitaMinutesOfDay(now);
         const openMin = this._toMinutes(opensAt);
-        return nowMin >= openMin;
+        if (nowMin >= openMin) return true;
+
+        // Sesi yang melewati tengah malam (mis. Malam 23:00-08:00) - begitu
+        // WITA sudah masuk hari baru, "jam sekarang" (nowMin) jadi kecil
+        // lagi, sedangkan "mulai bisa absen" sesi semalam (openMin) masih
+        // besar (mis. 22:45), jadi perbandingan mentah di atas SELALU
+        // salah kebaca "belum buka" walau sesinya masih berlangsung.
+        // Dicek pakai jam target Pulang (clockOut) sesi yang sama: kalau
+        // target Pulang-nya LEBIH KECIL dari opensAt ini (tandanya
+        // pulangnya di hari berikutnya, melewati tengah malam) DAN
+        // sekarang masih SEBELUM jam Pulang itu, sesi ini dianggap MASIH
+        // BUKA (kelanjutan dari semalam), bukan "belum buka".
+        const pulang = this._getSessions().find(s => s.field === 'clockOut');
+        if (pulang && pulang.time) {
+            const pulangMin = this._toMinutes(pulang.time);
+            if (pulangMin < openMin && nowMin < pulangMin) {
+                return true;
+            }
+        }
+        return false;
     },
 
     // "Jam:menit sekarang" (dalam total menit sejak 00:00) tapi dihitung
