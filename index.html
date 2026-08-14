@@ -2036,11 +2036,11 @@
                         <input type="text" id="p-jabatan" placeholder="Jabatan">
                     </div>
                 </div>
-                <div class="form-group">
-                    <label>Unit Wilayah</label>
-                    <select id="p-unitWilayah">
-                        <option value="">-- Pilih Unit Wilayah --</option>
-                        <optgroup label="Unit Wilayah">
+                <div class="form-row two-col">
+                    <div class="form-group">
+                        <label>Unit Wilayah</label>
+                        <select id="p-unitWilayah" onchange="karyawanManager.onUnitWilayahChange()">
+                            <option value="">-- Pilih Unit Wilayah --</option>
                             <option value="BNA Amuntai">BNA Amuntai</option>
                             <option value="SPAM Alabio">SPAM Alabio</option>
                             <option value="SPAM Jarang Kuantan">SPAM Jarang Kuantan</option>
@@ -2054,12 +2054,17 @@
                             <option value="SPAM Babirik">SPAM Babirik</option>
                             <option value="SPAM Danau Panggang">SPAM Danau Panggang</option>
                             <option value="SPAM Paminggir">SPAM Paminggir</option>
-                        </optgroup>
-                        <optgroup label="Unit Jaga (Non-Wilayah)">
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Unit Jaga <small>(khusus SATPAM/TRD)</small></label>
+                        <select id="p-unitJaga" onchange="karyawanManager.onUnitJagaChange()">
+                            <option value="">-- Pilih Unit Jaga --</option>
                             <option value="SATPAM">SATPAM</option>
                             <option value="TRD">TRD</option>
-                        </optgroup>
-                    </select>
+                        </select>
+                        <small style="color:var(--text-muted);">Isi INI SAJA (kosongkan Unit Wilayah) untuk karyawan SATPAM/TRD - keduanya tetap disimpan sebagai satu data yang sama seperti sebelumnya, cuma dipisah di form ini biar tidak tercampur dengan daftar Unit Wilayah.</small>
+                    </div>
                 </div>
                 <div class="form-row two-col">
                     <div class="form-group">
