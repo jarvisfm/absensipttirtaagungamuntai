@@ -242,3 +242,34 @@
     color: #b91c1c;
     margin-top: 4px;
 }
+
+/* ── Checkbox multi-petugas sesi grup (Fase 2c - menggantikan
+   <select multiple> yang harus Ctrl/Cmd+klik) ── */
+.jjo-checkbox-group {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    max-height: 110px;
+    overflow-y: auto;
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    padding: 4px 6px;
+    background: var(--bg-primary);
+}
+
+.jjo-checkbox-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: var(--font-size-sm);
+    color: var(--text-primary);
+    padding: 2px 0;
+    cursor: pointer;
+}
+
+.jjo-checkbox-item input[type="checkbox"] {
+    width: 14px;
+    height: 14px;
+    flex-shrink: 0;
+    cursor: pointer;
+}
