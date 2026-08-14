@@ -152,6 +152,13 @@ const api = {
         return this.request('getTodayAttendance', { userId });
     },
 
+    async reverseGeocode(lat, lng) {
+        if (!API_BASE_URL) {
+            return { success: false, error: 'Reverse geocode butuh koneksi backend' };
+        }
+        return this.request('reverseGeocode', { lat, lng });
+    },
+
     async saveAttendance(data) {
         if (!API_BASE_URL) {
             const all = storage.get('attendance', []);
