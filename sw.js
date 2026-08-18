@@ -19,7 +19,7 @@
 // PENTING: naikkan angka versi ini (mis. jadi 'v2') tiap kali index.html/
 // css/js diubah & di-deploy ulang - supaya HP karyawan otomatis ambil versi
 // baru, bukan kepakai cache lama terus-menerus.
-const CACHE_NAME = 'taa-portal-v11';
+const CACHE_NAME = 'taa-portal-v12';
 
 // File shell inti yang di-precache saat install, supaya app langsung bisa
 // dibuka (walau offline) begitu pernah dibuka online minimal 1x.
