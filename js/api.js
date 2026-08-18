@@ -295,6 +295,16 @@ const api = {
         return this.request('getLeaveBalance', { userId });
     },
 
+    // Daftar tanggal merah nasional 1 tahun penuh ({ 'yyyy-MM-dd': 'Nama
+    // Perayaan' }) - dipakai badge "tanggal merah" di halaman Absensi
+    // (lihat absensi.js) & bisa dipakai lagi untuk kalender/laporan lain.
+    async getHolidayDates(year) {
+        if (!API_BASE_URL) {
+            return { success: true, data: {} };
+        }
+        return this.request('getHolidayDates', { year: year || new Date().getFullYear() });
+    },
+
     // ========== IZIN / PERMISSION ==========
 
     async getIzin(userId) {
