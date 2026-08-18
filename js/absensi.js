@@ -285,24 +285,121 @@ const absensi = {
         return (this._historyData || []).filter(r => (r.date || '').startsWith(selectedMonth));
     },
 
+    /**
+     * Bikin baris SEMU (bukan dari data Attendance asli) untuk tanggal yang
+     * SUDAH LEWAT di bulan yang lagi ditampilkan, tapi memang tidak ada
+     * jadwal absen sama sekali - libur mingguan (Sabtu/Minggu dkk sesuai
+     * dayGroup.libur karyawan) ATAU tanggal merah nasional (lihat
+     * checkAttendanceAccess() di Attendance.gs, logikanya SENGAJA
+     * disamakan persis di sini: dayGroup.libur DULU baru cek tanggal
+     * merah, dan HANYA utk jadwal dayGroups biasa - rosterCheck dilewati
+     * total karena Operator/SATPAM/dst memang tidak punya konsep "libur
+     * tetap").
+     * Tanpa ini, hari-hari itu simply TIDAK ADA barisnya sama sekali di
+     * tabel (karena memang tidak pernah ada baris Attendance yang
+     * ditulis untuk hari libur biasa), jadi user tidak tahu kenapa
+     * "bolong".
+     */
+    _buildSyntheticLiburRows(existingRows, selectedMonth, shiftTypesConfigFull, holidayDatesForYear) {
+        if (!selectedMonth || !shiftTypesConfigFull) return [];
+
+        const user = auth.getCurrentUser();
+        const myShift = user?.shift || '';
+        const shiftConfig = shiftTypesConfigFull[myShift];
+        if (!shiftConfig || shiftConfig.rosterCheck) return [];
+
+        const [yearStr, monthStr] = selectedMonth.split('-');
+        const year = parseInt(yearStr, 10);
+        const month = parseInt(monthStr, 10); // 1-12
+        if (!year || !month) return [];
+
+        const existingDates = new Set(existingRows.map(r => r.date));
+        const todayYMD = (typeof dateTime !== 'undefined' && dateTime.getLocalDate) ? dateTime.getLocalDate() : '';
+        const lastDay = new Date(year, month, 0).getDate();
+        const rows = [];
+
+        for (let day = 1; day <= lastDay; day++) {
+            const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+            if (todayYMD && dateStr > todayYMD) break; // jangan tampilkan hari yang belum lewat
+            if (existingDates.has(dateStr)) continue;  // sudah ada baris asli (absen/Izin/Cuti/dll)
+
+            const dayOfWeek = new Date(year, month - 1, day).getDay();
+            const dayGroup = (shiftConfig.dayGroups || []).find(g => (g.days || []).includes(dayOfWeek));
+            const isWeeklyLibur = !!(dayGroup && dayGroup.libur);
+            const holidayName = (holidayDatesForYear || {})[dateStr];
+            if (!isWeeklyLibur && !holidayName) continue;
+
+            rows.push({
+                date: dateStr,
+                shift: myShift,
+                _syntheticLibur: true,
+                _liburLabel: holidayName ? ('Tanggal Merah: ' + holidayName) : ('Libur (' + (dayGroup.label || '') + ')'),
+                _liburIsHoliday: !!holidayName
+            });
+        }
+        return rows;
+    },
+
+    // Ambil daftar tanggal merah 1 tahun (dicache per tahun) - dipanggil
+    // dari renderHistory(), pola sama seperti cache shiftTypesConfigFull di
+    // bawah: kalau belum ada, muat dulu lalu render ULANG.
+    _ensureHolidayDatesForYear(year) {
+        if (!this._holidayDatesCacheByYear) this._holidayDatesCacheByYear = {};
+        if (this._holidayDatesCacheByYear[year] || this._holidayDatesFetchingYear === year) return;
+        this._holidayDatesFetchingYear = year;
+        api.getHolidayDates(year).then(res => {
+            this._holidayDatesCacheByYear[year] = (res && res.success && res.data) ? res.data : {};
+            this._holidayDatesFetchingYear = null;
+            this.renderHistory(this._getHistoryForSelectedMonth());
+        }).catch(() => { this._holidayDatesFetchingYear = null; });
+    },
+
     renderHistory(historyData) {
     const tbody = document.getElementById('attendance-history');
     if (!tbody) return;
 
-    if (historyData.length === 0) {
+    const shiftTypesConfigFull = this._shiftTypesConfigFullCache || null;
+    const selectedMonth = document.getElementById('attendance-history-month')?.value || '';
+    const selectedYear = selectedMonth.split('-')[0];
+    if (selectedYear) this._ensureHolidayDatesForYear(selectedYear);
+    const holidayDatesForYear = (this._holidayDatesCacheByYear || {})[selectedYear] || {};
+
+    const liburRows = this._buildSyntheticLiburRows(historyData, selectedMonth, shiftTypesConfigFull, holidayDatesForYear);
+    const combinedData = [...historyData, ...liburRows].sort((a, b) => String(b.date).localeCompare(String(a.date)));
+
+    if (combinedData.length === 0) {
         tbody.innerHTML = '<tr><td colspan="6"><div class="history-empty"><i class="fas fa-calendar-day"></i><span>Belum ada riwayat absensi di bulan ini.</span></div></td></tr>';
         return;
     }
 
     const months = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Ags','Sep','Okt','Nov','Des'];
     const todayYMD = (typeof dateTime !== 'undefined' && dateTime.getLocalDate) ? dateTime.getLocalDate() : '';
-    const shiftTypesConfigFull = this._shiftTypesConfigFullCache || null;
 
-    tbody.innerHTML = historyData.map(record => {
+    tbody.innerHTML = combinedData.map(record => {
         // Format tanggal
         const [y, m, d] = (record.date || '').split('-');
         const dateStr = (y && m && d) ? `${d} ${months[parseInt(m)-1]} ${y}` : '-';
         const isToday = todayYMD && record.date === todayYMD;
+
+        // Baris SEMU libur/tanggal merah (lihat _buildSyntheticLiburRows di
+        // atas) - tampilkan badge tunggal merentang 4 kolom sesi, bukan jam
+        // satu-satu (karena memang tidak ada jam sama sekali hari itu).
+        if (record._syntheticLibur) {
+            const bg = record._liburIsHoliday ? '#FEE2E2' : '#FEF3C7';
+            const fg = record._liburIsHoliday ? '#B91C1C' : '#92400E';
+            const icon = record._liburIsHoliday ? 'fa-flag' : 'fa-bed';
+            return `
+                <tr${isToday ? ' class="row-today"' : ''}>
+                    <td>${dateStr}${isToday ? '<span class="today-tag">Hari Ini</span>' : ''}</td>
+                    <td style="font-size:0.82rem;">${this._formatShiftDisplay(record.shift)}</td>
+                    <td colspan="4" style="text-align:center;">
+                        <span style="background:${bg};color:${fg};padding:4px 12px;border-radius:20px;font-weight:600;font-size:0.78rem;">
+                            <i class="fas ${icon}"></i> ${record._liburLabel}
+                        </span>
+                    </td>
+                </tr>
+            `;
+        }
 
         const statusLower = String(record.status || '').toLowerCase();
 
