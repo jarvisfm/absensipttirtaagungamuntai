@@ -695,6 +695,43 @@ const absensi = {
             }
         }
 
+        // Badge "tanggal merah" / "libur" (Sabtu-Minggu dsb) - reuse
+        // this.currentState === 'libur' yang sudah dihitung di
+        // loadTodayAttendance() dari accessInfo.canAccess === false (lihat
+        // checkAttendanceAccess() di Attendance.gs). Dibedakan 2 tampilan:
+        // - accessInfo.holiday terisi -> tanggal merah nasional (Idul
+        //   Fitri, Maulid Nabi, HUT RI, dst - warna merah, lebih tegas).
+        // - selain itu -> libur mingguan biasa (Sabtu/Minggu utk jadwal
+        //   Reguler/Jaga Malam/TRD - dayGroup.libur di getShiftTypesConfig())
+        //   warna netral/kuning, reuse skema warna excused-info di atas.
+        const holidayBadge = document.getElementById('holiday-badge-info');
+        if (holidayBadge) {
+            if (this.currentState === 'libur' && this.accessInfo) {
+                holidayBadge.style.display = 'block';
+                const titleEl = document.getElementById('holiday-badge-title');
+                const nameEl  = document.getElementById('holiday-badge-name');
+                if (this.accessInfo.holiday) {
+                    holidayBadge.style.background = '#FEF2F2';
+                    holidayBadge.style.borderColor = '#FECACA';
+                    holidayBadge.style.color = '#B91C1C';
+                    if (titleEl) titleEl.textContent = 'Hari ini tanggal merah:';
+                    if (nameEl)  nameEl.textContent  = this.accessInfo.holiday;
+                } else {
+                    holidayBadge.style.background = '#FFFBEB';
+                    holidayBadge.style.borderColor = '#FDE68A';
+                    holidayBadge.style.color = '#92400E';
+                    if (titleEl) titleEl.textContent = 'Hari ini libur:';
+                    // Ambil nama hari dari pesan backend, mis. "Hari ini libur
+                    // (Sabtu)" -> "Sabtu" - lihat dayGroup.label di
+                    // getShiftTypesConfig() (Setting.gs).
+                    const match = /\(([^)]+)\)/.exec(this.accessInfo.message || '');
+                    if (nameEl) nameEl.textContent = match ? match[1] : '';
+                }
+            } else {
+                holidayBadge.style.display = 'none';
+            }
+        }
+
         const isLibur     = this.currentState === 'libur';
         const isExcused   = this.currentState === 'excused';
         // Hari Izin/Cuti (excused) selalu tampilkan semua sesi (Clock In,
