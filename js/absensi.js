@@ -607,7 +607,17 @@ const absensi = {
 
         this.updateUI();
         this.renderTimeline();
-        await this.loadAttendanceHistory(); // refresh tabel Riwayat Absensi supaya tidak nampilin data basi dari sebelum absen ini
+        // CATATAN PERFORMA: dulu ada `await this.loadAttendanceHistory()` di
+        // sini supaya tabel Riwayat Absensi tidak nampilin data basi. Ini
+        // DIHAPUS karena kode yang memanggil processWithVerification() ini
+        // (lihat face-recognition.js confirmAttendance()) SELALU langsung
+        // router.navigate('absensi') sesudahnya - dan navigate ke halaman
+        // 'absensi' otomatis memicu absensi.init() dari awal lagi (lihat
+        // window.initAbsensi di bawah), yang SUDAH memanggil
+        // loadAttendanceHistory() sendiri. Jadi baris ini cuma bikin 1 kali
+        // baca data absensi ke server yang hasilnya langsung dibuang -
+        // dihapus supaya jeda antara "Wajah Terverifikasi" dan kembali ke
+        // menu Absensi tidak lagi menunggu 1 request tambahan yang sia-sia.
         storage.remove('temp_attendance');
     },
 
