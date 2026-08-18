@@ -550,6 +550,20 @@ const absensi = {
     });
 },
 
+    // ==== AKUN DEMO PRESENTASI ====
+    // Username "demo" (lihat DEMO_ACCOUNT_USERNAMES di Auth.gs backend) -
+    // dipakai supaya saat presentasi: (1) absen tetap bisa dilakukan walau
+    // belum upload foto profil dan SELALU lolos, (2) absen masuk/istirahat/
+    // pulang TIDAK pernah benar-benar tersimpan ke Google Sheets (lihat
+    // saveAttendance di bawah) sehingga bisa dicoba berulang kali tanpa
+    // mengotori data asli. Hapus blok ini (dan bagian terkait di
+    // saveAttendance) atau ganti username-nya kalau fitur demo sudah tidak
+    // diperlukan lagi.
+    _isDemoAccount() {
+        const user = auth.getCurrentUser();
+        return !!(user && String(user.username || '').trim().toLowerCase() === 'demo');
+    },
+
     // Cek apakah karyawan yang sedang login sudah upload foto profil.
     // Foto profil dipakai sebagai acuan pencocokan wajah (lihat
     // face-recognition.js _getReferenceDescriptor) - kalau belum ada,
@@ -565,6 +579,9 @@ const absensi = {
     // kalau user belum punya foto profil, supaya pemanggil bisa langsung
     // "return" tanpa lanjut membuka kamera/face-recognition.
     _blockIfNoProfilePhoto() {
+        // Akun demo: lewati wajib foto profil - pencocokan wajah otomatis
+        // fail-open (lolos) karena memang tidak ada foto acuan.
+        if (this._isDemoAccount()) return false;
         if (!this._hasProfilePhoto()) {
             toast.warning('Anda belum mengupload foto profil. Silakan upload foto profil terlebih dahulu sebelum melakukan absensi.');
             router.navigate('profile');
@@ -724,6 +741,15 @@ const absensi = {
         // Gunakan employeeId jika ada (untuk admin yang punya data karyawan sendiri)
         // Fallback ke id jika employeeId tidak ada
         data.userId = user?.employeeId || user?.id;
+
+        // Akun demo: JANGAN dikirim ke backend sama sekali - tidak boleh ada
+        // baris absensi yang benar-benar tersimpan di Google Sheets. Balikin
+        // sukses palsu supaya UI (toast, status, timeline) tetap berjalan
+        // normal seperti absen sungguhan, tapi tidak pernah tersimpan -
+        // sehingga bisa dicoba absen masuk/istirahat/pulang berulang kali.
+        if (this._isDemoAccount()) {
+            return { success: true, data: {} };
+        }
 
         try {
             const result = await api.saveAttendance(data);
