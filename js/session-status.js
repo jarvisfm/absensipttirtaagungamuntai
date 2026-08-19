@@ -20,12 +20,20 @@
 
 let _shiftTypesConfigFullCache = null;
 
-async function getShiftTypesConfigFull() {
+/**
+ * preloadedSettingsRes (opsional, PERBAIKAN PERFORMA) - hasil api.getSettings()
+ * yang SUDAH diambil sebelumnya, dipakai supaya fungsi ini tidak perlu
+ * fetch ulang 'Settings' kalau pemanggilnya (mis. admin-reports.js) kebetulan
+ * sudah punya hasilnya dari Promise.all/allSettled miliknya sendiri. Kalau
+ * tidak diisi (semua pemanggil LAIN, tidak berubah), tetap fetch sendiri
+ * seperti biasa.
+ */
+async function getShiftTypesConfigFull(preloadedSettingsRes) {
     if (_shiftTypesConfigFullCache) return _shiftTypesConfigFullCache;
 
     let config = null;
     try {
-        const res = await api.getSettings();
+        const res = preloadedSettingsRes || await api.getSettings();
         const raw = res.success && res.data ? res.data['shift_types_config'] : null;
         config = raw ? JSON.parse(raw) : null;
     } catch (e) {
