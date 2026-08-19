@@ -177,6 +177,28 @@ const api = {
         return this.request('getAllAttendance');
     },
 
+    // Versi RINGAN dari getAllAttendance() - cuma baris HARI INI (semua
+    // karyawan). Pakai ini, BUKAN getAllAttendance(), kalau yang dibutuhkan
+    // memang cuma status hari ini (lihat dashboard.js renderTeamAttendance).
+    async getTodayAttendance() {
+        if (!API_BASE_URL) {
+            const todayStr = new Date().toISOString().split('T')[0];
+            return { success: true, data: storage.get('attendance', []).filter(a => a.date === todayStr) };
+        }
+        return this.request('getTodayAttendance');
+    },
+
+    // Sama seperti getTodayAttendance() tapi dipersempit lagi ke 1 userId -
+    // dipakai notifications.js untuk cek sesi absen yang sudah/belum diisi
+    // hari ini, tanpa perlu ikut download riwayat SEMUA karyawan.
+    async getTodayAttendanceForUser(userId) {
+        if (!API_BASE_URL) {
+            const todayStr = new Date().toISOString().split('T')[0];
+            return { success: true, data: storage.get('attendance', []).filter(a => a.date === todayStr && String(a.userId) === String(userId)) };
+        }
+        return this.request('getTodayAttendanceForUser', { userId });
+    },
+
     async submitOutOfRadiusReport(data) {
         return this.request('submitOutOfRadiusReport', data);
     },
