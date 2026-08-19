@@ -31,7 +31,14 @@ const dashboard = {
                     api.getIzin(currentUser.id).catch(() => ({ success: false })),
                     api.getAllJournals().catch(() => ({ success: false })),
                     api.getEmployees().catch(() => ({ success: false })),
-                    api.getAllAttendance().catch(() => ({ success: false }))
+                    // PERBAIKAN PERFORMA: dulu api.getAllAttendance() (SELURUH
+                    // riwayat attendance perusahaan) padahal renderTeamAttendance()
+                    // di bawah cuma pakai baris HARI INI (lihat filter
+                    // `a.date === todayStr` di sana) - baris lain dibuang percuma
+                    // sesudah di-download. Ganti ke versi ringan yang sudah
+                    // difilter di server, payload jauh lebih kecil terutama utk
+                    // koneksi HP.
+                    api.getTodayAttendance().catch(() => ({ success: false }))
                 ]);
 
                 this.attendanceData = (attResult && attResult.success) ? attResult.data : [];
