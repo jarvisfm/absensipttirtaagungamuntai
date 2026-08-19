@@ -113,7 +113,13 @@ const adminReports = {
         // renderAttendanceReports()/renderAttendanceMobileCards() buat hitung
         // status PER SESI ("Hadir Tepat Waktu"/"Hadir Terlambat"), gantinya
         // kolom "Status" per hari yang sudah dihapus.
-        this.shiftTypesConfigFull = await getShiftTypesConfigFull();
+        // PERBAIKAN PERFORMA: oper settingsResult yang SUDAH diambil di
+        // Promise.allSettled di atas, supaya getShiftTypesConfigFull() tidak
+        // fetch ulang 'Settings' dari server (sebelumnya jadi 2x request
+        // getSettings() terpisah tiap kali halaman ini dibuka pertama kali).
+        this.shiftTypesConfigFull = await getShiftTypesConfigFull(
+            settingsResult.status === 'fulfilled' ? settingsResult.value : null
+        );
 
         // Fallback ke localStorage hanya untuk bagian yang benar-benar kosong/gagal
         if (employees.length === 0) employees = storage.get('admin_employees', []);
