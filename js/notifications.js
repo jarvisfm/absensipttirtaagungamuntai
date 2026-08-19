@@ -323,10 +323,18 @@ const notifications = {
 
     async _loadKaryawanNotifications(user) {
         const effectiveId = user.employeeId || user.id;
+        // PERBAIKAN PERFORMA: dulu api.getAllAttendance() (SELURUH riwayat
+        // attendance SEMUA karyawan) padahal di bawah cuma dipakai untuk
+        // cari SATU baris (punya karyawan ini, hari ini) - lihat
+        // `todayRecord` di bawah. notifications.js ini dimuat di HAMPIR
+        // SETIAP kali aplikasi dibuka (lihat auth.js showApp()), jadi
+        // sebelumnya SETIAP buka aplikasi = download seluruh histori
+        // perusahaan, sia-sia dan bikin lambat terutama di HP. Ganti ke
+        // versi yang sudah difilter userId+hari ini di server.
         const [izinRes, leaveRes, attRes, accessRes] = await Promise.all([
             api.getIzin(user.id).catch(() => ({ success: false })),
             api.getLeaves(user.id).catch(() => ({ success: false })),
-            api.getAllAttendance().catch(() => ({ success: false })),
+            api.getTodayAttendanceForUser(effectiveId).catch(() => ({ success: false })),
             api.checkAttendanceAccess(effectiveId).catch(() => ({ success: false }))
         ]);
 
