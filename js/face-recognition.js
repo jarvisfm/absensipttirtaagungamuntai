@@ -35,7 +35,17 @@ const faceRecognition = {
     // Ambang batas jarak Euclidean antar descriptor wajah (face-api.js) -
     // makin kecil jaraknya makin mirip. 0.55 adalah nilai yang umum dipakai
     // face-api.js sendiri sebagai batas "wajah yang sama".
-    FACE_MATCH_THRESHOLD: 0.55,
+    //
+    // PERBAIKAN (2026-08-20): 0.55 ternyata masih terlalu longgar - dites
+    // langsung via debug log, 2 wajah BERBEDA orang bisa terhitung
+    // distance ~0.47 (di bawah 0.55) dan tetap dianggap "cocok". Diperketat
+    // ke 0.40 (paling ketat dari beberapa opsi yang didiskusikan).
+    // Konsekuensinya: karyawan ASLI juga jadi lebih mungkin sesekali
+    // ditolak/diminta foto ulang gara-gara pencahayaan/sudut kamera kurang
+    // pas (foto profil beresolusi rendah dari Google Drive thumbnail juga
+    // ikut mempengaruhi akurasi) - trade-off yang disengaja demi keamanan
+    // anti-titip-absen.
+    FACE_MATCH_THRESHOLD: 0.40,
     // Kalau jarak masih di bawah threshold (jadi tetap dianggap "cocok")
     // TAPI di atas angka ini, kecocokannya dianggap "kurang yakin" - absen
     // tetap diloloskan (tidak mau bikin karyawan asli ditolak-tolak gara-
@@ -1406,23 +1416,6 @@ const faceRecognition = {
             const _isDemo = !!(_demoUser && String(_demoUser.username || '').trim().toLowerCase() === 'demo');
             if (this.faceRecognitionEnabled && !_isDemo) {
                 const identity = await this._verifyFaceIdentity();
-
-                // DEBUG SEMENTARA (2026-08-20): dipasang khusus buat
-                // menelusuri laporan "masih lolos padahal wajah beda" -
-                // buka DevTools Console (F12) pas tes ulang, lalu salin
-                // baris "[FaceRecog DEBUG]" yang muncul. Ini AMAN dibiarkan
-                // (cuma nulis ke console, tidak mengubah alur apa pun) tapi
-                // sebaiknya dihapus lagi setelah masalahnya ketemu.
-                console.log('[FaceRecog DEBUG]', {
-                    faceRecognitionEnabled: this.faceRecognitionEnabled,
-                    isDemo: _isDemo,
-                    checked: identity.checked,
-                    matched: identity.matched,
-                    distance: identity.distance,
-                    threshold: this.FACE_MATCH_THRESHOLD,
-                    avatarUrl: (auth.getCurrentUser() && auth.getCurrentUser().avatar) || null,
-                    username: (auth.getCurrentUser() && auth.getCurrentUser().username) || null
-                });
 
                 if (!identity.checked || !identity.matched) {
                     // Wajah tidak cocok DENGAN foto profil, atau gagal
