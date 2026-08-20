@@ -180,12 +180,29 @@ const api = {
     // Versi RINGAN dari getAllAttendance() - cuma baris HARI INI (semua
     // karyawan). Pakai ini, BUKAN getAllAttendance(), kalau yang dibutuhkan
     // memang cuma status hari ini (lihat dashboard.js renderTeamAttendance).
-    async getTodayAttendance() {
+    //
+    // PERBAIKAN BUG (2026-08-20): SEBELUMNYA method ini juga bernama
+    // `getTodayAttendance` (sama persis dengan versi PER-USER di atas,
+    // `getTodayAttendance(userId)`) - karena object literal JS, definisi
+    // yang paling BAWAH menimpa yang di atas, jadi `api.getTodayAttendance`
+    // yang beneran jalan cuma versi TANPA ARGUMEN ini. Akibatnya
+    // absensi.js -> loadTodayAttendance() (yang manggil
+    // `api.getTodayAttendance(effectiveId)`, mengharap versi per-user)
+    // ikut kepakai versi ini juga dan userId-nya KE-ABAIKAN begitu saja -
+    // request ke backend jadi tanpa userId, backend balas gagal, dan
+    // this.attendanceData jadi {} (kosong, termasuk field `date`-nya).
+    // Begitu user coba absen, payload yang terkirim ke saveAttendance
+    // kehilangan `date` sehingga backend menolak dengan pesan "userId and
+    // date are required" - absen kelihatan tidak pernah tersimpan.
+    // Diganti nama jadi getTodayAttendanceAll() supaya tidak lagi
+    // tabrakan nama dengan getTodayAttendance(userId) di atas. Lihat juga
+    // pembaruan pemanggil di dashboard.js dan case di Code.gs.
+    async getTodayAttendanceAll() {
         if (!API_BASE_URL) {
             const todayStr = new Date().toISOString().split('T')[0];
             return { success: true, data: storage.get('attendance', []).filter(a => a.date === todayStr) };
         }
-        return this.request('getTodayAttendance');
+        return this.request('getTodayAttendanceAll');
     },
 
     // Sama seperti getTodayAttendance() tapi dipersempit lagi ke 1 userId -
