@@ -43,7 +43,8 @@ const izin = {
     },
 
     // Lihat catatan di pemanggilnya (init()) - toast info saja, tidak
-    // mengunci form sama sekali.
+    // mengunci form sama sekali. Sekalian isi badge "Sisa Izin Harian"
+    // di header halaman (id="izin-harian-quota-value", lihat index.html).
     _checkIzinHarianQuota() {
         const KUOTA_IZIN_HARIAN = 2;
         const tahunIni = String(new Date().getFullYear());
@@ -51,8 +52,15 @@ const izin = {
             .filter(rec => rec.type === 'izin_harian' && rec.status === 'approved' && (rec.date || '').startsWith(tahunIni))
             .reduce((sum, rec) => sum + (parseInt(rec.duration) || 0), 0);
 
+        const sisa = KUOTA_IZIN_HARIAN - totalPakai;
+        const badgeEl = document.getElementById('izin-harian-quota-value');
+        // Tetap tampilkan sisa APA ADANYA (boleh negatif, mis. "-1") kalau
+        // sudah kepakai lebih dari kuota - supaya kelihatan jelas sudah
+        // lewat berapa, bukan cuma mentok di 0 seolah pas kuota.
+        if (badgeEl) badgeEl.textContent = String(sisa);
+
         if (totalPakai > KUOTA_IZIN_HARIAN) {
-            toast.warning(`Izin Harian Anda tahun ini sudah ${totalPakai} hari, melewati kuota ${KUOTA_IZIN_HARIAN} hari/tahun. Anda tetap bisa mengajukan, tapi ini akan tercatat`);
+            toast.warning(`Izin Harian Anda tahun ini sudah ${totalPakai} hari, melewati kuota ${KUOTA_IZIN_HARIAN} hari/tahun. Anda tetap bisa mengajukan, tapi ini akan tercatat.`);
         }
     },
 
