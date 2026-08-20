@@ -9,6 +9,15 @@
 
 .izin-header {
     margin-bottom: var(--spacing-lg);
+    /* PERBAIKAN (2026-08-20): dulu cuma margin-bottom - ditambah layout
+       flex (sama persis dengan .cuti-header di cuti.css) supaya badge
+       kuota Izin Harian yang baru ditambahkan bisa sejajar di kanan judul,
+       bukan menumpuk ke bawah. */
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: var(--spacing);
 }
 
 .izin-info h2 {
@@ -20,6 +29,20 @@
 
 .izin-info p {
     color: var(--text-secondary);
+}
+
+/* Badge "Sisa Izin Harian" - dipasang mirip .balance-card/.balance-value
+   di cuti.css (class .leave-balance/.balance-card/.balance-icon/
+   .balance-content/.balance-label dipakai bareng, sudah ter-load global -
+   lihat markup di index.html #page-izin). Cuma nilai angkanya yang pakai
+   class BEDA (.izin-balance-value, bukan .balance-value) supaya tidak
+   ketimpa/menimpa document.querySelector('.balance-value') punya
+   cuti.js. Style di bawah ini sengaja disamakan persis dengan .balance-value
+   di cuti.css supaya tampilannya konsisten. */
+.izin-balance-value {
+    font-size: var(--font-size-2xl);
+    font-weight: 700;
+    line-height: 1;
 }
 
 .izin-grid {
@@ -312,6 +335,22 @@
 @media (max-width: 992px) {
     .izin-grid {
         grid-template-columns: 1fr;
+    }
+
+    /* Sama seperti .cuti-header di cuti.css - badge kuota Izin Harian
+       ditumpuk ke bawah judul di layar sempit, bukan berdempetan. */
+    .izin-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .leave-balance {
+        width: 100%;
+    }
+
+    .balance-card {
+        flex: 1;
+        justify-content: center;
     }
 }
 
