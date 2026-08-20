@@ -1248,10 +1248,21 @@
                                         <img id="pf-foto-preview" src="" alt="Foto" style="width:100%;height:100%;object-fit:cover;display:none;">
                                         <i class="fas fa-user" id="pf-foto-placeholder" style="font-size:2.5rem;color:var(--text-muted);"></i>
                                     </div>
-                                    <label style="cursor:pointer;color:var(--color-primary);font-size:0.85rem;font-weight:500;">
-                                        <i class="fas fa-camera"></i> Upload Foto
-                                        <input type="file" id="pf-foto-file" accept="image/*" style="display:none;" onchange="profileManager.previewFoto(this)">
-                                    </label>
+                                    <div style="display:flex;gap:16px;justify-content:center;flex-wrap:wrap;">
+                                        <label style="cursor:pointer;color:var(--color-primary);font-size:0.85rem;font-weight:500;margin:0;">
+                                            <i class="fas fa-upload"></i> Upload Foto
+                                            <input type="file" id="pf-foto-file" accept="image/*" style="display:none;" onchange="profileManager.previewFoto(this)">
+                                        </label>
+                                        <!-- TAMBAHAN: ambil foto langsung lewat kamera perangkat, pakai INPUT
+                                             YANG SAMA persis dengan "Upload Foto" di atas (lihat
+                                             profileManager.openCameraForFoto()) - jadi logika preview &
+                                             simpan (previewFoto/saveProfile) tidak perlu diubah/didobel sama
+                                             sekali, tinggal atribut "capture" yang dipasang sesaat sebelum
+                                             dialog file dibuka supaya HP langsung buka kamera, bukan galeri. -->
+                                        <button type="button" onclick="profileManager.openCameraForFoto()" style="cursor:pointer;color:var(--color-primary);font-size:0.85rem;font-weight:500;background:none;border:none;padding:0;">
+                                            <i class="fas fa-camera"></i> Ambil Foto
+                                        </button>
+                                    </div>
                                 </div>
                                 <div class="form-row two-col">
                                     <div class="form-group">
