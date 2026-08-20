@@ -29,7 +29,13 @@ const dashboard = {
                     api.getSettings(),
                     api.getLeaves(currentUser.id).catch(() => ({ success: false })),
                     api.getIzin(currentUser.id).catch(() => ({ success: false })),
-                    api.getAllJournals().catch(() => ({ success: false })),
+                    // PERBAIKAN PERFORMA: dulu api.getAllJournals() (SELURUH jurnal
+                    // SEMUA karyawan se-perusahaan, baca penuh sheet Journals yang
+                    // tidak di-cache) padahal baris di bawah cuma pakai jurnal milik
+                    // user ini sendiri (lihat filter userId yang lama). Ganti ke
+                    // getJournals(userId) yang sudah difilter di server (findRows),
+                    // payload jauh lebih kecil & tidak perlu baca seluruh sheet.
+                    api.getJournals(currentUser.id).catch(() => ({ success: false })),
                     api.getEmployees().catch(() => ({ success: false })),
                     // PERBAIKAN PERFORMA: dulu api.getAllAttendance() (SELURUH
                     // riwayat attendance perusahaan) padahal renderTeamAttendance()
@@ -44,8 +50,9 @@ const dashboard = {
                 this.attendanceData = (attResult && attResult.success) ? attResult.data : [];
                 this.myLeaves = (leaveRes && leaveRes.success) ? leaveRes.data : [];
                 this.myIzin = (izinRes && izinRes.success) ? izinRes.data : [];
-                const allJurnals = (jurnalRes && jurnalRes.success) ? jurnalRes.data : [];
-                this.myJurnals = allJurnals.filter(j => String(j.userId) === String(currentUser.id));
+                // Sudah difilter userId-nya di server (getJournals), jadi tidak
+                // perlu difilter ulang lagi di sini seperti sebelumnya.
+                this.myJurnals = (jurnalRes && jurnalRes.success) ? jurnalRes.data : [];
                 this.allEmployees = (empRes && empRes.success) ? empRes.data : [];
                 this.allAttendance = (allAttRes && allAttRes.success) ? allAttRes.data : [];
 
