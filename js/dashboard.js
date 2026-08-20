@@ -38,7 +38,7 @@ const dashboard = {
                     // sesudah di-download. Ganti ke versi ringan yang sudah
                     // difilter di server, payload jauh lebih kecil terutama utk
                     // koneksi HP.
-                    api.getTodayAttendance().catch(() => ({ success: false }))
+                    api.getTodayAttendanceAll().catch(() => ({ success: false }))
                 ]);
 
                 this.attendanceData = (attResult && attResult.success) ? attResult.data : [];
