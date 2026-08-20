@@ -848,6 +848,21 @@
                                 <h2>Pengajuan Izin / Sakit</h2>
                                 <p>Ajukan izin tidak masuk kerja dengan verifikasi wajah</p>
                             </div>
+                            <!-- Badge kuota "Permohonan Izin Harian" (2 hari/tahun) - dipasang
+                                 mirip kartu "Sisa Cuti" di halaman Cuti. Diisi dinamis dari
+                                 izin.js > _checkIzinHarianQuota(). Sengaja PAKAI class
+                                 "izin-balance-value" (BUKAN "balance-value") supaya tidak
+                                 tertangkap ganda oleh document.querySelector('.balance-value')
+                                 di cuti.js (querySelector cuma ambil elemen PERTAMA yang cocok
+                                 di seluruh halaman - kalau nama class-nya sama, badge Sisa Cuti
+                                 di halaman Cuti bisa salah keisi angka dari sini). -->
+                            <div class="leave-balance">
+                                <div class="balance-card">
+                                    <div class="balance-icon"><i class="fas fa-file-alt"></i></div>
+                                    <div class="balance-content"><span class="izin-balance-value" id="izin-harian-quota-value">2</span><span
+                                            class="balance-label">Sisa Izin Harian (hari)</span></div>
+                                </div>
+                            </div>
                         </div>
                         <div class="izin-grid">
                             <div class="izin-form-card">
