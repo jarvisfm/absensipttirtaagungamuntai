@@ -742,6 +742,21 @@ const absensi = {
         // Fallback ke id jika employeeId tidak ada
         data.userId = user?.employeeId || user?.id;
 
+        // PENGAMAN TAMBAHAN: kalau userId ternyata KOSONG di sini (mis. sesi
+        // sempat dianggap tidak valid & auth.currentUser jadi null di tengah
+        // proses verifikasi wajah - lihat perbaikan race condition
+        // _patchCachedRow() di Database.gs), JANGAN kirim ke backend sama
+        // sekali. Sebelumnya ini terkirim apa adanya dan ditolak backend
+        // dengan pesan generik ("userId and date are required") - absen
+        // gagal tersimpan TANPA penjelasan jelas ke user kenapa. Sekarang
+        // langsung ketahuan jelas & user diarahkan login ulang alih-alih
+        // mengira sudah absen padahal tidak tersimpan.
+        if (!data.userId) {
+            toast.error('Sesi Anda perlu login ulang sebelum bisa absen. Silakan login kembali.');
+            if (window.auth) auth.showLogin();
+            return { success: false, error: 'Sesi tidak valid (userId kosong)' };
+        }
+
         // Akun demo: JANGAN dikirim ke backend sama sekali - tidak boleh ada
         // baris absensi yang benar-benar tersimpan di Google Sheets. Balikin
         // sukses palsu supaya UI (toast, status, timeline) tetap berjalan
