@@ -33,6 +33,27 @@ const izin = {
         // periode itu selesai - supaya tidak bisa mengajukan izin/cuti baru
         // yang tumpang tindih.
         this._checkActiveBlock();
+
+        // Info (BUKAN blokir - user tetap boleh mengajukan Izin Harian
+        // berapa kali pun) kalau total Izin Harian (disetujui) tahun ini
+        // sudah lewat kuota 2 hari/tahun. Samakan angka kuota & cara hitung
+        // (status 'approved', dijumlah dari `duration`, per tahun berjalan)
+        // dengan izinHarianQuota di admin-reports.js supaya konsisten.
+        this._checkIzinHarianQuota();
+    },
+
+    // Lihat catatan di pemanggilnya (init()) - toast info saja, tidak
+    // mengunci form sama sekali.
+    _checkIzinHarianQuota() {
+        const KUOTA_IZIN_HARIAN = 2;
+        const tahunIni = String(new Date().getFullYear());
+        const totalPakai = this.izinData
+            .filter(rec => rec.type === 'izin_harian' && rec.status === 'approved' && (rec.date || '').startsWith(tahunIni))
+            .reduce((sum, rec) => sum + (parseInt(rec.duration) || 0), 0);
+
+        if (totalPakai > KUOTA_IZIN_HARIAN) {
+            toast.warning(`Izin Harian Anda tahun ini sudah ${totalPakai} hari, melewati kuota ${KUOTA_IZIN_HARIAN} hari/tahun. Anda tetap bisa mengajukan, tapi ini akan tercatat di rekap admin.`);
+        }
     },
 
     // Cek apakah user sedang dalam periode Izin/Cuti yang sudah disetujui
