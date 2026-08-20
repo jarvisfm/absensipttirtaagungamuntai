@@ -84,6 +84,15 @@ const api = {
         return this.request('removeBiometricDevice', { userId, role, deviceId });
     },
 
+    // Cek apakah credentialId di perangkat ini MASIH terdaftar di server
+    // (dipakai loginWithBiometric() supaya perangkat yang tergusur batas
+    // maksimal atau dihapus manual dari Edit Profil benar-benar tidak bisa
+    // login sidik jari lagi, bukan cuma hilang dari tampilan daftar).
+    async isBiometricDeviceRegistered(userId, role, credentialId) {
+        if (!API_BASE_URL) return { success: true, data: { registered: true } };
+        return this.request('isBiometricDeviceRegistered', { userId, role, credentialId });
+    },
+
     // Cek ulang password TANPA memicu login baru (jadi sessionToken "1
     // perangkat saja" milik sesi yang sedang aktif tidak ikut berubah) -
     // dipakai sebelum mengaktifkan sidik jari dari menu Edit Profil.
