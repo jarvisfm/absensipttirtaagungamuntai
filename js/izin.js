@@ -52,7 +52,7 @@ const izin = {
             .reduce((sum, rec) => sum + (parseInt(rec.duration) || 0), 0);
 
         if (totalPakai > KUOTA_IZIN_HARIAN) {
-            toast.warning(`Izin Harian Anda tahun ini sudah ${totalPakai} hari, melewati kuota ${KUOTA_IZIN_HARIAN} hari/tahun. Anda tetap bisa mengajukan, tapi ini akan tercatat di rekap admin.`);
+            toast.warning(`Izin Harian Anda tahun ini sudah ${totalPakai} hari, melewati kuota ${KUOTA_IZIN_HARIAN} hari/tahun. Anda tetap bisa mengajukan, tapi ini akan tercatat`);
         }
     },
 
