@@ -8,6 +8,7 @@ const adminReports = {
     jurnalData: [],
     leaveData: [],
     leaveQuota: {},
+    izinHarianQuota: {},
     filters: {
         attendance: { month: '', name: '', bagian: '' },
         jurnal: { month: '', employee: '', status: '' },
@@ -189,6 +190,24 @@ const adminReports = {
 
         this.rawLeaves = uniqueLeaves;
 
+        // Kuota "Permohonan Izin Harian" - 2 HARI per tahun per karyawan
+        // (Samakan dengan _hitungKuotaIzinHarian di Leave.gs/Izin.gs backend
+        // & _checkIzinHarianQuota di izin.js frontend - user tetap boleh
+        // mengajukan Izin Harian melebihi kuota ini, TIDAK diblokir, cuma
+        // ditandai di sini untuk ditinjau admin). Dihitung dari status
+        // 'approved' saja & dijumlah dari field `duration` (hari), sama
+        // seperti pola kuota Cuti Tahunan di bawah.
+        const KUOTA_IZIN_HARIAN = 2;
+        const tahunIniIzinHarian = new Date().getFullYear();
+        const izinHarianTotalByUser = {};
+        uniqueIzin.forEach(i => {
+            if (i.type !== 'izin_harian' || i.status !== 'approved') return;
+            if (!(i.date || '').startsWith(String(tahunIniIzinHarian))) return;
+            const uid = String(i.userId);
+            izinHarianTotalByUser[uid] = (izinHarianTotalByUser[uid] || 0) + (parseInt(i.duration) || 0);
+        });
+        this.izinHarianQuota = { total: izinHarianTotalByUser, kuota: KUOTA_IZIN_HARIAN, tahun: tahunIniIzinHarian };
+
         this.leaveData = [
             ...uniqueLeaves.map(l => {
                 let emp = employees.find(e => String(e.id) === String(l.userId));
@@ -227,6 +246,15 @@ const adminReports = {
                 if (!emp && currentUser && String(currentUser.id) === String(i.userId))
                     emp = { name: currentUser.name, department: currentUser.department || '-' };
                 if (!emp) emp = { name: i.userId || 'Karyawan', department: '-' };
+                // Keterangan "sudah melewati kuota Izin Harian" - ditandai
+                // di SETIAP baris Izin Harian milik karyawan yang total
+                // pakainya tahun ini sudah > kuota, bukan cuma baris yang
+                // bikin dia lewat kuota (supaya kelihatan konsisten di
+                // rekap, bukan cuma di 1 baris acak).
+                const overQuotaNote = (i.type === 'izin_harian' &&
+                    (izinHarianTotalByUser[String(i.userId)] || 0) > KUOTA_IZIN_HARIAN)
+                    ? `Sudah ${izinHarianTotalByUser[String(i.userId)]} hari (lebih dari kuota ${KUOTA_IZIN_HARIAN} hari/tahun)`
+                    : '';
                 return {
                     id: i.id,
                     kind: 'izin',
@@ -242,6 +270,7 @@ const adminReports = {
                         : i.type === 'keluar_kantor' ? 'Izin Keluar Kantor'
                         : i.type === 'izin_harian' ? 'Izin Harian'
                         : (i.typeLabel || 'Izin'),
+                    overQuotaNote: overQuotaNote,
                     dates: i.date ? dateTime.formatDate(i.date, 'dmy') : '-',
                     duration: i.type === 'keluar_kantor'
                         ? this.hitungDurasiJam(i.jamKeluar, i.jamMasuk)
@@ -311,6 +340,32 @@ const adminReports = {
 
         try {
             sessionStorage.setItem('leaveQuotaWarned', JSON.stringify([...warnedSet]));
+        } catch (e) { /* abaikan kalau sessionStorage penuh/tidak tersedia */ }
+
+        // Notif "kuota Izin Harian terlewati" ke admin - pola sama persis
+        // dengan notif kuota cuti tahunan di atas (sekali per sesi per
+        // karyawan+tahun, lewat sessionStorage). izinHarianTotalByUser &
+        // KUOTA_IZIN_HARIAN sudah dihitung lebih awal (lihat sebelum
+        // this.leaveData di atas).
+        let warnedSetIzinHarian = new Set();
+        try {
+            warnedSetIzinHarian = new Set(JSON.parse(sessionStorage.getItem('izinHarianQuotaWarned') || '[]'));
+        } catch (e) {
+            warnedSetIzinHarian = new Set();
+        }
+        employees.forEach(emp => {
+            const totalPakai = izinHarianTotalByUser[String(emp.id)] || 0;
+            if (totalPakai > KUOTA_IZIN_HARIAN) {
+                const warnKey = `${emp.id}-${tahunIniIzinHarian}`;
+                if (!warnedSetIzinHarian.has(warnKey)) {
+                    const nama = emp.name || emp.nama || 'Karyawan';
+                    toast.warning(`⚠️ Izin Harian ${nama} sudah ${totalPakai} hari, melewati kuota ${KUOTA_IZIN_HARIAN} hari/tahun.`);
+                    warnedSetIzinHarian.add(warnKey);
+                }
+            }
+        });
+        try {
+            sessionStorage.setItem('izinHarianQuotaWarned', JSON.stringify([...warnedSetIzinHarian]));
         } catch (e) { /* abaikan kalau sessionStorage penuh/tidak tersedia */ }
     },
 
@@ -1022,7 +1077,7 @@ const adminReports = {
             <tr>
                 <td>${row.name}</td>
                 <td>${row.position}</td>
-                <td>${row.type}</td>
+                <td>${row.type}${row.overQuotaNote ? `<br><span style="color:#D97706;font-size:0.78em;font-weight:600;"><i class="fas fa-exclamation-triangle"></i> ${row.overQuotaNote}</span>` : ''}</td>
                 <td>${row.dates}</td>
                 <td>${durasiHtml}</td>
                 <td>${row.reason}</td>
@@ -1070,7 +1125,7 @@ const adminReports = {
                     </div>
                     <div class="mobile-card-row">
                         <span class="mobile-card-label">Jenis</span>
-                        <span class="mobile-card-value">${row.type}</span>
+                        <span class="mobile-card-value">${row.type}${row.overQuotaNote ? `<br><span style="color:#D97706;font-size:0.85em;font-weight:600;"><i class="fas fa-exclamation-triangle"></i> ${row.overQuotaNote}</span>` : ''}</span>
                     </div>
                     <div class="mobile-card-row">
                         <span class="mobile-card-label">Tanggal</span>
@@ -1439,6 +1494,7 @@ const adminReports = {
                 </div>
                 <h3 style="font-size:1.05rem;margin-bottom:4px;">${row.type}</h3>
                 <span style="background:${statusColor}20;color:${statusColor};padding:4px 14px;border-radius:20px;font-size:0.78rem;font-weight:700;">${statusLabels[row.status] || row.status}</span>
+                ${row.overQuotaNote ? `<div style="margin-top:8px;color:#D97706;font-size:0.8rem;font-weight:600;"><i class="fas fa-exclamation-triangle"></i> ${row.overQuotaNote}</div>` : ''}
             </div>
 
             ${infoRow('fa-user', 'Nama Karyawan', row.name)}
