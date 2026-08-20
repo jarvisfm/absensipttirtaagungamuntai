@@ -351,6 +351,25 @@ const profileManager = {
         }
     },
 
+    // TAMBAHAN: tombol "Ambil Foto" di Edit Profil > tab Profil. Sengaja
+    // TIDAK bikin <input> baru/terpisah - dipakai ulang persis input yang
+    // sama dengan "Upload Foto" (#pf-foto-file), supaya previewFoto() &
+    // saveProfile() (yang baca file dari #pf-foto-file) tetap jalan apa
+    // adanya tanpa perlu tahu foto ini asalnya dari galeri atau kamera.
+    // Atribut "capture" dipasang SESAAT sebelum dialog file dibuka supaya
+    // browser HP langsung mengarah ke kamera (bukan galeri) - lalu segera
+    // dilepas lagi supaya tombol "Upload Foto" yang lama tetap membuka
+    // galeri seperti biasa (perilakunya tidak berubah sama sekali).
+    // Di desktop/browser yang tidak mendukung atribut ini, otomatis
+    // fallback ke dialog pilih file biasa - tidak ada yang rusak.
+    openCameraForFoto() {
+        const input = document.getElementById('pf-foto-file');
+        if (!input) return;
+        input.setAttribute('capture', 'user');
+        input.click();
+        setTimeout(() => input.removeAttribute('capture'), 0);
+    },
+
     async saveProfile() {
         const nama = document.getElementById('pf-nama').value.trim();
         if (!nama) {
