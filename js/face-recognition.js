@@ -1376,43 +1376,71 @@ const faceRecognition = {
 
             // Cocokkan wajah di foto ini dengan foto profil karyawan yang
             // sedang login - supaya tidak bisa "titip absen" pakai akun
-            // orang lain. Kalau tidak sempat dicek (belum ada foto profil/
-            // model gagal dimuat), absen tetap diloloskan (fail-open) -
-            // lihat penjelasan di _getReferenceDescriptor(). Dilewati total
-            // kalau toggle Face Recognition di Settings admin sedang OFF.
+            // orang lain. Dilewati total kalau toggle Face Recognition di
+            // Settings admin sedang OFF.
+            //
+            // PERBAIKAN (2026-08-20): SEBELUMNYA kalau wajah tidak cocok
+            // (atau tidak sempat diverifikasi sama sekali), absen tetap
+            // diloloskan (fail-open) - cuma ditandai flag utk ditinjau
+            // admin belakangan, TIDAK benar-benar dicegah saat itu juga.
+            // Artinya siapa saja bisa "titip absen" pakai wajah orang
+            // lain dan tetap tercatat. Sekarang absen BENAR-BENAR ditolak
+            // & diulang otomatis (kamera tetap jalan, tidak perlu keluar
+            // masuk halaman) sampai wajah yang di kamera cocok dengan
+            // foto profil. Kasus "belum ada foto profil sama sekali"
+            // sudah dicegah lebih awal sebelum sampai ke halaman ini
+            // (lihat _blockIfNoProfilePhoto() di absensi.js, yang
+            // mengarahkan ke halaman Profil dulu) - jadi kalau di sini
+            // ternyata tetap `!identity.checked`, itu murni kegagalan
+            // teknis menghitung sidik wajah dari foto profil yang sudah
+            // ada (link putus/model gagal dimuat/dsb), bukan alasan buat
+            // meloloskan absen begitu saja.
+            //
+            // Akun demo (lihat _isDemoAccount() di absensi.js) sengaja
+            // TETAP dikecualikan dari pencocokan ini - akun demo memang
+            // tidak punya foto profil acuan sama sekali (_blockIfNoProfilePhoto
+            // juga sudah melewatkannya), jadi tidak ada yang bisa
+            // dicocokkan.
             this._lastFaceMatch = null;
-            if (this.faceRecognitionEnabled) {
+            const _demoUser = auth.getCurrentUser();
+            const _isDemo = !!(_demoUser && String(_demoUser.username || '').trim().toLowerCase() === 'demo');
+            if (this.faceRecognitionEnabled && !_isDemo) {
                 const identity = await this._verifyFaceIdentity();
-                if (identity.checked && !identity.matched) {
-                    // Wajah TIDAK cocok dengan foto profil - TIDAK diloloskan
-                    // sebagai "wajah terverifikasi cocok", TAPI absen tetap
-                    // diproses (tidak diblokir/diminta mengulang berkali-
-                    // kali) supaya karyawan yang tetap harus absen tidak
-                    // terjebak gara-gara kondisi kamera/pencahayaan yang
-                    // meleset. faceMatchFlag di confirmAttendance() otomatis
-                    // bernilai true di kasus ini (distance-nya > threshold >
-                    // FACE_MATCH_CONFIDENT_ZONE), jadi tercatat & bisa
-                    // ditinjau ulang oleh admin lewat foto absennya.
+
+                if (!identity.checked || !identity.matched) {
+                    // Wajah tidak cocok DENGAN foto profil, atau gagal
+                    // diverifikasi sama sekali - tolak, jangan lanjut ke
+                    // status "Wajah Terverifikasi"/confirmAttendance().
+                    // Kamera & loop deteksi dibiarkan tetap jalan supaya
+                    // otomatis mencoba ulang begitu wajah stabil terdeteksi
+                    // lagi (lihat cooldown _autoCaptureNextAllowedAt di
+                    // _startFaceDetectionLoop()) - karyawan tinggal
+                    // memperbaiki posisi/pencahayaan tanpa perlu keluar
+                    // masuk halaman lagi.
+                    this._faceMismatchRetrying = true;
                     if (!this._mismatchToastShown) {
                         this._mismatchToastShown = true;
-                        toast.warning('Wajah tidak cocok dengan foto profil Anda. Absen tetap diproses, tapi ditandai untuk ditinjau admin.');
+                        toast.error(identity.checked
+                            ? 'Wajah tidak cocok dengan foto profil Anda. Absen ditolak, silakan coba lagi.'
+                            : 'Wajah tidak dapat diverifikasi (foto profil bermasalah). Silakan coba lagi atau perbarui foto profil Anda.');
                     }
+                    setTimeout(() => {
+                        this._faceMismatchRetrying = false;
+                        this._mismatchToastShown = false;
+                    }, 3000);
+
+                    this.photoCaptured = false;
+                    this._captureInFlight = false;
+                    if (scanningLine) scanningLine.style.display = 'block';
+                    return;
                 }
+
                 this._faceMismatchRetrying = false;
-                if (!identity.checked) {
-                    // Fail-open: verifikasi TIDAK sempat dilakukan sama
-                    // sekali (foto profil bermasalah/belum ada/model gagal
-                    // dimuat) - absen tetap diloloskan supaya karyawan tidak
-                    // terjebak gara-gara masalah teknis, tapi harus jelas
-                    // kelihatan kalau ini BUKAN "wajah sudah dicek dan
-                    // cocok", biar tidak disalahartikan sistemnya lolos
-                    // padahal harusnya ketahuan beda orang.
-                    toast.warning('Identitas wajah tidak dapat diverifikasi otomatis (foto profil bermasalah/belum ada) - absen tetap diproses tapi ditandai untuk ditinjau admin.');
-                }
                 // Simpan hasilnya untuk dikirim bareng data absensi (dibaca
                 // di confirmAttendance) - dipakai buat menandai kecocokan
-                // yang "kurang yakin" ATAU tidak sempat dicek sama sekali,
-                // supaya admin bisa tinjau ulang.
+                // yang "kurang yakin" (distance di antara threshold &
+                // FACE_MATCH_CONFIDENT_ZONE) supaya admin bisa tinjau ulang,
+                // walau absennya sendiri sudah dinyatakan cocok & lolos.
                 this._lastFaceMatch = identity;
             }
 
