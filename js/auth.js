@@ -866,7 +866,16 @@ const auth = {
                 }
             }
 
-            storage.set(this.BIOMETRIC_KEY, { credentialId, username, password, deviceId });
+            storage.set(this.BIOMETRIC_KEY, {
+                credentialId, username, password, deviceId,
+                // userId & role disimpan supaya loginWithBiometric() bisa
+                // cek ulang ke server apakah perangkat ini masih terdaftar
+                // (lihat isBiometricDeviceRegistered) - relevan kalau
+                // batas jumlah perangkat (1 karyawan / 2 admin) membuat
+                // perangkat ini tergusur oleh pendaftaran baru di HP lain.
+                userId: this.currentUser ? this.currentUser.id : null,
+                role: this.currentUser ? this.currentUser.role : null
+            });
 
             const btn = document.getElementById('btn-biometric-login');
             if (btn) {
@@ -932,6 +941,31 @@ const auth = {
 
         // Verifikasi sidik jari sukses - reset penghitung gagal.
         this._biometricFailCount = 0;
+
+        // --- Tahap 1b: pastikan perangkat ini MASIH terdaftar di server.
+        // Kalau batas jumlah perangkat (1 karyawan / 2 admin) membuat
+        // perangkat ini tergusur oleh pendaftaran baru di HP lain, atau
+        // dihapus manual dari Edit Profil, tolak login sidik jari di sini
+        // meski verifikasi WebAuthn di HP ini sendiri sukses.
+        if (saved.userId && saved.role) {
+            try {
+                const check = await api.isBiometricDeviceRegistered(saved.userId, saved.role, saved.credentialId);
+                if (check.success && check.data && !check.data.registered) {
+                    storage.remove(this.BIOMETRIC_KEY);
+                    if (btn) {
+                        btn.classList.remove('loading');
+                        btn.style.display = 'none';
+                    }
+                    toast.error('Login sidik jari di perangkat ini sudah tidak aktif. Silakan login manual atau aktifkan ulang lewat Edit Profil.');
+                    return;
+                }
+            } catch (e) {
+                console.error('Gagal memeriksa status perangkat sidik jari:', e);
+                // Kalau pengecekan gagal (mis. jaringan bermasalah), tetap
+                // lanjutkan ke login manual seperti biasa - jangan blokir
+                // user cuma karena pengecekan tambahan ini gagal.
+            }
+        }
 
         // --- Tahap 2: lanjutkan login normal pakai username & password
         // yang tersimpan (proses sama persis dengan handleLogin(), termasuk
