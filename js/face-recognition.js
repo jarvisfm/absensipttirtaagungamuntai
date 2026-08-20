@@ -1407,6 +1407,23 @@ const faceRecognition = {
             if (this.faceRecognitionEnabled && !_isDemo) {
                 const identity = await this._verifyFaceIdentity();
 
+                // DEBUG SEMENTARA (2026-08-20): dipasang khusus buat
+                // menelusuri laporan "masih lolos padahal wajah beda" -
+                // buka DevTools Console (F12) pas tes ulang, lalu salin
+                // baris "[FaceRecog DEBUG]" yang muncul. Ini AMAN dibiarkan
+                // (cuma nulis ke console, tidak mengubah alur apa pun) tapi
+                // sebaiknya dihapus lagi setelah masalahnya ketemu.
+                console.log('[FaceRecog DEBUG]', {
+                    faceRecognitionEnabled: this.faceRecognitionEnabled,
+                    isDemo: _isDemo,
+                    checked: identity.checked,
+                    matched: identity.matched,
+                    distance: identity.distance,
+                    threshold: this.FACE_MATCH_THRESHOLD,
+                    avatarUrl: (auth.getCurrentUser() && auth.getCurrentUser().avatar) || null,
+                    username: (auth.getCurrentUser() && auth.getCurrentUser().username) || null
+                });
+
                 if (!identity.checked || !identity.matched) {
                     // Wajah tidak cocok DENGAN foto profil, atau gagal
                     // diverifikasi sama sekali - tolak, jangan lanjut ke
