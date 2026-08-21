@@ -449,7 +449,12 @@ const absensi = {
             if (isExcused || !actualValue) return '';
             const lbl = getSessionAttendanceLabel(shiftTypesConfigFull, record.shift, record.date, field, actualValue);
             if (!lbl) return '';
-            const color = lbl.late ? '#D97706' : '#059669';
+            // PERBAIKAN: status "Terlambat" (sudah lewat batas toleransi -
+            // lihat getSessionAttendanceLabel di session-status.js) dikasih
+            // warna merah biar beda dari "Hadir Terlambat" (masih dalam
+            // toleransi, kuning) - supaya level keterlambatannya kelihatan
+            // jelas, bukan cuma beda teks.
+            const color = lbl.veryLate ? '#DC2626' : (lbl.late ? '#D97706' : '#059669');
             return `<br><small style="color:${color};font-weight:600;font-size:0.7rem;">${lbl.text}</small>`;
         };
 
