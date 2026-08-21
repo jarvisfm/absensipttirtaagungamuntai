@@ -389,11 +389,11 @@
                             </div>
                             <div class="session-info">
                                 <div class="session-row">
-                                    <span class="session-label">Clock In</span>
+                                    <span class="session-label">Masuk</span>
                                     <span class="session-value" id="dashboard-clock-in">--:--</span>
                                 </div>
                                 <div class="session-row">
-                                    <span class="session-label">Clock Out</span>
+                                    <span class="session-label">Pulang</span>
                                     <span class="session-value" id="dashboard-clock-out">--:--</span>
                                 </div>
                                 <div class="session-row">
@@ -416,13 +416,13 @@
                                     <div class="quick-icon clock-in">
                                         <i class="fas fa-sign-in-alt"></i>
                                     </div>
-                                    <span>Clock In</span>
+                                    <span>Masuk</span>
                                 </button>
                                 <button class="quick-btn" onclick="router.navigate('absensi')">
                                     <div class="quick-icon clock-out">
                                         <i class="fas fa-sign-out-alt"></i>
                                     </div>
-                                    <span>Clock Out</span>
+                                    <span>Pulang</span>
                                 </button>
                                 <button class="quick-btn" onclick="router.navigate('cuti')">
                                     <div class="quick-icon leave">
@@ -547,14 +547,14 @@
                                     <div class="status-ring waiting">
                                         <div class="status-icon"><i class="fas fa-clock"></i></div>
                                     </div>
-                                    <h3 class="status-text">Siap Clock In</h3>
+                                    <h3 class="status-text">Siap Masuk</h3>
                                     <p class="status-subtext">Tekan tombol di bawah untuk memulai</p>
                                 </div>
 
                                 <div class="attendance-buttons">
                                     <button class="attendance-btn clock-in-btn" id="btn-clock-in" disabled>
                                         <div class="btn-icon"><i class="fas fa-sign-in-alt"></i></div>
-                                        <div class="btn-text"><span class="btn-label">Clock In</span><span
+                                        <div class="btn-text"><span class="btn-label">Masuk</span><span
                                                 class="btn-time" id="clock-in-time">--:--</span></div>
                                     </button>
                                     <div id="break-section">
@@ -569,14 +569,9 @@
                                                 class="btn-time" id="after-break-time">--:--</span></div>
                                     </button>
                                     </div>
-                                    <button class="attendance-btn overtime-btn" id="btn-overtime" disabled>
-                                        <div class="btn-icon"><i class="fas fa-business-time"></i></div>
-                                        <div class="btn-text"><span class="btn-label">Lembur</span><span
-                                                class="btn-time" id="overtime-time">--:--</span></div>
-                                    </button>
                                     <button class="attendance-btn clock-out-btn" id="btn-clock-out" disabled>
                                         <div class="btn-icon"><i class="fas fa-sign-out-alt"></i></div>
-                                        <div class="btn-text"><span class="btn-label">Clock Out</span><span
+                                        <div class="btn-text"><span class="btn-label">Pulang</span><span
                                                 class="btn-time" id="clock-out-time">--:--</span></div>
                                     </button>
                                 </div>
@@ -589,7 +584,7 @@
                                 <div class="timeline" id="attendance-timeline">
                                     <div class="timeline-item pending" data-type="clock-in">
                                         <div class="timeline-dot"></div>
-                                        <div class="timeline-content"><span class="timeline-title">Clock In</span><span
+                                        <div class="timeline-content"><span class="timeline-title">Masuk</span><span
                                                 class="timeline-time">--:--</span></div>
                                     </div>
                                     <div class="timeline-item pending" data-type="break">
@@ -604,7 +599,7 @@
                                     </div>
                                     <div class="timeline-item pending" data-type="clock-out">
                                         <div class="timeline-dot"></div>
-                                        <div class="timeline-content"><span class="timeline-title">Clock Out</span><span
+                                        <div class="timeline-content"><span class="timeline-title">Pulang</span><span
                                                 class="timeline-time">--:--</span></div>
                                     </div>
                                 </div>
@@ -1600,7 +1595,7 @@
                                 <!-- ===== Notifikasi HP (Firebase Cloud Messaging) — TAMBAHAN ===== -->
                                 <div class="form-group" style="margin-top:1.5rem;padding-top:1.25rem;border-top:1px solid var(--border-color);">
                                     <label style="margin-bottom:2px;">Notifikasi HP</label>
-                                    <p style="font-size:0.8rem;color:var(--text-muted);margin:0 0 10px;">Dapatkan notifikasi pengingat absensi (mis. belum Clock In) langsung ke HP, walau aplikasi ini tidak sedang dibuka.</p>
+                                    <p style="font-size:0.8rem;color:var(--text-muted);margin:0 0 10px;">Dapatkan notifikasi pengingat absensi (mis. belum Masuk) langsung ke HP, walau aplikasi ini tidak sedang dibuka.</p>
                                     <div id="pf-push-notif-status"></div>
                                 </div>
                             </div>
