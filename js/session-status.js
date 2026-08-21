@@ -50,16 +50,20 @@ async function getShiftTypesConfigFull(preloadedSettingsRes) {
     return config;
 }
 
-// Ambil array sesi (Masuk/Istirahat Keluar/dst, masing-masing { field, time, ... })
-// yang berlaku untuk 1 baris absensi, berdasarkan string mentah kolom
-// "shift"-nya (mis. "Reguler (Sen-Kam)" atau "SATPAM - Pagi").
-function _sessionsForShiftRaw(configAll, shiftRaw, dateStr) {
+// Ambil GRUP jadwal (dayGroup biasa, ATAU shiftOption Pagi/Siang/Malam untuk
+// Jenis Jadwal rosterCheck) yang berlaku untuk 1 baris absensi - bukan cuma
+// array sesi-nya saja, supaya "batasLambat"/"toleransi" di level grup ini
+// (lihat halaman Jadwal Shift: field "Batas terlambat" & "Toleransi
+// (menit)") ikut bisa dibaca oleh getSessionAttendanceLabel() di bawah,
+// PERSIS sumber yang sama dipakai backend (_determineStatus() di
+// Attendance.gs) buat menentukan status Hadir/Terlambat per hari.
+function _groupForShiftRaw(configAll, shiftRaw, dateStr) {
     const raw = String(shiftRaw || '').trim();
     if (!raw || !configAll) return null;
 
     // 1) Jenis Jadwal biasa, tanpa embel-embel sesi (Reguler, TRD, Operator - 24 Jam, dst)
     if (configAll[raw]) {
-        return _sessionsFromDayGroups(configAll[raw], dateStr);
+        return _groupFromDayGroups(configAll[raw], dateStr);
     }
 
     // 2) Jenis Jadwal dengan shiftOptions (BNA Amuntai/SATPAM Pagi/Siang/
@@ -71,14 +75,14 @@ function _sessionsForShiftRaw(configAll, shiftRaw, dateStr) {
         for (const optKey of Object.keys(opts)) {
             const label = opts[optKey].label || optKey;
             if (raw === `${key} - ${label}`) {
-                return opts[optKey].sessions || null;
+                return opts[optKey] || null;
             }
         }
     }
     return null;
 }
 
-function _sessionsFromDayGroups(shiftConfig, dateStr) {
+function _groupFromDayGroups(shiftConfig, dateStr) {
     if (!shiftConfig || shiftConfig.shiftOptions) return null;
     const dayGroups = shiftConfig.dayGroups || [];
     if (!dayGroups.length) return null;
@@ -86,12 +90,12 @@ function _sessionsFromDayGroups(shiftConfig, dateStr) {
     // Jam 12 siang supaya perhitungan hari-nya aman dari pergeseran tanggal
     // akibat timezone browser (tanggalnya sendiri "YYYY-MM-DD" tanpa jam).
     const d = new Date(`${dateStr}T12:00:00`);
-    if (isNaN(d.getTime())) return dayGroups[0].sessions || null;
+    if (isNaN(d.getTime())) return dayGroups[0] || null;
 
     const dow = d.getDay();
     const group = dayGroups.find(g => (g.days || []).includes(dow)) || dayGroups[0];
     if (group.libur) return null;
-    return group.sessions || null;
+    return group || null;
 }
 
 function _toMinutesSafe(timeStr) {
@@ -104,8 +108,12 @@ function _toMinutesSafe(timeStr) {
 /**
  * Status 1 SESI - dibandingkan ke "jam target" (bukan batas toleransi
  * terlambat) sesi itu di jadwal:
- * - Masuk/Istirahat Keluar/Istirahat Masuk: "Hadir Tepat Waktu" kalau <=
- *   jam target, "Hadir Terlambat" kalau lewat.
+ * - Istirahat Keluar/Istirahat Masuk: "Hadir Tepat Waktu" kalau <= jam
+ *   target, "Hadir Terlambat" kalau lewat (tidak ada batas terlambat &
+ *   toleransi terpisah untuk sesi ini, cuma 1 jam target per sesi).
+ * - Masuk (clockIn): PAKAI 3 TINGKAT sesuai "Batas Terlambat" & "Toleransi
+ *   (menit)" di halaman Jadwal Shift (lihat PERBAIKAN di bawah) - BUKAN
+ *   cuma dibanding jam target sesi seperti field lain.
  * - Pulang (clockOut): SELALU "Pulang Biasa", tidak pernah dinilai
  *   terlambat - pulang lewat jam target itu wajar, bukan pelanggaran.
  * Mengembalikan null kalau nilainya bukan jam (mis. "Cuti Tahunan"/"Izin"/
@@ -116,7 +124,8 @@ function getSessionAttendanceLabel(configAll, shiftRaw, dateStr, field, actualVa
     const actualMinutes = _toMinutesSafe(actualValue);
     if (actualMinutes == null) return null;
 
-    const sessions = _sessionsForShiftRaw(configAll, shiftRaw, dateStr);
+    const group = _groupForShiftRaw(configAll, shiftRaw, dateStr);
+    const sessions = group ? (group.sessions || null) : null;
     const sesi = sessions ? sessions.find(s => s.field === field) : null;
     const targetMinutes = sesi ? _toMinutesSafe(sesi.time) : null;
     if (targetMinutes == null) return null;
@@ -128,6 +137,34 @@ function getSessionAttendanceLabel(configAll, shiftRaw, dateStr, field, actualVa
     // Terlambat.
     if (field === 'clockOut') {
         return { late: false, text: 'Pulang' };
+    }
+
+    // PERBAIKAN: khusus sesi Masuk (clockIn), status dipecah jadi 3 tingkat
+    // memakai "Batas Terlambat" & "Toleransi (menit)" di level GRUP jadwal
+    // (dayGroup biasa, atau shiftOption Pagi/Siang/Malam untuk Jenis
+    // Jadwal rosterCheck) - PERSIS field yang sama diisi admin di halaman
+    // Jadwal Shift, dan PERSIS sumber yang sama dipakai backend
+    // (_determineStatus() di Attendance.gs) buat status Hadir/Terlambat
+    // per hari - supaya batas hitungnya tidak pernah beda antara badge
+    // rekap harian dengan label per-sesi di tabel ini:
+    //   - Mulai Bisa Absen  s/d  Batas Terlambat            -> Hadir Tepat Waktu
+    //   - Batas Terlambat   s/d  Batas Terlambat + Toleransi -> Hadir Terlambat
+    //   - Lewat Batas Terlambat + Toleransi                  -> Terlambat
+    if (field === 'clockIn' && group) {
+        const batasLambatMinutes = _toMinutesSafe(group.batasLambat);
+        if (batasLambatMinutes != null) {
+            const toleransi = typeof group.toleransi === 'number' ? group.toleransi : 0;
+            if (actualMinutes <= batasLambatMinutes) {
+                return { late: false, text: 'Hadir Tepat Waktu' };
+            }
+            if (actualMinutes <= batasLambatMinutes + toleransi) {
+                return { late: true, text: 'Hadir Terlambat' };
+            }
+            return { late: true, veryLate: true, text: 'Terlambat' };
+        }
+        // "Batas Terlambat" tidak diisi di konfigurasi jadwal ini - biarkan
+        // jatuh ke logika lama di bawah (dibanding Jam Target sesi saja)
+        // supaya tetap ada labelnya, bukan kosong sama sekali.
     }
 
     return actualMinutes > targetMinutes
