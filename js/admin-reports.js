@@ -688,7 +688,10 @@ const adminReports = {
                     const sessionStatusHtml = (field, actualValue) => {
                         const lbl = getSessionAttendanceLabel(this.shiftTypesConfigFull, row.shift, row.date, field, actualValue);
                         if (!lbl) return '';
-                        const color = lbl.late ? '#D97706' : '#059669';
+                        // PERBAIKAN: "Terlambat" (lewat batas toleransi) dikasih
+                        // merah, beda dari "Hadir Terlambat" (masih dalam
+                        // toleransi, kuning) - lihat session-status.js.
+                        const color = lbl.veryLate ? '#DC2626' : (lbl.late ? '#D97706' : '#059669');
                         return `<br><small style="color:${color};font-weight:600;font-size:0.68rem;">${lbl.text}</small>`;
                     };
 
@@ -834,7 +837,8 @@ const adminReports = {
                     const sessionStatusHtmlM = (field, actualValue) => {
                         const lbl = getSessionAttendanceLabel(this.shiftTypesConfigFull, row.shift, row.date, field, actualValue);
                         if (!lbl) return '';
-                        const color = lbl.late ? '#D97706' : '#059669';
+                        // PERBAIKAN: sama seperti versi tabel desktop di atas.
+                        const color = lbl.veryLate ? '#DC2626' : (lbl.late ? '#D97706' : '#059669');
                         return `<br><small style="color:${color};font-weight:600;font-size:0.68rem;">${lbl.text}</small>`;
                     };
 
