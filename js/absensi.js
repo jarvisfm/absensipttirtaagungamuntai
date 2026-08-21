@@ -32,10 +32,38 @@ const absensi = {
         if (btn) btn.disabled = true;
     });
 
-    await this.loadAccessInfo();
-    this.updateShiftInfoCard();
-    await this.loadTodayAttendance();
-    await this.loadAttendanceHistory();
+    // PERBAIKAN: tabel "Riwayat Absensi" ikut direset ke status loading di
+    // sini juga - supaya setiap kali halaman Absensi dibuka/dibuka ULANG
+    // (bukan cuma pertama kali app dimuat), user tidak sempat melihat data
+    // riwayat dari kunjungan SEBELUMNYA (yang bisa saja sudah basi, mis.
+    // baru saja absen tapi tabel belum ikut ter-refresh) sebelum data yang
+    // baru selesai diambil dari server. Cuma manipulasi DOM biasa (tanpa
+    // request/komputasi tambahan), jadi tidak menambah beban ke server.
+    const historyBody = document.getElementById('attendance-history');
+    if (historyBody) {
+        historyBody.innerHTML = '<tr><td colspan="6"><div class="history-empty"><i class="fas fa-spinner fa-spin"></i><span>Memuat riwayat absensi...</span></div></td></tr>';
+    }
+
+    // PERBAIKAN PERFORMA: loadAttendanceHistory() (tabel Riwayat Absensi)
+    // TIDAK butuh data dari loadAccessInfo()/loadTodayAttendance() sama
+    // sekali (sudah dicek: _historyData cuma dipakai fungsi-fungsi terkait
+    // riwayat sendiri) - jadi dijalankan BERSAMAAN (Promise.all), bukan
+    // menunggu antre di belakang 2 request lain. loadAccessInfo() dan
+    // loadTodayAttendance() TETAP berurutan (tidak ikut diparalelkan)
+    // karena loadTodayAttendance() betulan baca this.accessInfo untuk
+    // menentukan state 'libur' - kalau ikut diparalelkan, sesekali bisa
+    // salah baca accessInfo yang belum sempat terisi (race condition).
+    // Jumlah request ke server SAMA PERSIS seperti sebelumnya (3 kali) -
+    // cuma waktu TUNGGU-nya yang lebih pendek karena tidak lagi antre satu
+    // per satu, jadi tidak menambah beban ke server sama sekali.
+    await Promise.all([
+        (async () => {
+            await this.loadAccessInfo();
+            this.updateShiftInfoCard();
+            await this.loadTodayAttendance();
+        })(),
+        this.loadAttendanceHistory()
+    ]);
     this.initLiveClock();
     this.initButtons();
     this.renderTimeline();
