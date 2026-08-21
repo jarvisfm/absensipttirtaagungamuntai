@@ -633,21 +633,22 @@
                                         </tr>
                                     </thead>
                                     <tbody id="attendance-history">
+                                        <!-- PERBAIKAN: sebelumnya di sini ada 2 baris CONTOH statis
+                                             (tanggal Maret 2026 palsu, sekadar mockup tampilan) yang
+                                             kelihatan dulu setiap kali halaman Absensi dibuka/dibuka
+                                             ulang, SEBELUM data asli selesai dimuat dari server -
+                                             kelihatan seperti data absen sungguhan padahal bukan.
+                                             Diganti jadi indikator "Memuat..." saja - JS di absensi.js
+                                             (renderHistory) akan menimpa isi <tbody> ini begitu data
+                                             asli sudah siap, jadi baris di bawah ini murni tampilan
+                                             awal, tidak perlu request/logic tambahan apa pun. -->
                                         <tr>
-                                            <td>06 Mar 2026</td>
-                                            <td>Pagi</td>
-                                            <td>07:55</td>
-                                            <td>17:15</td>
-                                            <td>9j 20m</td>
-                                            <td><span class="badge-status success">Tepat Waktu</span></td>
-                                        </tr>
-                                        <tr>
-                                            <td>05 Mar 2026</td>
-                                            <td>Pagi</td>
-                                            <td>08:10</td>
-                                            <td>17:05</td>
-                                            <td>8j 55m</td>
-                                            <td><span class="badge-status warning">Terlambat</span></td>
+                                            <td colspan="6">
+                                                <div class="history-empty">
+                                                    <i class="fas fa-spinner fa-spin"></i>
+                                                    <span>Memuat riwayat absensi...</span>
+                                                </div>
+                                            </td>
                                         </tr>
                                     </tbody>
                                 </table>
