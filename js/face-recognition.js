@@ -329,7 +329,24 @@ const faceRecognition = {
             return false;
         }
         try {
-            const MODEL_URL = 'https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js@master/weights';
+            // PERBAIKAN PERFORMA: URL model sebelumnya pakai "@master" (nama
+            // branch), bukan versi/tag yang tetap. jsDelivr TIDAK
+            // menganggap branch seperti ini "aman disimpan lama" (karena
+            // isinya bisa berubah kapan saja kalau ada commit baru), jadi
+            // file model (termasuk faceRecognitionNet yang ~6MB) berisiko
+            // di-download ULANG dari internet oleh browser tiap beberapa
+            // saat, bukan dipakai dari cache - lambat, apalagi di jaringan
+            // kantor/seluler yang pas-pasan. "@0.22.2" adalah versi
+            // TERAKHIR yang pernah dirilis project face-api.js (project ini
+            // sudah tidak aktif dikembangkan lagi sejak 2020, jadi model
+            // yang dipakai sekarang pun sebenarnya sudah versi itu juga -
+            // cuma alamatnya yang belum di-pin) - dengan tag versi yang
+            // tetap begini, jsDelivr menyimpannya sebagai cache PERMANEN
+            // (immutable), jadi user ke-2/ke-3/dst yang pernah buka absen
+            // sebelumnya (dari HP mana pun, bukan cuma HP sendiri, karena
+            // ini cache CDN publik, bukan cache pribadi per-HP) akan dapat
+            // model ini nyaris instan.
+            const MODEL_URL = 'https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js@0.22.2/weights';
             await Promise.all([
                 faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
                 faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
@@ -362,7 +379,12 @@ const faceRecognition = {
         if (this.recognitionModelsLoaded) return true;
         if (typeof faceapi === 'undefined') return false;
         try {
-            const MODEL_URL = 'https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js@master/weights';
+            // PERBAIKAN PERFORMA: sama seperti di _loadFaceModels() - "@0.22.2"
+            // (versi tetap) menggantikan "@master" (branch, bisa berubah
+            // isinya) supaya jsDelivr menyimpan cache PERMANEN untuk file
+            // model recognition ini, yang paling besar (faceRecognitionNet
+            // ~6MB, paling berat di antara semua model yang dipakai).
+            const MODEL_URL = 'https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js@0.22.2/weights';
             // Landmark sudah dimuat lewat _loadFaceModels() - di sini tinggal
             // muat ulang juga (aman, cache internal face-api.js) jaga-jaga
             // kalau dipanggil dari alur lain di masa depan.
