@@ -316,17 +316,19 @@ const absensi = {
     /**
      * Bikin baris SEMU (bukan dari data Attendance asli) untuk tanggal yang
      * SUDAH LEWAT di bulan yang lagi ditampilkan, tapi memang tidak ada
-     * jadwal absen sama sekali - libur mingguan (Sabtu/Minggu dkk sesuai
-     * dayGroup.libur karyawan) ATAU tanggal merah nasional (lihat
-     * checkAttendanceAccess() di Attendance.gs, logikanya SENGAJA
-     * disamakan persis di sini: dayGroup.libur DULU baru cek tanggal
-     * merah, dan HANYA utk jadwal dayGroups biasa - rosterCheck dilewati
-     * total karena Operator/SATPAM/dst memang tidak punya konsep "libur
-     * tetap").
-     * Tanpa ini, hari-hari itu simply TIDAK ADA barisnya sama sekali di
-     * tabel (karena memang tidak pernah ada baris Attendance yang
-     * ditulis untuk hari libur biasa), jadi user tidak tahu kenapa
-     * "bolong".
+     * jadwal absen sama sekali - HANYA untuk tanggal merah nasional (lihat
+     * checkAttendanceAccess() di Attendance.gs) - HANYA utk jadwal
+     * dayGroups biasa, rosterCheck dilewati total karena Operator/SATPAM/
+     * dst memang tidak punya konsep "libur tetap".
+     *
+     * PERBAIKAN: baris libur MINGGUAN (Sabtu/Minggu dkk sesuai
+     * dayGroup.libur karyawan) SENGAJA TIDAK DIBUATKAN baris lagi di sini -
+     * dulu ditampilkan sebagai baris "Libur (Sabtu)"/"Libur (Minggu)" di
+     * tabel Riwayat Absensi, sekarang dihapus supaya hari libur mingguan
+     * yang rutin & terjadi berulang setiap minggu itu tidak lagi memenuhi
+     * tabel Riwayat Absensi. Tanggal merah (hari libur NASIONAL, jarang &
+     * tidak rutin) tetap ditampilkan seperti sebelumnya karena informasinya
+     * tetap relevan untuk diketahui user.
      */
     _buildSyntheticLiburRows(existingRows, selectedMonth, shiftTypesConfigFull, holidayDatesForYear) {
         if (!selectedMonth || !shiftTypesConfigFull) return [];
@@ -351,18 +353,15 @@ const absensi = {
             if (todayYMD && dateStr > todayYMD) break; // jangan tampilkan hari yang belum lewat
             if (existingDates.has(dateStr)) continue;  // sudah ada baris asli (absen/Izin/Cuti/dll)
 
-            const dayOfWeek = new Date(year, month - 1, day).getDay();
-            const dayGroup = (shiftConfig.dayGroups || []).find(g => (g.days || []).includes(dayOfWeek));
-            const isWeeklyLibur = !!(dayGroup && dayGroup.libur);
             const holidayName = (holidayDatesForYear || {})[dateStr];
-            if (!isWeeklyLibur && !holidayName) continue;
+            if (!holidayName) continue; // bukan tanggal merah - lewati (termasuk libur mingguan biasa)
 
             rows.push({
                 date: dateStr,
                 shift: myShift,
                 _syntheticLibur: true,
-                _liburLabel: holidayName ? ('Tanggal Merah: ' + holidayName) : ('Libur (' + (dayGroup.label || '') + ')'),
-                _liburIsHoliday: !!holidayName
+                _liburLabel: 'Tanggal Merah: ' + holidayName,
+                _liburIsHoliday: true
             });
         }
         return rows;
