@@ -135,6 +135,9 @@ const auth = {
                     golongan: result.data.golongan || '',
                     sessionToken: result.data.sessionToken || '',
                     operatorScheduleUnit: result.data.operatorScheduleUnit || '',
+                    // TAMBAHAN: dipakai _maybeOfferPasswordChange() di bawah -
+                    // lihat mustChangePassword di Auth.gs (handleLogin).
+                    mustChangePassword: !!result.data.mustChangePassword,
                     loginTime: new Date().toISOString(),
                     expiresAt: Date.now() + this.SESSION_DURATION_MS
                 };
@@ -158,7 +161,16 @@ const auth = {
             this.startSessionWatcher();
 
             toast.success(`Selamat datang, ${user.name}!`);
-            this._maybeOfferBiometricEnrollment(username, password); // NEW
+            // TAMBAHAN: prioritaskan ajakan ganti password (keamanan) di atas
+            // ajakan aktifkan sidik jari - supaya 2 modal tidak numpuk
+            // bersamaan pas login pertama kali di 1 perangkat baru. Ajakan
+            // sidik jari tetap muncul seperti biasa begitu password sudah
+            // tidak default lagi.
+            if (user.mustChangePassword) {
+                this._maybeOfferPasswordChange();
+            } else {
+                this._maybeOfferBiometricEnrollment(username, password); // NEW
+            }
         } catch (error) {
             console.error('Login error:', error);
             toast.error('Terjadi kesalahan saat login');
@@ -787,6 +799,43 @@ const auth = {
         }
     },
 
+    // Dipanggil dari handleLogin() setelah login sukses, KHUSUS kalau
+    // password akun ini masih persis nilai default ('1234' - lihat
+    // mustChangePassword di Auth.gs). Beda dengan
+    // _maybeOfferBiometricEnrollment() di atas: TIDAK ADA status "sudah
+    // pernah ditolak" yang disimpan di HP - modal ini akan muncul lagi di
+    // setiap login SELAMA password masih default, dan berhenti muncul
+    // sama sekali begitu password sudah diganti (server yang menentukan
+    // lewat mustChangePassword, dicek ulang tiap login - bukan status
+    // lokal per-HP).
+    _maybeOfferPasswordChange() {
+        const modal = document.getElementById('modal-change-password-required');
+        if (modal) modal.style.display = 'flex';
+    },
+
+    dismissChangePasswordPrompt() {
+        const modal = document.getElementById('modal-change-password-required');
+        if (modal) modal.style.display = 'none';
+        // Sengaja TIDAK menyimpan status apa pun di sini (lihat komentar di
+        // _maybeOfferPasswordChange di atas) - "Nanti Saja" cuma menutup
+        // modal untuk sesi login ini saja.
+    },
+
+    // Tombol "Ganti Sekarang" - arahkan ke Edit Profil > tab Akun, tempat
+    // form ganti password (#pf-password) sudah ada.
+    goChangePasswordNow() {
+        const modal = document.getElementById('modal-change-password-required');
+        if (modal) modal.style.display = 'none';
+        router.navigate('profile');
+        // profileManager.init() (dipicu oleh router.navigate di atas) selalu
+        // membuka tab "profil" duluan sebagai default - setTimeout(0) di
+        // sini memastikan switchTab('akun') dijalankan SESUDAH itu, bukan
+        // ketiban lagi olehnya.
+        setTimeout(() => {
+            if (window.profileManager && profileManager.switchTab) profileManager.switchTab('akun');
+        }, 0);
+    },
+
     // Dipanggil dari handleLogin() setelah login username/password sukses -
     // tawarkan aktifkan sidik jari kalau perangkat mendukung & belum
     // pernah diaktifkan/ditolak sebelumnya di HP ini.
@@ -1003,6 +1052,9 @@ const auth = {
                 golongan: result.data.golongan || '',
                 sessionToken: result.data.sessionToken || '',
                 operatorScheduleUnit: result.data.operatorScheduleUnit || '',
+                // TAMBAHAN: sama seperti handleLogin() - lihat mustChangePassword
+                // di Auth.gs.
+                mustChangePassword: !!result.data.mustChangePassword,
                 loginTime: new Date().toISOString(),
                 expiresAt: Date.now() + this.SESSION_DURATION_MS
             };
@@ -1014,6 +1066,11 @@ const auth = {
             this.showApp();
             this.startSessionWatcher();
             toast.success(`Selamat datang, ${user.name}!`);
+            // TAMBAHAN: sama seperti handleLogin() - kalau login lewat sidik
+            // jari ini kebetulan pakai akun yang password-nya masih default
+            // (mis. sengaja belum diganti walau sudah aktifkan sidik jari),
+            // tetap diingatkan.
+            if (user.mustChangePassword) this._maybeOfferPasswordChange();
         } catch (error) {
             console.error('Login error setelah verifikasi sidik jari:', error);
             toast.error('Terjadi kesalahan saat login');
