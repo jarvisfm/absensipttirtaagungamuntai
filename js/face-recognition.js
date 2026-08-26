@@ -118,7 +118,7 @@ const faceRecognition = {
     _detectLoopId: null,
     _leafletMap: null,
     _outOfRadiusNote: null,
-    _outOfRadiusPhoto: null, // base64 foto dokumentasi (opsional)
+    _outOfRadiusPhoto: null, // base64 foto dokumentasi (wajib diisi - lihat submitOutOfRadiusNote)
     _outOfRadiusContext: null,
 
     init(action) {
@@ -1031,6 +1031,15 @@ const faceRecognition = {
             return;
         }
 
+        // TAMBAHAN: Foto Dokumentasi sekarang WAJIB diisi (sebelumnya
+        // opsional) - lihat this._outOfRadiusPhoto yang diisi oleh
+        // previewOutOfRadiusPhoto() setelah user mengambil gambar lewat
+        // tombol "Ambil Gambar".
+        if (!this._outOfRadiusPhoto) {
+            toast.error('Foto dokumentasi wajib diambil sebelum bisa absen.');
+            return;
+        }
+
         this._outOfRadiusNote = note;
         this.locationVerified = true;
 
@@ -1661,7 +1670,10 @@ const faceRecognition = {
                             userName: currentUser?.name || '',
                             type: this._normalizeAttendanceType(this.currentAction),
                             note: this._outOfRadiusNote,
-                            photo: this._outOfRadiusPhoto || '', // opsional
+                            // Sudah dipastikan wajib ada isinya oleh validasi di
+                            // submitOutOfRadiusNote() sebelum modal ini ditutup -
+                            // fallback '' di sini murni jaga-jaga saja.
+                            photo: this._outOfRadiusPhoto || '',
                             lat: ctx.userLat,
                             lng: ctx.userLng,
                             distance: ctx.distance,
