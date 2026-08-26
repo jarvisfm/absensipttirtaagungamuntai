@@ -3271,6 +3271,39 @@
         </div>
     </div>
 
+    <!-- TAMBAHAN: ajakan ganti password setelah login, KHUSUS kalau
+         password akun ini masih persis nilai default ('1234') - lihat
+         mustChangePassword di Auth.gs. Gaya visual sengaja disamakan
+         dengan modal "Aktifkan Login Sidik Jari" di atas. Beda dengan
+         modal sidik jari (yang punya status "sudah pernah ditolak" di
+         localStorage, jadi tidak muncul lagi), modal ini SENGAJA tidak
+         punya status tolak permanen - akan muncul lagi di login
+         berikutnya SELAMA password masih default, dan otomatis berhenti
+         muncul sama sekali begitu password sudah diganti (dicek ulang
+         dari server tiap login, bukan disimpan di HP). -->
+    <div class="modal-overlay" id="modal-change-password-required" style="display:none;">
+        <div class="modal-container" style="max-width:380px;">
+            <div style="padding:2rem 1.5rem 1.5rem; text-align:center;">
+                <div style="width:72px;height:72px;border-radius:50%;background:rgba(220,38,38,0.1);display:flex;align-items:center;justify-content:center;margin:0 auto 1.25rem;">
+                    <i class="fas fa-key" style="font-size:1.9rem;color:#DC2626;"></i>
+                </div>
+                <h3 style="font-size:1.15rem;font-weight:700;margin-bottom:0.4rem;color:var(--text-primary);">Password Anda Masih Default</h3>
+                <p style="color:var(--text-muted);font-size:0.9rem;margin-bottom:1.75rem;">Demi keamanan akun, segera ganti password bawaan Anda dengan password sendiri yang lebih aman.</p>
+                <div style="display:flex;gap:0.75rem;">
+                    <button type="button" onclick="auth.dismissChangePasswordPrompt()"
+                        style="flex:1;padding:0.75rem;border-radius:8px;border:1px solid var(--border-color);background:var(--bg-secondary);color:var(--text-primary);font-weight:600;cursor:pointer;">
+                        Nanti Saja
+                    </button>
+                    <button type="button" onclick="auth.goChangePasswordNow()"
+                        style="flex:1;padding:0.75rem;border-radius:8px;border:none;background:var(--color-primary-gradient);color:#fff;font-weight:600;cursor:pointer;">
+                        <i class="fas fa-key"></i> Ganti Sekarang
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
     <!-- Modal konfirmasi password sebelum aktifkan sidik jari lewat menu
          Edit Profil > Akun (toggle "Login Sidik Jari"). -->
     <div class="modal-overlay" id="modal-biometric-confirm-password" style="display:none;">
