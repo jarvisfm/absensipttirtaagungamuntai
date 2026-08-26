@@ -54,6 +54,25 @@ const faceRecognition = {
     // tersimpan.
     FACE_MATCH_CONFIDENT_ZONE: 0.45,
     _lastFaceMatch: null,
+    // ---- Tuning deteksi wajah live (kotak hijau) ----
+    // PERBAIKAN (2026-08-27): beberapa karyawan melaporkan kamera menyala
+    // normal & wajah kelihatan jelas di layar, tapi kotak deteksi tetap
+    // kuning (belum terdeteksi) - inputSize 224 & scoreThreshold 0.5
+    // (nilai default face-api.js) ternyata terlalu ketat untuk kondisi
+    // pencahayaan/kamera HP yang kurang ideal. inputSize dinaikkan ke 320
+    // (gambar dianalisis lebih detail, sedikit lebih berat tapi masih
+    // real-time) dan scoreThreshold diturunkan ke 0.4 (lebih toleran)
+    // supaya wajah yang sebenarnya sudah ada di frame tidak terus-menerus
+    // dianggap "tidak ada". Dipakai SAMA di semua pemanggilan
+    // detectSingleFace (loop live, capture final, pencocokan identitas)
+    // supaya konsisten.
+    FACE_DETECT_INPUT_SIZE: 320,
+    FACE_DETECT_SCORE_THRESHOLD: 0.4,
+    // Berapa kali berturut-turut boleh "gagal" terdeteksi sebelum kotak
+    // beneran dianggap kuning lagi - meredam kedip-kedip hijau/kuning yang
+    // dulu terjadi tiap kali ada 1 frame yang kebetulan gagal (motion
+    // blur, HP sempat lag, dsb) padahal wajahnya tetap di situ.
+    _missedDetectFrames: 0,
     // ---- Liveness check (deteksi menoleh kepala) ----
     // Mencegah orang "titip absen" cuma dengan menodongkan FOTO/screenshot
     // wajah orang lain ke kamera - foto diam tidak akan pernah bisa
@@ -453,7 +472,7 @@ const faceRecognition = {
             });
 
             const result = await faceapi
-                .detectSingleFace(img, new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.5 }))
+                .detectSingleFace(img, new faceapi.TinyFaceDetectorOptions({ inputSize: this.FACE_DETECT_INPUT_SIZE, scoreThreshold: this.FACE_DETECT_SCORE_THRESHOLD }))
                 .withFaceLandmarks()
                 .withFaceDescriptor();
 
@@ -486,7 +505,7 @@ const faceRecognition = {
 
         try {
             const result = await faceapi
-                .detectSingleFace(this.canvas, new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.5 }))
+                .detectSingleFace(this.canvas, new faceapi.TinyFaceDetectorOptions({ inputSize: this.FACE_DETECT_INPUT_SIZE, scoreThreshold: this.FACE_DETECT_SCORE_THRESHOLD }))
                 .withFaceLandmarks()
                 .withFaceDescriptor();
 
@@ -539,17 +558,33 @@ const faceRecognition = {
                     // perlu landmark lagi (lebih ringan), cukup cek wajah
                     // masih ada di frame sampai foto diambil.
                     const result = await faceapi
-                        .detectSingleFace(this.video, new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.5 }))
+                        .detectSingleFace(this.video, new faceapi.TinyFaceDetectorOptions({ inputSize: this.FACE_DETECT_INPUT_SIZE, scoreThreshold: this.FACE_DETECT_SCORE_THRESHOLD }))
                         .withFaceLandmarks(true); // true = pakai model landmark "tiny" (ringan) - lihat _loadFaceModels
                     detected = !!result;
                     landmarks = result ? result.landmarks : null;
                 } else {
                     const result = await faceapi
-                        .detectSingleFace(this.video, new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.5 }));
+                        .detectSingleFace(this.video, new faceapi.TinyFaceDetectorOptions({ inputSize: this.FACE_DETECT_INPUT_SIZE, scoreThreshold: this.FACE_DETECT_SCORE_THRESHOLD }));
                     detected = !!result;
                 }
             } catch (e) {
                 detected = false;
+            }
+
+            // Redam kedip-kedip hijau/kuning: kalau frame kali ini "gagal"
+            // padahal frame sebelumnya berhasil, jangan langsung dianggap
+            // wajah hilang - baru dianggap benar-benar tidak ada kalau
+            // gagal 2 kali berturut-turut. Wajah yang memang sudah pergi
+            // dari kamera tetap akan terdeteksi hilang dalam waktu <300ms,
+            // jadi tidak mengurangi keamanan (liveness/kecocokan wajah
+            // tetap dicek terpisah, tidak terpengaruh oleh ini).
+            if (detected) {
+                this._missedDetectFrames = 0;
+            } else {
+                this._missedDetectFrames = (this._missedDetectFrames || 0) + 1;
+                if (this._missedDetectFrames <= 1 && this.faceDetected) {
+                    detected = true;
+                }
             }
 
             this.faceDetected = detected;
@@ -1397,7 +1432,7 @@ const faceRecognition = {
                     try {
                         const result = await faceapi.detectSingleFace(
                             this.canvas,
-                            new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.5 })
+                            new faceapi.TinyFaceDetectorOptions({ inputSize: this.FACE_DETECT_INPUT_SIZE, scoreThreshold: this.FACE_DETECT_SCORE_THRESHOLD })
                         );
                         faceOk = !!result;
                     } catch (e) {
@@ -1494,11 +1529,21 @@ const faceRecognition = {
             // Stop camera
             this.stopCamera();
 
+            // Simpan foto sebagai JPEG terkompresi (bukan PNG mentah) - PNG
+            // dari video 1280x720 bisa beberapa MB, itu yang bikin proses
+            // "upload ke server & simpan ke Drive" (Attendance.gs) kerasa
+            // lama sekali walau di layar sudah kelihatan "Wajah
+            // Terverifikasi". JPEG kualitas 0.85 ukurannya jauh lebih kecil
+            // tapi masih cukup jelas untuk kebutuhan absensi/tinjauan admin.
+            // Dihitung SEKALI di sini lalu dipakai juga di confirmAttendance()
+            // (this._capturedPhotoDataUrl) supaya tidak di-encode dua kali.
+            this._capturedPhotoDataUrl = this.canvas.toDataURL('image/jpeg', 0.85);
+
             // Show captured photo
             const preview = document.getElementById('camera-preview');
             if (preview) {
                 preview.innerHTML = `
-                    <img src="${this.canvas.toDataURL('image/png')}" class="captured-photo" alt="Captured">
+                    <img src="${this._capturedPhotoDataUrl}" class="captured-photo" alt="Captured">
                     <div class="verification-status show" id="verification-status">
                         <div class="status-icon">
                             <i class="fas fa-check-circle"></i>
@@ -1540,6 +1585,8 @@ const faceRecognition = {
         this._autoCaptureNextAllowedAt = 0;
         this._mismatchToastShown = false;
         this._lastFaceMatch = null;
+        this._capturedPhotoDataUrl = null;
+        this._missedDetectFrames = 0;
 
         // Reset preview
         const preview = document.getElementById('camera-preview');
@@ -1625,7 +1672,7 @@ const faceRecognition = {
                 longitude: this.position.coords.longitude,
                 accuracy: this.position.coords.accuracy
             },
-            photo: this.canvas ? this.canvas.toDataURL('image/png') : null,
+            photo: this._capturedPhotoDataUrl || (this.canvas ? this.canvas.toDataURL('image/jpeg', 0.85) : null),
             // Skor kecocokan wajah (jarak Euclidean, makin kecil makin mirip)
             // - dikosongkan kalau pencocokan tidak sempat dilakukan sama
             // sekali (fail-open, lihat _getReferenceDescriptor). Penanda
@@ -1687,7 +1734,13 @@ const faceRecognition = {
                     this._outOfRadiusContext = null;
                 }
 
-                setTimeout(() => router.navigate('absensi'), 500);
+                // Sebelumnya ada jeda buatan 500ms di sini sebelum pindah
+                // halaman - dihapus (toast tetap muncul normal karena
+                // #toast-container ada di luar area yang diganti router,
+                // lihat index.html) supaya begitu backend benar-benar
+                // selesai menyimpan, langsung kembali ke menu Absensi tanpa
+                // nunggu tambahan yang tidak perlu.
+                router.navigate('absensi');
             } catch (error) {
                 console.error('Processing error:', error);
                 toast.error('Terjadi kesalahan saat memproses data.');
