@@ -491,20 +491,40 @@ const jadwalJagaOperator = {
         if (!wrap) return;
         const days = this._daysInMonth();
         const teams = this.data.teams || {};
-        const teamEntries = Object.keys(teams).map(code => `${code} = ${teams[code]}`).join('\n');
+        const teamCodes = Object.keys(teams);
+        const teamEntries = teamCodes.map(code => `${code} = ${teams[code]}`).join('\n');
 
+        // Kolom "Tim/Regu Piket" - SEBELUMNYA teks bebas (admin ketik manual
+        // "(A+B) (C+D)"), SEKARANG checkbox per kode tim (sama seperti pola
+        // BNA Amuntai) supaya admin tinggal centang, tidak perlu ingat/ketik
+        // format kurungnya sendiri. Kode checkbox-nya diambil langsung dari
+        // "Daftar Tim/Regu" di atas - kalau daftarnya masih kosong, tampil
+        // pesan supaya diisi dulu. Data tersimpan sebagai ARRAY kode tim
+        // (mis. ["A+B","C+D"]), beda dari sebelumnya yang STRING - lihat
+        // _bindTeamCheckboxes() & _formatTeamsForPrint().
         let rows = '';
         for (let d = 1; d <= days; d++) {
             const info = this._dayInfo(d);
             const rowClass = this._rowClass(info.dow);
-            const dayData = this.data.days[d] || { teams: '', keterangan: '' };
+            const dayData = this.data.days[d] || { teams: [], keterangan: '' };
             if (!this.data.days[d]) this.data.days[d] = dayData;
+            const selectedCodes = Array.isArray(dayData.teams) ? dayData.teams.map(String) : [];
+
+            const teamsFieldHtml = teamCodes.length
+                ? `<div class="jjo-checkbox-group" data-day="${d}">
+                    ${teamCodes.map(code => `
+                        <label class="jjo-checkbox-item">
+                            <input type="checkbox" class="jjo-team-checkbox" data-day="${d}" value="${this._escAttr(code)}" ${selectedCodes.includes(code) ? 'checked' : ''}>
+                            <span>${this._escAttr(code)}${teams[code] ? ' (' + this._escAttr(teams[code]) + ')' : ''}</span>
+                        </label>
+                    `).join('')}
+                </div>`
+                : `<div class="jjo-no-emp">Isi dulu Daftar Tim/Regu di atas</div>`;
 
             rows += `<tr class="${rowClass}">
                 <td>${d}</td>
                 <td>${info.hariName}<br>${info.tanggalStr}</td>
-                <td><input type="text" class="jjo-input" data-day="${d}" data-field="teams"
-                        value="${this._escAttr(dayData.teams || '')}" placeholder="mis. (A+B) (C+D)"></td>
+                <td>${teamsFieldHtml}</td>
                 <td><input type="text" class="jjo-input" data-day="${d}" data-field="keterangan"
                         value="${this._escAttr(dayData.keterangan || '')}" placeholder="Catatan (opsional)"></td>
             </tr>`;
@@ -512,12 +532,12 @@ const jadwalJagaOperator = {
 
         wrap.innerHTML = `
             <div class="jjo-team-editor">
-                <label>Daftar Tim/Regu (format 1 baris = "KODE = Nama1, Nama2"; kode dipakai di kolom Petugas)</label>
+                <label>Daftar Tim/Regu (format 1 baris = "KODE = Nama1, Nama2"; kode dipakai di kolom Tim/Regu Piket)</label>
                 <textarea id="jjo-teams-textarea" rows="3" placeholder="A+B = Hendri, Wahyu Hidayat&#10;C+D = Rahmadi, Alwi">${teamEntries}</textarea>
             </div>
             <table class="jjo-table">
                 <thead>
-                    <tr><th>No</th><th>Hari, Tanggal</th><th>Tim/Regu Piket</th><th>Keterangan</th></tr>
+                    <tr><th>No</th><th>Hari, Tanggal</th><th>Tim/Regu Piket <small>(centang boleh lebih dari 1)</small></th><th>Keterangan</th></tr>
                 </thead>
                 <tbody>${rows}</tbody>
             </table>
@@ -537,9 +557,46 @@ const jadwalJagaOperator = {
                 });
                 this.data.teams = parsed;
                 this._markDirty();
+                // Kode tim bisa berubah (ditambah/dihapus) tiap kali diketik -
+                // refresh checkbox di tiap baris supaya ikut sinkron. HANYA
+                // isi ".jjo-checkbox-group" yang diganti (bukan wrap.innerHTML
+                // penuh), supaya textarea ini sendiri TIDAK kehilangan fokus/
+                // posisi kursor tiap kali mengetik.
+                this._refreshTeamCheckboxGroups();
             };
         }
     },
+
+    /**
+     * Regenerasi isi tiap ".jjo-checkbox-group" (kolom Tim/Regu Piket) sesuai
+     * daftar kode tim TERBARU - dipanggil saat textarea "Daftar Tim/Regu"
+     * diketik ulang (lihat _renderTimOncall). Sengaja TIDAK me-render ulang
+     * wrap.innerHTML penuh (itu akan bikin textarea kehilangan fokus tiap
+     * huruf diketik) - cukup ganti isi tiap grup checkbox-nya saja.
+     */
+    _refreshTeamCheckboxGroups() {
+        const teams = this.data.teams || {};
+        const teamCodes = Object.keys(teams);
+        document.querySelectorAll('#jjo-table-wrap .jjo-checkbox-group[data-day]').forEach(groupEl => {
+            const day = groupEl.dataset.day;
+            const dayData = this.data.days[day] || {};
+            const selectedCodes = Array.isArray(dayData.teams) ? dayData.teams.map(String) : [];
+            groupEl.innerHTML = teamCodes.map(code => `
+                <label class="jjo-checkbox-item">
+                    <input type="checkbox" class="jjo-team-checkbox" data-day="${day}" value="${this._escAttr(code)}" ${selectedCodes.includes(code) ? 'checked' : ''}>
+                    <span>${this._escAttr(code)}${teams[code] ? ' (' + this._escAttr(teams[code]) + ')' : ''}</span>
+                </label>
+            `).join('');
+        });
+        this._bindTeamCheckboxes();
+    },
+
+    /** Format array kode tim TERSIMPAN (mis. ["A+B","C+D"]) jadi teks cetak "(A+B) (C+D)" - dipakai di printSchedule(). */
+    _formatTeamsForPrint(val) {
+        if (Array.isArray(val)) return val.length ? val.map(c => `(${c})`).join(' ') : '-';
+        return val || '-'; // data lama (masih format string bebas) - tampilkan apa adanya
+    },
+
 
     _bindInputs() {
         document.querySelectorAll('#jjo-table-wrap .jjo-input').forEach(input => {
@@ -596,6 +653,31 @@ const jadwalJagaOperator = {
                     .filter(el => el.checked)
                     .map(el => el.value);
                 this.data.days[day].sessions[session] = checkedIds;
+                this._markDirty();
+            };
+        });
+
+        // Checkbox pilih tim/regu piket TRD - lihat _bindTeamCheckboxes().
+        this._bindTeamCheckboxes();
+    },
+
+    /**
+     * Checkbox kolom "Tim/Regu Piket" (khusus unit TRD, pattern 'tim-oncall')
+     * - dipanggil dari _bindInputs() (render awal) DAN dari
+     * _refreshTeamCheckboxGroups() (tiap kali daftar kode tim diketik ulang),
+     * karena keduanya sama-sama membuat elemen checkbox baru yang perlu
+     * listener baru (innerHTML lama otomatis kehilangan listener lamanya).
+     */
+    _bindTeamCheckboxes() {
+        document.querySelectorAll('#jjo-table-wrap .jjo-team-checkbox').forEach(cb => {
+            cb.onchange = () => {
+                const day = cb.dataset.day;
+                if (!this.data.days[day]) this.data.days[day] = {};
+                const groupSelector = `.jjo-team-checkbox[data-day="${day}"]`;
+                const checkedCodes = Array.from(document.querySelectorAll(groupSelector))
+                    .filter(el => el.checked)
+                    .map(el => el.value);
+                this.data.days[day].teams = checkedCodes;
                 this._markDirty();
             };
         });
@@ -726,10 +808,10 @@ const jadwalJagaOperator = {
         // tim-oncall
         for (let d = 1; d <= days; d++) {
             const info = this._dayInfo(d);
-            const dayData = this.data.days[d] || { teams: '', keterangan: '' };
+            const dayData = this.data.days[d] || { teams: [], keterangan: '' };
             rows += `<tr>
                 <td>${d}</td><td>${info.hariName}<br>${info.tanggalStr}</td>
-                <td>${this._escAttr(dayData.teams || '-')}</td>
+                <td>${this._escAttr(this._formatTeamsForPrint(dayData.teams))}</td>
                 <td>${this._escAttr(dayData.keterangan || '')}</td>
             </tr>`;
         }
