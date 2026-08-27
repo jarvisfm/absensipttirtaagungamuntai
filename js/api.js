@@ -584,6 +584,9 @@ const api = {
     async uploadFotoKaryawan(id, base64Data, mimeType) {
         return this.request('uploadFotoKaryawan', { id, base64Data, mimeType });
     },
+    async deleteFotoKaryawan(id) {
+        return this.request('deleteFotoKaryawan', { id });
+    },
     // Ambil isi 1 file Google Drive sebagai base64 - dipakai fitur pencocokan
     // wajah (face-recognition.js) supaya foto profil bisa dibaca pixel-nya
     // tanpa kena blokir CORS Google Drive (lihat catatan di Karyawan.gs
