@@ -107,13 +107,17 @@ const profileManager = {
             document.getElementById('pf-email').value             = p.email || '';
 
             // Foto
+            this._currentFotoUrl = p.foto || null;
+            const fotoHapusBtn = document.getElementById('pf-foto-hapus-btn');
             if (p.foto) {
                 document.getElementById('pf-foto-preview').src = p.foto;
                 document.getElementById('pf-foto-preview').style.display = 'block';
                 document.getElementById('pf-foto-placeholder').style.display = 'none';
+                if (fotoHapusBtn) fotoHapusBtn.style.display = 'inline-block';
             } else {
                 document.getElementById('pf-foto-preview').style.display = 'none';
                 document.getElementById('pf-foto-placeholder').style.display = 'block';
+                if (fotoHapusBtn) fotoHapusBtn.style.display = 'none';
             }
 
             // Tab Kekaryawanan
@@ -365,8 +369,86 @@ const profileManager = {
                 document.getElementById('pf-foto-preview').src = e.target.result;
                 document.getElementById('pf-foto-preview').style.display = 'block';
                 document.getElementById('pf-foto-placeholder').style.display = 'none';
+                const fotoHapusBtn = document.getElementById('pf-foto-hapus-btn');
+                if (fotoHapusBtn) fotoHapusBtn.style.display = 'inline-block';
             };
             reader.readAsDataURL(input.files[0]);
+        }
+    },
+
+    // TAMBAHAN: tombol "Hapus Foto" di Edit Profil > tab Profil.
+    // 2 kasus:
+    // 1) User baru saja pilih foto baru (Upload/Ambil Foto) tapi BELUM
+    //    tekan "Simpan" - foto itu masih cuma preview lokal, belum pernah
+    //    dikirim ke server sama sekali. Di sini cukup batalkan pilihannya
+    //    (kosongkan input file) dan balikin preview ke foto lama yang
+    //    memang tersimpan di server (kalau ada), tanpa perlu panggil
+    //    backend apa pun.
+    // 2) Tidak ada foto baru yang sedang dipilih - berarti foto yang
+    //    tampil sekarang memang foto profil yang SUDAH tersimpan di
+    //    server (this._currentFotoUrl). Baru di sini panggil backend
+    //    buat benar-benar menghapusnya (dari Google Drive & kolom "foto"
+    //    di sheet Employees).
+    async hapusFoto() {
+        const fotoFileInput = document.getElementById('pf-foto-file');
+        const adaFotoBaruBelumDisimpan = !!(fotoFileInput && fotoFileInput.files && fotoFileInput.files[0]);
+
+        if (adaFotoBaruBelumDisimpan) {
+            fotoFileInput.value = '';
+            const preview = document.getElementById('pf-foto-preview');
+            const placeholder = document.getElementById('pf-foto-placeholder');
+            const fotoHapusBtn = document.getElementById('pf-foto-hapus-btn');
+            if (this._currentFotoUrl) {
+                preview.src = this._currentFotoUrl;
+                preview.style.display = 'block';
+                placeholder.style.display = 'none';
+                if (fotoHapusBtn) fotoHapusBtn.style.display = 'inline-block';
+            } else {
+                preview.style.display = 'none';
+                placeholder.style.display = 'block';
+                if (fotoHapusBtn) fotoHapusBtn.style.display = 'none';
+            }
+            return;
+        }
+
+        if (!this._currentFotoUrl) return;
+
+        if (!confirm('Hapus foto profil ini? Foto akan langsung dihapus dari server (bukan cuma dari tampilan), dan wajah di foto ini tidak akan dipakai lagi sebagai acuan verifikasi saat absen sampai Anda upload foto baru.')) {
+            return;
+        }
+
+        try {
+            const result = await api.deleteFotoKaryawan(this.myId);
+            if (!result || !result.success) {
+                toast.error((result && result.error) || 'Gagal menghapus foto profil');
+                return;
+            }
+
+            this._currentFotoUrl = null;
+            document.getElementById('pf-foto-preview').style.display = 'none';
+            document.getElementById('pf-foto-placeholder').style.display = 'block';
+            const fotoHapusBtn = document.getElementById('pf-foto-hapus-btn');
+            if (fotoHapusBtn) fotoHapusBtn.style.display = 'none';
+
+            // Sinkronkan sesi login & cache pencocokan wajah - sama seperti
+            // saat foto DIGANTI (lihat saveProfile()), supaya tidak ada
+            // sisa foto lama yang masih dipakai faceRecognition sebagai
+            // acuan setelah foto profilnya sudah dihapus.
+            const user = auth.getCurrentUser ? auth.getCurrentUser() : null;
+            if (user) {
+                user.avatar = '';
+                if (typeof storage !== 'undefined') storage.set('session', user);
+                if (auth.updateUserUI) auth.updateUserUI();
+            }
+            if (typeof faceRecognition !== 'undefined') {
+                faceRecognition._referenceDescriptor = null;
+                faceRecognition._referenceDescriptorAvatarUrl = null;
+            }
+
+            toast.success('Foto profil berhasil dihapus');
+        } catch (e) {
+            console.error('Error hapus foto profil:', e);
+            toast.error('Terjadi kesalahan saat menghapus foto profil');
         }
     },
 
@@ -544,22 +626,56 @@ const profileManager = {
         // menyinkronkan user.avatar di sesi login - lihat catatan di
         // saveMyProfile(). Balikin null kalau upload gagal (biarkan sesi
         // login apa adanya, jangan menimpanya dengan sesuatu yang salah).
+        //
+        // PERBAIKAN (2026-08-27): sebelumnya file dikirim APA ADANYA dari
+        // kamera/galeri HP (bisa beberapa MB, resolusi 3000-4000px+),
+        // padahal foto ini di seluruh aplikasi CUMA PERNAH ditampilkan
+        // sebagai thumbnail kecil (lihat sz=w300 di uploadFotoKaryawan
+        // untuk tampilan, dan thumbnail w400 di getDriveFileAsBase64 untuk
+        // pencocokan wajah) - menyimpan file asli penuh di Drive cuma
+        // boros kuota penyimpanan & bikin upload dari HP lebih lama, tanpa
+        // manfaat kualitas yang benar-benar kepakai. Sekarang di-resize ke
+        // maksimal 640px pada sisi terpanjang (masih di atas 400px yang
+        // dipakai pencocokan wajah, jadi tidak mengurangi akurasi) +
+        // dikompres JPEG kualitas 0.85 di browser SEBELUM dikirim ke server.
         return new Promise((resolve) => {
             const reader = new FileReader();
-            reader.onload = async (e) => {
-                const base64 = e.target.result.split(',')[1];
-                const mimeType = file.type;
-                let fotoUrl = null;
-                try {
-                    const result = await api.uploadFotoKaryawan(this.myId, base64, mimeType);
-                    if (result && result.success && result.data && result.data.fotoUrl) {
-                        fotoUrl = result.data.fotoUrl;
+            reader.onload = (e) => {
+                const img = new Image();
+                img.onload = async () => {
+                    let { width, height } = img;
+                    const maxDim = 640;
+                    if (width > maxDim || height > maxDim) {
+                        if (width > height) {
+                            height = Math.round(height * (maxDim / width));
+                            width = maxDim;
+                        } else {
+                            width = Math.round(width * (maxDim / height));
+                            height = maxDim;
+                        }
                     }
-                } catch (err) {
-                    console.error('Upload foto gagal:', err);
-                }
-                resolve(fotoUrl);
+
+                    const canvas = document.createElement('canvas');
+                    canvas.width = width;
+                    canvas.height = height;
+                    canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+
+                    const base64 = canvas.toDataURL('image/jpeg', 0.85).split(',')[1];
+                    let fotoUrl = null;
+                    try {
+                        const result = await api.uploadFotoKaryawan(this.myId, base64, 'image/jpeg');
+                        if (result && result.success && result.data && result.data.fotoUrl) {
+                            fotoUrl = result.data.fotoUrl;
+                        }
+                    } catch (err) {
+                        console.error('Upload foto gagal:', err);
+                    }
+                    resolve(fotoUrl);
+                };
+                img.onerror = () => resolve(null);
+                img.src = e.target.result;
             };
+            reader.onerror = () => resolve(null);
             reader.readAsDataURL(file);
         });
     },
