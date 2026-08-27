@@ -1276,6 +1276,12 @@
                                         <button type="button" onclick="profileManager.openCameraForFoto()" style="cursor:pointer;color:var(--color-primary);font-size:0.85rem;font-weight:500;background:none;border:none;padding:0;">
                                             <i class="fas fa-camera"></i> Ambil Foto
                                         </button>
+                                        <!-- TAMBAHAN: hapus foto profil. Sembunyi kalau memang belum ada foto
+                                             sama sekali (lihat profileManager.loadMyProfile()/previewFoto()/
+                                             hapusFoto() yang mengatur tampil/sembunyinya). -->
+                                        <button type="button" id="pf-foto-hapus-btn" onclick="profileManager.hapusFoto()" style="display:none;cursor:pointer;color:var(--color-danger,#EF4444);font-size:0.85rem;font-weight:500;background:none;border:none;padding:0;">
+                                            <i class="fas fa-trash"></i> Hapus Foto
+                                        </button>
                                     </div>
                                 </div>
                                 <div class="form-row two-col">
