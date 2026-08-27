@@ -896,10 +896,10 @@
                                             </div>
                                         </div>
                                         <div class="form-row two-col" id="izin-date-range-row" style="display:none;">
-                                            <div class="form-group"><label for="izin-date-start">Tanggal Mulai</label><input type="date"
-                                                    id="izin-date-start"></div>
-                                            <div class="form-group"><label for="izin-date-end">Tanggal Selesai</label><input type="date"
-                                                    id="izin-date-end"></div>
+                                            <div class="form-group"><label for="izin-date-start">Tanggal Mulai</label><input type="text"
+                                                    id="izin-date-start" autocomplete="off" placeholder="Pilih tanggal"></div>
+                                            <div class="form-group"><label for="izin-date-end">Tanggal Selesai</label><input type="text"
+                                                    id="izin-date-end" autocomplete="off" placeholder="Pilih tanggal"></div>
                                         </div>
                                         <div class="form-row two-col" id="izin-jam-row" style="display:none;">
                                             <div class="form-group">
@@ -3642,6 +3642,14 @@
          <script> CDN langsung). -->
     <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-messaging-compat.js"></script>
+    <!-- flatpickr: dipakai izin.js untuk kalender "Tanggal Mulai/Selesai" di
+         form Permohonan Izin Harian - beda dari <input type="date"> native
+         yang cuma bisa dibatasi rentang MIN/MAX polos, flatpickr bisa
+         membatasi ke TANGGAL-TANGGAL SPESIFIK yang boleh dipilih (skip
+         Sabtu/Minggu, otomatis lanjut ke bulan berikutnya kalau jendela 3
+         hari kerja ke depan menyeberangi pergantian bulan). -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/flatpickr.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/flatpickr.min.js"></script>
     <script src="js/api.js"></script>
     <script src="js/push-notifications.js"></script>
     <script src="js/jenis-jadwal-util.js"></script>
