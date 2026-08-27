@@ -22,6 +22,10 @@ const izin = {
             dateInput.valueAsDate = new Date();
         }
 
+        // Batasi Tanggal Mulai/Selesai Permohonan Izin Harian HANYA ke
+        // tanggal-tanggal yang boleh diajukan (lihat _initIzinHarianDatePickers).
+        this._initIzinHarianDatePickers();
+
         // NOTE: dropdown "Pilih Asmen" di form ini sudah DIHAPUS - Asmen
         // penyetuju sekarang diatur Admin per-karyawan lewat Edit Karyawan
         // > tab Kekaryawanan (field asmenPenyetujuId), backend mengambilnya
@@ -62,6 +66,49 @@ const izin = {
         if (totalPakai > KUOTA_IZIN_HARIAN) {
             toast.warning(`Izin Harian Anda tahun ini sudah ${totalPakai} hari, melewati kuota ${KUOTA_IZIN_HARIAN} hari/tahun. Anda tetap bisa mengajukan, tapi ini akan tercatat.`);
         }
+    },
+
+    /**
+     * Tanggal-tanggal yang BOLEH diajukan untuk Tanggal Mulai/Selesai
+     * Permohonan Izin Harian: hari ini + 3 hari KERJA berikutnya (Sabtu &
+     * Minggu dilewati, tidak dihitung) - jadi total 4 tanggal yang bisa
+     * dipilih. Kalau jendela 4 tanggal ini menyeberangi pergantian bulan
+     * (mis. akhir Agustus ke awal September), otomatis ikut - fungsi ini
+     * cuma mengumpulkan tanggal aslinya, bukan per-bulan.
+     */
+    _getAllowedIzinHarianDates() {
+        const allowed = [];
+        const cursor = new Date();
+        cursor.setHours(0, 0, 0, 0);
+        while (allowed.length < 4) {
+            const day = cursor.getDay(); // 0 = Minggu, 6 = Sabtu
+            if (day !== 0 && day !== 6) allowed.push(new Date(cursor));
+            cursor.setDate(cursor.getDate() + 1);
+        }
+        return allowed;
+    },
+
+    /**
+     * Pasang flatpickr di #izin-date-start & #izin-date-end (Permohonan
+     * Izin Harian) supaya kalendernya cuma bisa memilih dari
+     * _getAllowedIzinHarianDates() - tanggal lain otomatis abu-abu/tidak
+     * bisa diklik. Native <input type="date"> tidak bisa dibuat begini
+     * (cuma bisa MIN/MAX polos, tidak bisa skip tanggal tertentu di
+     * tengah rentang), makanya field ini "ditingkatkan" pakai flatpickr -
+     * lihat include CDN-nya di index.html.
+     */
+    _initIzinHarianDatePickers() {
+        if (typeof flatpickr === 'undefined') return;
+        const allowedDates = this._getAllowedIzinHarianDates();
+        const opts = {
+            dateFormat: 'Y-m-d',
+            enable: allowedDates,
+            defaultDate: allowedDates[0]
+        };
+        ['izin-date-start', 'izin-date-end'].forEach((id) => {
+            const el = document.getElementById(id);
+            if (el && !el._flatpickr) flatpickr(el, opts);
+        });
     },
 
     // Cek apakah user sedang dalam periode Izin/Cuti yang sudah disetujui
