@@ -64,6 +64,25 @@ const profileManager = {
         }
     },
 
+    // Tombol mata di field Password tab Akun - sama seperti toggle password
+    // di halaman Login (lihat auth.js togglePasswordVisibility()), cuma
+    // untuk field yang sedang DIKETIK user di sini (isinya kosong sampai
+    // user mengetik password baru - lihat catatan "Jangan kirim password ke
+    // frontend" di backend/loadMyProfile(), password lama TIDAK pernah
+    // dikirim balik ke sini).
+    togglePasswordVisibility() {
+        const input = document.getElementById('pf-password');
+        const btn = document.getElementById('pf-toggle-password');
+        if (!input || !btn) return;
+        if (input.type === 'password') {
+            input.type = 'text';
+            btn.innerHTML = '<i class="fas fa-eye-slash"></i>';
+        } else {
+            input.type = 'password';
+            btn.innerHTML = '<i class="fas fa-eye"></i>';
+        }
+    },
+
     async loadMyProfile() {
         try {
             const result = await api.getKaryawanDetail(this.myId);
