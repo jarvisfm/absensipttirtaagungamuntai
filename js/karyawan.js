@@ -662,6 +662,18 @@ const karyawanManager = {
         const pwd = document.getElementById('p-password').value;
         if (pwd) data.password = pwd;
 
+        // UX: nonaktifkan tombol + tampilkan status "Menyimpan..." selama
+        // proses berjalan - supaya karyawan/admin yang klik Simpan langsung
+        // dapat feedback instan (bukan cuma diam sampai notif toast muncul),
+        // dan supaya tidak sampai ke-klik dobel (kirim request 2x) yang
+        // justru bikin prosesnya terasa lebih lambat lagi.
+        const saveBtn = document.getElementById('btn-save-karyawan');
+        const saveBtnOriginalHtml = saveBtn ? saveBtn.innerHTML : '';
+        if (saveBtn) {
+            saveBtn.disabled = true;
+            saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Menyimpan...';
+        }
+
         try {
             let result;
             let savedId = this.editingId;
@@ -678,6 +690,14 @@ const karyawanManager = {
                 toast.error(result.error || 'Gagal menyimpan data');
                 return;
             }
+
+            // Data utama sudah tersimpan di titik ini - tampilkan notifikasi
+            // berhasil SEKARANG (bukan menunggu upload foto di bawah, yang
+            // bisa memakan waktu ekstra beberapa detik sendiri) supaya
+            // notifikasi terasa muncul cepat begitu data benar-benar sudah
+            // aman tersimpan. Upload foto (kalau ada) tetap lanjut di
+            // belakang layar sebelum modal ditutup.
+            toast.success(this.editingId ? 'Data karyawan berhasil diperbarui!' : 'Karyawan berhasil ditambahkan!');
 
             // Upload foto jika ada
             const fotoFile = document.getElementById('karyawan-foto-file')?.files[0];
@@ -714,13 +734,17 @@ const karyawanManager = {
                 }
             }
 
-            toast.success(this.editingId ? 'Data karyawan berhasil diperbarui!' : 'Karyawan berhasil ditambahkan!');
             this.closeModal();
             await this.loadKaryawan();
 
         } catch (e) {
             console.error('Error save:', e);
             toast.error('Terjadi kesalahan saat menyimpan');
+        } finally {
+            if (saveBtn) {
+                saveBtn.disabled = false;
+                saveBtn.innerHTML = saveBtnOriginalHtml;
+            }
         }
     },
 
