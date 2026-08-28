@@ -676,6 +676,30 @@ const izin = {
                             </span>
                         </div>
                         <p class="izin-reason">${izin.reason}</p>
+                        ${izin.asmenNote ? `
+                            <div style="margin-top:8px;padding:8px 12px;border-radius:8px;background:rgba(59,130,246,0.08);border-left:3px solid var(--color-primary);font-size:var(--font-size-sm);color:var(--text-secondary);">
+                                <i class="fas fa-comment-dots" style="margin-right:6px;"></i>
+                                <strong>Catatan Asmen:</strong> ${izin.asmenNote}
+                            </div>
+                        ` : ''}
+                        ${izin.managerNote ? `
+                            <div style="margin-top:8px;padding:8px 12px;border-radius:8px;background:rgba(59,130,246,0.08);border-left:3px solid var(--color-primary);font-size:var(--font-size-sm);color:var(--text-secondary);">
+                                <i class="fas fa-comment-dots" style="margin-right:6px;"></i>
+                                <strong>Catatan Manajer:</strong> ${izin.managerNote}
+                            </div>
+                        ` : ''}
+                        ${izin.hrManagerNote ? `
+                            <div style="margin-top:8px;padding:8px 12px;border-radius:8px;background:rgba(59,130,246,0.08);border-left:3px solid var(--color-primary);font-size:var(--font-size-sm);color:var(--text-secondary);">
+                                <i class="fas fa-comment-dots" style="margin-right:6px;"></i>
+                                <strong>Catatan HR Manajer:</strong> ${izin.hrManagerNote}
+                            </div>
+                        ` : ''}
+                        ${izin.directorNote ? `
+                            <div style="margin-top:8px;padding:8px 12px;border-radius:8px;background:rgba(59,130,246,0.08);border-left:3px solid var(--color-primary);font-size:var(--font-size-sm);color:var(--text-secondary);">
+                                <i class="fas fa-comment-dots" style="margin-right:6px;"></i>
+                                <strong>Catatan Direktur:</strong> ${izin.directorNote}
+                            </div>
+                        ` : ''}
                         ${izin.status === 'approved' && (izin.emailSent === false || izin.emailSent === 'false') ? `
                             <div style="margin-top:8px;padding:8px 12px;border-radius:8px;background:rgba(245,158,11,0.08);border-left:3px solid var(--color-warning);font-size:var(--font-size-sm);color:var(--text-secondary);">
                                 <i class="fas fa-triangle-exclamation" style="color:var(--color-warning);margin-right:6px;"></i>
