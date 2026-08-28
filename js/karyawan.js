@@ -168,6 +168,17 @@ const karyawanManager = {
         if (rkContent) rkContent.style.display = id ? 'block' : 'none';
 
         if (id) {
+            // FIX: loadDetailForEdit() di bawah ini ASYNC (menunggu respons
+            // server) tapi tombol "Simpan" tidak pernah dikunci selama itu -
+            // kalau admin sempat klik Simpan SEBELUM data lama selesai
+            // dimuat ke form, field yang belum sempat terisi (termasuk
+            // Username) masih kosong dari resetForm() di atas, dan nilai
+            // kosong itu ikut tersimpan menimpa data lama (lihat juga
+            // guard username di updateKaryawanData, Karyawan.gs). Kunci
+            // tombol Simpan dulu selama proses muat data, baru dibuka lagi
+            // setelah selesai (lihat blok finally di loadDetailForEdit).
+            const saveBtn = document.getElementById('btn-save-karyawan');
+            if (saveBtn) { saveBtn.disabled = true; saveBtn.dataset.origText = saveBtn.innerHTML; saveBtn.innerHTML = 'Memuat data...'; }
             this.loadDetailForEdit(id);
             this.loadRiwayatPendidikanAdmin(id);
             this.loadRiwayatKgbAdmin(id);
@@ -261,6 +272,7 @@ const karyawanManager = {
     },
 
     async loadDetailForEdit(id) {
+        const saveBtn = document.getElementById('btn-save-karyawan');
         try {
             const result = await api.getKaryawanDetail(id);
             if (!result.success) return;
@@ -359,6 +371,12 @@ const karyawanManager = {
 
         } catch (e) {
             console.error('Error load detail:', e);
+        } finally {
+            // Buka lagi kunci tombol Simpan (lihat catatan FIX di openModal()
+            // di atas) - dijalankan baik data berhasil maupun gagal dimuat,
+            // supaya admin tidak pernah terjebak tombol Simpan yang mati
+            // permanen kalau requestnya gagal.
+            if (saveBtn) { saveBtn.disabled = false; if (saveBtn.dataset.origText) saveBtn.innerHTML = saveBtn.dataset.origText; }
         }
     },
 
