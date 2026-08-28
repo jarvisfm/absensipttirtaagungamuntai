@@ -237,6 +237,15 @@ const api = {
     async approveOutOfRadiusReport(id, approver) {
         return this.request('approveOutOfRadiusReport', { id, approver });
     },
+    async submitOutOfWilayahReport(data) {
+        return this.request('submitOutOfWilayahReport', data);
+    },
+    async getAllOutOfWilayahReports() {
+        return this.request('getAllOutOfWilayahReports');
+    },
+    async getOutOfWilayahReportsForUser(userId) {
+        return this.request('getOutOfWilayahReportsForUser', { userId });
+    },
 
     async submitSuratTugas(data) {
         return this.request('submitSuratTugas', data);
