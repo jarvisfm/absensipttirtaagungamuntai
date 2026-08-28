@@ -57,13 +57,14 @@ const adminReports = {
         let izinList = [];
         let attendances = [];
 
-        const [empResult, jurnalResult, leaveResult, izinResult, attResult, oorResult, settingsResult] = await Promise.allSettled([
+        const [empResult, jurnalResult, leaveResult, izinResult, attResult, oorResult, oowResult, settingsResult] = await Promise.allSettled([
             api.getEmployees(),
             api.getAllJournals(),
             api.getAllLeaves(),
             api.getAllIzin(),
             api.getAllAttendance(),
             api.getAllOutOfRadiusReports(),
+            api.getAllOutOfWilayahReports(),
             api.getSettings()
         ]);
 
@@ -89,6 +90,16 @@ const adminReports = {
         oorReports.forEach(r => {
             const key = `${r.userId}|${r.date}|${r.type}`;
             this.outOfRadiusMap[key] = r;
+        });
+
+        // Lookup laporan luar-wilayah per userId+date+type - sama polanya
+        // dengan outOfRadiusMap di atas, dipakai untuk badge "Luar Unit
+        // Wilayah" di renderAttendanceReports().
+        const oowReports = pick(oowResult, 'laporan luar wilayah');
+        this.outOfWilayahMap = {};
+        oowReports.forEach(r => {
+            const key = `${r.userId}|${r.date}|${r.type}`;
+            this.outOfWilayahMap[key] = r;
         });
 
         // Daftar lokasi kantor (Kantor Pusat, Unit SPAM, dsb) - dipakai
@@ -719,6 +730,14 @@ const adminReports = {
                         return `<br><span onclick="adminReports.showOutOfRadiusNote('${emp.id}', '${row.date}', '${type}')" style="display:inline-block;margin-top:2px;background:#FEF3C7;color:#D97706;font-size:0.65rem;font-weight:600;padding:1px 6px;border-radius:10px;cursor:pointer;"><i class="fas fa-map-marker-alt"></i> Luar Radius${r.status === 'approved' ? ' ✓' : ''} <i class="fas fa-circle-info" style="font-size:0.6rem;"></i></span>`;
                     };
 
+                    // Tandai jam yang tercatat di luar Unit Wilayah yang
+                    // ditugaskan - sama pola/perilakunya dengan oorBadge di atas.
+                    const oowBadge = (type) => {
+                        const r = (this.outOfWilayahMap || {})[`${emp.id}|${row.date}|${type}`];
+                        if (!r) return '';
+                        return `<br><span onclick="adminReports.showOutOfWilayahNote('${emp.id}', '${row.date}', '${type}')" style="display:inline-block;margin-top:2px;background:#FDE68A;color:#92400E;font-size:0.65rem;font-weight:600;padding:1px 6px;border-radius:10px;cursor:pointer;"><i class="fas fa-map-signs"></i> Luar Unit Wilayah <i class="fas fa-circle-info" style="font-size:0.6rem;"></i></span>`;
+                    };
+
                     // Kalau hari ini Dinas Luar (self-declare Surat Tugas/SPPD),
                     // tampilkan badge yang bisa diklik untuk buka dokumen
                     // suratnya (kalau ada link-nya) - lihat Surattugas.gs.
@@ -732,10 +751,10 @@ const adminReports = {
                         <tr style="border-bottom:1px solid var(--border-color,#e5e7eb);">
                             <td style="padding:10px 12px;font-size:0.85rem;">${dateStr}${dinasLuarBadge}</td>
                             <td style="padding:10px 12px;font-size:0.82rem;">${row.shift || '-'}</td>
-                            <td style="padding:10px 12px;font-weight:600;color:#10b981;">${row.clockIn || '–'}${sessionStatusHtml('clockIn', row.clockIn)}${sessionGps('clockInLocation')}${oorBadge('clockIn')}</td>
-                            <td style="padding:10px 12px;color:var(--text-muted);">${row.breakStart || '–'}${sessionStatusHtml('breakStart', row.breakStart)}${sessionGps('breakStartLocation')}${oorBadge('breakStart')}</td>
-                            <td style="padding:10px 12px;color:var(--text-muted);">${row.breakEnd || '–'}${sessionStatusHtml('breakEnd', row.breakEnd)}${sessionGps('breakEndLocation')}${oorBadge('breakEnd')}</td>
-                            <td style="padding:10px 12px;font-weight:600;color:#EF4444;">${row.clockOut || '–'}${sessionStatusHtml('clockOut', row.clockOut)}${sessionGps('clockOutLocation')}${oorBadge('clockOut')}</td>
+                            <td style="padding:10px 12px;font-weight:600;color:#10b981;">${row.clockIn || '–'}${sessionStatusHtml('clockIn', row.clockIn)}${sessionGps('clockInLocation')}${oorBadge('clockIn')}${oowBadge('clockIn')}</td>
+                            <td style="padding:10px 12px;color:var(--text-muted);">${row.breakStart || '–'}${sessionStatusHtml('breakStart', row.breakStart)}${sessionGps('breakStartLocation')}${oorBadge('breakStart')}${oowBadge('breakStart')}</td>
+                            <td style="padding:10px 12px;color:var(--text-muted);">${row.breakEnd || '–'}${sessionStatusHtml('breakEnd', row.breakEnd)}${sessionGps('breakEndLocation')}${oorBadge('breakEnd')}${oowBadge('breakEnd')}</td>
+                            <td style="padding:10px 12px;font-weight:600;color:#EF4444;">${row.clockOut || '–'}${sessionStatusHtml('clockOut', row.clockOut)}${sessionGps('clockOutLocation')}${oorBadge('clockOut')}${oowBadge('clockOut')}</td>
                             <td style="padding:10px 12px;font-size:0.75rem;max-width:160px;">${lokasiHtml}</td>
                             <td style="padding:10px 12px;">${fotoHtml}${faceReviewBadge}</td>
                         </tr>
@@ -863,6 +882,14 @@ const adminReports = {
                         return `<br><span onclick="adminReports.showOutOfRadiusNote('${emp.id}', '${row.date}', '${type}')" style="display:inline-block;margin-top:2px;background:#FEF3C7;color:#D97706;font-size:0.65rem;font-weight:600;padding:1px 6px;border-radius:10px;cursor:pointer;"><i class="fas fa-map-marker-alt"></i> Luar Radius${r.status === 'approved' ? ' ✓' : ''} <i class="fas fa-circle-info" style="font-size:0.6rem;"></i></span>`;
                     };
 
+                    // Tandai jam yang tercatat di luar Unit Wilayah - sama
+                    // seperti versi tabel desktop (oowBadge).
+                    const oowBadgeM = (type) => {
+                        const r = (this.outOfWilayahMap || {})[`${emp.id}|${row.date}|${type}`];
+                        if (!r) return '';
+                        return `<br><span onclick="adminReports.showOutOfWilayahNote('${emp.id}', '${row.date}', '${type}')" style="display:inline-block;margin-top:2px;background:#FDE68A;color:#92400E;font-size:0.65rem;font-weight:600;padding:1px 6px;border-radius:10px;cursor:pointer;"><i class="fas fa-map-signs"></i> Luar Unit Wilayah <i class="fas fa-circle-info" style="font-size:0.6rem;"></i></span>`;
+                    };
+
                     // Sama seperti versi tabel desktop - badge Dinas Luar yang
                     // bisa diklik untuk buka dokumen Surat Tugas/SPPD.
                     const dinasLuarBadgeM = row.isDinasLuar
@@ -879,10 +906,10 @@ const adminReports = {
                             </div>
                             <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:0.78rem;color:var(--text-muted);margin-bottom:6px;">
                                 <div>Shift: <span style="color:var(--text-primary,#111);">${row.shift || '-'}</span></div>
-                                <div>Masuk: <span style="color:#10b981;font-weight:600;">${row.clockIn || '–'}</span>${sessionStatusHtmlM('clockIn', row.clockIn)}${sessionGps('clockInLocation')}${oorBadgeM('clockIn')}</div>
-                                <div>Istirahat: ${row.breakStart || '–'}${sessionStatusHtmlM('breakStart', row.breakStart)}${sessionGps('breakStartLocation')}${oorBadgeM('breakStart')}</div>
-                                <div>Kembali: ${row.breakEnd || '–'}${sessionStatusHtmlM('breakEnd', row.breakEnd)}${sessionGps('breakEndLocation')}${oorBadgeM('breakEnd')}</div>
-                                <div>Pulang: <span style="color:#EF4444;font-weight:600;">${row.clockOut || '–'}</span>${sessionStatusHtmlM('clockOut', row.clockOut)}${sessionGps('clockOutLocation')}${oorBadgeM('clockOut')}</div>
+                                <div>Masuk: <span style="color:#10b981;font-weight:600;">${row.clockIn || '–'}</span>${sessionStatusHtmlM('clockIn', row.clockIn)}${sessionGps('clockInLocation')}${oorBadgeM('clockIn')}${oowBadgeM('clockIn')}</div>
+                                <div>Istirahat: ${row.breakStart || '–'}${sessionStatusHtmlM('breakStart', row.breakStart)}${sessionGps('breakStartLocation')}${oorBadgeM('breakStart')}${oowBadgeM('breakStart')}</div>
+                                <div>Kembali: ${row.breakEnd || '–'}${sessionStatusHtmlM('breakEnd', row.breakEnd)}${sessionGps('breakEndLocation')}${oorBadgeM('breakEnd')}${oowBadgeM('breakEnd')}</div>
+                                <div>Pulang: <span style="color:#EF4444;font-weight:600;">${row.clockOut || '–'}</span>${sessionStatusHtmlM('clockOut', row.clockOut)}${sessionGps('clockOutLocation')}${oorBadgeM('clockOut')}${oowBadgeM('clockOut')}</div>
                             </div>
                             <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
                                 <div style="flex:1;min-width:0;">${lokasiHtml}</div>
@@ -1019,6 +1046,27 @@ const adminReports = {
     closeOutOfRadiusNote() {
         const modal = document.getElementById('modal-out-of-radius-view');
         if (modal) modal.style.display = 'none';
+    },
+
+    // Tampilkan catatan absen-luar-wilayah di modal view-only bersama
+    // (#modal-out-of-wilayah-view, juga dipakai absensi.js untuk Riwayat
+    // Absensi karyawan sendiri) - pola sama seperti showOutOfRadiusNote().
+    showOutOfWilayahNote(userId, date, type) {
+        const r = (this.outOfWilayahMap || {})[`${userId}|${date}|${type}`];
+        if (!r) return;
+
+        const modal = document.getElementById('modal-out-of-wilayah-view');
+        if (!modal) {
+            alert(`Catatan Absen Luar Unit Wilayah\n\n${r.userName}\n\n"${r.note}"`);
+            return;
+        }
+
+        document.getElementById('oown-user-name').textContent = r.userName || '';
+        document.getElementById('oown-note-text').textContent = `"${r.note || ''}"`;
+        document.getElementById('oown-status-text').textContent =
+            `Unit Wilayah: ${r.unitWilayah || '-'} · Absen di: ${r.detectedOffice || '-'}`;
+
+        modal.style.display = 'flex';
     },
 
     viewAttendanceDetail(id) {
