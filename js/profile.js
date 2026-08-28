@@ -35,7 +35,18 @@ const profileManager = {
         }
 
         this.switchTab('profil');
+        // FIX: loadMyProfile() di bawah ASYNC (menunggu respons server)
+        // tapi tombol "Simpan Perubahan" tidak pernah dikunci selama itu -
+        // kalau user sempat klik Simpan SEBELUM data lama (termasuk
+        // Username di tab Akun) selesai dimuat ke form, field yang masih
+        // kosong (default HTML, belum sempat diisi loadMyProfile) ikut
+        // tersimpan menimpa data lama (lihat juga guard username di
+        // updateKaryawanData, Karyawan.gs). Kunci tombol Simpan dulu
+        // selama proses muat data, baru dibuka lagi setelah selesai.
+        const saveBtn = document.querySelector('[onclick="profileManager.saveProfile()"]');
+        if (saveBtn) { saveBtn.disabled = true; saveBtn.dataset.origText = saveBtn.innerHTML; saveBtn.innerHTML = 'Memuat data...'; }
         await this.loadMyProfile();
+        if (saveBtn) { saveBtn.disabled = false; if (saveBtn.dataset.origText) saveBtn.innerHTML = saveBtn.dataset.origText; }
         await this.loadRiwayatPendidikan();
         await this.loadRiwayatKgb();
         await this.loadRiwayatGolongan();
