@@ -216,20 +216,52 @@ const karyawanManager = {
     },
 
     /**
-     * Isi dropdown "Approver Absen Luar Radius" dengan daftar karyawan
-     * (kecuali karyawan yang sedang diedit sendiri - tidak masuk akal jadi
-     * approver untuk dirinya sendiri).
+     * Isi dropdown "Approver Absen Luar Radius" mengikuti JENJANG STRUKTURAL
+     * karyawan yang sedang diedit (bukan lagi daftar SEMUA karyawan bebas
+     * dipilih admin seperti sebelumnya):
+     *   Staff   -> hanya tampil Asmen di bagian yang sama
+     *   Asmen   -> hanya tampil Manajer di bagian yang sama
+     *   Manajer -> hanya tampil Direktur (level direksi, cuma meninjau -
+     *              bukan approve per-bagian, jadi tidak difilter per bagian)
+     *   Direktur -> tidak ada approver di atasnya (level tertinggi)
+     * Dipanggil ulang tiap kali Role atau Bagian di form berubah (lihat
+     * onRoleChange()/onBagianChange() di bawah), dan sekali lagi setelah
+     * data karyawan lama selesai dimuat di loadDetailForEdit().
      */
-    _populateApproverDropdown(excludeId) {
+    async _populateApproverDropdown(excludeId, selectedId) {
         const select = document.getElementById('p-locationExemptApproverId');
         if (!select) return;
 
-        const options = (this.karyawanList || [])
-            .filter(k => String(k.id) !== String(excludeId))
-            .map(k => `<option value="${k.id}">${this._esc(k.nama)}${k.jabatan ? ' - ' + this._esc(k.jabatan) : ''}</option>`)
-            .join('');
+        const role   = document.getElementById('p-role')?.value || 'staff';
+        const bagian = document.getElementById('p-bagian')?.value || '';
 
-        select.innerHTML = '<option value="">-- Pilih approver --</option>' + options;
+        if (role === 'direktur') {
+            select.innerHTML = '<option value="">-- Direktur: tidak perlu approver --</option>';
+            return;
+        }
+        if (role !== 'manajer' && !bagian) {
+            // Manajer -> Direktur company-wide, tidak butuh Bagian dulu.
+            // Staff/Asmen tetap butuh Bagian dulu supaya tahu Asmen/Manajer
+            // bagian mana yang harus tampil (sama seperti pola Asmen
+            // Penyetuju Izin/Cuti di _populateAsmenDropdown()).
+            select.innerHTML = '<option value="">-- Pilih Bagian dahulu --</option>';
+            return;
+        }
+
+        const roleLabel = role === 'manajer' ? 'Direktur' : (role === 'asmen' ? 'Manajer' : 'Asmen');
+        select.innerHTML = '<option value="">Memuat...</option>';
+        try {
+            const result = await api.getApproverCandidates(role, bagian);
+            const list = (result.data || []).filter(k => String(k.id) !== String(excludeId));
+            select.innerHTML = list.length
+                ? '<option value="">-- Pilih ' + roleLabel + ' --</option>' +
+                  list.map(k => `<option value="${k.id}">${this._esc(k.nama)}${k.jabatan ? ' - ' + this._esc(k.jabatan) : ''}</option>`).join('')
+                : `<option value="">Tidak ada ${roleLabel} untuk bagian ini</option>`;
+            if (selectedId) select.value = selectedId;
+        } catch (error) {
+            console.error('Gagal memuat daftar approver:', error);
+            select.innerHTML = '<option value="">Gagal memuat daftar approver</option>';
+        }
     },
 
     /**
@@ -269,6 +301,17 @@ const karyawanManager = {
     onBagianChange() {
         const bagian = document.getElementById('p-bagian')?.value || '';
         this._populateAsmenDropdown(bagian, '');
+        // NEW: Approver Absen Luar Radius juga mengikuti Bagian (untuk
+        // Staff/Asmen) - muat ulang juga tiap kali Bagian berubah, sama
+        // seperti Asmen Penyetuju di atas.
+        this._populateApproverDropdown(this.editingId, '');
+    },
+
+    // NEW: dipanggil dari onchange select #p-role - Approver Absen Luar
+    // Radius bergantung pada Role (jenjangnya beda tiap Role, lihat
+    // _populateApproverDropdown()), jadi muat ulang tiap kali Role berubah.
+    onRoleChange() {
+        this._populateApproverDropdown(this.editingId, '');
     },
 
     async loadDetailForEdit(id) {
@@ -327,8 +370,12 @@ const karyawanManager = {
             } else {
                 document.getElementById('p-shift').value = p.shift || 'Reguler (Sen-Kam)';
             }
-            const approverEl = document.getElementById('p-locationExemptApproverId');
-            if (approverEl) approverEl.value = p.locationExemptApproverId || '';
+            // Approver Absen Luar Radius - sekarang otomatis mengikuti
+            // jenjang Role & Bagian karyawan ini (lihat _populateApproverDropdown()),
+            // bukan lagi di-set langsung dari daftar SEMUA karyawan seperti
+            // sebelumnya. Role & Bagian sudah di-set ke form di atas, jadi
+            // dropdown ini bisa langsung dimuat ulang dengan nilai yang benar.
+            await this._populateApproverDropdown(id, p.locationExemptApproverId || '');
             // Asmen Penyetuju Izin/Cuti - daftarnya tergantung Bagian, jadi
             // dimuat ulang (async) dengan bagian karyawan ini, lalu di-set
             // ke nilai yang sudah tersimpan.
