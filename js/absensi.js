@@ -221,6 +221,27 @@ const absensi = {
         }
     },
 
+    // Tampilkan catatan absen-luar-wilayah milik karyawan sendiri, lewat
+    // modal view-only bersama (juga dipakai adminReports.showOutOfWilayahNote()
+    // di Rekap Absensi Admin).
+    showOutOfWilayahNote(date, type) {
+        const r = (this._outOfWilayahMap || {})[`${date}|${type}`];
+        if (!r) return;
+
+        const modal = document.getElementById('modal-out-of-wilayah-view');
+        if (!modal) {
+            alert(`Catatan Absen Luar Unit Wilayah\n\n"${r.note}"`);
+            return;
+        }
+
+        document.getElementById('oown-user-name').textContent = '';
+        document.getElementById('oown-note-text').textContent = `"${r.note || ''}"`;
+        document.getElementById('oown-status-text').textContent =
+            `Unit Wilayah: ${r.unitWilayah || '-'} · Absen di: ${r.detectedOffice || '-'}`;
+
+        modal.style.display = 'flex';
+    },
+
     async loadAttendanceHistory() {
         try {
             const user = auth.getCurrentUser();
@@ -232,6 +253,23 @@ const absensi = {
             // kebaca sebelum filter jalan).
             const result = await api.getAttendance(effectiveId);
             this._historyData = result.data || [];
+
+            // Laporan absen luar Unit Wilayah milik karyawan ini sendiri -
+            // dipakai renderHistory() untuk menandai jam yang bersangkutan
+            // dengan badge "Luar Unit Wilayah", sama polanya dengan badge
+            // "Luar Radius" punya adminReports (admin-reports.js).
+            try {
+                const oowResult = await api.getOutOfWilayahReportsForUser(effectiveId);
+                const oowReports = (oowResult && oowResult.success) ? (oowResult.data || []) : [];
+                this._outOfWilayahMap = {};
+                oowReports.forEach(r => {
+                    this._outOfWilayahMap[`${r.date}|${r.type}`] = r;
+                });
+            } catch (e) {
+                console.error('Gagal memuat laporan luar wilayah:', e);
+                this._outOfWilayahMap = {};
+            }
+
             this._populateHistoryMonthFilter();
             this.renderHistory(this._getHistoryForSelectedMonth());
             this.renderHistoryStats(this._getHistoryForSelectedMonth());
@@ -461,14 +499,24 @@ const absensi = {
             ? '<span style="color:#EF4444;font-weight:600;">Tidak Hadir</span>'
             : `${record.clockIn || '–'}${sessionLabel('clockIn', record.clockIn)}`;
 
+        // Badge "Luar Unit Wilayah" - muncul kalau ada laporan tersimpan
+        // untuk tanggal+sesi ini (lihat this._outOfWilayahMap di
+        // loadAttendanceHistory()). Klik untuk lihat isi catatannya lewat
+        // modal view-only yang sama dipakai admin (#modal-out-of-wilayah-view).
+        const oowBadge = (type) => {
+            const r = (this._outOfWilayahMap || {})[`${record.date}|${type}`];
+            if (!r) return '';
+            return `<br><span onclick="absensi.showOutOfWilayahNote('${record.date}', '${type}')" style="display:inline-block;margin-top:2px;background:#FDE68A;color:#92400E;font-size:0.65rem;font-weight:600;padding:1px 6px;border-radius:10px;cursor:pointer;"><i class="fas fa-map-signs"></i> Luar Unit Wilayah <i class="fas fa-circle-info" style="font-size:0.6rem;"></i></span>`;
+        };
+
         return `
             <tr${isToday ? ' class="row-today"' : ''}>
                 <td>${dateStr}${isToday ? '<span class="today-tag">Hari Ini</span>' : ''}</td>
                 <td style="font-size:0.82rem;">${this._formatShiftDisplay(record.shift)}</td>
-                <td style="font-weight:600;color:#10b981;">${clockInCell}</td>
-                <td style="color:var(--text-muted);">${record.breakStart || '–'}${sessionLabel('breakStart', record.breakStart)}</td>
-                <td style="color:var(--text-muted);">${record.breakEnd || '–'}${sessionLabel('breakEnd', record.breakEnd)}</td>
-                <td style="font-weight:600;color:#EF4444;">${record.clockOut || '–'}${sessionLabel('clockOut', record.clockOut)}</td>
+                <td style="font-weight:600;color:#10b981;">${clockInCell}${oowBadge('clockIn')}</td>
+                <td style="color:var(--text-muted);">${record.breakStart || '–'}${sessionLabel('breakStart', record.breakStart)}${oowBadge('breakStart')}</td>
+                <td style="color:var(--text-muted);">${record.breakEnd || '–'}${sessionLabel('breakEnd', record.breakEnd)}${oowBadge('breakEnd')}</td>
+                <td style="font-weight:600;color:#EF4444;">${record.clockOut || '–'}${sessionLabel('clockOut', record.clockOut)}${oowBadge('clockOut')}</td>
             </tr>
         `;
     }).join('');
