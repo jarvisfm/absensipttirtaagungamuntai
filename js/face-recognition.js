@@ -140,6 +140,11 @@ const faceRecognition = {
     _outOfRadiusPhoto: null, // base64 foto dokumentasi (wajib diisi - lihat submitOutOfRadiusNote)
     _outOfRadiusContext: null,
 
+    // Laporan absen di luar Unit Wilayah yang ditugaskan (beda dari luar
+    // radius) - lihat _promptOutOfWilayahNote(). Tanpa foto, cukup catatan.
+    _outOfWilayahNote: null,
+    _outOfWilayahContext: null,
+
     init(action) {
         this.currentAction = action;
         this.photoCaptured = false;
@@ -164,6 +169,8 @@ const faceRecognition = {
         this._outOfRadiusNote = null;
         this._outOfRadiusPhoto = null;
         this._outOfRadiusContext = null;
+        this._outOfWilayahNote = null;
+        this._outOfWilayahContext = null;
 
         // Ambil status toggle "Face Recognition" dari Settings admin dulu -
         // initCamera() di bawah butuh tahu ini supaya bisa memutuskan mau
@@ -1103,6 +1110,75 @@ const faceRecognition = {
         this._restartCameraIfNeeded();
     },
 
+    /**
+     * Munculkan modal wajib isi catatan untuk karyawan yang absen MASIH di
+     * dalam radius sebuah kantor, tapi kantor itu bukan Unit Wilayah yang
+     * ditugaskan untuknya. Beda dari _promptOutOfRadiusNote(): tidak ada
+     * foto dokumentasi (cukup catatan saja) - lihat instruksi awal fitur
+     * ini.
+     */
+    _promptOutOfWilayahNote(ctx) {
+        this._outOfWilayahContext = ctx;
+        const modal = document.getElementById('modal-out-of-wilayah-note');
+        const textarea = document.getElementById('out-of-wilayah-note-text');
+        const infoEl = document.getElementById('out-of-wilayah-note-info');
+        if (textarea) textarea.value = '';
+        if (infoEl) {
+            infoEl.textContent = `Anda absen di ${ctx.nearest.nama}, sementara Unit Wilayah Anda terdaftar sebagai ${ctx.userWilayah}. Anda tetap boleh absen - jelaskan dulu alasannya.`;
+        }
+        if (modal) modal.style.display = 'flex';
+        this._lockBodyScroll();
+        this._stopFaceDetectionLoop();
+    },
+
+    /**
+     * Modal ini SENGAJA tidak punya jalan pintas keluar - klik "Batal"/
+     * tutup modal TIDAK membuat locationVerified jadi true, jadi tombol
+     * absen tetap terkunci. Yang berubah cuma modalnya ditutup sementara;
+     * status lokasi diganti jadi teks yang bisa diklik lagi untuk membuka
+     * ulang modal ini, supaya karyawan tetap wajib mengisi catatan dulu
+     * sebelum bisa absen (sesuai permintaan fitur ini).
+     */
+    cancelOutOfWilayahNote() {
+        const modal = document.getElementById('modal-out-of-wilayah-note');
+        if (modal) modal.style.display = 'none';
+        this._unlockBodyScroll();
+
+        const statusEl = document.getElementById('location-status');
+        if (statusEl && this._outOfWilayahContext) {
+            statusEl.innerHTML = '<i class="fas fa-exclamation-circle" style="color:#D97706;"></i> <span style="color:#D97706;text-decoration:underline;cursor:pointer;" onclick="faceRecognition._promptOutOfWilayahNote(faceRecognition._outOfWilayahContext)">Di luar Unit Wilayah - klik untuk isi catatan</span>';
+            statusEl.classList.remove('verified');
+            statusEl.classList.add('out-of-range');
+        }
+        this._restartCameraIfNeeded();
+    },
+
+    submitOutOfWilayahNote() {
+        const textarea = document.getElementById('out-of-wilayah-note-text');
+        const note = textarea ? textarea.value.trim() : '';
+        if (!note) {
+            toast.error('Catatan alasan wajib diisi sebelum bisa absen.');
+            return;
+        }
+
+        this._outOfWilayahNote = note;
+        this.locationVerified = true;
+
+        const modal = document.getElementById('modal-out-of-wilayah-note');
+        if (modal) modal.style.display = 'none';
+        this._unlockBodyScroll();
+
+        const statusEl = document.getElementById('location-status');
+        if (statusEl) {
+            statusEl.innerHTML = '<i class="fas fa-check-circle"></i> Terverifikasi (Luar Unit Wilayah, tercatat)';
+            statusEl.classList.add('verified');
+            statusEl.classList.remove('out-of-range');
+        }
+
+        this.checkCanSubmit();
+        this._restartCameraIfNeeded();
+    },
+
     initLocation() {
         if (!navigator.geolocation) {
             toast.error('Browser Anda tidak mendukung geolokasi');
@@ -1228,6 +1304,46 @@ const faceRecognition = {
                             distance,
                             nearest,
                             accuracy: position.coords.accuracy
+                        });
+                        return;
+                    }
+
+                    // Karyawan masuk radius salah satu kantor, TAPI kantor
+                    // terdekat itu belum tentu Unit Wilayah yang ditugaskan
+                    // untuknya (mis. karyawan Unit Wilayah "SPAM Danau
+                    // Panggang" absen di kantor "BNA Amuntai"). Cek ini
+                    // HANYA kalau unitWilayah karyawan memang cocok dengan
+                    // salah satu NAMA lokasi kantor yang terdaftar di
+                    // Settings - skema SATPAM/TRD menyimpan "SATPAM"/"TRD"
+                    // di field yang sama (lihat karyawan.js), jadi otomatis
+                    // dilewati karena nilainya tidak akan pernah cocok
+                    // dengan nama lokasi kantor manapun.
+                    let userWilayah = '';
+                    try {
+                        const u = auth.getCurrentUser ? auth.getCurrentUser() : null;
+                        userWilayah = (u && u.unitWilayah) ? String(u.unitWilayah).trim() : '';
+                    } catch (e) { /* lanjut tanpa unitWilayah */ }
+
+                    const wilayahIsKnownOffice = userWilayah && officeLocations.some(
+                        loc => String(loc.nama || '').trim().toLowerCase() === userWilayah.toLowerCase()
+                    );
+
+                    if (wilayahIsKnownOffice && nearest.nama &&
+                        nearest.nama.trim().toLowerCase() !== userWilayah.toLowerCase()) {
+                        if (statusEl) {
+                            statusEl.innerHTML = '<i class="fas fa-exclamation-circle" style="color:#D97706;"></i> <span style="color:#D97706;">Di luar Unit Wilayah - isi catatan untuk lanjut</span>';
+                            statusEl.classList.remove('verified');
+                            statusEl.classList.add('out-of-range');
+                        }
+                        this._renderRealMap(mapEl, userLat, userLng, position.coords.accuracy);
+                        this.locationVerified = false;
+                        this.checkCanSubmit();
+                        this._promptOutOfWilayahNote({
+                            userId: exemptUserId,
+                            userLat, userLng,
+                            distance,
+                            nearest,
+                            userWilayah
                         });
                         return;
                     }
@@ -1732,6 +1848,30 @@ const faceRecognition = {
                     this._outOfRadiusNote = null;
                     this._outOfRadiusPhoto = null;
                     this._outOfRadiusContext = null;
+                }
+
+                // Kirim laporan luar-wilayah (kalau ada) SETELAH absen sukses
+                // tersimpan juga - pola sama dengan laporan luar-radius di atas.
+                if (this._outOfWilayahNote && this._outOfWilayahContext) {
+                    try {
+                        const currentUser = auth.getCurrentUser();
+                        const ctx = this._outOfWilayahContext;
+                        await api.submitOutOfWilayahReport({
+                            userId: currentUser?.employeeId || currentUser?.id || ctx.userId,
+                            userName: currentUser?.name || '',
+                            type: this._normalizeAttendanceType(this.currentAction),
+                            note: this._outOfWilayahNote,
+                            unitWilayah: ctx.userWilayah || '',
+                            detectedOffice: ctx.nearest ? ctx.nearest.nama : '',
+                            lat: ctx.userLat,
+                            lng: ctx.userLng,
+                            distance: ctx.distance
+                        });
+                    } catch (e) {
+                        console.error('Gagal kirim laporan luar wilayah:', e);
+                    }
+                    this._outOfWilayahNote = null;
+                    this._outOfWilayahContext = null;
                 }
 
                 // Sebelumnya ada jeda buatan 500ms di sini sebelum pindah
