@@ -429,6 +429,16 @@ const api = {
         return this.request('getAsmenByBagian', { bagian });
     },
 
+    // Ambil daftar calon "Approver Absen Luar Radius" mengikuti jenjang
+    // struktural (staff->Asmen bagian sama, asmen->Manajer bagian sama,
+    // manajer->Direktur) - dipakai dropdown Approver di Edit/Tambah Karyawan.
+    async getApproverCandidates(role, bagian) {
+        if (!API_BASE_URL) {
+            return { success: true, data: [] };
+        }
+        return this.request('getApproverCandidates', { role, bagian });
+    },
+
     // ========== JOURNALS (JURNAL KERJA) ==========
 
     async getJournals(userId) {
