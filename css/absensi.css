@@ -158,6 +158,15 @@
     border: 3px solid var(--text-muted);
 }
 
+/* Izin/Sakit yang sudah diajukan tapi BELUM disetujui (masih menunggu Asmen/
+   Manajer/Direktur) - merah, supaya beda jelas dari 'completed' (hijau/abu)
+   yang dipakai begitu sudah final disetujui. Lihat currentState
+   'excused-pending' di absensi.js. */
+.status-ring.pending-review {
+    background: linear-gradient(135deg, rgba(239, 68, 68, 0.1) 0%, rgba(248, 113, 113, 0.1) 100%);
+    border: 3px solid #EF4444;
+}
+
 .status-icon {
     width: 80px;
     height: 80px;
@@ -185,6 +194,11 @@
 
 .status-ring.completed .status-icon {
     background: linear-gradient(135deg, #64748B 0%, #94A3B8 100%);
+    color: var(--color-white);
+}
+
+.status-ring.pending-review .status-icon {
+    background: linear-gradient(135deg, #EF4444 0%, #F87171 100%);
     color: var(--color-white);
 }
 
