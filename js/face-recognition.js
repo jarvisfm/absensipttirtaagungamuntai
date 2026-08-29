@@ -1521,8 +1521,23 @@ const faceRecognition = {
         // foto & submit absensi - jadi lokasi WAJIB divalidasi duluan di sini,
         // sebelum foto diambil, supaya tidak ada foto yang "kepotong di
         // tengah" gara-gara ternyata lokasinya belum/tidak valid.
+        //
+        // PERBAIKAN: sebelumnya kalau karyawan menekan "Batal" di modal
+        // Catatan Luar Radius lalu langsung coba tekan tombol absen lagi
+        // (tanpa lewat "Coba Lagi"), di sini cuma muncul toast error biasa
+        // - modalnya sendiri TIDAK otomatis muncul lagi, jadi kesannya
+        // seperti "mentok" tanpa arahan jelas kalau catatan itu WAJIB
+        // diisi dulu. Sekarang: kalau this._outOfRadiusContext masih ada
+        // (artinya sudah pernah terdeteksi di luar radius & modalnya
+        // sempat di-Batal, belum pernah disubmit), paksa munculkan lagi
+        // modal yang SAMA setiap kali tombol absen ditekan - karyawan
+        // benar-benar tidak bisa lanjut absen tanpa mengisi laporan ini.
         if (!this.locationVerified) {
-            toast.error('Lokasi belum terverifikasi. Mohon tunggu sebentar, lalu coba lagi.');
+            if (this._outOfRadiusContext) {
+                this._promptOutOfRadiusNote(this._outOfRadiusContext);
+            } else {
+                toast.error('Lokasi belum terverifikasi. Mohon tunggu sebentar, lalu coba lagi.');
+            }
             this._captureInFlight = false;
             return;
         }
