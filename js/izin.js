@@ -26,6 +26,14 @@ const izin = {
         // tanggal-tanggal yang boleh diajukan (lihat _initIzinHarianDatePickers).
         this._initIzinHarianDatePickers();
 
+        // initForm() (di atas) sudah sempat panggil toggleKeluarKantorFields()
+        // sekali di awal, TAPI saat itu this._izinDateFP belum ada (baru
+        // dibuat oleh _initIzinHarianDatePickers() barusan) jadi batasan
+        // kalendernya belum sempat disesuaikan - panggil sekali lagi di sini
+        // supaya kalender Sakit/Izin Harian sudah benar sejak halaman
+        // pertama dibuka, bukan cuma setelah dropdown-nya diganti manual.
+        this.toggleKeluarKantorFields(document.getElementById('izin-type')?.value || '');
+
         // NOTE: dropdown "Pilih Asmen" di form ini sudah DIHAPUS - Asmen
         // penyetuju sekarang diatur Admin per-karyawan lewat Edit Karyawan
         // > tab Kekaryawanan (field asmenPenyetujuId), backend mengambilnya
@@ -89,13 +97,19 @@ const izin = {
     },
 
     /**
-     * Pasang flatpickr di #izin-date-start & #izin-date-end (Permohonan
-     * Izin Harian) supaya kalendernya cuma bisa memilih dari
-     * _getAllowedIzinHarianDates() - tanggal lain otomatis abu-abu/tidak
-     * bisa diklik. Native <input type="date"> tidak bisa dibuat begini
-     * (cuma bisa MIN/MAX polos, tidak bisa skip tanggal tertentu di
-     * tengah rentang), makanya field ini "ditingkatkan" pakai flatpickr -
-     * lihat include CDN-nya di index.html.
+     * Pasang flatpickr di #izin-date-start & #izin-date-end. Field ini
+     * dipakai BERSAMA oleh Permohonan Izin Harian (kalender dibatasi cuma
+     * _getAllowedIzinHarianDates()) DAN Sakit (kalender BEBAS, semua
+     * tanggal bisa dipilih - lihat _setIzinDateRangeRestricted()) - jadi
+     * flatpickr-nya diinit SEKALI di sini dengan opsi restricted (default,
+     * karena dropdown Jenis Izin defaultnya "Sakit" - lihat toggleFormFields()
+     * yang langsung menyesuaikan begitu halaman dibuka/tipe diganti).
+     * Instance-nya disimpan di this._izinDateFP supaya bisa diubah-ubah
+     * batasannya tanpa perlu destroy/reinit tiap ganti Jenis Izin. Native
+     * <input type="date"> tidak bisa dibuat begini (cuma bisa MIN/MAX
+     * polos, tidak bisa skip tanggal tertentu di tengah rentang untuk Izin
+     * Harian), makanya field ini "ditingkatkan" pakai flatpickr - lihat
+     * include CDN-nya di index.html.
      */
     _initIzinHarianDatePickers() {
         if (typeof flatpickr === 'undefined') return;
@@ -105,10 +119,30 @@ const izin = {
             enable: allowedDates,
             defaultDate: allowedDates[0]
         };
+        this._izinDateFP = [];
         ['izin-date-start', 'izin-date-end'].forEach((id) => {
             const el = document.getElementById(id);
             if (el && !el._flatpickr) flatpickr(el, opts);
+            if (el && el._flatpickr) this._izinDateFP.push(el._flatpickr);
         });
+    },
+
+    /**
+     * Ganti batasan kalender Tanggal Mulai/Selesai (#izin-date-start &
+     * #izin-date-end) TANPA destroy/reinit flatpickr-nya - dipanggil dari
+     * toggleFormFields() tiap kali Jenis Izin diganti:
+     * - restricted=true  (Izin Harian): cuma _getAllowedIzinHarianDates()
+     *   yang bisa dipilih (hari ini + 3 hari kerja ke depan).
+     * - restricted=false (Sakit): SEMUA tanggal bisa dipilih bebas (lewat
+     *   fungsi enable yang selalu return true) - kalender kembali normal
+     *   seperti kalender biasa, tidak ada tanggal yang disembunyikan/abu-abu
+     *   (lihat .flatpickr-day.flatpickr-disabled di izin.css - class itu
+     *   otomatis tidak pernah kepasang kalau semua tanggal enabled).
+     */
+    _setIzinDateRangeRestricted(restricted) {
+        if (!this._izinDateFP || !this._izinDateFP.length) return;
+        const enableOption = restricted ? this._getAllowedIzinHarianDates() : [() => true];
+        this._izinDateFP.forEach(fp => fp.set('enable', enableOption));
     },
 
     // Cek apakah user sedang dalam periode Izin/Cuti yang sudah disetujui
@@ -298,6 +332,12 @@ const izin = {
         const typeSelect = document.getElementById('izin-type');
         if (typeSelect) {
             typeSelect.addEventListener('change', (e) => this.toggleKeluarKantorFields(e.target.value));
+            // Sesuaikan field & kalender dengan tipe yang SUDAH terpilih
+            // begitu halaman pertama dibuka - sebelumnya cuma jalan saat
+            // dropdown-nya diganti, jadi kalau defaultnya "Sakit" kalendernya
+            // masih ikut mode restricted Izin Harian sampai user iseng
+            // ganti-ganti dropdown dulu.
+            this.toggleKeluarKantorFields(typeSelect.value);
         }
 
         document.querySelectorAll('input[name="izin-jam-masuk-mode"]').forEach(radio => {
@@ -392,6 +432,13 @@ const izin = {
         if (dateStart)  dateStart.required = usesDateRange;
         if (dateEnd)    dateEnd.required   = usesDateRange;
         if (dateInput)  dateInput.required = !usesDateRange;
+
+        // Kalender Tanggal Mulai/Selesai: Izin Harian TETAP dibatasi cuma
+        // hari ini + 3 hari kerja ke depan, sedangkan Sakit kalendernya
+        // BEBAS (semua tanggal bisa dipilih, termasuk tanggal yang sudah
+        // lewat - wajar untuk Sakit yang kadang baru dilaporkan setelah
+        // beberapa hari) - lihat _setIzinDateRangeRestricted().
+        if (usesDateRange) this._setIzinDateRangeRestricted(isIzinHarian);
 
         // Durasi — dihitung otomatis (disembunyikan dari input manual) untuk
         // keluar_kantor, izin_harian, DAN sekarang sakit juga.
