@@ -189,7 +189,7 @@ const absensi = {
                         const izinRes = await api.getIzin(effectiveId);
                         if (izinRes.success) {
                             const rec = (izinRes.data || []).find(i => String(i.id) === String(today.excusedRefId));
-                            if (rec) this._activeExcusedRecord = { type: 'izin', tanggalSelesai: rec.dateEnd || rec.date };
+                            if (rec) this._activeExcusedRecord = { type: 'izin', typeLabel: rec.typeLabel, tanggalSelesai: rec.dateEnd || rec.date };
                         }
                     }
                 } catch (e) { /* banner tetap tampil, cuma tanpa tanggal selesai */ }
@@ -214,11 +214,66 @@ const absensi = {
             } else if (today.clockIn) {
                 this.currentState = 'clocked-in';
             } else {
-                this.currentState = 'waiting';
+                // Belum ada absen sama sekali hari ini (bukan libur/dinas) -
+                // cek apakah ada pengajuan Izin/Sakit untuk hari ini yang
+                // SUDAH DIAJUKAN tapi BELUM FINAL disetujui (masih di tahap
+                // Asmen/Manajer/Direktur). Kalau ada, tampilkan sebagai
+                // 'excused-pending' (merah) supaya karyawan & yang lihat
+                // tahu izinnya sudah masuk, tinggal menunggu persetujuan -
+                // begitu disetujui penuh, hari berikutnya (atau reload)
+                // otomatis pindah ke 'excused' (hijau) lewat cek status
+                // 'izin'/'cuti' di atas. TIDAK menimpa absen asli yang
+                // sudah terisi (clockIn/breakStart/clockOut) - blok ini
+                // cuma jalan kalau semuanya masih kosong.
+                const pendingIzin = await this._checkPendingIzinToday(effectiveId);
+                if (pendingIzin) {
+                    this.currentState = 'excused-pending';
+                    this._activeExcusedRecord = {
+                        type: 'izin',
+                        pending: true,
+                        typeLabel: pendingIzin.typeLabel || 'Izin',
+                        tanggalSelesai: pendingIzin.dateEnd || pendingIzin.date
+                    };
+                } else {
+                    this.currentState = 'waiting';
+                }
             }
         } catch (e) {
             console.error('Error loading attendance:', e);
         }
+    },
+
+    // Cari pengajuan Izin/Sakit milik user ini yang tanggalnya mencakup HARI
+    // INI dan statusnya masih "dalam proses" (sudah diajukan, belum final
+    // disetujui/ditolak) - dipakai loadTodayAttendance() untuk state
+    // 'excused-pending'. Izin Keluar Kantor sengaja dilewati (itu cuma
+    // keluar sebentar, bukan izin seharian - lihat _finalizeKeluarKantorApproval
+    // di Izin.gs). Logika rentang tanggalnya SAMA seperti _getIzinRange() di
+    // izin.js (duplikat kecil, supaya halaman Absensi tidak perlu memuat
+    // seluruh modul izin.js hanya untuk 1 fungsi ini).
+    async _checkPendingIzinToday(effectiveId) {
+        const PENDING_STATUSES = ['pending', 'asmen_approved', 'manajer_bidang_approved', 'manajer_approved'];
+        try {
+            const todayYMD = (typeof dateTime !== 'undefined' && dateTime.getLocalDate)
+                ? dateTime.getLocalDate()
+                : new Date().toISOString().split('T')[0];
+            const izinRes = await api.getIzin(effectiveId);
+            if (!izinRes.success) return null;
+            for (const rec of (izinRes.data || [])) {
+                if (rec.type === 'keluar_kantor') continue;
+                if (PENDING_STATUSES.indexOf(rec.status) === -1) continue;
+                const start = rec.date;
+                let end = rec.dateEnd;
+                if (!end && start) {
+                    const durasi = parseInt(rec.duration, 10) || 1;
+                    const d = new Date(start);
+                    d.setDate(d.getDate() + durasi - 1);
+                    end = d.toISOString().split('T')[0];
+                }
+                if (start && end && start <= todayYMD && todayYMD <= end) return rec;
+            }
+        } catch (e) { /* biarkan tampilan normal (waiting) kalau gagal cek */ }
+        return null;
     },
 
     // Tampilkan catatan absen-luar-wilayah milik karyawan sendiri, lewat
@@ -268,6 +323,19 @@ const absensi = {
             } catch (e) {
                 console.error('Gagal memuat laporan luar wilayah:', e);
                 this._outOfWilayahMap = {};
+            }
+
+            // Data Izin/Sakit milik user ini - dipakai _buildSyntheticPendingIzinRows()
+            // supaya pengajuan yang MASIH PENDING (belum final disetujui,
+            // jadi belum tercatat sebagai baris Attendance asli) tetap
+            // kelihatan di tabel Riwayat sebagai baris merah "Menunggu
+            // Persetujuan". Gagal muat pun tidak boleh menggagalkan render
+            // riwayat absensi yang asli - cukup anggap tidak ada izin pending.
+            try {
+                const izinRes = await api.getIzin(effectiveId);
+                this._izinDataForHistory = (izinRes && izinRes.success) ? (izinRes.data || []) : [];
+            } catch (e) {
+                this._izinDataForHistory = [];
             }
 
             this._populateHistoryMonthFilter();
@@ -405,6 +473,63 @@ const absensi = {
         return rows;
     },
 
+    /**
+     * Bikin baris SEMU (merah, "Menunggu Persetujuan") untuk hari-hari di
+     * bulan yang ditampilkan yang tercakup pengajuan Izin/Sakit MILIK USER
+     * INI yang MASIH PENDING (belum final disetujui/ditolak) - supaya
+     * begitu karyawan mengajukan izin, langsung kelihatan di tabel Riwayat
+     * meski belum ada baris Attendance asli untuk tanggal itu (baris
+     * Attendance baru ditulis backend SETELAH disetujui penuh - lihat
+     * _markAttendanceRangeAsExcused di Attendance.gs). Begitu disetujui,
+     * baris asli sudah ada (existingRows mencakup tanggal itu) sehingga
+     * baris semu ini otomatis tidak dibuat lagi (lihat existingDates.has()
+     * di bawah) - tidak akan pernah dobel dengan baris hijau yang sudah
+     * final. Izin Keluar Kantor sengaja dilewati (bukan izin seharian).
+     */
+    _buildSyntheticPendingIzinRows(existingRows, selectedMonth) {
+        const izinList = this._izinDataForHistory || [];
+        if (!selectedMonth || !izinList.length) return [];
+
+        const PENDING_STATUSES = ['pending', 'asmen_approved', 'manajer_bidang_approved', 'manajer_approved'];
+        const existingDates = new Set(existingRows.map(r => r.date));
+        const [yearStr, monthStr] = selectedMonth.split('-');
+        const monthStart = `${yearStr}-${monthStr}-01`;
+        const lastDay = new Date(parseInt(yearStr, 10), parseInt(monthStr, 10), 0).getDate();
+        const monthEnd = `${yearStr}-${monthStr}-${String(lastDay).padStart(2, '0')}`;
+        const user = auth.getCurrentUser();
+        const myShift = user?.shift || '';
+
+        const rows = [];
+        izinList.forEach(rec => {
+            if (rec.type === 'keluar_kantor') return;
+            if (PENDING_STATUSES.indexOf(rec.status) === -1) return;
+
+            const start = rec.date;
+            let end = rec.dateEnd;
+            if (!end && start) {
+                const durasi = parseInt(rec.duration, 10) || 1;
+                const d = new Date(start);
+                d.setDate(d.getDate() + durasi - 1);
+                end = d.toISOString().split('T')[0];
+            }
+            if (!start || !end) return;
+            // Lewati kalau rentangnya sama sekali tidak beririsan dengan bulan ini
+            if (end < monthStart || start > monthEnd) return;
+
+            for (let d = new Date(Math.max(new Date(start), new Date(monthStart))); d <= new Date(Math.min(new Date(end), new Date(monthEnd))); d.setDate(d.getDate() + 1)) {
+                const dateStr = d.toISOString().split('T')[0];
+                if (existingDates.has(dateStr)) continue; // sudah ada baris asli (mis. sudah disetujui)
+                rows.push({
+                    date: dateStr,
+                    shift: myShift,
+                    _syntheticPendingIzin: true,
+                    _pendingIzinLabel: rec.typeLabel || 'Izin'
+                });
+            }
+        });
+        return rows;
+    },
+
     // Ambil daftar tanggal merah 1 tahun (dicache per tahun) - dipanggil
     // dari renderHistory(), pola sama seperti cache shiftTypesConfigFull di
     // bawah: kalau belum ada, muat dulu lalu render ULANG.
@@ -430,7 +555,8 @@ const absensi = {
     const holidayDatesForYear = (this._holidayDatesCacheByYear || {})[selectedYear] || {};
 
     const liburRows = this._buildSyntheticLiburRows(historyData, selectedMonth, shiftTypesConfigFull, holidayDatesForYear);
-    const combinedData = [...historyData, ...liburRows].sort((a, b) => String(b.date).localeCompare(String(a.date)));
+    const pendingIzinRows = this._buildSyntheticPendingIzinRows(historyData, selectedMonth);
+    const combinedData = [...historyData, ...liburRows, ...pendingIzinRows].sort((a, b) => String(b.date).localeCompare(String(a.date)));
 
     if (combinedData.length === 0) {
         tbody.innerHTML = '<tr><td colspan="6"><div class="history-empty"><i class="fas fa-calendar-day"></i><span>Belum ada riwayat absensi di bulan ini.</span></div></td></tr>';
@@ -466,24 +592,57 @@ const absensi = {
             `;
         }
 
+        // Baris SEMU Izin/Sakit yang MASIH PENDING (lihat
+        // _buildSyntheticPendingIzinRows di atas) - merah, beda dari baris
+        // Izin/Cuti yang SUDAH disetujui (hijau, lihat isExcused di bawah).
+        if (record._syntheticPendingIzin) {
+            return `
+                <tr${isToday ? ' class="row-today"' : ''}>
+                    <td>${dateStr}${isToday ? '<span class="today-tag">Hari Ini</span>' : ''}</td>
+                    <td style="font-size:0.82rem;">${this._formatShiftDisplay(record.shift)}</td>
+                    <td colspan="4" style="text-align:center;">
+                        <span style="background:#FEE2E2;color:#B91C1C;padding:4px 12px;border-radius:20px;font-weight:600;font-size:0.78rem;">
+                            <i class="fas fa-hourglass-half"></i> ${record._pendingIzinLabel} - Menunggu Persetujuan
+                        </span>
+                        <br><small style="color:#B91C1C;font-weight:600;font-size:0.7rem;">Menunggu ditinjau</small>
+                    </td>
+                </tr>
+            `;
+        }
+
         const statusLower = String(record.status || '').toLowerCase();
 
-        // Hari Izin/Cuti (otomatis "diisi" begitu disetujui penuh - lihat
-        // _markAttendanceRangeAsExcused di Attendance.gs) - jam di 4 kolom
-        // sesi diganti teks jenisnya sendiri (mis. "Cuti Tahunan"), BUKAN
-        // jam sungguhan, jadi tidak usah dihitung status per sesi.
+        // Baris Izin/Cuti yang SUDAH disetujui penuh - hijau konsisten
+        // merentang 4 kolom sesi (dulu 4 warna beda-beda per kolom: hijau/
+        // abu/abu/merah, padahal isinya sama-sama cuma label jenis izin,
+        // bukan jam sungguhan) + teks "Sudah ditinjau" supaya pasangan
+        // dengan baris pending (merah, "Menunggu ditinjau") di atas jelas.
         const isExcused = statusLower === 'izin' || statusLower === 'cuti';
+        if (isExcused) {
+            return `
+                <tr${isToday ? ' class="row-today"' : ''}>
+                    <td>${dateStr}${isToday ? '<span class="today-tag">Hari Ini</span>' : ''}</td>
+                    <td style="font-size:0.82rem;">${this._formatShiftDisplay(record.shift)}</td>
+                    <td colspan="4" style="text-align:center;">
+                        <span style="background:#D1FAE5;color:#065F46;padding:4px 12px;border-radius:20px;font-weight:600;font-size:0.78rem;">
+                            <i class="fas fa-check-circle"></i> ${record.clockIn || (statusLower === 'cuti' ? 'Cuti' : 'Izin')}
+                        </span>
+                        <br><small style="color:#065F46;font-weight:600;font-size:0.7rem;">Sudah ditinjau</small>
+                    </td>
+                </tr>
+            `;
+        }
 
         // 4 sesi kosong semua (tidak clockIn/breakStart/breakEnd/clockOut
-        // sama sekali, dan bukan hari Izin/Cuti) - dianggap "Tidak Hadir".
-        const allSessionsEmpty = !isExcused && !record.clockIn && !record.breakStart && !record.breakEnd && !record.clockOut;
+        // sama sekali) - dianggap "Tidak Hadir".
+        const allSessionsEmpty = !record.clockIn && !record.breakStart && !record.breakEnd && !record.clockOut;
 
         // Status PER SESI ("Hadir Tepat Waktu"/"Hadir Terlambat") - dihitung
         // pakai jadwal shift hari itu (lihat session-status.js). null kalau
         // nilainya bukan jam (mis. hari Izin/Cuti) atau jam target-nya tidak
         // ketemu - fallback tidak nampilkan apa-apa (biar jamnya apa adanya).
         const sessionLabel = (field, actualValue) => {
-            if (isExcused || !actualValue) return '';
+            if (!actualValue) return '';
             const lbl = getSessionAttendanceLabel(shiftTypesConfigFull, record.shift, record.date, field, actualValue);
             if (!lbl) return '';
             // PERBAIKAN: status "Terlambat" (sudah lewat batas toleransi -
@@ -877,7 +1036,12 @@ const absensi = {
                 'on-break': { cls: 'on-break',  text: 'Sedang Istirahat', sub: 'Nikmati waktu istirahat Anda' },
                 completed:  { cls: 'completed', text: 'Selesai Bekerja',  sub: 'Terima kasih atas kerja kerasnya!' },
                 dinas:      { cls: 'completed', text: 'Sedang Dinas Luar (SPPD)', sub: 'Semua sesi absensi hari ini otomatis Hadir' },
-                excused:    { cls: 'completed', text: this.attendanceData.clockIn || 'Izin/Cuti', sub: 'Absensi hari ini mengikuti pengajuan yang sudah disetujui' },
+                excused:    { cls: 'completed', text: this._activeExcusedRecord?.typeLabel || this.attendanceData.clockIn || 'Izin/Cuti', sub: 'Absensi hari ini mengikuti pengajuan yang sudah disetujui' },
+                // Izin/Sakit yang SUDAH DIAJUKAN tapi BELUM final disetujui
+                // (lihat _checkPendingIzinToday) - merah, beda dari 'excused'
+                // (hijau/abu) di atas yang khusus untuk yang sudah disetujui
+                // penuh.
+                'excused-pending': { cls: 'pending-review', text: this._activeExcusedRecord?.typeLabel || 'Izin', sub: 'Sudah diajukan, menunggu persetujuan atasan' },
             };
             const s = states[this.currentState] || states.waiting;
             statusRing.classList.add(s.cls);
@@ -899,15 +1063,40 @@ const absensi = {
             }
         }
 
-        // Banner info Izin/Cuti (mirip pola banner Dinas Luar di atas)
+        // Banner info Izin/Cuti (mirip pola banner Dinas Luar di atas) -
+        // sekarang tampil untuk 2 kondisi: 'excused-pending' (merah, masih
+        // menunggu) dan 'excused' (hijau, sudah final disetujui).
         const excusedInfo = document.getElementById('excused-info');
         if (excusedInfo) {
-            if (this.currentState === 'excused') {
+            const isPendingBanner  = this.currentState === 'excused-pending';
+            const isApprovedBanner = this.currentState === 'excused';
+            if (isPendingBanner || isApprovedBanner) {
                 excusedInfo.style.display = 'block';
-                const typeLabelEl = document.getElementById('excused-type-label');
-                const tanggalEl   = document.getElementById('excused-tanggal');
-                if (typeLabelEl) typeLabelEl.textContent = this._activeExcusedRecord?.type === 'cuti' ? 'Cuti' : 'Izin';
+                const typeLabelEl  = document.getElementById('excused-type-label');
+                const tanggalEl    = document.getElementById('excused-tanggal');
+                const mainNoteEl   = document.getElementById('excused-main-note');
+                const reviewEl     = document.getElementById('excused-review-status');
+                const defaultLabel = this._activeExcusedRecord?.type === 'cuti' ? 'Cuti' : 'Izin';
+                if (typeLabelEl) typeLabelEl.textContent = this._activeExcusedRecord?.typeLabel || defaultLabel;
                 if (tanggalEl)   tanggalEl.textContent   = this._activeExcusedRecord?.tanggalSelesai || '-';
+
+                // Merah selagi menunggu persetujuan, hijau begitu sudah
+                // disetujui penuh - sama pola warnanya dengan status-ring
+                // (lihat states.excused / states['excused-pending'] di atas
+                // dan .status-ring.pending-review di absensi.css).
+                if (isPendingBanner) {
+                    excusedInfo.style.background   = '#FEF2F2';
+                    excusedInfo.style.borderColor  = '#FECACA';
+                    excusedInfo.style.color        = '#B91C1C';
+                    if (mainNoteEl) mainNoteEl.textContent = 'Pengajuan sudah masuk, silakan tetap tunggu keputusan atasan.';
+                    if (reviewEl)   reviewEl.textContent   = 'Menunggu ditinjau';
+                } else {
+                    excusedInfo.style.background   = '#ECFDF5';
+                    excusedInfo.style.borderColor  = '#A7F3D0';
+                    excusedInfo.style.color        = '#065F46';
+                    if (mainNoteEl) mainNoteEl.textContent = 'Tidak perlu/tidak bisa absen manual untuk rentang tanggal ini.';
+                    if (reviewEl)   reviewEl.textContent   = 'Sudah ditinjau';
+                }
             } else {
                 excusedInfo.style.display = 'none';
             }
