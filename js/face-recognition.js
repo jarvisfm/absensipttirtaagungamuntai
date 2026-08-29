@@ -345,12 +345,29 @@ const faceRecognition = {
 
                 const ready = await this._loadFaceModels();
                 if (!ready) {
-                    // Model gagal dimuat (mis. tidak ada akses ke CDN) -
-                    // supaya fitur absen tidak terkunci total, fallback ke
-                    // perilaku lama (capture selalu boleh).
+                    // BUGFIX (2026-08-29): model gagal dimuat (mis. koneksi
+                    // lambat/CDN tidak terjangkau saat itu di HP karyawan -
+                    // lihat laporan tanggal 27 Agustus: kotak deteksi macet
+                    // kuning selamanya). Dulu di sini cuma menandai
+                    // this.faceDetected=true & meng-enable #btn-capture
+                    // supaya "boleh" absen - TAPI #btn-capture SEKARANG
+                    // sudah bukan tombol yang bisa diklik (lihat markup-nya
+                    // di index.html, pointer-events:none - cuma indikator
+                    // status), jadi karyawan yang kena kasus ini benar-benar
+                    // tidak punya cara lanjut absen sama sekali.
+                    // Sekarang: tetap jalankan loop deteksi yang SAMA seperti
+                    // mode normal (_startFaceDetectionLoop) supaya
+                    // auto-capture (nunggu lokasi terverifikasi, wajah
+                    // "stabil", retry kalau tidak cocok, dst) tetap
+                    // berfungsi - faceDetected & livenessDetected di-preset
+                    // true (fail-open, sama prinsipnya dengan toggle OFF)
+                    // karena memang tidak ada cara mendeteksi wajah/kedipan
+                    // tanpa model ini. tick() di _startFaceDetectionLoop
+                    // sendiri yang mendeteksi this.modelsLoaded masih false
+                    // dan melewati pemanggilan faceapi (lihat di sana).
                     this.faceDetected = true;
-                    const captureBtn = document.getElementById('btn-capture');
-                    if (captureBtn) captureBtn.disabled = false;
+                    this.livenessDetected = true;
+                    this._startFaceDetectionLoop();
                     return;
                 }
                 this._startFaceDetectionLoop();
@@ -589,7 +606,18 @@ const faceRecognition = {
             let detected = false;
             let landmarks = null;
             try {
-                if (!this.livenessDetected) {
+                if (!this.modelsLoaded) {
+                    // Model gagal dimuat sama sekali (lihat cabang !ready di
+                    // initCamera()) - tidak ada cara mendeteksi wajah
+                    // beneran lewat face-api.js. Anggap wajah selalu "ada"
+                    // (fail-open) supaya auto-capture di bawah tetap bisa
+                    // berjalan lewat jalur yang SAMA PERSIS dengan mode
+                    // normal (nunggu lokasi terverifikasi + wajah "stabil"
+                    // + cooldown retry kalau ternyata tidak cocok dengan
+                    // foto profil di capturePhoto()) - bukan macet total
+                    // kotak kuning selamanya seperti sebelumnya.
+                    detected = true;
+                } else if (!this.livenessDetected) {
                     // Kedipan belum terekam - butuh landmark mata tiap tick
                     // buat _trackBlink(). Begitu livenessDetected true, tidak
                     // perlu landmark lagi (lebih ringan), cukup cek wajah
@@ -875,7 +903,15 @@ const faceRecognition = {
         if (frame) frame.classList.toggle('detected', detected);
         if (guideIcon) guideIcon.classList.toggle('detected', detected);
         if (guideText) {
-            if (!detected) {
+            if (!this.modelsLoaded) {
+                // Model deteksi wajah gagal dimuat (lihat cabang !ready di
+                // initCamera()) - tidak ada cara mendeteksi wajah beneran,
+                // tapi absen tetap diproses otomatis (fail-open, lihat
+                // tick() di _startFaceDetectionLoop). Kasih tahu apa
+                // adanya, supaya karyawan tidak bingung kenapa kotaknya
+                // tidak pernah berubah warna berdasarkan wajahnya sendiri.
+                guideText.textContent = 'Deteksi wajah tidak tersedia (periksa koneksi internet) - foto diambil otomatis...';
+            } else if (!detected) {
                 guideText.textContent = 'Wajah tidak terlihat - posisikan wajah di dalam frame';
             } else if (!this.livenessDetected && !this.photoCaptured) {
                 guideText.textContent = 'Wajah terdeteksi - silakan berkedip sekali secara normal';
@@ -1060,11 +1096,22 @@ const faceRecognition = {
             // otomatis menyalakan lagi loop deteksi wajahnya sendiri begitu
             // video metadata siap (lihat video.onloadedmetadata di dalamnya).
             this.initCamera();
-        } else if (this.modelsLoaded && !this.photoCaptured) {
+        } else if (!this.photoCaptured) {
             // Stream masih hidup (mis. modal cuma dibuka lalu ditutup tanpa
             // sempat ambil foto) - loop deteksinya tadi sengaja dihentikan
             // di _promptOutOfRadiusNote() supaya tidak kedap-kedip tembus
             // dari balik modal yang semi-transparan. Nyalakan lagi di sini.
+            //
+            // BUGFIX (2026-08-29): sebelumnya syaratnya "this.modelsLoaded
+            // && !this.photoCaptured" - dulu itu valid karena kalau model
+            // gagal dimuat, loop-nya memang TIDAK PERNAH dinyalakan sama
+            // sekali (lihat initCamera()), jadi tidak ada yang perlu
+            // dinyalakan ulang di sini. Sekarang loop tetap jalan juga di
+            // kasus model gagal dimuat itu (fail-open, lihat tick() &
+            // _updateFaceOverlay()), jadi syarat modelsLoaded ini
+            // dilepas - kalau tidak, loop-nya justru tidak akan menyala
+            // lagi setelah modal luar-radius ditutup buat karyawan yang
+            // kebetulan kena kasus model gagal dimuat ini.
             this._startFaceDetectionLoop();
         }
     },
