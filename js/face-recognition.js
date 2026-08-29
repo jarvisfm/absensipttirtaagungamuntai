@@ -46,20 +46,31 @@ const faceRecognition = {
     // PERBAIKAN (2026-08-20): 0.55 ternyata masih terlalu longgar - dites
     // langsung via debug log, 2 wajah BERBEDA orang bisa terhitung
     // distance ~0.47 (di bawah 0.55) dan tetap dianggap "cocok". Diperketat
-    // ke 0.40 (paling ketat dari beberapa opsi yang didiskusikan).
-    // Konsekuensinya: karyawan ASLI juga jadi lebih mungkin sesekali
-    // ditolak/diminta foto ulang gara-gara pencahayaan/sudut kamera kurang
-    // pas (foto profil beresolusi rendah dari Google Drive thumbnail juga
-    // ikut mempengaruhi akurasi) - trade-off yang disengaja demi keamanan
-    // anti-titip-absen.
-    FACE_MATCH_THRESHOLD: 0.40,
+    // ke 0.40 saat itu.
+    //
+    // PERBAIKAN (2026-08-29): 0.40 ternyata KEBABLASAN ketat - banyak
+    // karyawan ASLI (sudah ganti foto profil jelas & absen di pencahayaan
+    // terang) tetap sering ditolak/diulang-ulang. Dinaikkan ke 0.45 -
+    // MASIH tetap menolak kasus 2-orang-berbeda ~0.47 yang jadi alasan
+    // threshold ini diperketat di atas (0.47 > 0.45, jadi tetap ditolak),
+    // tapi kasih sedikit ruang toleransi tambahan buat variasi
+    // pencahayaan/sudut/kompresi foto profil resolusi rendah yang wajar
+    // terjadi pada wajah yang SAMA. Kalau keluhan "sering tidak
+    // lolos"-nya masih banyak setelah ini, opsi berikutnya BUKAN
+    // menaikkan lagi angka ini (makin dekat ke 0.47 = makin mepet ke
+    // kasus yang justru mau dicegah), melainkan naikkan dulu resolusi
+    // foto acuan (lihat sz=w400 di Karyawan.gs getDriveFileAsBase64) atau
+    // minta karyawan foto ulang profil yang lebih tegak lurus & tidak
+    // gelap.
+    FACE_MATCH_THRESHOLD: 0.45,
     // Kalau jarak masih di bawah threshold (jadi tetap dianggap "cocok")
     // TAPI di atas angka ini, kecocokannya dianggap "kurang yakin" - absen
     // tetap diloloskan (tidak mau bikin karyawan asli ditolak-tolak gara-
     // gara pencahayaan/sudut kurang pas), tapi ditandai faceMatchFlag=true
     // di data absensinya supaya admin bisa tinjau ulang lewat foto yang
-    // tersimpan.
-    FACE_MATCH_CONFIDENT_ZONE: 0.45,
+    // tersimpan. Dinaikkan mengikuti FACE_MATCH_THRESHOLD di atas (tetap
+    // dijaga jaraknya 0.05 dari threshold, sama seperti sebelumnya).
+    FACE_MATCH_CONFIDENT_ZONE: 0.50,
     _lastFaceMatch: null,
     // ---- Tuning deteksi wajah live (kotak hijau) ----
     // PERBAIKAN (2026-08-27): beberapa karyawan melaporkan kamera menyala
