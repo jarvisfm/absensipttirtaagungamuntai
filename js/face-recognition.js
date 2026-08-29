@@ -17,13 +17,20 @@ const faceRecognition = {
     modelsLoaded: false,
     faceDetected: false,
     // Dikontrol dari toggle "Face Recognition" di halaman Settings admin -
-    // lihat _loadFaceRecognitionSetting(). Default FALSE (nonaktif) sesuai
-    // permintaan - foto pas absen tetap wajib diambil seperti biasa, tapi
-    // TANPA verifikasi wajah/liveness apa pun sampai admin menyalakan toggle
-    // ini secara sadar. Begitu dinyalakan, yang berjalan adalah liveness
-    // BARU (deteksi kedipan mata, lihat livenessDetected/_trackBlink di
-    // bawah) - bukan lagi versi lama yang cuma cek "ada wajah atau tidak"
-    // (itu yang bisa ditembus foto/kertas dicetak).
+    // lihat _loadFaceRecognitionSetting(). Default FALSE (nonaktif).
+    // Kedua mode (ON/OFF) SAMA-SAMA otomatis - kamera live tetap jalan,
+    // tidak ada tombol fisik untuk ditekan (lihat #btn-capture di
+    // index.html), dan foto yang diambil TETAP DICOCOKKAN dengan foto
+    // profil (lihat _verifyFaceIdentity di capturePhoto()); kalau belum
+    // cocok, otomatis dicoba lagi terus sampai wajahnya benar-benar sama.
+    // OFF: TIDAK mewajibkan liveness kedip mata - livenessDetected
+    // di-preset true dari awal (lihat initCamera()) supaya auto-capture
+    // langsung jalan begitu wajah stabil terdeteksi di frame, tanpa
+    // hitung landmark mata tiap tick (lebih ringan & cepat).
+    // ON: yang berjalan TAMBAHAN adalah liveness BARU (deteksi kedipan
+    // mata, lihat livenessDetected/_trackBlink di bawah) sebelum foto
+    // boleh diambil - bukan lagi versi lama yang cuma cek "ada wajah
+    // atau tidak" (itu yang bisa ditembus foto/kertas dicetak).
     faceRecognitionEnabled: false,
     // Model tambahan untuk RECOGNITION (mengenali identitas, bukan cuma
     // mendeteksi ada-tidaknya wajah) - dipakai untuk mencocokkan wajah yang
@@ -230,13 +237,17 @@ const faceRecognition = {
 
     /**
      * Baca toggle "Face Recognition" dari Settings admin. Default toggle ini
-     * sekarang OFF - kalau OFF (atau belum pernah diatur admin sama sekali),
-     * seluruh pengecekan wajah (deteksi ada-tidaknya wajah, liveness kedip
-     * mata, MAUPUN pencocokan identitas ke foto profil) dilewati - absen
-     * cukup ambil foto & kirim seperti alur lama sebelum ada fitur ini.
-     * Begitu admin menyalakan toggle ini, yang aktif adalah liveness BARU
-     * (kedip mata). Kalau gagal dimuat (mis. error jaringan), tetap default
-     * NONAKTIF supaya konsisten dengan default barunya.
+     * OFF - kalau OFF (atau belum pernah diatur admin sama sekali), kamera
+     * live & auto-capture-nya TETAP jalan otomatis seperti biasa (tidak ada
+     * tombol fisik untuk ditekan), yang dilewati HANYA liveness kedip mata -
+     * pencocokan identitas ke foto profil TETAP jalan tiap kali foto
+     * otomatis diambil (lihat initCamera() & capturePhoto()), dan kalau
+     * belum cocok akan otomatis dicoba lagi terus. Karena tidak perlu
+     * menunggu kedipan mata dulu, prosesnya jadi lebih cepat. Begitu admin
+     * menyalakan toggle ini, tambahan liveness BARU (kedip mata) ikut
+     * aktif sebelum foto boleh diambil. Kalau gagal dimuat (mis. error
+     * jaringan), tetap default NONAKTIF supaya konsisten dengan default
+     * barunya.
      */
     async _loadFaceRecognitionSetting() {
         try {
@@ -302,15 +313,23 @@ const faceRecognition = {
             // wajah BENAR-BENAR terdeteksi di frame (lihat _startFaceDetectionLoop).
             this.video.onloadedmetadata = async () => {
                 // Toggle "Face Recognition" di Settings admin sedang OFF -
-                // lewati semua pengecekan wajah, tombol capture langsung
-                // boleh ditekan seperti alur lama sebelum fitur ini ada.
+                // TIDAK mewajibkan liveness kedip mata, tapi alur deteksi +
+                // auto-capture di bawah (sama persis dengan toggle ON) tetap
+                // berjalan otomatis - tidak ada tombol fisik untuk ditekan
+                // (lihat #btn-capture di index.html, sudah jadi <div
+                // pointer-events:none> sebagai indikator status/loading
+                // saja). livenessDetected di-preset true SEBELUM loop
+                // dimulai supaya seluruh logic auto-capture & status di
+                // _startFaceDetectionLoop cukup menunggu wajah stabil di
+                // frame (tanpa nunggu kedipan/hitung landmark mata tiap
+                // tick - lebih ringan & cepat), lalu capturePhoto() yang
+                // mencocokkan foto tsb ke foto profil - kalau belum cocok,
+                // loop ini otomatis mencoba lagi terus sampai wajah yang
+                // di kamera benar-benar sama dengan foto profil (lihat
+                // _faceMismatchRetrying & cooldown _autoCaptureNextAllowedAt
+                // di bawah).
                 if (!this.faceRecognitionEnabled) {
-                    this.faceDetected = true;
-                    const captureBtn = document.getElementById('btn-capture');
-                    if (captureBtn) captureBtn.disabled = false;
-                    const guideText = document.querySelector('#face-overlay .face-guide p');
-                    if (guideText) guideText.textContent = 'Posisikan wajah di dalam frame';
-                    return;
+                    this.livenessDetected = true;
                 }
 
                 const ready = await this._loadFaceModels();
@@ -327,8 +346,8 @@ const faceRecognition = {
 
                 // Mulai muat model recognition + hitung referensi dari foto
                 // profil di LATAR BELAKANG (tidak di-await) selagi karyawan
-                // baru memposisikan wajahnya - supaya pas tombol "Absen
-                // Sekarang" ditekan, pencocokan identitas di capturePhoto()
+                // baru memposisikan wajahnya - supaya begitu wajah stabil
+                // terdeteksi, pencocokan identitas di capturePhoto()
                 // besar kemungkinan sudah tidak perlu menunggu model dimuat
                 // lagi dari nol.
                 this._getReferenceDescriptor();
@@ -1542,18 +1561,24 @@ const faceRecognition = {
         (async () => {
             let faceOk = true;
 
-            if (this.faceRecognitionEnabled) {
-                faceOk = this.faceDetected; // fallback kalau model gagal load (lihat _loadFaceModels)
-                if (this.modelsLoaded && typeof faceapi !== 'undefined') {
-                    try {
-                        const result = await faceapi.detectSingleFace(
-                            this.canvas,
-                            new faceapi.TinyFaceDetectorOptions({ inputSize: this.FACE_DETECT_INPUT_SIZE, scoreThreshold: this.FACE_DETECT_SCORE_THRESHOLD })
-                        );
-                        faceOk = !!result;
-                    } catch (e) {
-                        faceOk = this.faceDetected;
-                    }
+            // Dulu cuma dicek kalau toggle Face Recognition ON. Sekarang tetap
+            // dicek juga saat OFF (this.modelsLoaded baru true kalau
+            // _loadFaceModels() di initCamera() sempat berhasil dimuat -
+            // lihat pemanggilannya di sana untuk kedua mode) supaya foto yang
+            // benar-benar tidak ada wajahnya tertangkap sebelum masuk ke
+            // pencocokan identitas di bawah. Fail-open (faceOk tetap
+            // this.faceDetected, yaitu true) kalau modelnya belum/gagal
+            // dimuat, sama seperti sebelumnya.
+            faceOk = this.faceDetected; // fallback kalau model gagal load (lihat _loadFaceModels)
+            if (this.modelsLoaded && typeof faceapi !== 'undefined') {
+                try {
+                    const result = await faceapi.detectSingleFace(
+                        this.canvas,
+                        new faceapi.TinyFaceDetectorOptions({ inputSize: this.FACE_DETECT_INPUT_SIZE, scoreThreshold: this.FACE_DETECT_SCORE_THRESHOLD })
+                    );
+                    faceOk = !!result;
+                } catch (e) {
+                    faceOk = this.faceDetected;
                 }
             }
 
@@ -1568,8 +1593,9 @@ const faceRecognition = {
 
             // Cocokkan wajah di foto ini dengan foto profil karyawan yang
             // sedang login - supaya tidak bisa "titip absen" pakai akun
-            // orang lain. Dilewati total kalau toggle Face Recognition di
-            // Settings admin sedang OFF.
+            // orang lain. Tetap dijalankan baik toggle Face Recognition di
+            // Settings admin ON maupun OFF (OFF cuma melewati liveness/kamera
+            // live-nya saja, lihat komentar di _loadFaceRecognitionSetting()).
             //
             // PERBAIKAN (2026-08-20): SEBELUMNYA kalau wajah tidak cocok
             // (atau tidak sempat diverifikasi sama sekali), absen tetap
@@ -1596,7 +1622,12 @@ const faceRecognition = {
             this._lastFaceMatch = null;
             const _demoUser = auth.getCurrentUser();
             const _isDemo = !!(_demoUser && String(_demoUser.username || '').trim().toLowerCase() === 'demo');
-            if (this.faceRecognitionEnabled && !_isDemo) {
+            // Dulu blok ini cuma jalan kalau toggle Face Recognition ON.
+            // Sekarang TETAP jalan walau OFF - bedanya cuma OFF tidak
+            // mewajibkan liveness (kedip mata) dulu sebelum sampai sini,
+            // jadi yang dibandingkan adalah foto statis yang baru saja
+            // diambil, bukan hasil verifikasi wajah live.
+            if (!_isDemo) {
                 const identity = await this._verifyFaceIdentity();
 
                 if (!identity.checked || !identity.matched) {
@@ -1608,7 +1639,10 @@ const faceRecognition = {
                     // lagi (lihat cooldown _autoCaptureNextAllowedAt di
                     // _startFaceDetectionLoop()) - karyawan tinggal
                     // memperbaiki posisi/pencahayaan tanpa perlu keluar
-                    // masuk halaman lagi.
+                    // masuk halaman lagi. Berlaku sama untuk toggle ON
+                    // maupun OFF, karena keduanya sekarang sama-sama
+                    // menjalankan loop deteksi ini (lihat initCamera()) -
+                    // bedanya cuma OFF tidak mewajibkan liveness kedip mata.
                     this._faceMismatchRetrying = true;
                     if (!this._mismatchToastShown) {
                         this._mismatchToastShown = true;
@@ -1800,7 +1834,7 @@ const faceRecognition = {
             // saja.
             faceMatchScore: (this._lastFaceMatch && this._lastFaceMatch.checked && this._lastFaceMatch.distance != null)
                 ? Number(this._lastFaceMatch.distance.toFixed(4)) : null,
-            faceMatchFlag: this.faceRecognitionEnabled && (
+            faceMatchFlag: (
                 !this._lastFaceMatch || !this._lastFaceMatch.checked || (
                     this._lastFaceMatch.distance != null &&
                     this._lastFaceMatch.distance > this.FACE_MATCH_CONFIDENT_ZONE
