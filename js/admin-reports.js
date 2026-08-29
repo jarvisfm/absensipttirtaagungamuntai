@@ -139,6 +139,7 @@ const adminReports = {
 
         this.rawAttendance = attendances;
         this.rawEmployees = employees;
+        this.rawIzin = izinList;
 
         this.attendanceData = employees.map(emp => {
             const empAtt = attendances.filter(a => String(a.userId) === String(emp.id));
@@ -596,6 +597,56 @@ const adminReports = {
         });
     },
 
+    /**
+     * Baris pending izin/sakit (belum final disetujui) untuk 1 karyawan di
+     * bulan yang sedang difilter - dipakai renderAttendanceReports() supaya
+     * Rekap Absensi Admin menampilkan hal yang sama seperti Riwayat Absensi
+     * karyawan sendiri (lihat _buildSyntheticPendingIzinRows di absensi.js -
+     * logikanya sengaja disamakan persis). Data izin semua karyawan sudah
+     * dimuat sekali di this.rawIzin (lihat init/loadAllData di atas).
+     */
+    _buildPendingIzinRowsForEmployee(empId, month) {
+        const izinList = (this.rawIzin || []).filter(i => String(i.userId) === String(empId));
+        if (!izinList.length) return [];
+
+        const PENDING_STATUSES = ['pending', 'asmen_approved', 'manajer_bidang_approved', 'manajer_approved'];
+        const existingDates = new Set((this.rawAttendance || [])
+            .filter(r => String(r.userId) === String(empId))
+            .map(r => r.date));
+
+        let monthStart = '0000-01-01', monthEnd = '9999-12-31';
+        if (month) {
+            const [yearStr, monthStr] = month.split('-');
+            monthStart = `${yearStr}-${monthStr}-01`;
+            const lastDay = new Date(parseInt(yearStr, 10), parseInt(monthStr, 10), 0).getDate();
+            monthEnd = `${yearStr}-${monthStr}-${String(lastDay).padStart(2, '0')}`;
+        }
+
+        const rows = [];
+        izinList.forEach(rec => {
+            if (rec.type === 'keluar_kantor') return;
+            if (PENDING_STATUSES.indexOf(rec.status) === -1) return;
+
+            const start = rec.date;
+            let end = rec.dateEnd;
+            if (!end && start) {
+                const durasi = parseInt(rec.duration, 10) || 1;
+                const d = new Date(start);
+                d.setDate(d.getDate() + durasi - 1);
+                end = d.toISOString().split('T')[0];
+            }
+            if (!start || !end) return;
+            if (end < monthStart || start > monthEnd) return;
+
+            for (let d = new Date(Math.max(new Date(start), new Date(monthStart))); d <= new Date(Math.min(new Date(end), new Date(monthEnd))); d.setDate(d.getDate() + 1)) {
+                const dateStr = d.toISOString().split('T')[0];
+                if (existingDates.has(dateStr)) continue;
+                rows.push({ date: dateStr, _syntheticPendingIzin: true, _pendingIzinLabel: rec.typeLabel || 'Izin' });
+            }
+        });
+        return rows;
+    },
+
     renderAttendanceReports() {
         const container = document.getElementById('attendance-reports-body');
         if (!container) return;
@@ -621,7 +672,6 @@ const adminReports = {
         employees.forEach(emp => {
             let rows = (this.rawAttendance || []).filter(r => String(r.userId) === String(emp.id));
             if (month) rows = rows.filter(r => r.date && r.date.startsWith(month));
-            rows.sort((a, b) => String(b.date).localeCompare(String(a.date)));
 
             const initials = (emp.name || 'K').split(' ').map(w => w[0]).join('').substring(0, 2).toUpperCase();
             const colors = ['#F59E0B','#3B82F6','#10B981','#EF4444','#8B5CF6'];
@@ -631,10 +681,20 @@ const adminReports = {
             // keduanya, dan totalTerlambat cuma breakdown info tambahan.
             // 'izin'/'cuti' juga dihitung Hadir - sama seperti Dinas Luar
             // (statusnya sudah 'hadir' langsung dari backend) - Izin/Cuti
-            // yang disetujui penuh bukan ketidakhadiran.
+            // yang disetujui penuh bukan ketidakhadiran. DIHITUNG DARI rows
+            // ASLI (sebelum baris pending izin semu digabung di bawah) -
+            // pending izin BUKAN kehadiran, jangan sampai menggelembungkan
+            // Total hari (sama seperti renderHistoryStats di absensi.js).
             const totalTerlambat = rows.filter(r => ['terlambat','late'].includes(String(r.status||'').toLowerCase())).length;
             const totalHadir = rows.filter(r => ['hadir','ontime','terlambat','late','izin','cuti'].includes(String(r.status||'').toLowerCase())).length;
             const totalHari = rows.length;
+
+            // Baris pending izin semu digabung SETELAH statistik di atas
+            // dihitung, supaya cuma memengaruhi tampilan tabel per-hari, bukan
+            // badge Hadir/Terlambat/Total.
+            const pendingIzinRows = this._buildPendingIzinRowsForEmployee(emp.id, month);
+            rows = [...rows, ...pendingIzinRows];
+            rows.sort((a, b) => String(b.date).localeCompare(String(a.date)));
 
             html += `
                 <tr class="employee-group-header" style="background:var(--bg-secondary,#f8f9fa);">
@@ -673,6 +733,50 @@ const adminReports = {
                 rows.forEach(row => {
                     const [y, m, d] = (row.date || '').split('-');
                     const dateStr = (y && m && d) ? `${d} ${months[parseInt(m)-1]} ${y}` : '-';
+
+                    // Baris SEMU Izin/Sakit yang MASIH PENDING (lihat
+                    // _buildPendingIzinRowsForEmployee di atas) - merah,
+                    // sama pola dengan Riwayat Absensi karyawan sendiri.
+                    if (row._syntheticPendingIzin) {
+                        html += `
+                            <tr style="border-bottom:1px solid var(--border-color,#e5e7eb);">
+                                <td style="padding:10px 12px;font-size:0.85rem;">${dateStr}</td>
+                                <td style="padding:10px 12px;font-size:0.82rem;">${emp.shift || '-'}</td>
+                                <td colspan="4" style="padding:10px 12px;text-align:center;">
+                                    <span style="background:#FEE2E2;color:#B91C1C;padding:4px 12px;border-radius:20px;font-weight:600;font-size:0.78rem;">
+                                        <i class="fas fa-hourglass-half"></i> ${row._pendingIzinLabel} - Menunggu Persetujuan
+                                    </span>
+                                    <br><small style="color:#B91C1C;font-weight:600;font-size:0.7rem;">Menunggu ditinjau</small>
+                                </td>
+                                <td style="padding:10px 12px;">–</td>
+                                <td style="padding:10px 12px;">–</td>
+                            </tr>
+                        `;
+                        return;
+                    }
+
+                    // Baris Izin/Cuti yang SUDAH disetujui penuh - hijau
+                    // konsisten (dulu 4 warna beda per kolom padahal isinya
+                    // cuma label jenis izin, bukan jam sungguhan), sama pola
+                    // dengan Riwayat Absensi karyawan sendiri.
+                    const statusLowerRow = String(row.status || '').toLowerCase();
+                    if (statusLowerRow === 'izin' || statusLowerRow === 'cuti') {
+                        html += `
+                            <tr style="border-bottom:1px solid var(--border-color,#e5e7eb);">
+                                <td style="padding:10px 12px;font-size:0.85rem;">${dateStr}</td>
+                                <td style="padding:10px 12px;font-size:0.82rem;">${row.shift || '-'}</td>
+                                <td colspan="4" style="padding:10px 12px;text-align:center;">
+                                    <span style="background:#D1FAE5;color:#065F46;padding:4px 12px;border-radius:20px;font-weight:600;font-size:0.78rem;">
+                                        <i class="fas fa-check-circle"></i> ${row.clockIn || (statusLowerRow === 'cuti' ? 'Cuti' : 'Izin')}
+                                    </span>
+                                    <br><small style="color:#065F46;font-weight:600;font-size:0.7rem;">Sudah ditinjau</small>
+                                </td>
+                                <td style="padding:10px 12px;">–</td>
+                                <td style="padding:10px 12px;">–</td>
+                            </tr>
+                        `;
+                        return;
+                    }
 
                     const coords = this._parseLatLng(row.verificationLocation);
                     const coordLabel = coords ? `${coords.lat.toFixed(5)}, ${coords.lng.toFixed(5)}` : '';
@@ -798,7 +902,6 @@ const adminReports = {
         employees.forEach(emp => {
             let rows = (this.rawAttendance || []).filter(r => String(r.userId) === String(emp.id));
             if (month) rows = rows.filter(r => r.date && r.date.startsWith(month));
-            rows.sort((a, b) => String(b.date).localeCompare(String(a.date)));
 
             const initials = (emp.name || 'K').split(' ').map(w => w[0]).join('').substring(0, 2).toUpperCase();
             const colors = ['#F59E0B','#3B82F6','#10B981','#EF4444','#8B5CF6'];
@@ -808,10 +911,15 @@ const adminReports = {
             // keduanya, dan totalTerlambat cuma breakdown info tambahan.
             // 'izin'/'cuti' juga dihitung Hadir - sama seperti Dinas Luar
             // (statusnya sudah 'hadir' langsung dari backend) - Izin/Cuti
-            // yang disetujui penuh bukan ketidakhadiran.
+            // yang disetujui penuh bukan ketidakhadiran. DIHITUNG DARI rows
+            // ASLI (sebelum baris pending izin semu digabung di bawah).
             const totalTerlambat = rows.filter(r => ['terlambat','late'].includes(String(r.status||'').toLowerCase())).length;
             const totalHadir = rows.filter(r => ['hadir','ontime','terlambat','late','izin','cuti'].includes(String(r.status||'').toLowerCase())).length;
             const totalHari = rows.length;
+
+            const pendingIzinRowsM = this._buildPendingIzinRowsForEmployee(emp.id, month);
+            rows = [...rows, ...pendingIzinRowsM];
+            rows.sort((a, b) => String(b.date).localeCompare(String(a.date)));
 
             html += `
                 <div class="mobile-card" style="margin-bottom:16px;">
@@ -835,6 +943,37 @@ const adminReports = {
                 rows.forEach(row => {
                     const [y, m, d] = (row.date || '').split('-');
                     const dateStr = (y && m && d) ? `${d} ${months[parseInt(m)-1]} ${y}` : '-';
+
+                    // Baris SEMU Izin/Sakit yang MASIH PENDING - sama pola
+                    // dengan tabel desktop di atas.
+                    if (row._syntheticPendingIzin) {
+                        html += `
+                            <div style="padding:10px 0;border-top:1px solid var(--border-color,#e5e7eb);text-align:center;">
+                                <div style="font-weight:600;font-size:0.85rem;margin-bottom:6px;">${dateStr}</div>
+                                <span style="background:#FEE2E2;color:#B91C1C;padding:4px 12px;border-radius:20px;font-weight:600;font-size:0.78rem;">
+                                    <i class="fas fa-hourglass-half"></i> ${row._pendingIzinLabel} - Menunggu Persetujuan
+                                </span>
+                                <br><small style="color:#B91C1C;font-weight:600;font-size:0.7rem;">Menunggu ditinjau</small>
+                            </div>
+                        `;
+                        return;
+                    }
+
+                    // Baris Izin/Cuti yang SUDAH disetujui penuh - hijau,
+                    // sama pola dengan tabel desktop di atas.
+                    const statusLowerRowM = String(row.status || '').toLowerCase();
+                    if (statusLowerRowM === 'izin' || statusLowerRowM === 'cuti') {
+                        html += `
+                            <div style="padding:10px 0;border-top:1px solid var(--border-color,#e5e7eb);text-align:center;">
+                                <div style="font-weight:600;font-size:0.85rem;margin-bottom:6px;">${dateStr}</div>
+                                <span style="background:#D1FAE5;color:#065F46;padding:4px 12px;border-radius:20px;font-weight:600;font-size:0.78rem;">
+                                    <i class="fas fa-check-circle"></i> ${row.clockIn || (statusLowerRowM === 'cuti' ? 'Cuti' : 'Izin')}
+                                </span>
+                                <br><small style="color:#065F46;font-weight:600;font-size:0.7rem;">Sudah ditinjau</small>
+                            </div>
+                        `;
+                        return;
+                    }
 
                     const coords = this._parseLatLng(row.verificationLocation);
                     const coordLabel = coords ? `${coords.lat.toFixed(5)}, ${coords.lng.toFixed(5)}` : '';
