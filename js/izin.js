@@ -367,6 +367,8 @@ const izin = {
 
         const isKeluarKantor = type === 'keluar_kantor';
         const isIzinHarian   = type === 'izin_harian';
+        const isSakit        = type === 'sick';
+        const usesDateRange  = isIzinHarian || isSakit;
 
         // Asmen penyetuju cuma relevan untuk Surat Permohonan Izin (izin_harian)
         this._toggleAsmenGroup(type);
@@ -384,16 +386,17 @@ const izin = {
             this.toggleJamMasukMode();
         }
 
-        // Tanggal range — hanya untuk izin_harian
-        if (rangeRow)   rangeRow.style.display   = isIzinHarian ? 'flex' : 'none';
-        if (singleRow)  singleRow.style.display  = isIzinHarian ? 'none' : 'flex';
-        if (dateStart)  dateStart.required = isIzinHarian;
-        if (dateEnd)    dateEnd.required   = isIzinHarian;
-        if (dateInput)  dateInput.required = !isIzinHarian;
+        // Tanggal range — untuk izin_harian DAN sakit
+        if (rangeRow)   rangeRow.style.display   = usesDateRange ? 'flex' : 'none';
+        if (singleRow)  singleRow.style.display  = usesDateRange ? 'none' : 'flex';
+        if (dateStart)  dateStart.required = usesDateRange;
+        if (dateEnd)    dateEnd.required   = usesDateRange;
+        if (dateInput)  dateInput.required = !usesDateRange;
 
-        // Durasi — sembunyikan untuk keluar_kantor dan izin_harian
-        if (durationGroup) durationGroup.style.display = (isKeluarKantor || isIzinHarian) ? 'none' : 'block';
-        if (durationInput) durationInput.required      = (!isKeluarKantor && !isIzinHarian);
+        // Durasi — dihitung otomatis (disembunyikan dari input manual) untuk
+        // keluar_kantor, izin_harian, DAN sekarang sakit juga.
+        if (durationGroup) durationGroup.style.display = (isKeluarKantor || usesDateRange) ? 'none' : 'block';
+        if (durationInput) durationInput.required      = (!isKeluarKantor && !usesDateRange);
     },
 
     /**
@@ -477,6 +480,8 @@ const izin = {
         const reason         = document.getElementById('izin-reason')?.value;
         const isKeluarKantor = type === 'keluar_kantor';
         const isIzinHarian   = type === 'izin_harian';
+        const isSakit        = type === 'sick';
+        const usesDateRange  = isIzinHarian || isSakit;
         const jamKeluarHV = document.getElementById('izin-jam-keluar-h')?.value;
         const jamKeluarMV = document.getElementById('izin-jam-keluar-m')?.value;
         const jamMasukMode = document.querySelector('input[name="izin-jam-masuk-mode"]:checked')?.value || 'jam';
@@ -497,15 +502,15 @@ const izin = {
             toast.error('Harap isi Jam Keluar dan Jam Masuk!');
             return;
         }
-        if (isIzinHarian && (!dateStart || !dateEnd)) {
+        if (usesDateRange && (!dateStart || !dateEnd)) {
             toast.error('Harap isi Tanggal Mulai dan Tanggal Selesai!');
             return;
         }
-        if (!isKeluarKantor && !isIzinHarian && !date) {
+        if (!isKeluarKantor && !usesDateRange && !date) {
             toast.error('Harap isi Tanggal!');
             return;
         }
-        if (!isKeluarKantor && !isIzinHarian && !duration) {
+        if (!isKeluarKantor && !usesDateRange && !duration) {
             toast.error('Harap isi Durasi!');
             return;
         }
@@ -523,8 +528,11 @@ const izin = {
             'keluar_kantor':'Keluar Kantor'
         };
 
+        // Durasi (hari) dihitung otomatis dari rentang tanggal - berlaku
+        // untuk Izin Harian MAUPUN Sakit (dulu Sakit masih input durasi
+        // manual + 1 tanggal saja, sekarang disamakan).
         let computedDuration = isKeluarKantor ? 0 : parseInt(duration);
-        if (isIzinHarian && dateStart && dateEnd) {
+        if (usesDateRange && dateStart && dateEnd) {
             const diff = (new Date(dateEnd) - new Date(dateStart)) / (1000 * 60 * 60 * 24);
             computedDuration = Math.max(1, Math.round(diff) + 1);
         }
@@ -539,8 +547,8 @@ const izin = {
             userId:        currentUser?.employeeId || currentUser?.id || 'demo-user',
             type:          type,
             typeLabel:     typeLabels[type] || type,
-            date:          isIzinHarian ? dateStart : date,
-            dateEnd:       isIzinHarian ? dateEnd   : '',
+            date:          usesDateRange ? dateStart : date,
+            dateEnd:       usesDateRange ? dateEnd   : '',
             duration:      computedDuration,
             reason:        reason,
             jamKeluar:     isKeluarKantor ? jamKeluar : '',
