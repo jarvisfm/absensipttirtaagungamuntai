@@ -374,12 +374,13 @@
 /* Kalender flatpickr Permohonan Izin Harian (Tanggal Mulai/Selesai - lihat
    izin.js _initIzinHarianDatePickers): tanggal di luar jendela 3 hari kerja
    ke depan TETAP tidak bisa dipilih (itu diatur flatpickr sendiri lewat
-   opsi `enable`, murni di level JS - override warna di bawah ini TIDAK
-   mengubah itu), cuma tampilannya disamakan warna normal (bukan abu-abu
-   pudar bawaan flatpickr) supaya kalender tidak terlihat "kosong". Cursor
-   "not-allowed" tetap dipakai sebagai penanda kalau tanggal itu tidak bisa
-   diklik, dan hover-nya sengaja tidak diberi efek apa pun (tidak seperti
-   tanggal yang boleh dipilih) supaya tetap terasa beda saat disentuh.
+   opsi `enable`, murni di level JS - override di bawah ini TIDAK mengubah
+   itu). Angka tanggalnya SENGAJA disembunyikan (visibility:hidden, BUKAN
+   display:none - supaya kotak grid harinya tetap ada di tempatnya, tidak
+   bikin kalender jadi berantakan/miring) supaya yang kelihatan cuma
+   tanggal yang benar-benar bisa dipilih - kalender jadi tampak seperti
+   kalender biasa yang sederhana, bukan penuh angka abu-abu/pudar yang
+   membingungkan.
 */
 .flatpickr-day.flatpickr-disabled,
 .flatpickr-day.flatpickr-disabled:hover,
@@ -388,8 +389,8 @@
 .flatpickr-day.notAllowed.nextMonthDay,
 .flatpickr-day.prevMonthDay,
 .flatpickr-day.nextMonthDay {
-    color: #393939;
-    cursor: not-allowed;
+    visibility: hidden;
+    pointer-events: none;
     background: transparent;
     border-color: transparent;
 }
