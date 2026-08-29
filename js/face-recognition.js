@@ -1855,57 +1855,66 @@ const faceRecognition = {
                     await window.absensi.processWithVerification(this.currentAction, attendanceData);
                 }
 
-                // Kirim laporan luar-radius (kalau ada) SETELAH absen sukses
-                // tersimpan - gagal kirim laporan tidak boleh membatalkan
-                // absen yang sudah tercatat.
+                // PERBAIKAN PERFORMA (2026-08-29): laporan luar-radius/luar-
+                // wilayah di bawah ini cuma catatan TAMBAHAN buat admin -
+                // gagal kirim TIDAK membatalkan absen yang sudah tercatat di
+                // atas (lihat catatan try/catch masing-masing, tidak berubah).
+                // Sebelumnya kedua laporan ini di-AWAIT satu-satu sebelum
+                // router.navigate() di bawah - kalau kena kasus luar radius/
+                // luar wilayah, user jadi menunggu di halaman "Wajah
+                // Terverifikasi" sampai 2 request tambahan ini juga selesai
+                // (padahal absennya sendiri sudah sukses tersimpan duluan).
+                // Sekarang absennya sudah tercatat -> LANGSUNG navigate ke
+                // menu Absensi, laporan tambahan ini dikirim di LATAR
+                // BELAKANG (tidak di-await) setelahnya.
                 if (this._outOfRadiusNote && this._outOfRadiusContext) {
-                    try {
-                        const currentUser = auth.getCurrentUser();
-                        const ctx = this._outOfRadiusContext;
-                        await api.submitOutOfRadiusReport({
-                            userId: currentUser?.employeeId || currentUser?.id || ctx.userId,
-                            userName: currentUser?.name || '',
-                            type: this._normalizeAttendanceType(this.currentAction),
-                            note: this._outOfRadiusNote,
-                            // Sudah dipastikan wajib ada isinya oleh validasi di
-                            // submitOutOfRadiusNote() sebelum modal ini ditutup -
-                            // fallback '' di sini murni jaga-jaga saja.
-                            photo: this._outOfRadiusPhoto || '',
-                            lat: ctx.userLat,
-                            lng: ctx.userLng,
-                            distance: ctx.distance,
-                            nearestOffice: ctx.nearest ? ctx.nearest.nama : ''
-                        });
-                    } catch (e) {
-                        console.error('Gagal kirim laporan luar radius:', e);
-                    }
+                    const currentUser = auth.getCurrentUser();
+                    const ctx = this._outOfRadiusContext;
+                    const note = this._outOfRadiusNote;
+                    // Sudah dipastikan wajib ada isinya oleh validasi di
+                    // submitOutOfRadiusNote() sebelum modal ini ditutup -
+                    // fallback '' di sini murni jaga-jaga saja.
+                    const photo = this._outOfRadiusPhoto || '';
                     this._outOfRadiusNote = null;
                     this._outOfRadiusPhoto = null;
                     this._outOfRadiusContext = null;
+                    api.submitOutOfRadiusReport({
+                        userId: currentUser?.employeeId || currentUser?.id || ctx.userId,
+                        userName: currentUser?.name || '',
+                        type: this._normalizeAttendanceType(this.currentAction),
+                        note: note,
+                        photo: photo,
+                        lat: ctx.userLat,
+                        lng: ctx.userLng,
+                        distance: ctx.distance,
+                        nearestOffice: ctx.nearest ? ctx.nearest.nama : ''
+                    }).catch((e) => {
+                        console.error('Gagal kirim laporan luar radius:', e);
+                    });
                 }
 
-                // Kirim laporan luar-wilayah (kalau ada) SETELAH absen sukses
-                // tersimpan juga - pola sama dengan laporan luar-radius di atas.
+                // Kirim laporan luar-wilayah (kalau ada) - pola sama dengan
+                // laporan luar-radius di atas (latar belakang, tidak
+                // di-await).
                 if (this._outOfWilayahNote && this._outOfWilayahContext) {
-                    try {
-                        const currentUser = auth.getCurrentUser();
-                        const ctx = this._outOfWilayahContext;
-                        await api.submitOutOfWilayahReport({
-                            userId: currentUser?.employeeId || currentUser?.id || ctx.userId,
-                            userName: currentUser?.name || '',
-                            type: this._normalizeAttendanceType(this.currentAction),
-                            note: this._outOfWilayahNote,
-                            unitWilayah: ctx.userWilayah || '',
-                            detectedOffice: ctx.nearest ? ctx.nearest.nama : '',
-                            lat: ctx.userLat,
-                            lng: ctx.userLng,
-                            distance: ctx.distance
-                        });
-                    } catch (e) {
-                        console.error('Gagal kirim laporan luar wilayah:', e);
-                    }
+                    const currentUser = auth.getCurrentUser();
+                    const ctx = this._outOfWilayahContext;
+                    const note = this._outOfWilayahNote;
                     this._outOfWilayahNote = null;
                     this._outOfWilayahContext = null;
+                    api.submitOutOfWilayahReport({
+                        userId: currentUser?.employeeId || currentUser?.id || ctx.userId,
+                        userName: currentUser?.name || '',
+                        type: this._normalizeAttendanceType(this.currentAction),
+                        note: note,
+                        unitWilayah: ctx.userWilayah || '',
+                        detectedOffice: ctx.nearest ? ctx.nearest.nama : '',
+                        lat: ctx.userLat,
+                        lng: ctx.userLng,
+                        distance: ctx.distance
+                    }).catch((e) => {
+                        console.error('Gagal kirim laporan luar wilayah:', e);
+                    });
                 }
 
                 // Sebelumnya ada jeda buatan 500ms di sini sebelum pindah
