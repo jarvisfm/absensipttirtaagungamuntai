@@ -8,6 +8,10 @@ const absensi = {
     attendanceData: {},
     accessInfo: null,      // hasil checkAttendanceAccess dari backend
     liveClockInterval: null,
+    // BUGFIX (2026-08-31): lihat catatan lengkap di handleClockIn() di
+    // bawah - field ini SENGAJA tidak ikut direset di init() (beda dari
+    // currentState/attendanceData/accessInfo di atas).
+    _pendingAction: null,
 
     async init() {
     const comingSoonEl = document.getElementById('absensi-coming-soon');
@@ -832,6 +836,26 @@ const absensi = {
     handleClockIn() {
         if (this.attendanceData.clockIn) return;
 
+        // BUGFIX (2026-08-31): sejak face-recognition.js confirmAttendance()
+        // langsung router.navigate('absensi') begitu wajah terverifikasi
+        // (foto+simpan ke server dilanjutkan di LATAR BELAKANG setelahnya -
+        // lihat catatan di sana), ada celah waktu singkat di mana halaman
+        // Absensi ini sempat memuat ulang data dari server (this.init(),
+        // yang baca) SEBELUM proses simpan absen sebelumnya (yang tulis,
+        // lebih lambat karena termasuk upload foto ke Drive) benar-benar
+        // selesai. Kalau baca-nya keburu selesai duluan dengan data yang
+        // masih basi, this.attendanceData.clockIn di atas bisa kebaca
+        // kosong lagi walau sebenarnya absen SEDANG diproses - guard di
+        // atas saja jadi tidak cukup. this._pendingAction diset di
+        // confirmAttendance() SEBELUM navigate, dan baru dibersihkan
+        // setelah proses simpan itu selesai (berhasil ataupun gagal) -
+        // TIDAK ikut ke-reset oleh init() (lihat deklarasinya di atas),
+        // jadi guard ini tetap berlaku sepanjang celah waktu tsb.
+        if (this._pendingAction) {
+            toast.warning('Absen sebelumnya masih diproses, mohon tunggu sebentar...');
+            return;
+        }
+
         // Cek portal sudah buka?
         const sesiMasuk = this._getSessions().find(s => s.field === 'clockIn');
         if (sesiMasuk && !this._isSessionOpen(sesiMasuk.opensAt)) {
@@ -847,6 +871,11 @@ const absensi = {
 
     handleBreak() {
         if (!this.attendanceData.clockIn || this.attendanceData.breakStart) return;
+        // BUGFIX (2026-08-31): lihat catatan lengkap di handleClockIn() di atas.
+        if (this._pendingAction) {
+            toast.warning('Absen sebelumnya masih diproses, mohon tunggu sebentar...');
+            return;
+        }
 
         const sesi = this._getSessions().find(s => s.field === 'breakStart');
         if (sesi && !this._isSessionOpen(sesi.opensAt)) {
@@ -862,6 +891,11 @@ const absensi = {
 
     handleAfterBreak() {
         if (!this.attendanceData.breakStart || this.attendanceData.breakEnd) return;
+        // BUGFIX (2026-08-31): lihat catatan lengkap di handleClockIn() di atas.
+        if (this._pendingAction) {
+            toast.warning('Absen sebelumnya masih diproses, mohon tunggu sebentar...');
+            return;
+        }
 
         const sesi = this._getSessions().find(s => s.field === 'breakEnd');
         if (sesi && !this._isSessionOpen(sesi.opensAt)) {
@@ -877,6 +911,11 @@ const absensi = {
 
     handleClockOut() {
         if (!this.attendanceData.clockIn || this.attendanceData.clockOut) return;
+        // BUGFIX (2026-08-31): lihat catatan lengkap di handleClockIn() di atas.
+        if (this._pendingAction) {
+            toast.warning('Absen sebelumnya masih diproses, mohon tunggu sebentar...');
+            return;
+        }
 
         // Jika ada sesi istirahat, harus selesai dulu
         if (this._hasBreak() && this.attendanceData.breakStart && !this.attendanceData.breakEnd) {
