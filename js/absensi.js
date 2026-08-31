@@ -12,8 +12,20 @@ const absensi = {
     // bawah - field ini SENGAJA tidak ikut direset di init() (beda dari
     // currentState/attendanceData/accessInfo di atas).
     _pendingAction: null,
+    // BUGFIX (2026-08-31, lanjutan): penanda urutan "siapa yang terakhir
+    // menang menerapkan tampilan" antara init() (dipicu navigate) dan
+    // processWithVerification() (dipicu absen tersimpan) - lihat catatan
+    // lengkap di init() & processWithVerification() di bawah. SENGAJA
+    // tidak ikut direset di init() (sama seperti _pendingAction) supaya
+    // urutannya tetap konsisten dilacak lintas panggilan init().
+    _renderGen: 0,
 
     async init() {
+    // BUGFIX (2026-08-31, lanjutan): tangkap this._renderGen SAAT init()
+    // ini mulai - lihat penjelasan lengkap di pengecekan myRenderGen di
+    // bawah (setelah data selesai dimuat).
+    const myRenderGen = ++this._renderGen;
+
     const comingSoonEl = document.getElementById('absensi-coming-soon');
     const realContentEl = document.getElementById('absensi-real-content');
 
@@ -63,11 +75,46 @@ const absensi = {
     await Promise.all([
         (async () => {
             await this.loadAccessInfo();
+            // BUGFIX (2026-08-31, lanjutan): guard yang sama seperti
+            // penjelasan lengkap di bawah (setelah Promise.all ini) -
+            // updateShiftInfoCard() menulis DOM langsung ("Libur" dkk) di
+            // sini, SEBELUM guard di bawah sempat jalan. Tanpa guard di
+            // sini juga, init() yang sudah basi (myRenderGen sudah beda)
+            // tetap sempat menulis "Libur" ke kartu shift-info walau
+            // akhirnya tidak lanjut me-render sisanya.
+            if (myRenderGen !== this._renderGen) return;
             this.updateShiftInfoCard();
             await this.loadTodayAttendance();
         })(),
         this.loadAttendanceHistory()
     ]);
+
+    // BUGFIX (2026-08-31, lanjutan dari catatan _pendingAction di atas):
+    // confirmAttendance() (face-recognition.js) sekarang router.navigate()
+    // ke sini SEBELUM absennya selesai tersimpan - yang berarti init() ini
+    // (dipicu navigate itu) bisa BALAPAN membaca data ke server BARENGAN
+    // dengan proses simpan yang masih berjalan. Kalau bacaan di atas
+    // (loadAccessInfo/loadTodayAttendance) kebetulan SELESAI DULUAN
+    // sebelum simpan-nya kelar, hasilnya masih data LAMA (belum ada
+    // clockIn/dst yang baru saja diproses) - padahal begitu simpan-nya
+    // benar-benar kelar, processWithVerification() SUDAH menerapkan state
+    // yang BENAR sendiri lewat this.updateUI()-nya sendiri (lihat di
+    // sana, juga menaikkan this._renderGen). Kalau init() ini tetap lanjut
+    // me-render hasil bacaan basi di bawah, tampilan yang sudah benar itu
+    // jadi KETIMPA balik jadi salah sesaat (tombol Masuk nyala lagi/muncul
+    // "Hari Libur") sebelum dikoreksi lagi oleh navigate/init() kedua -
+    // inilah bug "tombol/hari libur berkedip sesaat" yang dilaporkan.
+    //
+    // this._renderGen adalah penanda urutan "siapa yang terakhir menang
+    // menerapkan tampilan" - dinaikkan tiap kali init() ini ATAU
+    // processWithVerification() menerapkan hasilnya. myRenderGen di atas
+    // menangkap nilainya SAAT init() ini MULAI; kalau nilainya sudah
+    // BERUBAH (dinaikkan pihak lain) begitu bacaan di atas selesai, berarti
+    // ada penerapan yang lebih baru sudah menang duluan - berhenti di sini,
+    // JANGAN timpa balik pakai hasil bacaan basi ini.
+    if (myRenderGen !== this._renderGen) return;
+    this._renderGen++;
+
     this.initLiveClock();
     this.initButtons();
     this.renderTimeline();
@@ -1013,6 +1060,14 @@ const absensi = {
 
         this.updateUI();
         this.renderTimeline();
+        // BUGFIX (2026-08-31, lanjutan): naikkan this._renderGen SETELAH
+        // menerapkan state yang benar di atas - lihat penjelasan lengkap
+        // di init(). Ini memastikan init() manapun yang SEDANG/masih
+        // membaca data dari SEBELUM absen ini tersimpan (myRenderGen-nya
+        // pasti lebih lama dari nilai baru ini) akan mendeteksi dirinya
+        // sudah basi begitu selesai, dan tidak menimpa balik tampilan yang
+        // baru saja diterapkan ini dengan data lama.
+        this._renderGen++;
         // CATATAN PERFORMA: dulu ada `await this.loadAttendanceHistory()` di
         // sini supaya tabel Riwayat Absensi tidak nampilin data basi. Ini
         // DIHAPUS karena kode yang memanggil processWithVerification() ini
