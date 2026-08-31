@@ -624,7 +624,7 @@ const adminReports = {
 
         const rows = [];
         izinList.forEach(rec => {
-            if (rec.type === 'keluar_kantor') return;
+            if (rec.type === 'keluar_kantor' || rec.type === 'sick') return;
             if (PENDING_STATUSES.indexOf(rec.status) === -1) return;
 
             const start = rec.date;
@@ -755,12 +755,42 @@ const adminReports = {
                         return;
                     }
 
-                    // Baris Izin/Cuti yang SUDAH disetujui penuh - hijau
-                    // konsisten (dulu 4 warna beda per kolom padahal isinya
-                    // cuma label jenis izin, bukan jam sungguhan), sama pola
-                    // dengan Riwayat Absensi karyawan sendiri.
+                    // Baris Izin/Cuti - PENTING soal Sakit: sejak diajukan
+                    // (belum tentu disetujui) sudah punya baris Attendance,
+                    // jadi status 'izin' BELUM TENTU berarti sudah
+                    // disetujui - cek status record Izin aslinya
+                    // (this.rawIzin) untuk tentukan merah/hijau. Cuti selalu
+                    // hijau (baris Cuti baru dibuat setelah disetujui
+                    // penuh). Sama pola dengan Riwayat Absensi karyawan
+                    // sendiri.
                     const statusLowerRow = String(row.status || '').toLowerCase();
                     if (statusLowerRow === 'izin' || statusLowerRow === 'cuti') {
+                        let isPendingRow = false;
+                        if (row.excusedRefType === 'izin' && row.excusedRefId) {
+                            const linkedIzin = (this.rawIzin || []).find(i => String(i.id) === String(row.excusedRefId));
+                            if (linkedIzin && linkedIzin.status && linkedIzin.status !== 'approved' && linkedIzin.status !== 'rejected') {
+                                isPendingRow = true;
+                            }
+                        }
+
+                        if (isPendingRow) {
+                            html += `
+                                <tr style="border-bottom:1px solid var(--border-color,#e5e7eb);">
+                                    <td style="padding:10px 12px;font-size:0.85rem;">${dateStr}</td>
+                                    <td style="padding:10px 12px;font-size:0.82rem;">${row.shift || '-'}</td>
+                                    <td colspan="4" style="padding:10px 12px;text-align:center;">
+                                        <span style="background:#FEE2E2;color:#B91C1C;padding:4px 12px;border-radius:20px;font-weight:600;font-size:0.78rem;">
+                                            <i class="fas fa-hourglass-half"></i> ${row.clockIn || 'Izin'} - Menunggu Persetujuan
+                                        </span>
+                                        <br><small style="color:#B91C1C;font-weight:600;font-size:0.7rem;">Menunggu ditinjau</small>
+                                    </td>
+                                    <td style="padding:10px 12px;">–</td>
+                                    <td style="padding:10px 12px;">–</td>
+                                </tr>
+                            `;
+                            return;
+                        }
+
                         html += `
                             <tr style="border-bottom:1px solid var(--border-color,#e5e7eb);">
                                 <td style="padding:10px 12px;font-size:0.85rem;">${dateStr}</td>
@@ -959,10 +989,32 @@ const adminReports = {
                         return;
                     }
 
-                    // Baris Izin/Cuti yang SUDAH disetujui penuh - hijau,
-                    // sama pola dengan tabel desktop di atas.
+                    // Baris Izin/Cuti - cek status record Izin asli untuk
+                    // Sakit (bisa masih pending, lihat komentar versi
+                    // desktop di atas). Cuti selalu hijau.
                     const statusLowerRowM = String(row.status || '').toLowerCase();
                     if (statusLowerRowM === 'izin' || statusLowerRowM === 'cuti') {
+                        let isPendingRowM = false;
+                        if (row.excusedRefType === 'izin' && row.excusedRefId) {
+                            const linkedIzinM = (this.rawIzin || []).find(i => String(i.id) === String(row.excusedRefId));
+                            if (linkedIzinM && linkedIzinM.status && linkedIzinM.status !== 'approved' && linkedIzinM.status !== 'rejected') {
+                                isPendingRowM = true;
+                            }
+                        }
+
+                        if (isPendingRowM) {
+                            html += `
+                                <div style="padding:10px 0;border-top:1px solid var(--border-color,#e5e7eb);text-align:center;">
+                                    <div style="font-weight:600;font-size:0.85rem;margin-bottom:6px;">${dateStr}</div>
+                                    <span style="background:#FEE2E2;color:#B91C1C;padding:4px 12px;border-radius:20px;font-weight:600;font-size:0.78rem;">
+                                        <i class="fas fa-hourglass-half"></i> ${row.clockIn || 'Izin'} - Menunggu Persetujuan
+                                    </span>
+                                    <br><small style="color:#B91C1C;font-weight:600;font-size:0.7rem;">Menunggu ditinjau</small>
+                                </div>
+                            `;
+                            return;
+                        }
+
                         html += `
                             <div style="padding:10px 0;border-top:1px solid var(--border-color,#e5e7eb);text-align:center;">
                                 <div style="font-weight:600;font-size:0.85rem;margin-bottom:6px;">${dateStr}</div>
