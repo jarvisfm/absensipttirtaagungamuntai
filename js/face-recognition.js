@@ -1940,6 +1940,19 @@ const faceRecognition = {
         // benar selesai (berhasil ataupun gagal).
         if (window.absensi) window.absensi._pendingAction = this.currentAction;
 
+        // BUGFIX (2026-08-31): HARUS diambil SEBELUM router.navigate() di
+        // bawah - navigate itu memicu absensi.init(), yang me-reset
+        // window.absensi.attendanceData jadi {} SEBELUM baris
+        // processWithVerification() di bawah sempat jalan (init() adalah
+        // async function, tapi baris reset-nya sendiri ada SEBELUM await
+        // pertamanya, jadi tetap jalan duluan meski navigate ini sendiri
+        // tidak di-await). Tanpa snapshot ini, payload yang dikirim ke
+        // backend kehilangan field "date" (dan clockIn/breakStart/dst dari
+        // absen hari ini yang sudah ada) - absen jadi GAGAL TOTAL tersimpan
+        // dengan pesan mentah dari backend "userId and date are required",
+        // meski karyawan sudah terlanjur melihat "Wajah Terverifikasi".
+        const attendanceSnapshot = window.absensi ? { ...window.absensi.attendanceData } : {};
+
         router.navigate('absensi');
 
         // Wrap in async IIFE - proses simpan & laporan tambahan berjalan di
@@ -1947,7 +1960,7 @@ const faceRecognition = {
         (async () => {
             try {
                 if (window.absensi) {
-                    await window.absensi.processWithVerification(this.currentAction, attendanceData);
+                    await window.absensi.processWithVerification(this.currentAction, attendanceData, attendanceSnapshot);
                 }
 
                 // PERBAIKAN PERFORMA (2026-08-29): laporan luar-radius/luar-
