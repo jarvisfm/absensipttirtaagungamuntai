@@ -252,6 +252,23 @@ const cuti = {
     async handleSubmit(e) {
         e.preventDefault();
 
+        // Cegah pengajuan dobel kalau tombol Ajukan Cuti diklik berkali-
+        // kali dengan cepat - sama polanya dengan submitIzinForm() di
+        // izin.js. Sebelumnya form ini TIDAK punya guard sama sekali,
+        // jadi klik ganda benar-benar bisa membuat 2 pengajuan cuti
+        // identik tersimpan.
+        if (this.isSubmitting) return;
+        this.isSubmitting = true;
+
+        const submitBtn = e.target.querySelector('button[type="submit"]');
+        const submitBtnOriginalHtml = submitBtn ? submitBtn.innerHTML : '';
+        if (submitBtn) {
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i><span>Mengirim...</span>';
+        }
+
+        try {
+
         const type = document.getElementById('leave-type');
         const startDate = document.getElementById('leave-start');
         const endDate = document.getElementById('leave-end');
@@ -347,6 +364,14 @@ const cuti = {
 
         this.renderLeaveList();
         this.updateStats();
+
+        } finally {
+            this.isSubmitting = false;
+            if (submitBtn) {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = submitBtnOriginalHtml;
+            }
+        }
     },
 
     initFilters() {
@@ -487,10 +512,45 @@ const cuti = {
                                 ${leave.emailError || 'Isi email supaya surat dikirimkan'}
                             </div>
                         ` : ''}
+                        ${leave.status === 'pending' ? `
+                            <div style="margin-top:8px;">
+                                <button class="btn-small btn-outline" style="color:var(--color-danger,#EF4444);border-color:var(--color-danger,#EF4444);" onclick="cuti.cancelLeaveRequest(${leave.id})">
+                                    <i class="fas fa-trash-alt"></i> Batalkan Pengajuan
+                                </button>
+                            </div>
+                        ` : ''}
                     </div>
                 </div>
             `;
         }).join('');
+    },
+
+    /**
+     * Batalkan pengajuan cuti yang masih "Menunggu" (belum ada satupun
+     * approval berjalan) - dipakai karyawan sendiri kalau salah kirim,
+     * dobel pengajuan, atau ternyata tidak jadi cuti. Backend
+     * (cancelLeaveData di Leave.gs) menolak kalau statusnya sudah bukan
+     * 'pending' lagi, jadi aman dari race condition dengan approver.
+     */
+    async cancelLeaveRequest(id) {
+        if (!confirm('Batalkan pengajuan cuti ini? Tindakan ini tidak bisa dibatalkan.')) return;
+
+        try {
+            const currentUser = auth.getCurrentUser();
+            const userId = currentUser?.employeeId || currentUser?.id || 'demo-user';
+            const result = await api.cancelLeave(id, userId);
+            if (!result.success) {
+                toast.error(result.error || 'Gagal membatalkan pengajuan cuti');
+                return;
+            }
+            this.leaves = this.leaves.filter(l => String(l.id) !== String(id));
+            toast.success('Pengajuan cuti berhasil dibatalkan.');
+            this.renderLeaveList();
+            this.updateStats();
+        } catch (error) {
+            console.error('Error cancelling leave:', error);
+            toast.error('Terjadi kesalahan saat membatalkan pengajuan.');
+        }
     },
 
     getStatusLabel(status) {
