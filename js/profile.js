@@ -483,6 +483,24 @@ const profileManager = {
     },
 
     async saveProfile() {
+        // Cegah simpan dobel kalau tombol "Simpan Perubahan" diklik
+        // berkali-kali dengan cepat - pola sama dengan submitIzinForm()
+        // (izin.js) dan handleSubmit() (cuti.js). Ini penyebab paling
+        // umum data Keluarga/Pendidikan jadi tergandakan di sheet: klik
+        // dobel bikin updateKaryawan() (yang menulis ulang SELURUH data
+        // Keluarga) terkirim 2x nyaris bersamaan.
+        if (this.isSubmittingProfile) return;
+        this.isSubmittingProfile = true;
+
+        const saveBtn = document.getElementById('btn-save-profile');
+        const saveBtnOriginalHtml = saveBtn ? saveBtn.innerHTML : '';
+        if (saveBtn) {
+            saveBtn.disabled = true;
+            saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Menyimpan...';
+        }
+
+        try {
+
         const nama = document.getElementById('pf-nama').value.trim();
         if (!nama) {
             toast.error('Nama harus diisi!');
@@ -579,8 +597,7 @@ const profileManager = {
         const pwd = document.getElementById('pf-password').value;
         if (pwd) data.password = pwd;
 
-        try {
-            const result = await api.updateKaryawan(this.myId, data);
+        const result = await api.updateKaryawan(this.myId, data);
             if (!result.success) {
                 toast.error(result.error || 'Gagal menyimpan profil');
                 return;
@@ -629,6 +646,12 @@ const profileManager = {
         } catch (e) {
             console.error('Error save profil:', e);
             toast.error('Terjadi kesalahan saat menyimpan');
+        } finally {
+            this.isSubmittingProfile = false;
+            if (saveBtn) {
+                saveBtn.disabled = false;
+                saveBtn.innerHTML = saveBtnOriginalHtml;
+            }
         }
     },
 
@@ -820,6 +843,21 @@ const profileManager = {
     },
 
     async saveRiwayatPendidikan() {
+        // Sama seperti saveProfile() di atas - cegah tersimpan dobel kalau
+        // tombol "Simpan Riwayat Pendidikan" diklik berkali-kali (ini
+        // penyebab entri pendidikan yang sama muncul 2x di riwayat).
+        if (this.isSubmittingPendidikan) return;
+        this.isSubmittingPendidikan = true;
+
+        const pdkBtn = document.getElementById('pf-pdk-btn-simpan');
+        const pdkBtnOriginalHtml = pdkBtn ? pdkBtn.innerHTML : '';
+        if (pdkBtn) {
+            pdkBtn.disabled = true;
+            pdkBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Menyimpan...';
+        }
+
+        try {
+
         const id           = document.getElementById('pf-pdk-id').value;
         const jenjang       = document.getElementById('pf-pdk-jenjang').value;
         const namaSekolah   = document.getElementById('pf-pdk-namaSekolah').value.trim();
@@ -851,7 +889,6 @@ const profileManager = {
             fileTranskripUrl
         };
 
-        try {
             const result = await api.saveRiwayatPendidikan(data);
             if (!result.success) {
                 toast.error(result.error || 'Gagal menyimpan riwayat pendidikan');
@@ -865,6 +902,12 @@ const profileManager = {
         } catch (e) {
             console.error('Error simpan riwayat pendidikan:', e);
             toast.error('Terjadi kesalahan saat menyimpan riwayat pendidikan');
+        } finally {
+            this.isSubmittingPendidikan = false;
+            if (pdkBtn) {
+                pdkBtn.disabled = false;
+                pdkBtn.innerHTML = pdkBtnOriginalHtml;
+            }
         }
     },
 
