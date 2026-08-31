@@ -62,7 +62,7 @@ const faceRecognition = {
     // foto acuan (lihat sz=w400 di Karyawan.gs getDriveFileAsBase64) atau
     // minta karyawan foto ulang profil yang lebih tegak lurus & tidak
     // gelap.
-    FACE_MATCH_THRESHOLD: 0.46,
+    FACE_MATCH_THRESHOLD: 0.45,
     // Kalau jarak masih di bawah threshold (jadi tetap dianggap "cocok")
     // TAPI di atas angka ini, kecocokannya dianggap "kurang yakin" - absen
     // tetap diloloskan (tidak mau bikin karyawan asli ditolak-tolak gara-
@@ -136,7 +136,15 @@ const faceRecognition = {
     _earBaselineSum: 0,
     _earBaselineCount: 0,
     _eyesClosed: false,
-    EAR_CALIBRATION_SAMPLES: 5,
+    // PERBAIKAN KECEPATAN (2026-08-31, atas permintaan): diturunkan dari 5
+    // ke 3 sampel - kalibrasi "mata terbuka normal" jadi kelar lebih cepat
+    // (hemat ~2 tick, sekitar 0.2-0.3 detik tergantung device), supaya
+    // deteksi kedipan bisa mulai diaktifkan lebih awal. Trade-off yang
+    // disadari: baseline dihitung dari lebih sedikit sampel, jadi sedikit
+    // kurang presisi dibanding sebelumnya (5 sampel) - kalau ke depannya
+    // ternyata liveness jadi kurang stabil/gampang salah baca kedipan,
+    // pertimbangkan naikkan lagi angka ini.
+    EAR_CALIBRATION_SAMPLES: 3,
     EAR_CLOSE_RATIO: 0.82, // EAR turun di bawah baseline * rasio ini -> dianggap merem
     EAR_OPEN_RATIO: 0.85,  // EAR naik balik di atas baseline * rasio ini (sambil sempat merem) -> dianggap 1 kedipan lengkap
     // Kalau sudah sekian detik sejak kalibrasi kelar tapi kedipan masih
@@ -682,7 +690,13 @@ const faceRecognition = {
             // capturePhoto() sendiri yang menentukan sukses/gagal (termasuk
             // cocok/tidak dengan foto profil) dan langsung lanjut submit
             // otomatis kalau berhasil.
-            const stableEnough = this._stableFaceSince && (Date.now() - this._stableFaceSince) >= 800;
+            // PERBAIKAN KECEPATAN (2026-08-31, atas permintaan): diturunkan
+            // dari 800ms ke 500ms - mempercepat alur liveness (ON) sekitar
+            // 0.3 detik lagi. Trade-off yang disadari: sedikit lebih
+            // longgar soal "wajah benar-benar diam/tidak buram" sebelum
+            // foto diambil - kalau ke depannya foto hasil auto-capture
+            // sering buram/goyang, pertimbangkan naikkan lagi angka ini.
+            const stableEnough = this._stableFaceSince && (Date.now() - this._stableFaceSince) >= 500;
             const cooldownOk = Date.now() >= (this._autoCaptureNextAllowedAt || 0);
             if (stableEnough && cooldownOk && this.livenessDetected && this.locationVerified && !this.photoCaptured) {
                 // Jangan coba lagi otomatis sebelum jeda ini lewat - hindari
