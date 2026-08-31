@@ -57,6 +57,21 @@
     background: var(--bg-secondary);
     border-radius: var(--border-radius-lg);
     box-shadow: var(--shadow);
+    /* BUGFIX (2026-08-31, lanjutan): kartu ini adalah ITEM GRID di dalam
+       .izin-grid (grid-template-columns: 1fr di HP - lihat media query di
+       bawah). Item grid/flex secara default punya "min-width: auto" -
+       artinya browser TIDAK MENGIZINKANNYA menyusut lebih kecil dari
+       konten di dalamnya (mis. nama file panjang di badge Surat
+       Keterangan), MESKIPUN elemen di dalamnya sendiri sudah dikasih
+       overflow:hidden + ellipsis (lihat .filename). Ini bikin seluruh
+       kartu form melebar ke luar layar HP, membuat sisi kanannya
+       "terpotong" seperti di screenshot - bukan cuma nama filenya yang
+       kepotong, tapi field lain pun ikut ke tarik. min-width: 0 di sini
+       mengizinkan kartu ini menyusut mengikuti lebar layar seharusnya,
+       supaya overflow:hidden di elemen anak (seperti .filename) baru
+       benar-benar berlaku.
+    */
+    min-width: 0;
 }
 
 .izin-form {
@@ -110,6 +125,11 @@
     padding: var(--spacing);
     background: var(--color-gray-50);
     border-radius: var(--border-radius);
+    /* BUGFIX (2026-08-31, lanjutan): flex row ini sendiri juga perlu
+       min-width:0 - kalau tidak, dia jadi elemen yang "tidak mau
+       menyusut" bagi .izin-form-card (grid item) di atasnya, membuat
+       fix min-width:0 di .izin-form-card jadi tidak berpengaruh. */
+    min-width: 0;
 }
 
 .file-preview i {
