@@ -62,7 +62,7 @@ const faceRecognition = {
     // foto acuan (lihat sz=w400 di Karyawan.gs getDriveFileAsBase64) atau
     // minta karyawan foto ulang profil yang lebih tegak lurus & tidak
     // gelap.
-    FACE_MATCH_THRESHOLD: 0.45,
+    FACE_MATCH_THRESHOLD: 0.47,
     // Kalau jarak masih di bawah threshold (jadi tetap dianggap "cocok")
     // TAPI di atas angka ini, kecocokannya dianggap "kurang yakin" - absen
     // tetap diloloskan (tidak mau bikin karyawan asli ditolak-tolak gara-
