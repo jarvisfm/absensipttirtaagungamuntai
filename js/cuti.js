@@ -383,6 +383,13 @@ const cuti = {
         const list = document.getElementById('leave-list');
         if (!list) return;
 
+        // Dipakai _getDetailedStatusLabel() di bawah - status "Menunggu"
+        // sekarang butuh tahu role & bagian PEMOHON (di kartu ini, si
+        // pemohon adalah user yang sedang login sendiri) supaya bisa
+        // ditampilkan lebih spesifik ("Menunggu Asmen"/"Menunggu Manajer"
+        // dst, bukan cuma "Menunggu" polos).
+        const currentUser = auth.getCurrentUser();
+
         // Filter leaves
         let filteredLeaves = this.leaves.filter(l => {
             if (!this.filterStatus) return true;
@@ -452,7 +459,7 @@ const cuti = {
                     <div class="leave-content">
                         <div class="leave-header">
                             <h4 class="leave-type">${typeLabel}</h4>
-                            <span class="leave-status ${leave.status}">${this.getStatusLabel(leave.status)}</span>
+                            <span class="leave-status ${leave.status}">${this._getDetailedStatusLabel(leave, currentUser)}</span>
                         </div>
                         <div class="leave-details">
                             <span class="leave-date">
@@ -500,20 +507,54 @@ const cuti = {
         return labels[status] || status;
     },
 
-    // Label status 'manajer_approved' yang lebih spesifik sesuai siapa approver
-    // sebenarnya di tahap itu (sama seperti izin.js: _getDetailedStatusLabel).
+    // Label status YANG SEBENARNYA sesuai tahap approval yang berlaku untuk
+    // pengajuan Cuti ini - dipakai di SEMUA tempat yang menampilkan badge
+    // status: Riwayat Pengajuan Cuti milik user sendiri, kartu Approval
+    // (Asmen/Manajer/Direktur), dan kartu Riwayat approval. Mengikuti persis
+    // alur berjenjang yang sama seperti Izin Harian (lihat Leave.gs -
+    // approveLeaveData):
+    //   - Selagi belum final -> "Menunggu <Asmen/Manajer .../Direktur>"
+    //     (bukan cuma "Menunggu" polos seperti sebelumnya)
+    //   - Begitu benar-benar final (status 'approved') -> "Disetujui oleh
+    //     <nama approver terakhir>" (bukan lagi "Disetujui Asmen/Manajer"
+    //     generik seperti sebelumnya)
+    // Status lain (ditolak/ditunda) tetap pakai label generik dari getStatusLabel().
     _getDetailedStatusLabel(item, emp) {
-        if (item.status !== 'manajer_approved') {
+        if (item.status === 'approved') {
+            // Approver TERAKHIR yang sebenarnya menyelesaikan pengajuan ini -
+            // Cuti selalu berakhir di Direktur (termasuk jalur pintas
+            // pemohon-Manajer), urutan prioritas di bawah otomatis mengambil
+            // field yang benar-benar terisi paling akhir/senior.
+            const nama = item.directorName || item.hrManagerName || item.managerName || item.asmenName || '';
+            return nama ? `Disetujui oleh ${nama}` : this.getStatusLabel(item.status);
+        }
+        if (item.status !== 'pending' && item.status !== 'asmen_approved' && item.status !== 'manajer_bidang_approved') {
+            // ditolak, ditunda, atau status lain yang tidak dikenal - tetap
+            // label generik
             return this.getStatusLabel(item.status);
         }
+
         const pemohonRole = emp?.role || 'staff';
+        const bagian = emp?.bagian || '';
+        const isPemohonHr = pemohonRole === 'asmen' && String(bagian).toUpperCase().trim() === 'UMUM DAN KEPEGAWAIAN';
+
+        if (pemohonRole === 'manajer') return 'Menunggu Direktur';
+
         if (pemohonRole === 'staff') {
-            const bagian = emp?.bagian || '';
-            return bagian ? `Disetujui Manajer ${bagian}` : 'Disetujui Manajer';
+            if (item.status === 'pending')       return 'Menunggu Asmen';
+            if (item.status === 'asmen_approved') return bagian ? `Menunggu Manajer ${bagian}` : 'Menunggu Manajer';
+            return 'Menunggu Direktur'; // manajer_approved
         }
+
         if (pemohonRole === 'asmen') {
-            return 'Disetujui Manajer Umum dan Kepegawaian';
+            if (isPemohonHr) {
+                return item.status === 'pending' ? 'Menunggu Manajer Umum dan Kepegawaian' : 'Menunggu Direktur';
+            }
+            if (item.status === 'pending')                 return bagian ? `Menunggu Manajer ${bagian}` : 'Menunggu Manajer';
+            if (item.status === 'manajer_bidang_approved') return 'Menunggu Manajer Umum dan Kepegawaian';
+            return 'Menunggu Direktur'; // manajer_approved
         }
+
         return this.getStatusLabel(item.status);
     },
 
