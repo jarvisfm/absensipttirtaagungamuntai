@@ -119,6 +119,13 @@
 
 .file-preview .filename {
     flex: 1;
+    /* BUGFIX (2026-08-31): tanpa ini, flex item ukurannya defaultnya
+       "min-width: auto" - artinya tidak mau menyusut lebih kecil dari
+       lebar teks nama filenya sendiri, jadi overflow:hidden &
+       text-overflow:ellipsis di bawah TIDAK PERNAH kepakai untuk nama
+       file yang panjang (teksnya malah meluber keluar kartu, kepotong
+       di tepi layar - paling kelihatan di HP karena layarnya sempit). */
+    min-width: 0;
     font-size: var(--font-size-sm);
     color: var(--text-primary);
     white-space: nowrap;
