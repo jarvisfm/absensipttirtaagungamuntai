@@ -667,6 +667,13 @@ const izin = {
         const list = document.getElementById('izin-list');
         if (!list) return;
 
+        // Dipakai _getDetailedStatusLabel() di bawah - status "Menunggu"
+        // sekarang butuh tahu role & bagian PEMOHON (di kartu ini, si
+        // pemohon adalah user yang sedang login sendiri) supaya bisa
+        // ditampilkan lebih spesifik ("Menunggu Asmen"/"Menunggu Manajer"
+        // dst, bukan cuma "Menunggu" polos).
+        const currentUser = auth.getCurrentUser();
+
         // Filter izin data
         let filteredData = this.izinData.filter(i => {
             if (!this.filterStatus) return true;
@@ -722,7 +729,7 @@ const izin = {
                     <div class="izin-content">
                         <div class="izin-header-row">
                             <h4 class="izin-type">${typeLabel}</h4>
-                            <span class="izin-status ${izin.status}">${this.getStatusLabel(izin.status)}</span>
+                            <span class="izin-status ${izin.status}">${this._getDetailedStatusLabel(izin, currentUser)}</span>
                         </div>
                         <div class="izin-details">
                             <span class="izin-date">
@@ -799,28 +806,74 @@ const izin = {
         return labels[status] || status;
     },
 
-    // Label status 'manajer_approved' yang lebih spesifik sesuai siapa
-    // approver sebenarnya di tahap itu — karena "Disetujui Manajer" saja
-    // ambigu (bisa manajer bagian staff, atau Manajer Umum & Kepegawaian
-    // untuk pemohon Asmen). Status selain 'manajer_approved' tetap pakai
-    // label generik dari getStatusLabel().
+    // Label status YANG SEBENARNYA sesuai tahap approval yang berlaku untuk
+    // pengajuan ini - dipakai di SEMUA tempat yang menampilkan badge status
+    // Izin/Sakit/Keluar Kantor: Riwayat Pengajuan Izin milik user sendiri,
+    // kartu Approval (Asmen/Manajer/Direktur), dan kartu Riwayat approval.
+    // Mengikuti persis alur berjenjang yang didokumentasikan di Izin.gs
+    // (lihat komentar di atas approveIzinData):
+    //   - Selagi belum final -> "Menunggu <Asmen/Manajer .../Direktur>"
+    //     (bukan cuma "Menunggu" polos seperti sebelumnya)
+    //   - Begitu benar-benar final (status 'approved') -> "Disetujui oleh
+    //     <nama approver terakhir>" (bukan lagi "Disetujui Asmen/Manajer"
+    //     generik seperti sebelumnya)
+    // Status lain (ditolak) tetap pakai label generik dari getStatusLabel().
     _getDetailedStatusLabel(item, emp) {
-        if (item.status !== 'manajer_approved') {
+        if (item.status === 'approved') {
+            // Approver TERAKHIR yang sebenarnya menyelesaikan pengajuan ini -
+            // untuk Izin Harian & pemohon-Manajer selalu Direktur, untuk
+            // Keluar Kantor bisa Manajer ATAU Direktur (kalau pemohonnya
+            // sendiri Manajer), untuk Sakit levelnya cuma 1 tahap sesuai
+            // role pemohon (asmen/manajer/direktur) - urutan prioritas di
+            // bawah ini otomatis mengambil field yang BENAR-BENAR terisi
+            // paling akhir/senior untuk semua kasus di atas.
+            const nama = item.directorName || item.hrManagerName || item.managerName || item.asmenName || '';
+            return nama ? `Disetujui oleh ${nama}` : this.getStatusLabel(item.status);
+        }
+        if (item.status !== 'pending' && item.status !== 'asmen_approved' && item.status !== 'manajer_bidang_approved') {
+            // rejected, atau status lain yang tidak dikenal - tetap label generik
             return this.getStatusLabel(item.status);
         }
 
         const pemohonRole = emp?.role || 'staff';
+        const bagian = emp?.bagian || '';
+        const isPemohonHr = pemohonRole === 'asmen' && String(bagian).toUpperCase().trim() === 'UMUM DAN KEPEGAWAIAN';
+
+        // Sakit: cuma 1 tahap approval sesuai role pemohon, tidak pernah
+        // singgah di status asmen_approved/manajer_bidang_approved (lihat
+        // approveIzinData - blok "if (izin.type === 'sick')").
+        if (item.type === 'sick') {
+            if (pemohonRole === 'staff') return 'Menunggu Asmen';
+            if (pemohonRole === 'asmen') return bagian ? `Menunggu Manajer ${bagian}` : 'Menunggu Manajer';
+            return 'Menunggu Direktur';
+        }
+
+        // Keluar Kantor: tidak ada tahap Asmen sama sekali - langsung
+        // Manajer bagian yang sama, kecuali pemohonnya sendiri Manajer ->
+        // langsung Direktur.
+        if (item.type === 'keluar_kantor') {
+            if (pemohonRole === 'manajer') return 'Menunggu Direktur';
+            return bagian ? `Menunggu Manajer ${bagian}` : 'Menunggu Manajer';
+        }
+
+        // Izin Harian (default) - berjenjang penuh sesuai role pemohon.
+        if (pemohonRole === 'manajer') return 'Menunggu Direktur';
 
         if (pemohonRole === 'staff') {
-            const bagian = emp?.bagian || '';
-            return bagian ? `Disetujui Manajer ${bagian}` : 'Disetujui Manajer';
+            if (item.status === 'pending')       return 'Menunggu Asmen';
+            if (item.status === 'asmen_approved') return bagian ? `Menunggu Manajer ${bagian}` : 'Menunggu Manajer';
+            return 'Menunggu Direktur'; // manajer_approved
         }
+
         if (pemohonRole === 'asmen') {
-            // Baik representasi tunggal (Asmen dari Umum & Kepegawaian sendiri)
-            // maupun tahap ke-2 (Asmen bagian lain) — keduanya digerbangi oleh
-            // Manajer Umum & Kepegawaian sebagai approver terakhir sebelum Direktur.
-            return 'Disetujui Manajer Umum dan Kepegawaian';
+            if (isPemohonHr) {
+                return item.status === 'pending' ? 'Menunggu Manajer Umum dan Kepegawaian' : 'Menunggu Direktur';
+            }
+            if (item.status === 'pending')                 return bagian ? `Menunggu Manajer ${bagian}` : 'Menunggu Manajer';
+            if (item.status === 'manajer_bidang_approved') return 'Menunggu Manajer Umum dan Kepegawaian';
+            return 'Menunggu Direktur'; // manajer_approved
         }
+
         return this.getStatusLabel(item.status);
     },
 
