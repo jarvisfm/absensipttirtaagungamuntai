@@ -850,7 +850,7 @@ const printLetters = {
             return map[type] || 'Cuti';
         }
         const map = {
-            sick: 'Surat Keterangan Sakit', izin_harian: 'Surat Permohonan Izin',
+            sick: 'Sakit', izin_harian: 'Surat Permohonan Izin',
             keluar_kantor: 'Surat Izin Keluar Kantor'
         };
         return map[type] || 'Izin';
@@ -900,6 +900,31 @@ const printLetters = {
             // surat dikirimkan" ditampilkan di halaman Edit Profil milik
             // pemohon sendiri, bukan di sini (approver bukan pemiliknya).
             if (!emp.email || !String(emp.email).trim()) return;
+
+            // Sakit TIDAK PUNYA format surat sama sekali (beda dari Izin
+            // Harian/Cuti/Keluar Kantor yang tetap pakai surat resmi PDF
+            // seperti biasa) - jadi TIDAK generate/capture PDF apa pun di
+            // sini. Email cukup berisi keterangan pengajuannya saja
+            // (alasan yang diisi karyawan di form) - dikirim lewat
+            // sendSuratEmail() yang sama, tapi tanpa pdfBase64 (backend
+            // Mailer.gs otomatis kirim versi teks polos kalau pdfBase64
+            // kosong - lihat sendSuratEmailData()).
+            if (record.type === 'sick') {
+                const jenisLabelSakit = this._suratJenisLabel(kind, record.type);
+                await api.sendSuratEmail({
+                    id: record.id,
+                    sheet: 'Izin',
+                    email: emp.email,
+                    namaPemohon: emp.name || emp.nama || 'Karyawan',
+                    jenisLabel: jenisLabelSakit,
+                    kind,
+                    plainOnly: true,
+                    reason: record.reason || '',
+                    tanggalMulai: record.date || '',
+                    tanggalSelesai: record.dateEnd || record.date || ''
+                });
+                return;
+            }
 
             let pdfBlob;
             if (kind === 'cuti') {
