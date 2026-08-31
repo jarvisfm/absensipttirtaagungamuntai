@@ -285,6 +285,18 @@ const api = {
         return this.request('submitLeave', data);
     },
 
+    // Batalkan pengajuan cuti milik sendiri - HANYA jalan kalau statusnya
+    // masih 'pending' (lihat cancelLeaveData() di Leave.gs).
+    async cancelLeave(id, userId) {
+        if (!API_BASE_URL) {
+            const all = storage.get('leaves', []);
+            const filtered = all.filter(l => l.id !== id);
+            storage.set('leaves', filtered);
+            return { success: true, data: { id } };
+        }
+        return this.request('cancelLeave', { id, userId });
+    },
+
     // Preview durasi cuti (hari kerja - Sabtu/Minggu/tanggal merah nasional
     // dikecualikan) SEBELUM submit, supaya angka yang tampil di form sudah
     // sama persis dengan yang nanti benar-benar dipotong dari kuota. Tidak
@@ -382,6 +394,18 @@ const api = {
             return { success: true, data: data };
         }
         return this.request('submitIzin', data);
+    },
+
+    // Batalkan pengajuan izin milik sendiri - HANYA jalan kalau statusnya
+    // masih 'pending' (lihat cancelIzinData() di Izin.gs).
+    async cancelIzin(id, userId) {
+        if (!API_BASE_URL) {
+            const all = storage.get('izin', []);
+            const filtered = all.filter(i => i.id !== id);
+            storage.set('izin', filtered);
+            return { success: true, data: { id } };
+        }
+        return this.request('cancelIzin', { id, userId });
     },
 
     async approveIzin(id, approver, catatan) {
