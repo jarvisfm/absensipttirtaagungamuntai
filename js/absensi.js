@@ -935,18 +935,32 @@ const absensi = {
         setTimeout(() => { if (window.faceRecognition) window.faceRecognition.init('clock-out'); }, 100);
     },
 
-    async processWithVerification(action, verificationData) {
+    async processWithVerification(action, verificationData, baseAttendanceData) {
         // PENTING: pakai dateTime.now() (jam server), BUKAN new Date() (jam
         // HP) - supaya jam yang tercatat sebagai clockIn/clockOut/dst tidak
         // bisa dikelabui dengan mengubah setting jam/tanggal di HP.
         const now     = dateTime.now();
         const timeStr = dateTime.formatTime(now);
 
+        // BUGFIX (2026-08-31): sejak face-recognition.js confirmAttendance()
+        // langsung router.navigate('absensi') SEBELUM memanggil fungsi ini
+        // (lihat catatan di sana), this.attendanceData DI SINI SUDAH KETIMPA
+        // KOSONG oleh this.init() (dipicu navigate itu, me-reset
+        // this.attendanceData = {} sebelum fungsi async ini sempat jalan) -
+        // termasuk field "date" yang WAJIB ada di payload (tanpanya backend
+        // menolak dengan error mentah "userId and date are required", dan
+        // absennya SAMA SEKALI TIDAK tersimpan meski karyawan sudah melihat
+        // "Wajah Terverifikasi"). baseAttendanceData adalah snapshot
+        // this.attendanceData yang diambil face-recognition.js SEBELUM
+        // navigate tsb - pakai itu sebagai dasar payload kalau dikirim,
+        // fallback ke this.attendanceData (perilaku lama) kalau tidak ada
+        // (mis. dipanggil dari alur lain di masa depan).
+        //
         // Susun data absen dulu ke variabel terpisah (BUKAN langsung ke
         // this.attendanceData/this.currentState). Kalau backend menolak
         // (misal di luar radius kantor), UI tidak boleh kadung menampilkan
         // "berhasil" padahal datanya tidak benar-benar tersimpan.
-        const payload = { ...this.attendanceData };
+        const payload = { ...(baseAttendanceData || this.attendanceData) };
         switch (action) {
             case 'clock-in':    payload.clockIn    = timeStr; break;
             case 'break':       payload.breakStart = timeStr; break;
