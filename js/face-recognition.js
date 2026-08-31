@@ -1921,7 +1921,23 @@ const faceRecognition = {
         // Process based on action
         toast.success('Verifikasi berhasil!');
 
-        // Wrap in async IIFE to allow awaiting the process before navigating
+        // PERBAIKAN (2026-08-31): sebelumnya router.navigate('absensi') di
+        // bawah baru dieksekusi SETELAH absen selesai tersimpan ke server
+        // (dan setelah laporan luar-radius/wilayah kalau ada) - karyawan
+        // jadi "menunggu" di layar Wajah Terverifikasi selama proses simpan
+        // itu berlangsung. Sekarang navigate ke menu Absensi dilakukan
+        // LANGSUNG di sini - begitu wajah cocok dengan foto profil,
+        // verifikasinya sendiri sudah selesai, tinggal menyimpan datanya.
+        // Proses simpan (& laporan tambahan luar-radius/wilayah kalau ada)
+        // dilanjutkan di LATAR BELAKANG oleh IIFE di bawah, TIDAK lagi
+        // memblokir navigate ini. Kalau ternyata gagal tersimpan, tetap
+        // akan ketahuan (toast.error dari processWithVerification()/
+        // saveAttendance()), cuma pemberitahuannya muncul SETELAH karyawan
+        // sudah kembali ke menu, bukan sebelum.
+        router.navigate('absensi');
+
+        // Wrap in async IIFE - proses simpan & laporan tambahan berjalan di
+        // latar belakang, tidak lagi menunda navigate di atas.
         (async () => {
             try {
                 if (window.absensi) {
@@ -1990,12 +2006,17 @@ const faceRecognition = {
                     });
                 }
 
-                // Sebelumnya ada jeda buatan 500ms di sini sebelum pindah
-                // halaman - dihapus (toast tetap muncul normal karena
-                // #toast-container ada di luar area yang diganti router,
-                // lihat index.html) supaya begitu backend benar-benar
-                // selesai menyimpan, langsung kembali ke menu Absensi tanpa
-                // nunggu tambahan yang tidak perlu.
+                // PERBAIKAN (2026-08-31): baris navigate ini SENGAJA
+                // dipertahankan meski sudah navigate ke halaman yang sama
+                // duluan di atas (sebelum proses simpan ini dimulai) -
+                // baris ini memicu absensi.init() SEKALI LAGI, kali ini
+                // SESUDAH absennya benar-benar selesai tersimpan (datanya
+                // pasti sudah akurat). Ini jaring pengaman andai pemuatan
+                // data menu Absensi yang terpicu dari navigate PERTAMA tadi
+                // kebetulan sempat membaca status yang belum ter-update
+                // (race dengan proses simpan yang masih berjalan saat itu) -
+                // begitu baris ini jalan, tampilannya otomatis dikoreksi ke
+                // data yang benar.
                 router.navigate('absensi');
             } catch (error) {
                 console.error('Processing error:', error);
