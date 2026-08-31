@@ -520,6 +520,19 @@ const izin = {
     if (this.isSubmitting) return;
     this.isSubmitting = true;
 
+    // UX: kunci tombol + tampilkan spinner "Mengirim..." selama proses
+    // berjalan - supaya user yang refleks klik 2x (atau lebih) langsung
+    // dapat feedback visual bahwa pengajuannya SEDANG diproses, bukan
+    // cuma diam saja sampai toast muncul (itu sebabnya user suka klik
+    // berkali-kali, dikira belum ke-klik). isSubmitting di atas SUDAH
+    // mencegah pengajuan dobel secara logika; ini cuma lapisan UX-nya.
+    const verifyBtn = document.getElementById('btn-verify-izin');
+    const verifyBtnOriginalHtml = verifyBtn ? verifyBtn.innerHTML : '';
+    if (verifyBtn) {
+        verifyBtn.disabled = true;
+        verifyBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i><span>Mengirim...</span>';
+    }
+
     try {
         const type           = document.getElementById('izin-type')?.value;
         const date           = document.getElementById('izin-date')?.value;
@@ -629,6 +642,10 @@ const izin = {
         this.updateStats();
     } finally {
         this.isSubmitting = false;
+        if (verifyBtn) {
+            verifyBtn.disabled = false;
+            verifyBtn.innerHTML = verifyBtnOriginalHtml;
+        }
     }
 },
 
@@ -788,10 +805,45 @@ const izin = {
                                 </button>
                             </div>
                         ` : ''}
+                        ${izin.status === 'pending' ? `
+                            <div style="margin-top:8px;display:flex;gap:6px;">
+                                <button class="btn-small btn-outline" style="color:var(--color-danger,#EF4444);border-color:var(--color-danger,#EF4444);" onclick="izin.cancelIzinRequest(${izin.id})">
+                                    <i class="fas fa-trash-alt"></i> Batalkan Pengajuan
+                                </button>
+                            </div>
+                        ` : ''}
                     </div>
                 </div>
             `;
         }).join('');
+    },
+
+    /**
+     * Batalkan pengajuan izin yang masih "Menunggu" (belum ada satupun
+     * approval berjalan) - dipakai karyawan sendiri kalau salah kirim,
+     * dobel pengajuan, atau ternyata tidak jadi izin. Backend
+     * (cancelIzinData di Izin.gs) menolak kalau statusnya sudah bukan
+     * 'pending' lagi, jadi aman dari race condition dengan approver.
+     */
+    async cancelIzinRequest(id) {
+        if (!confirm('Batalkan pengajuan izin ini? Tindakan ini tidak bisa dibatalkan.')) return;
+
+        try {
+            const currentUser = auth.getCurrentUser();
+            const userId = currentUser?.employeeId || currentUser?.id || 'demo-user';
+            const result = await api.cancelIzin(id, userId);
+            if (!result.success) {
+                toast.error(result.error || 'Gagal membatalkan pengajuan izin');
+                return;
+            }
+            this.izinData = this.izinData.filter(i => String(i.id) !== String(id));
+            toast.success('Pengajuan izin berhasil dibatalkan.');
+            this.renderIzinList();
+            this.updateStats();
+        } catch (error) {
+            console.error('Error cancelling izin:', error);
+            toast.error('Terjadi kesalahan saat membatalkan pengajuan.');
+        }
     },
 
     getStatusLabel(status) {
