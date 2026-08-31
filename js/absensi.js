@@ -217,18 +217,27 @@ const absensi = {
 
             // Tentukan state
             if (today.status === 'izin' || today.status === 'cuti') {
-                // Hari ini masuk rentang Izin/Cuti yang sudah disetujui
-                // penuh (lihat _markAttendanceRangeAsExcused di
-                // Attendance.gs) - dicek PALING AWAL, sebelum fallback
-                // !canAccess di bawah, supaya tidak ketimpa jadi 'libur'
-                // (backend sengaja set canAccess:false untuk hari yang
-                // di-excuse ini, tapi itu cuma buat kunci tombol absen
-                // manual - bukan berarti harus tampil sebagai "libur").
+                // Hari ini masuk rentang Izin/Cuti - dicek PALING AWAL,
+                // sebelum fallback !canAccess di bawah, supaya tidak
+                // ketimpa jadi 'libur' (backend sengaja set canAccess:false
+                // untuk hari yang di-excuse ini, tapi itu cuma buat kunci
+                // tombol absen manual - bukan berarti harus tampil sebagai
+                // "libur").
+                //
+                // PENTING soal Sakit: beda dari Cuti/Izin Harian (baris
+                // Attendance BARU dibuat setelah disetujui PENUH, jadi
+                // status 'izin' di situ SELALU berarti sudah disetujui),
+                // Sakit sekarang ditandai ke Attendance SAAT DIAJUKAN,
+                // BELUM TENTU sudah disetujui (lihat submitIzinData di
+                // Izin.gs - keringanan karena sakit tidak menentu). Jadi di
+                // sini kita ambil record Izin aslinya dan cek STATUS-nya
+                // yang sebenarnya (approved vs masih pending/menunggu
+                // jenjang manapun) untuk menentukan warna: merah selagi
+                // masih menunggu ditinjau, hijau begitu sudah disetujui
+                // penuh - default ke 'excused' (hijau) kalau gagal
+                // memuat/record tidak ketemu, supaya tidak macet di tampilan
+                // merah selamanya hanya karena masalah jaringan sesaat.
                 this.currentState = 'excused';
-                // Ambil tanggal selesai dari record Izin/Cuti aslinya (lihat
-                // excusedRefId/excusedRefType yang ditulis backend), untuk
-                // ditampilkan di banner (lihat updateUI) - mirip pola Dinas
-                // Luar di bawah.
                 try {
                     if (today.excusedRefType === 'cuti') {
                         const leaveRes = await api.getLeaves(effectiveId);
@@ -240,10 +249,15 @@ const absensi = {
                         const izinRes = await api.getIzin(effectiveId);
                         if (izinRes.success) {
                             const rec = (izinRes.data || []).find(i => String(i.id) === String(today.excusedRefId));
-                            if (rec) this._activeExcusedRecord = { type: 'izin', typeLabel: rec.typeLabel, tanggalSelesai: rec.dateEnd || rec.date };
+                            if (rec) {
+                                this._activeExcusedRecord = { type: 'izin', typeLabel: rec.typeLabel, tanggalSelesai: rec.dateEnd || rec.date };
+                                if (rec.status && rec.status !== 'approved' && rec.status !== 'rejected') {
+                                    this.currentState = 'excused-pending';
+                                }
+                            }
                         }
                     }
-                } catch (e) { /* banner tetap tampil, cuma tanpa tanggal selesai */ }
+                } catch (e) { /* banner tetap tampil sebagai 'excused' (hijau), cuma tanpa tanggal selesai */ }
             } else if (!this.accessInfo || !this.accessInfo.canAccess) {
                 this.currentState = 'libur';
             } else if (today.isDinasLuar) {
@@ -294,12 +308,18 @@ const absensi = {
         }
     },
 
-    // Cari pengajuan Izin/Sakit milik user ini yang tanggalnya mencakup HARI
-    // INI dan statusnya masih "dalam proses" (sudah diajukan, belum final
-    // disetujui/ditolak) - dipakai loadTodayAttendance() untuk state
+    // Cari pengajuan Izin Harian milik user ini yang tanggalnya mencakup
+    // HARI INI dan statusnya masih "dalam proses" (sudah diajukan, belum
+    // final disetujui/ditolak) - dipakai loadTodayAttendance() untuk state
     // 'excused-pending'. Izin Keluar Kantor sengaja dilewati (itu cuma
     // keluar sebentar, bukan izin seharian - lihat _finalizeKeluarKantorApproval
-    // di Izin.gs). Logika rentang tanggalnya SAMA seperti _getIzinRange() di
+    // di Izin.gs). Sakit JUGA dilewati di sini - sekarang Sakit langsung
+    // ditandai ke Attendance SAAT DIAJUKAN (lihat submitIzinData di
+    // Izin.gs), jadi statusnya (merah/hijau) sudah otomatis tercermin
+    // lewat cek "today.status === 'izin'" di atas, tidak perlu dideteksi
+    // dobel di sini (fungsi ini sekarang cuma relevan untuk Izin Harian,
+    // yang baris Attendance-nya masih baru dibuat setelah disetujui
+    // penuh). Logika rentang tanggalnya SAMA seperti _getIzinRange() di
     // izin.js (duplikat kecil, supaya halaman Absensi tidak perlu memuat
     // seluruh modul izin.js hanya untuk 1 fungsi ini).
     async _checkPendingIzinToday(effectiveId) {
@@ -311,7 +331,7 @@ const absensi = {
             const izinRes = await api.getIzin(effectiveId);
             if (!izinRes.success) return null;
             for (const rec of (izinRes.data || [])) {
-                if (rec.type === 'keluar_kantor') continue;
+                if (rec.type === 'keluar_kantor' || rec.type === 'sick') continue;
                 if (PENDING_STATUSES.indexOf(rec.status) === -1) continue;
                 const start = rec.date;
                 let end = rec.dateEnd;
@@ -526,7 +546,7 @@ const absensi = {
 
     /**
      * Bikin baris SEMU (merah, "Menunggu Persetujuan") untuk hari-hari di
-     * bulan yang ditampilkan yang tercakup pengajuan Izin/Sakit MILIK USER
+     * bulan yang ditampilkan yang tercakup pengajuan Izin Harian MILIK USER
      * INI yang MASIH PENDING (belum final disetujui/ditolak) - supaya
      * begitu karyawan mengajukan izin, langsung kelihatan di tabel Riwayat
      * meski belum ada baris Attendance asli untuk tanggal itu (baris
@@ -536,6 +556,11 @@ const absensi = {
      * baris semu ini otomatis tidak dibuat lagi (lihat existingDates.has()
      * di bawah) - tidak akan pernah dobel dengan baris hijau yang sudah
      * final. Izin Keluar Kantor sengaja dilewati (bukan izin seharian).
+     * Sakit JUGA dilewati di sini - Sakit sekarang punya baris Attendance
+     * ASLI sejak DIAJUKAN (bukan baru muncul setelah disetujui - lihat
+     * submitIzinData di Izin.gs), jadi warnanya (merah/hijau) sudah
+     * ditentukan langsung dari baris asli itu di renderHistory() di bawah,
+     * tidak perlu baris semu lagi untuk Sakit.
      */
     _buildSyntheticPendingIzinRows(existingRows, selectedMonth) {
         const izinList = this._izinDataForHistory || [];
@@ -552,7 +577,7 @@ const absensi = {
 
         const rows = [];
         izinList.forEach(rec => {
-            if (rec.type === 'keluar_kantor') return;
+            if (rec.type === 'keluar_kantor' || rec.type === 'sick') return;
             if (PENDING_STATUSES.indexOf(rec.status) === -1) return;
 
             const start = rec.date;
@@ -663,13 +688,40 @@ const absensi = {
 
         const statusLower = String(record.status || '').toLowerCase();
 
-        // Baris Izin/Cuti yang SUDAH disetujui penuh - hijau konsisten
-        // merentang 4 kolom sesi (dulu 4 warna beda-beda per kolom: hijau/
-        // abu/abu/merah, padahal isinya sama-sama cuma label jenis izin,
-        // bukan jam sungguhan) + teks "Sudah ditinjau" supaya pasangan
-        // dengan baris pending (merah, "Menunggu ditinjau") di atas jelas.
+        // Baris Izin/Cuti - PENTING soal Sakit: beda dari Cuti/Izin Harian
+        // (baris Attendance baru dibuat SETELAH disetujui penuh, jadi
+        // status 'izin'/'cuti' di situ SELALU berarti sudah disetujui),
+        // Sakit sekarang ditandai ke Attendance SAAT DIAJUKAN (lihat
+        // submitIzinData di Izin.gs) - jadi baris berstatus 'izin' BELUM
+        // TENTU sudah disetujui. Di sini kita cek record Izin aslinya
+        // (this._izinDataForHistory, sudah dimuat di loadAttendanceHistory)
+        // untuk tahu status SEBENARNYA: merah "Menunggu ditinjau" selagi
+        // belum approved/rejected, hijau "Sudah ditinjau" begitu approved.
         const isExcused = statusLower === 'izin' || statusLower === 'cuti';
         if (isExcused) {
+            let isPendingRow = false;
+            if (record.excusedRefType === 'izin' && record.excusedRefId) {
+                const linkedIzin = (this._izinDataForHistory || []).find(i => String(i.id) === String(record.excusedRefId));
+                if (linkedIzin && linkedIzin.status && linkedIzin.status !== 'approved' && linkedIzin.status !== 'rejected') {
+                    isPendingRow = true;
+                }
+            }
+
+            if (isPendingRow) {
+                return `
+                    <tr${isToday ? ' class="row-today"' : ''}>
+                        <td>${dateStr}${isToday ? '<span class="today-tag">Hari Ini</span>' : ''}</td>
+                        <td style="font-size:0.82rem;">${this._formatShiftDisplay(record.shift)}</td>
+                        <td colspan="4" style="text-align:center;">
+                            <span style="background:#FEE2E2;color:#B91C1C;padding:4px 12px;border-radius:20px;font-weight:600;font-size:0.78rem;">
+                                <i class="fas fa-hourglass-half"></i> ${record.clockIn || 'Izin'} - Menunggu Persetujuan
+                            </span>
+                            <br><small style="color:#B91C1C;font-weight:600;font-size:0.7rem;">Menunggu ditinjau</small>
+                        </td>
+                    </tr>
+                `;
+            }
+
             return `
                 <tr${isToday ? ' class="row-today"' : ''}>
                     <td>${dateStr}${isToday ? '<span class="today-tag">Hari Ini</span>' : ''}</td>
