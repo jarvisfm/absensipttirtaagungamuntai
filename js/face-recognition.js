@@ -1934,6 +1934,12 @@ const faceRecognition = {
         // akan ketahuan (toast.error dari processWithVerification()/
         // saveAttendance()), cuma pemberitahuannya muncul SETELAH karyawan
         // sudah kembali ke menu, bukan sebelum.
+        // BUGFIX (2026-08-31): diset SEBELUM navigate di bawah - lihat
+        // catatan lengkap di handleClockIn() (absensi.js). Dibersihkan di
+        // blok finally si IIFE di bawah, begitu proses simpan ini benar-
+        // benar selesai (berhasil ataupun gagal).
+        if (window.absensi) window.absensi._pendingAction = this.currentAction;
+
         router.navigate('absensi');
 
         // Wrap in async IIFE - proses simpan & laporan tambahan berjalan di
@@ -2021,6 +2027,13 @@ const faceRecognition = {
             } catch (error) {
                 console.error('Processing error:', error);
                 toast.error('Terjadi kesalahan saat memproses data.');
+            } finally {
+                // BUGFIX (2026-08-31): lihat catatan di atas & di
+                // handleClockIn() (absensi.js) - dibersihkan di sini (bukan
+                // cuma di jalur sukses) supaya kalau gagal/error pun,
+                // tombol absen tidak ikut terkunci selamanya gara-gara
+                // guard ini.
+                if (window.absensi) window.absensi._pendingAction = null;
             }
         })();
     },
