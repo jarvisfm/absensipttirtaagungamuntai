@@ -1783,7 +1783,7 @@
                             </div>
 
                             <div class="form-actions" style="margin-top:1.5rem;border-top:1px solid var(--border-color);padding-top:1.5rem;">
-                                <button type="button" class="btn-primary" onclick="profileManager.saveProfile()">
+                                <button type="button" class="btn-primary" id="btn-save-profile" onclick="profileManager.saveProfile()">
                                     <i class="fas fa-save"></i> Simpan Perubahan
                                 </button>
                             </div>
@@ -3808,7 +3808,7 @@
                     <button type="button" class="btn-secondary" id="pf-pdk-btn-batal" style="display:none;" onclick="profileManager.resetPendidikanForm()">
                         Batal Edit
                     </button>
-                    <button type="button" class="btn-primary" onclick="profileManager.saveRiwayatPendidikan()">
+                    <button type="button" class="btn-primary" id="pf-pdk-btn-simpan" onclick="profileManager.saveRiwayatPendidikan()">
                         <i class="fas fa-check-circle"></i> Simpan Riwayat Pendidikan
                     </button>
                 </div>
