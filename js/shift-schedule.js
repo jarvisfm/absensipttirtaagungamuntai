@@ -731,6 +731,13 @@ const shiftSchedule = {
     _attachTimeMask(el) {
         if (!el || el._sscTimeMasked) return;
         el._sscTimeMasked = true;
+        // TAMBAHAN: kasih opsi "pilihan cepat" (dropdown bawaan browser,
+        // lewat <datalist> - lihat #ssc-time-options di index.html) di
+        // SEMUA field jam ini, TANPA mengurangi kemampuan ketik manual di
+        // atas sama sekali - <input list="..."> tetap input teks biasa,
+        // datalist cuma nambah saran, tidak membatasi nilai yang boleh
+        // diketik (beda dari <select> murni yang tidak bisa diketik bebas).
+        if (!el.hasAttribute('list')) el.setAttribute('list', 'ssc-time-options');
         el.addEventListener('input', () => {
             const digits = el.value.replace(/\D/g, '').slice(0, 4);
             el.value = digits.length > 2 ? digits.slice(0, 2) + ':' + digits.slice(2) : digits;
