@@ -93,6 +93,13 @@ const OPERATOR_UNITS = {
 const BULAN_NAMA = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
 const HARI_NAMA  = ['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'];
 
+// Key setting yang sama dipakai halaman "Jadwal Shift" (lihat
+// SHIFT_TYPES_SETTING_KEY di js/shift-schedule.js) - didefinisikan ULANG
+// sebagai konstanta lokal di sini (bukan dipakai bareng lintas file)
+// supaya file ini TIDAK bergantung pada urutan <script> di index.html.
+
+const JJO_SHIFT_TYPES_SETTING_KEY = 'shift_types_config';
+
 const jadwalJagaOperator = {
     unitKey: '',
     cabangTrd: '', // hanya dipakai kalau unitKey === 'TRD'
@@ -210,6 +217,86 @@ const jadwalJagaOperator = {
     _employeeName(id) {
         const emp = this._employees.find(e => String(e.id) === String(id));
         return emp ? emp.nama : '';
+    },
+
+    /**
+     * SINKRONISASI Jadwal Shift <-> Jadwal Jaga Operator (2026-09-01, atas
+     * permintaan): unit dengan pola dasar 'kontinu' (1 blok jam/hari - SEMUA
+     * unit SPAM di atas, BUKAN 'kontinu-split' yang jam terpisahnya untuk 1
+     * orang yang sama, bukan sesi berbeda) sekarang otomatis "naik kelas"
+     * jadi tampilan multi-sesi (persis seperti BNA Amuntai/SATPAM) begitu
+     * Jenis Jadwal karyawan unit itu (menu Jadwal Shift) punya LEBIH DARI 1
+     * Kelompok Hari (dayGroups) - tiap Kelompok Hari jadi 1 baris sesi
+     * sendiri di sini, label & urutannya mengikuti Kelompok Hari itu apa
+     * adanya (mis. "Pagi"/"Malam"). Kalau Jenis Jadwal-nya masih 1
+     * Kelompok Hari seperti semula, fungsi ini balikin unit ASLINYA apa
+     * adanya - TIDAK ADA PERUBAHAN sama sekali untuk unit yang belum
+     * diutak-atik.
+     *
+     * Dipakai menggantikan akses langsung ke OPERATOR_UNITS[key] di
+     * renderTable()/printSchedule() supaya kedua tempat itu konsisten.
+     * Backend (checkOperatorRosterForToday() & _getEffectiveRosterShiftOptions()
+     * di Operatorschdule.gs/Attendance.gs) menurunkan pola & key sesi
+     * ("grp0", "grp1", dst mengikuti urutan dayGroups) yang SAMA PERSIS
+     * dari sumber yang sama, supaya proses absen & tampilan di sini selalu
+     * sepakat satu sama lain.
+     */
+    _getEffectiveUnit(unitKey) {
+        const base = OPERATOR_UNITS[unitKey];
+        if (!base || base.pattern !== 'kontinu') return base;
+
+        try {
+            const raw = this._allSettings && this._allSettings[JJO_SHIFT_TYPES_SETTING_KEY];
+            if (!raw) return base;
+            const shiftTypesConfig = JSON.parse(raw);
+
+            const unitEmployees = this._employeesForUnit(unitKey);
+            if (unitEmployees.length === 0) return base;
+
+            // Kalau karyawan unit ini kebetulan beda-beda Jenis Jadwal,
+            // pakai yang paling banyak dipakai (mayoritas) supaya hasilnya
+            // tetap deterministik & tidak "goyang" tiap kali dirender ulang.
+            const shiftCount = {};
+            unitEmployees.forEach(e => {
+                const s = String(e.shift || '').trim();
+                if (s) shiftCount[s] = (shiftCount[s] || 0) + 1;
+            });
+            const shiftNames = Object.keys(shiftCount);
+            if (shiftNames.length === 0) return base;
+            shiftNames.sort((a, b) => shiftCount[b] - shiftCount[a]);
+            const dominantShift = shiftNames[0];
+
+            const shiftConfig = shiftTypesConfig[dominantShift];
+            if (!shiftConfig || !shiftConfig.rosterCheck || shiftConfig.shiftOptions) return base;
+
+            const groups = shiftConfig.dayGroups || [];
+            if (groups.length <= 1) return base;
+
+            return {
+                label: base.label,
+                pattern: 'multi-grup',
+                sessions: groups.map((g, idx) => ({
+                    key: 'grp' + idx,
+                    label: g.label || ('Sesi ' + (idx + 1)),
+                    time: this._dayGroupTimeRange(g)
+                }))
+            };
+        } catch (e) {
+            console.error('Gagal menurunkan sesi dinamis dari Jadwal Shift, pakai tampilan bawaan:', e);
+            return base;
+        }
+    },
+
+    // "08:00 s/d 20:00" dari sesi Masuk (clockIn) & Pulang (clockOut/
+    // breakEnd) sebuah dayGroup - dipakai _getEffectiveUnit() di atas untuk
+    // label jam per sesi di tabel Jadwal Jaga Operator.
+    _dayGroupTimeRange(group) {
+        const sessions = group.sessions || [];
+        const masuk = sessions.find(s => s.field === 'clockIn');
+        const pulang = [...sessions].reverse().find(s => s.field === 'clockOut' || s.field === 'breakEnd');
+        if (masuk && pulang) return `${masuk.time} s/d ${pulang.time}`;
+        if (masuk) return `Mulai ${masuk.time}`;
+        return '';
     },
 
     _populateUnitSelect() {
@@ -369,7 +456,7 @@ const jadwalJagaOperator = {
     },
 
     renderTable() {
-        const unit = OPERATOR_UNITS[this.unitKey];
+        const unit = this._getEffectiveUnit(this.unitKey);
         if (!unit) { this._renderEmpty(); return; }
 
         const info = document.getElementById('jjo-unit-info');
@@ -625,7 +712,7 @@ const jadwalJagaOperator = {
         if (!this.unitKey) { toast.warning('Pilih unit dulu sebelum mencetak.'); return; }
         if (this.unitKey === 'TRD' && !this.cabangTrd) { toast.warning('Isi nama cabang TRD dulu sebelum mencetak.'); return; }
 
-        const unit = OPERATOR_UNITS[this.unitKey];
+        const unit = this._getEffectiveUnit(this.unitKey);
         const judulUnit = this.unitKey === 'TRD' ? `${unit.label} - ${this.cabangTrd}` : unit.label;
         const sig = this.data.signatures || {};
 
