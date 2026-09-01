@@ -26,7 +26,15 @@ const OPERATOR_UNITS = {
     },
     'SATPAM': {
         label: 'SATPAM',
-        pattern: 'multi-solo', // banyak sesi/hari, 1 nama per sesi
+        // PERBAIKAN (2026-09-01, atas permintaan): diubah dari 'multi-solo'
+        // (dropdown, 1 nama per sesi) ke 'multi-grup' (checkbox, boleh lebih
+        // dari 1 nama per sesi) - sama seperti BNA Amuntai. Aman untuk
+        // jadwal SATPAM yang SUDAH tersimpan sebelumnya (format lama 1 nama
+        // per sesi) karena checkOperatorRosterForToday() di
+        // Operatorschdule.gs (backend) sudah menangani kedua bentuk data
+        // (satu ID string ATAU array ID) dengan cara yang sama persis sejak
+        // awal - lihat komentar di sana.
+        pattern: 'multi-grup',
         sessions: [
             { key: 'pagi',  label: 'Pagi',  time: '07.00 - 15.00' },
             { key: 'siang', label: 'Siang', time: '15.00 - 23.00' },
