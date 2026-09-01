@@ -487,8 +487,8 @@ const shiftSchedule = {
                         <option value="clockIn" ${s.field === 'clockIn' ? 'selected' : ''}>Masuk (clockIn)</option>
                         <option value="clockOut" ${s.field === 'clockOut' ? 'selected' : ''}>Pulang (clockOut)</option>
                     </select>
-                    <label>Jam target <input type="time" lang="id-ID" class="ssc-input ssc-so-session-time" data-field="time" value="${this._escAttr(s.time || '')}"></label>
-                    <label>Mulai bisa absen <input type="time" lang="id-ID" class="ssc-input ssc-so-session-opens" data-field="opensAt" value="${this._escAttr(s.opensAt || '')}"></label>
+                    <label>Jam target <input type="text" inputmode="numeric" maxlength="5" placeholder="HH:MM" class="ssc-input ssc-time-input ssc-so-session-time" data-field="time" value="${this._escAttr(s.time || '')}"></label>
+                    <label>Mulai bisa absen <input type="text" inputmode="numeric" maxlength="5" placeholder="HH:MM" class="ssc-input ssc-time-input ssc-so-session-opens" data-field="opensAt" value="${this._escAttr(s.opensAt || '')}"></label>
                 </div>
             `).join('');
 
@@ -496,7 +496,7 @@ const shiftSchedule = {
                 <div class="ssc-shift-option" data-shift="${this._escAttr(shiftKey)}" data-opt="${optKey}">
                     <div class="ssc-shift-option-header">
                         <input type="text" class="ssc-input ssc-so-label" data-field="label" value="${this._escAttr(opt.label || optKey)}">
-                        <label>Batas terlambat <input type="time" lang="id-ID" class="ssc-input ssc-so-batas" data-field="batasLambat" value="${this._escAttr(opt.batasLambat || '')}"></label>
+                        <label>Batas terlambat <input type="text" inputmode="numeric" maxlength="5" placeholder="HH:MM" class="ssc-input ssc-time-input ssc-so-batas" data-field="batasLambat" value="${this._escAttr(opt.batasLambat || '')}"></label>
                         <label>Toleransi (menit) <input type="number" min="0" class="ssc-input ssc-so-toleransi" data-field="toleransi" value="${opt.toleransi != null ? opt.toleransi : 0}"></label>
                     </div>
                     <div class="ssc-sessions">${sessionsHtml}</div>
@@ -543,8 +543,8 @@ const shiftSchedule = {
                     <option value="breakEnd" ${s.field === 'breakEnd' ? 'selected' : ''}>Istirahat Masuk (breakEnd)</option>
                     <option value="clockOut" ${s.field === 'clockOut' ? 'selected' : ''}>Pulang (clockOut)</option>
                 </select>
-                <label>Jam target <input type="time" lang="id-ID" class="ssc-input ssc-session-time" data-field="time" value="${this._escAttr(s.time || '')}"></label>
-                <label>Mulai bisa absen <input type="time" lang="id-ID" class="ssc-input ssc-session-opens" data-field="opensAt" value="${this._escAttr(s.opensAt || '')}"></label>
+                <label>Jam target <input type="text" inputmode="numeric" maxlength="5" placeholder="HH:MM" class="ssc-input ssc-time-input ssc-session-time" data-field="time" value="${this._escAttr(s.time || '')}"></label>
+                <label>Mulai bisa absen <input type="text" inputmode="numeric" maxlength="5" placeholder="HH:MM" class="ssc-input ssc-time-input ssc-session-opens" data-field="opensAt" value="${this._escAttr(s.opensAt || '')}"></label>
                 <button class="btn-icon-danger ssc-remove-session" title="Hapus sesi"><i class="fas fa-trash"></i></button>
             </div>
         `).join('');
@@ -560,7 +560,7 @@ const shiftSchedule = {
                     <button class="btn-icon-danger ssc-remove-group" title="Hapus kelompok"><i class="fas fa-trash"></i></button>
                 </div>
                 <div class="ssc-batas-row">
-                    <label>Batas terlambat <input type="time" lang="id-ID" class="ssc-input ssc-batas-lambat" data-field="batasLambat" value="${this._escAttr(group.batasLambat || '')}"></label>
+                    <label>Batas terlambat <input type="text" inputmode="numeric" maxlength="5" placeholder="HH:MM" class="ssc-input ssc-time-input ssc-batas-lambat" data-field="batasLambat" value="${this._escAttr(group.batasLambat || '')}"></label>
                     <label>Toleransi (menit) <input type="number" min="0" class="ssc-input ssc-toleransi" data-field="toleransi" value="${group.toleransi != null ? group.toleransi : 0}"></label>
                 </div>
                 <div class="ssc-sessions">${sessionsHtml}</div>
@@ -584,6 +584,15 @@ const shiftSchedule = {
     _bindCardEvents() {
         const wrap = document.getElementById('ssc-list');
         if (!wrap) return;
+
+        // Semua field jam (Jam Target/Mulai Bisa Absen/Batas Terlambat) SEKARANG
+        // pakai <input type="text"> biasa (format HH:MM, murni 24 jam) - lihat
+        // catatan di _attachTimeMask(). Dipasang di sini SEKALI lewat class
+        // bersama ".ssc-time-input", TIDAK perlu ubah blok binding .oninput
+        // masing-masing field di bawah - keduanya jalan berdampingan (event
+        // 'input' yang sama, mask ini terpasang lebih dulu jadi .value sudah
+        // rapi "HH:MM" saat handler .oninput di bawah membacanya).
+        wrap.querySelectorAll('.ssc-time-input').forEach(el => this._attachTimeMask(el));
 
         wrap.querySelectorAll('.ssc-remove-shift').forEach(btn => {
             btn.onclick = () => this.removeJenisJadwal(btn.dataset.shift);
@@ -702,6 +711,40 @@ const shiftSchedule = {
                 const opensEl = sessionEl.querySelector('.ssc-session-opens');
                 if (opensEl) opensEl.oninput = () => { session.opensAt = opensEl.value; this._markDirty(); };
             });
+        });
+    },
+
+    /**
+     * Ganti semua field jam dari <input type="time"> (formatnya ikut
+     * bahasa/OS browser - bisa 12 jam AM/PM, bisa 24 jam, tidak bisa
+     * dipaksa lewat kode) jadi <input type="text"> biasa dengan format
+     * HH:MM murni 24 jam yang kita kontrol sendiri sepenuhnya di sini -
+     * supaya AM/PM benar-benar tidak akan pernah muncul lagi terlepas
+     * dari browser/OS apa pun yang dipakai admin.
+     * - Saat mengetik: otomatis sisipkan ":" setelah 2 digit jam.
+     * - Saat keluar dari field (blur): lengkapi & batasi ke rentang valid
+     *   (jam 00-23, menit 00-59), lalu picu event 'input' sekali lagi
+     *   supaya handler .oninput yang sudah ada (baca session.time dst.)
+     *   ikut menyimpan nilai HH:MM final ini - TIDAK mengubah/menyentuh
+     *   handler .oninput itu sendiri sama sekali.
+     */
+    _attachTimeMask(el) {
+        if (!el || el._sscTimeMasked) return;
+        el._sscTimeMasked = true;
+        el.addEventListener('input', () => {
+            const digits = el.value.replace(/\D/g, '').slice(0, 4);
+            el.value = digits.length > 2 ? digits.slice(0, 2) + ':' + digits.slice(2) : digits;
+        });
+        el.addEventListener('blur', () => {
+            const digits = el.value.replace(/\D/g, '');
+            if (!digits) { el.value = ''; return; }
+            let hh, mm;
+            if (digits.length <= 2) { hh = parseInt(digits, 10); mm = 0; }
+            else { hh = parseInt(digits.slice(0, 2), 10); mm = parseInt(digits.slice(2, 4).padEnd(2, '0'), 10); }
+            hh = Math.min(isNaN(hh) ? 0 : hh, 23);
+            mm = Math.min(isNaN(mm) ? 0 : mm, 59);
+            el.value = String(hh).padStart(2, '0') + ':' + String(mm).padStart(2, '0');
+            el.dispatchEvent(new Event('input'));
         });
     },
 
