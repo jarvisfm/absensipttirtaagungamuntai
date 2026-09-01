@@ -153,39 +153,41 @@ const dashboard = {
     },
 
     /**
-     * Kartu "Selamat Ulang Tahun" - muncul di dashboard cuma kalau HARI INI
-     * cocok dengan tanggal & bulan lahir karyawan (field Tanggal Lahir di
-     * profil, disimpan sebagai "YYYY-MM-DD" dari <input type="date">).
-     * Tahun lahir sengaja diabaikan - yang dicocokkan cuma tanggal & bulan.
+     * Kartu "Selamat Ulang Tahun" - muncul di dashboard SIAPA SAJA (bukan
+     * cuma akun yang berulang tahun sendiri) kalau HARI INI cocok dengan
+     * tanggal & bulan lahir SALAH SATU karyawan (field Tanggal Lahir di
+     * profil, disimpan sebagai "YYYY-MM-DD" dari <input type="date">) -
+     * supaya rekan kerja lain ikut tahu & merayakan, bukan cuma terlihat
+     * oleh orang yang berulang tahun itu sendiri. Tahun lahir sengaja
+     * diabaikan - yang dicocokkan cuma tanggal & bulan. Data tanggalLahir
+     * SEMUA karyawan (this.allEmployees) sudah dimuat lebih dulu di sini
+     * juga (dipakai fitur "Kehadiran Tim"), jadi tidak ada data tambahan
+     * yang perlu diambil untuk ini.
      */
     updateBirthdayCard() {
         const card = document.getElementById('birthday-card');
         if (!card) return;
 
-        const currentUser = auth.getCurrentUser();
-        const myId = currentUser?.employeeId || currentUser?.id;
-        const me = (this.allEmployees || []).find(e => String(e.id) === String(myId));
-
-        const tanggalLahir = me?.tanggalLahir || '';
-        // Format "YYYY-MM-DD" dari <input type="date"> - ambil bulan & tanggal saja
-        const m = String(tanggalLahir).match(/^\d{4}-(\d{2})-(\d{2})/);
-
-        if (!m) {
-            card.style.display = 'none';
-            return;
-        }
-
-        const birthMonth = Number(m[1]);
-        const birthDay = Number(m[2]);
-
         const today = new Date();
-        const isBirthdayToday = (today.getMonth() + 1) === birthMonth && today.getDate() === birthDay;
+        const todayMonth = today.getMonth() + 1;
+        const todayDate = today.getDate();
 
-        if (isBirthdayToday) {
+        const birthdayNames = (this.allEmployees || [])
+            .filter(e => {
+                const m = String(e?.tanggalLahir || '').match(/^\d{4}-(\d{2})-(\d{2})/);
+                if (!m) return false;
+                return Number(m[1]) === todayMonth && Number(m[2]) === todayDate;
+            })
+            .map(e => e.nama || e.name)
+            .filter(Boolean);
+
+        if (birthdayNames.length > 0) {
             card.style.display = 'flex';
             const msgEl = document.getElementById('birthday-message');
-            const fullName = currentUser?.name || 'Kamu';
-            if (msgEl) msgEl.textContent = `Selamat Ulang Tahun, ${fullName}! 🎉`;
+            const namesText = birthdayNames.length === 1
+                ? birthdayNames[0]
+                : birthdayNames.slice(0, -1).join(', ') + ' & ' + birthdayNames[birthdayNames.length - 1];
+            if (msgEl) msgEl.textContent = `Selamat Ulang Tahun, ${namesText}! 🎉`;
         } else {
             card.style.display = 'none';
         }
