@@ -1448,7 +1448,10 @@
                                         </optgroup>
                                         <optgroup label="Unit Jaga (Non-Wilayah)">
                                             <option value="SATPAM">SATPAM</option>
-                                            <option value="TRD">TRD</option>
+                                            <option value="TRD - BNA Amuntai">TRD - BNA Amuntai</option>
+                                            <option value="TRD - Cabang I">TRD - Cabang I</option>
+                                            <option value="TRD - Cabang II">TRD - Cabang II</option>
+                                            <option value="TRD - Cabang III">TRD - Cabang III</option>
                                         </optgroup>
                                     </select>
                                 </div>
@@ -2128,9 +2131,12 @@
                         <select id="p-unitJaga" onchange="karyawanManager.onUnitJagaChange()">
                             <option value="">-- Pilih Unit Jaga --</option>
                             <option value="SATPAM">SATPAM</option>
-                            <option value="TRD">TRD</option>
+                            <option value="TRD - BNA Amuntai">TRD - BNA Amuntai</option>
+                            <option value="TRD - Cabang I">TRD - Cabang I</option>
+                            <option value="TRD - Cabang II">TRD - Cabang II</option>
+                            <option value="TRD - Cabang III">TRD - Cabang III</option>
                         </select>
-                        <small style="color:var(--text-muted);">Isi INI SAJA (kosongkan Unit Wilayah) untuk karyawan SATPAM/TRD - keduanya tetap disimpan sebagai satu data yang sama seperti sebelumnya, cuma dipisah di form ini biar tidak tercampur dengan daftar Unit Wilayah.</small>
+                        <small style="color:var(--text-muted);">Isi INI SAJA (kosongkan Unit Wilayah) untuk karyawan SATPAM/TRD - keduanya tetap disimpan sebagai satu data yang sama seperti sebelumnya, cuma dipisah di form ini biar tidak tercampur dengan daftar Unit Wilayah. Khusus TRD, pilih cabangnya (BNA Amuntai/Cabang I/II/III) supaya karyawan otomatis terfilter per cabang di menu Jadwal Jaga Operator.</small>
                     </div>
                 </div>
                 <div class="form-row two-col">
@@ -2175,7 +2181,10 @@
                         <label class="op-schedule-unit-item"><input type="checkbox" class="op-schedule-unit-checkbox" value="SPAM Paminggir"> SPAM Paminggir</label>
                         <div class="op-schedule-unit-group-label">Unit Jaga (Non-Wilayah)</div>
                         <label class="op-schedule-unit-item"><input type="checkbox" class="op-schedule-unit-checkbox" value="SATPAM"> SATPAM</label>
-                        <label class="op-schedule-unit-item"><input type="checkbox" class="op-schedule-unit-checkbox" value="TRD"> TRD</label>
+                        <label class="op-schedule-unit-item"><input type="checkbox" class="op-schedule-unit-checkbox" value="TRD - BNA Amuntai"> TRD - BNA Amuntai</label>
+                        <label class="op-schedule-unit-item"><input type="checkbox" class="op-schedule-unit-checkbox" value="TRD - Cabang I"> TRD - Cabang I</label>
+                        <label class="op-schedule-unit-item"><input type="checkbox" class="op-schedule-unit-checkbox" value="TRD - Cabang II"> TRD - Cabang II</label>
+                        <label class="op-schedule-unit-item"><input type="checkbox" class="op-schedule-unit-checkbox" value="TRD - Cabang III"> TRD - Cabang III</label>
                     </div>
                     <small style="color:var(--text-muted);">Jangan pilih apapun kalau tidak perlu. Kalau dipilih 1 atau lebih, karyawan ini (biasanya Asmen) akan dapat menu "Jadwal Jaga Operator" di sidebar-nya sendiri, TAPI cuma bisa lihat/atur unit-unit yang dipilih di sini - unit lain tidak nampak. Admin sendiri selalu bisa akses SEMUA unit, tidak dibatasi field ini. Tidak berpengaruh ke alur approval Izin/Cuti (field Role di atas).</small>
                 </div>
