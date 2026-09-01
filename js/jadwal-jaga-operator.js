@@ -41,30 +41,46 @@ const OPERATOR_UNITS = {
             { key: 'malam', label: 'Malam', time: '23.00 - 07.00' }
         ]
     },
+    // PERBAIKAN (2026-09-01, atas permintaan): semua unit SPAM di bawah ini
+    // (pattern 'kontinu'/'kontinu-split') dapat tambahan multiPetugas: true
+    // - artinya kolom "Nama Petugas"-nya SEKARANG checkbox (boleh centang
+    // lebih dari 1 nama sekaligus, sama seperti BNA Amuntai/SATPAM di
+    // atas), bukan dropdown 1 nama lagi. Field jam (jamLabel) & struktur "1
+    // baris per hari" (bukan multi-sesi pagi/siang/malam) TIDAK berubah -
+    // itu murni soal jam operasionalnya (masih 1 blok jam per hari), beda
+    // dari isu jumlah petugas. Lihat _renderKontinu()/_bindInputs() di
+    // bawah, dan checkOperatorRosterForToday() di Operatorschdule.gs
+    // (backend) yang sudah disesuaikan mendukung dayData.petugas berbentuk
+    // array ID (checkbox baru) MAUPUN 1 ID string (data lama yang sudah
+    // kadung tersimpan sebelum perubahan ini) - jadi jadwal bulan-bulan
+    // sebelumnya yang sudah diisi tetap terbaca normal.
     'SPAM Babirik': {
         label: 'Unit SPAM Babirik',
-        pattern: 'kontinu', // 1 blok jam/hari, 1 orang jaga penuh, gantian per hari
+        pattern: 'kontinu', // 1 blok jam/hari, gantian per hari - boleh lebih dari 1 orang/hari (checkbox)
+        multiPetugas: true,
         jamLabel: '18 Jam (04.00 - 22.00)'
     },
     'SPAM Danau Panggang': {
         label: 'Unit SPAM Danau Panggang',
         pattern: 'kontinu',
+        multiPetugas: true,
         jamLabel: '16 Jam (05.00 - 21.00)'
     },
     'SPAM Paminggir': {
         label: 'Unit SPAM Paminggir',
         pattern: 'kontinu-split', // 2 blok jam terpisah (ada jeda/istirahat)
+        multiPetugas: true,
         jamLabel: '13 Jam (04.30 - 13.00) (15.30 - 20.00)'
     },
-    'SPAM Muara Tapus':     { label: 'Unit SPAM Muara Tapus',     pattern: 'kontinu', jamLabel: '24 Jam (00.00 - 24.00)' },
-    'SPAM Sungai Tabukan':  { label: 'Unit SPAM Sungai Tabukan',  pattern: 'kontinu', jamLabel: '24 Jam (00.00 - 24.00)' },
-    'SPAM Alabio':          { label: 'Unit SPAM Alabio',          pattern: 'kontinu', jamLabel: '24 Jam (00.00 - 24.00)' },
-    'SPAM Rantau Bujur':    { label: 'Unit SPAM Rantau Bujur',    pattern: 'kontinu', jamLabel: '24 Jam (00.00 - 24.00)' },
-    'SPAM Banjang':         { label: 'Unit SPAM Banjang',         pattern: 'kontinu', jamLabel: '24 Jam (00.00 - 24.00)' },
-    'SPAM Tangkawang':      { label: 'Unit SPAM Tangkawang',      pattern: 'kontinu', jamLabel: '24 Jam (00.00 - 24.00)' },
-    'SPAM Telaga Silaba':   { label: 'Unit SPAM Telaga Silaba',   pattern: 'kontinu', jamLabel: '24 Jam (00.00 - 24.00)' },
-    'SPAM Jarang Kuantan':  { label: 'Unit SPAM Jarang Kuantan',  pattern: 'kontinu', jamLabel: '24 Jam (00.00 - 24.00)' },
-    'SPAM Muara Baruh':     { label: 'Unit SPAM Muara Baruh',     pattern: 'kontinu', jamLabel: '24 Jam (00.00 - 24.00)' },
+    'SPAM Muara Tapus':     { label: 'Unit SPAM Muara Tapus',     pattern: 'kontinu', multiPetugas: true, jamLabel: '24 Jam (00.00 - 24.00)' },
+    'SPAM Sungai Tabukan':  { label: 'Unit SPAM Sungai Tabukan',  pattern: 'kontinu', multiPetugas: true, jamLabel: '24 Jam (00.00 - 24.00)' },
+    'SPAM Alabio':          { label: 'Unit SPAM Alabio',          pattern: 'kontinu', multiPetugas: true, jamLabel: '24 Jam (00.00 - 24.00)' },
+    'SPAM Rantau Bujur':    { label: 'Unit SPAM Rantau Bujur',    pattern: 'kontinu', multiPetugas: true, jamLabel: '24 Jam (00.00 - 24.00)' },
+    'SPAM Banjang':         { label: 'Unit SPAM Banjang',         pattern: 'kontinu', multiPetugas: true, jamLabel: '24 Jam (00.00 - 24.00)' },
+    'SPAM Tangkawang':      { label: 'Unit SPAM Tangkawang',      pattern: 'kontinu', multiPetugas: true, jamLabel: '24 Jam (00.00 - 24.00)' },
+    'SPAM Telaga Silaba':   { label: 'Unit SPAM Telaga Silaba',   pattern: 'kontinu', multiPetugas: true, jamLabel: '24 Jam (00.00 - 24.00)' },
+    'SPAM Jarang Kuantan':  { label: 'Unit SPAM Jarang Kuantan',  pattern: 'kontinu', multiPetugas: true, jamLabel: '24 Jam (00.00 - 24.00)' },
+    'SPAM Muara Baruh':     { label: 'Unit SPAM Muara Baruh',     pattern: 'kontinu', multiPetugas: true, jamLabel: '24 Jam (00.00 - 24.00)' },
     'TRD': {
         label: 'TRD (Transmisi & Distribusi)',
         pattern: 'multi-grup', // piket harian, checkbox nama karyawan langsung (sama seperti BNA Amuntai) - 1 "sesi" tanpa jam spesifik karena piketnya "jam bebas"; cabang tetap diisi manual (mis. "Amuntai", "Cabang 1") lihat cabangTrd
@@ -457,6 +473,7 @@ const jadwalJagaOperator = {
         if (!wrap) return;
         const days = this._daysInMonth();
         const unitEmployees = this._employeesForUnit(this.unitKey);
+        const isMulti = !!unit.multiPetugas;
 
         let rows = '';
         for (let d = 1; d <= days; d++) {
@@ -465,20 +482,39 @@ const jadwalJagaOperator = {
             const dayData = this.data.days[d] || { petugas: '', keterangan: '' };
             if (!this.data.days[d]) this.data.days[d] = dayData;
 
-            const selectedId = dayData.petugas ? String(dayData.petugas) : '';
-            const optionsHtml = unitEmployees.map(emp => `
-                <option value="${emp.id}" ${selectedId === String(emp.id) ? 'selected' : ''}>${this._escAttr(emp.nama)}</option>
-            `).join('');
+            // PERBAIKAN (2026-09-01): unit dengan multiPetugas (semua SPAM,
+            // lihat OPERATOR_UNITS di atas) pakai checkbox - dayData.petugas
+            // jadi ARRAY id karyawan (boleh lebih dari 1), bukan 1 id
+            // string lagi. Dukung juga bentuk lama (1 id string, dari
+            // jadwal yang sudah tersimpan sebelum perubahan ini) supaya
+            // tetap kebaca benar - lihat catatan yang sama di
+            // checkOperatorRosterForToday() (Operatorschdule.gs, backend).
+            const selectedIds = Array.isArray(dayData.petugas)
+                ? dayData.petugas.map(String)
+                : (dayData.petugas ? [String(dayData.petugas)] : []);
+
+            const petugasFieldHtml = isMulti
+                ? `<div class="jjo-checkbox-group" data-day="${d}" data-field="petugas">
+                    ${unitEmployees.map(emp => `
+                        <label class="jjo-checkbox-item">
+                            <input type="checkbox" class="jjo-petugas-checkbox" data-day="${d}" data-field="petugas" value="${emp.id}" ${selectedIds.includes(String(emp.id)) ? 'checked' : ''}>
+                            <span>${this._escAttr(emp.nama)}</span>
+                        </label>
+                    `).join('')}
+                </div>`
+                : `<select class="jjo-select" data-day="${d}" data-field="petugas">
+                    <option value="">- Kosong -</option>
+                    ${unitEmployees.map(emp => `
+                        <option value="${emp.id}" ${selectedIds.includes(String(emp.id)) ? 'selected' : ''}>${this._escAttr(emp.nama)}</option>
+                    `).join('')}
+                </select>`;
 
             rows += `<tr class="${rowClass}">
                 <td>${d}</td>
                 <td>${info.hariName}<br>${info.tanggalStr}</td>
                 <td>${unit.jamLabel}</td>
                 <td>
-                    <select class="jjo-select" data-day="${d}" data-field="petugas">
-                        <option value="">- Kosong -</option>
-                        ${optionsHtml}
-                    </select>
+                    ${petugasFieldHtml}
                     ${unitEmployees.length === 0 ? '<div class="jjo-no-emp">Belum ada karyawan Operator di unit ini</div>' : ''}
                 </td>
                 <td><input type="text" class="jjo-input" data-day="${d}" data-field="keterangan"
@@ -489,7 +525,7 @@ const jadwalJagaOperator = {
         wrap.innerHTML = `
             <table class="jjo-table">
                 <thead>
-                    <tr><th>No</th><th>Hari, Tanggal</th><th>Jam Operasional</th><th>Nama Petugas</th><th>Keterangan</th></tr>
+                    <tr><th>No</th><th>Hari, Tanggal</th><th>Jam Operasional</th><th>Nama Petugas${isMulti ? ' <small>(centang boleh lebih dari 1)</small>' : ''}</th><th>Keterangan</th></tr>
                 </thead>
                 <tbody>${rows}</tbody>
             </table>
@@ -535,24 +571,35 @@ const jadwalJagaOperator = {
             };
         });
 
-        // Checkbox pilih petugas untuk sesi multi-grup (mis. BNA Amuntai) -
-        // Fase 2c: ganti <select multiple> jadi checkbox biasa supaya lebih
-        // gampang dipakai (klik langsung per nama, tanpa perlu tahan
-        // Ctrl/Cmd - terutama merepotkan di HP). Formatnya TETAP array ID
-        // karyawan sama seperti sebelumnya, jadi data yang sudah tersimpan
-        // di sheet & backend tidak perlu diubah sama sekali.
+        // Checkbox pilih petugas - dipakai untuk 2 kasus: (1) sesi multi-grup
+        // (mis. BNA Amuntai/SATPAM, checkbox punya data-session, tersimpan ke
+        // this.data.days[day].sessions[session] sebagai array ID); (2) unit
+        // multiPetugas pola kontinu (SEMUA SPAM, PERBAIKAN 2026-09-01 -
+        // checkbox-nya punya data-field="petugas" TANPA data-session,
+        // tersimpan langsung ke this.data.days[day].petugas sebagai array
+        // ID). Fase 2c: checkbox biasa (klik langsung per nama, tanpa perlu
+        // tahan Ctrl/Cmd seperti <select multiple> dulu).
         document.querySelectorAll('#jjo-table-wrap .jjo-petugas-checkbox').forEach(cb => {
             cb.onchange = () => {
                 const day = cb.dataset.day;
                 const session = cb.dataset.session;
+                const field = cb.dataset.field;
                 if (!this.data.days[day]) this.data.days[day] = {};
-                if (!this.data.days[day].sessions) this.data.days[day].sessions = {};
 
-                const groupSelector = `.jjo-petugas-checkbox[data-day="${day}"][data-session="${session}"]`;
-                const checkedIds = Array.from(document.querySelectorAll(groupSelector))
-                    .filter(el => el.checked)
-                    .map(el => el.value);
-                this.data.days[day].sessions[session] = checkedIds;
+                if (session) {
+                    if (!this.data.days[day].sessions) this.data.days[day].sessions = {};
+                    const groupSelector = `.jjo-petugas-checkbox[data-day="${day}"][data-session="${session}"]`;
+                    const checkedIds = Array.from(document.querySelectorAll(groupSelector))
+                        .filter(el => el.checked)
+                        .map(el => el.value);
+                    this.data.days[day].sessions[session] = checkedIds;
+                } else if (field) {
+                    const groupSelector = `.jjo-petugas-checkbox[data-day="${day}"][data-field="${field}"]`;
+                    const checkedIds = Array.from(document.querySelectorAll(groupSelector))
+                        .filter(el => el.checked)
+                        .map(el => el.value);
+                    this.data.days[day][field] = checkedIds;
+                }
                 this._markDirty();
             };
         });
@@ -666,7 +713,12 @@ const jadwalJagaOperator = {
             for (let d = 1; d <= days; d++) {
                 const info = this._dayInfo(d);
                 const dayData = this.data.days[d] || { petugas: '', keterangan: '' };
-                const namaPetugas = this._employeeName(dayData.petugas) || '-';
+                // PERBAIKAN (2026-09-01): dayData.petugas sekarang bisa
+                // berupa array ID (unit multiPetugas/checkbox) ATAU 1 ID
+                // string (data lama) - lihat catatan lengkap di
+                // _renderKontinu().
+                const petugasIds = Array.isArray(dayData.petugas) ? dayData.petugas : (dayData.petugas ? [dayData.petugas] : []);
+                const namaPetugas = petugasIds.map(id => this._employeeName(id)).filter(Boolean).join(', ') || '-';
                 rows += `<tr>
                     <td>${d}</td><td>${info.hariName}<br>${info.tanggalStr}</td>
                     <td>${unit.jamLabel}</td>
