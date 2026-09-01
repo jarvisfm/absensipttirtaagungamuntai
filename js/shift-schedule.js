@@ -487,8 +487,8 @@ const shiftSchedule = {
                         <option value="clockIn" ${s.field === 'clockIn' ? 'selected' : ''}>Masuk (clockIn)</option>
                         <option value="clockOut" ${s.field === 'clockOut' ? 'selected' : ''}>Pulang (clockOut)</option>
                     </select>
-                    <label>Jam target <input type="time" class="ssc-input ssc-so-session-time" data-field="time" value="${this._escAttr(s.time || '')}"></label>
-                    <label>Mulai bisa absen <input type="time" class="ssc-input ssc-so-session-opens" data-field="opensAt" value="${this._escAttr(s.opensAt || '')}"></label>
+                    <label>Jam target <input type="time" lang="id-ID" class="ssc-input ssc-so-session-time" data-field="time" value="${this._escAttr(s.time || '')}"></label>
+                    <label>Mulai bisa absen <input type="time" lang="id-ID" class="ssc-input ssc-so-session-opens" data-field="opensAt" value="${this._escAttr(s.opensAt || '')}"></label>
                 </div>
             `).join('');
 
@@ -496,7 +496,7 @@ const shiftSchedule = {
                 <div class="ssc-shift-option" data-shift="${this._escAttr(shiftKey)}" data-opt="${optKey}">
                     <div class="ssc-shift-option-header">
                         <input type="text" class="ssc-input ssc-so-label" data-field="label" value="${this._escAttr(opt.label || optKey)}">
-                        <label>Batas terlambat <input type="time" class="ssc-input ssc-so-batas" data-field="batasLambat" value="${this._escAttr(opt.batasLambat || '')}"></label>
+                        <label>Batas terlambat <input type="time" lang="id-ID" class="ssc-input ssc-so-batas" data-field="batasLambat" value="${this._escAttr(opt.batasLambat || '')}"></label>
                         <label>Toleransi (menit) <input type="number" min="0" class="ssc-input ssc-so-toleransi" data-field="toleransi" value="${opt.toleransi != null ? opt.toleransi : 0}"></label>
                     </div>
                     <div class="ssc-sessions">${sessionsHtml}</div>
@@ -543,8 +543,8 @@ const shiftSchedule = {
                     <option value="breakEnd" ${s.field === 'breakEnd' ? 'selected' : ''}>Istirahat Masuk (breakEnd)</option>
                     <option value="clockOut" ${s.field === 'clockOut' ? 'selected' : ''}>Pulang (clockOut)</option>
                 </select>
-                <label>Jam target <input type="time" class="ssc-input ssc-session-time" data-field="time" value="${this._escAttr(s.time || '')}"></label>
-                <label>Mulai bisa absen <input type="time" class="ssc-input ssc-session-opens" data-field="opensAt" value="${this._escAttr(s.opensAt || '')}"></label>
+                <label>Jam target <input type="time" lang="id-ID" class="ssc-input ssc-session-time" data-field="time" value="${this._escAttr(s.time || '')}"></label>
+                <label>Mulai bisa absen <input type="time" lang="id-ID" class="ssc-input ssc-session-opens" data-field="opensAt" value="${this._escAttr(s.opensAt || '')}"></label>
                 <button class="btn-icon-danger ssc-remove-session" title="Hapus sesi"><i class="fas fa-trash"></i></button>
             </div>
         `).join('');
@@ -560,7 +560,7 @@ const shiftSchedule = {
                     <button class="btn-icon-danger ssc-remove-group" title="Hapus kelompok"><i class="fas fa-trash"></i></button>
                 </div>
                 <div class="ssc-batas-row">
-                    <label>Batas terlambat <input type="time" class="ssc-input ssc-batas-lambat" data-field="batasLambat" value="${this._escAttr(group.batasLambat || '')}"></label>
+                    <label>Batas terlambat <input type="time" lang="id-ID" class="ssc-input ssc-batas-lambat" data-field="batasLambat" value="${this._escAttr(group.batasLambat || '')}"></label>
                     <label>Toleransi (menit) <input type="number" min="0" class="ssc-input ssc-toleransi" data-field="toleransi" value="${group.toleransi != null ? group.toleransi : 0}"></label>
                 </div>
                 <div class="ssc-sessions">${sessionsHtml}</div>
