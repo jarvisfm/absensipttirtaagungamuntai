@@ -81,12 +81,35 @@ const OPERATOR_UNITS = {
     'SPAM Telaga Silaba':   { label: 'Unit SPAM Telaga Silaba',   pattern: 'kontinu', multiPetugas: true, jamLabel: '24 Jam (00.00 - 24.00)' },
     'SPAM Jarang Kuantan':  { label: 'Unit SPAM Jarang Kuantan',  pattern: 'kontinu', multiPetugas: true, jamLabel: '24 Jam (00.00 - 24.00)' },
     'SPAM Muara Baruh':     { label: 'Unit SPAM Muara Baruh',     pattern: 'kontinu', multiPetugas: true, jamLabel: '24 Jam (00.00 - 24.00)' },
-    'TRD': {
-        label: 'TRD (Transmisi & Distribusi)',
-        pattern: 'multi-grup', // piket harian, checkbox nama karyawan langsung (sama seperti BNA Amuntai) - 1 "sesi" tanpa jam spesifik karena piketnya "jam bebas"; cabang tetap diisi manual (mis. "Amuntai", "Cabang 1") lihat cabangTrd
-        sessions: [
-            { key: 'piket', label: 'Piket', time: 'Jam Bebas' }
-        ]
+    // PERBAIKAN (2026-09-01, atas permintaan): TRD sebelumnya 1 unit
+    // tunggal dengan input teks bebas "Nama Cabang TRD" (semua karyawan
+    // TRD tampil dicentang di cabang mana pun, admin harus tahu sendiri
+    // siapa di cabang mana). Sekarang dipecah jadi 4 unit terpisah persis
+    // seperti unit lain (BNA Amuntai, Cabang I/II/III) - karyawannya
+    // OTOMATIS terfilter per cabang lewat field "Unit Jaga" di Data
+    // Karyawan (lihat p-unitJaga di index.html: "TRD - BNA Amuntai" /
+    // "TRD - Cabang I" / "TRD - Cabang II" / "TRD - Cabang III"), sama
+    // persis mekanismenya dengan unit SPAM yang difilter dari Unit
+    // Wilayah - TIDAK perlu input cabang manual lagi.
+    'TRD - BNA Amuntai': {
+        label: 'TRD - BNA Amuntai',
+        pattern: 'multi-grup',
+        sessions: [ { key: 'piket', label: 'Piket', time: 'Jam Bebas' } ]
+    },
+    'TRD - Cabang I': {
+        label: 'TRD - Cabang I',
+        pattern: 'multi-grup',
+        sessions: [ { key: 'piket', label: 'Piket', time: 'Jam Bebas' } ]
+    },
+    'TRD - Cabang II': {
+        label: 'TRD - Cabang II',
+        pattern: 'multi-grup',
+        sessions: [ { key: 'piket', label: 'Piket', time: 'Jam Bebas' } ]
+    },
+    'TRD - Cabang III': {
+        label: 'TRD - Cabang III',
+        pattern: 'multi-grup',
+        sessions: [ { key: 'piket', label: 'Piket', time: 'Jam Bebas' } ]
     }
 };
 
@@ -207,6 +230,14 @@ const jadwalJagaOperator = {
     // langsung - semua karyawan TRD muncul sebagai checkbox, cabang (lihat
     // cabangTrd) cuma dipakai untuk memisahkan penyimpanan/judul cetak per
     // cabang, bukan untuk memfilter siapa yang muncul di checkbox.
+    // PERBAIKAN (2026-09-01): TRD sekarang 4 unit terpisah (BNA
+    // Amuntai/Cabang I/II/III, lihat OPERATOR_UNITS di atas) - karyawannya
+    // difilter dari Unit Wilayah PERSIS SAMA seperti unit lain (baris di
+    // bawah), jadi filter khusus "shift === trd" ini sudah TIDAK PERNAH
+    // kepakai lagi (unitKey yang masuk ke sini sekarang selalu salah satu
+    // dari 4 key baru itu, tidak pernah literal 'TRD' lagi) - dibiarkan
+    // sebagai jaring pengaman kalau ada kode lama yang masih memanggil
+    // dengan key lama.
     _employeesForUnit(unitKey) {
         if (unitKey === 'TRD') {
             return this._employees.filter(e => String(e.shift || '').trim().toLowerCase() === 'trd');
