@@ -160,6 +160,18 @@ const jadwalJagaOperator = {
         this._restrictedUnits = assignedUnits;
 
         await this._loadEmployees();
+        // PERBAIKAN PERFORMA (2026-09-01, keluhan: pindah Unit terasa
+        // lambat) - lihat catatan lengkap di getSettingByKey() (Setting.gs)
+        // & loadAndRender() di bawah. Settings LENGKAP (shift_types_config
+        // dkk, dibutuhkan _getEffectiveUnit()) cukup dimuat SEKALI saja di
+        // sini saat halaman pertama dibuka - bukan diulang tiap kali admin
+        // ganti Unit/Bulan/Tahun.
+        try {
+            const res = await api.getSettings();
+            if (res.success && res.data) this._allSettings = res.data;
+        } catch (e) {
+            console.error('Gagal memuat konfigurasi awal:', e);
+        }
         this._populateUnitSelect();
         this._populateMonthYearSelect();
         this.bindEvents();
@@ -421,9 +433,19 @@ const jadwalJagaOperator = {
             return;
         }
         try {
-            const res = await api.getSettings();
-            if (res.success && res.data) this._allSettings = res.data;
-            const raw = this._allSettings[this._settingKey()];
+            // PERBAIKAN PERFORMA (2026-09-01, keluhan: pindah Unit terasa
+            // lambat): SEBELUMNYA di sini manggil api.getSettings() PENUH
+            // (baca ULANG SELURUH sheet Settings - semua Jenis Jadwal,
+            // radius kantor, DAN semua jadwal jaga bulanan tiap unit
+            // sekaligus) SETIAP kali admin ganti Unit/Bulan/Tahun, padahal
+            // yang benar-benar dibutuhkan saat itu cuma 1 baris (jadwal
+            // unit ini di bulan ini). Sekarang cukup ambil 1 key itu saja
+            // lewat api.getSettingByKey() - jauh lebih ringan & cepat.
+            // Settings LENGKAP (dibutuhkan _getEffectiveUnit() untuk baca
+            // shift_types_config) sudah dimuat SEKALI di init() ke
+            // this._allSettings, tidak perlu diulang di sini.
+            const res = await api.getSettingByKey(this._settingKey());
+            const raw = res.success ? res.data : null;
             this.data = raw ? JSON.parse(raw) : this._emptyData();
         } catch (e) {
             console.error('Gagal memuat jadwal jaga operator:', e);
