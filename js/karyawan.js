@@ -353,7 +353,14 @@ const karyawanManager = {
             // tercampur di daftar Unit Wilayah (lihat onUnitWilayahChange()/
             // onUnitJagaChange() di bawah). Yang mana yang ke-isi tergantung
             // nilai unitWilayah yang tersimpan.
-            const unitJagaValues = ['SATPAM', 'TRD'];
+            // "TRD" (tanpa cabang) SENGAJA masih disertakan di sini walau
+            // opsinya sudah tidak ada lagi di dropdown Unit Jaga (diganti 4
+            // cabang) - supaya karyawan TRD LAMA yang datanya masih persis
+            // "TRD" (belum sempat diarahkan ke salah satu cabang) tetap
+            // kebaca sebagai Unit Jaga (bukan nyasar ke dropdown Unit
+            // Wilayah), walau dropdown-nya akan tampil kosong sampai admin
+            // memilih cabang yang benar & menyimpan ulang.
+            const unitJagaValues = ['SATPAM', 'TRD', 'TRD - BNA Amuntai', 'TRD - Cabang I', 'TRD - Cabang II', 'TRD - Cabang III'];
             document.getElementById('p-unitWilayah').value = unitJagaValues.includes(p.unitWilayah) ? '' : (p.unitWilayah || '');
             document.getElementById('p-unitJaga').value    = unitJagaValues.includes(p.unitWilayah) ? p.unitWilayah : '';
             document.getElementById('p-bagian').value          = p.bagian || '';
