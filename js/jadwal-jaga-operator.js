@@ -543,6 +543,26 @@ const jadwalJagaOperator = {
             const info = this._dayInfo(d);
             const rowClass = this._rowClass(info.dow);
             const dayData = this.data.days[d] || { sessions: {}, keterangan: '' };
+            // PERBAIKAN BUG (2026-09-01, dari laporan pindah unit "nama
+            // petugas tidak berubah"): kalau dayData UNTUK HARI INI sudah
+            // ada tersimpan dari SEBELUM unit ini "naik kelas" jadi
+            // multi-sesi (mis. masih format lama kontinu {petugas:[],
+            // keterangan:''}, tanpa field "sessions" sama sekali),
+            // dayData.sessions akan undefined - baris di bawah
+            // (dayData.sessions[sess.key]) langsung melempar TypeError
+            // ("Cannot read properties of undefined") dan MENGHENTIKAN
+            // seluruh render di tengah jalan SEBELUM sempat mengganti isi
+            // tabel yang lama. Efeknya persis seperti dilaporkan: pindah ke
+            // unit lain terlihat seperti "tidak berubah", padahal
+            // sebenarnya render-nya GAGAL/error dan tabel LAMA (dari unit
+            // sebelumnya) yang masih nyangkut di layar - _employeesForUnit()
+            // sendiri sebenarnya SUDAH benar dari awal (sudah dikonfirmasi
+            // lewat console: mengembalikan nama yang benar-benar berbeda).
+            // Perbaikannya: pastikan dayData.sessions selalu berupa objek
+            // dulu sebelum dibaca - data lama yang tidak relevan lagi
+            // (petugas dari sebelum unit ini multi-sesi) otomatis diabaikan,
+            // tidak menghalangi render.
+            if (!dayData.sessions) dayData.sessions = {};
             if (!this.data.days[d]) this.data.days[d] = dayData;
 
             unit.sessions.forEach((sess, idx) => {
