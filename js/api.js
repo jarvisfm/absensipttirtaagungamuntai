@@ -550,6 +550,19 @@ const api = {
         return this.request('getSettings');
     },
 
+    // PERBAIKAN PERFORMA (2026-09-01) - lihat catatan lengkap di
+    // getSettingByKey() (Setting.gs). Ambil HANYA 1 key setting (bukan
+    // seluruh sheet Settings lewat getSettings()) - dipakai
+    // jadwalJagaOperator.loadAndRender() supaya pindah Unit/Bulan/Tahun di
+    // halaman Jadwal Jaga Operator tidak perlu baca ulang SELURUH sheet
+    // Settings tiap kali.
+    async getSettingByKey(key) {
+        if (!API_BASE_URL) {
+            return { success: true, data: null };
+        }
+        return this.request('getSettingByKey', { key });
+    },
+
     async saveSetting(key, value) {
         if (!API_BASE_URL) {
             if (key === 'company_name' || key === 'company_logo') {
