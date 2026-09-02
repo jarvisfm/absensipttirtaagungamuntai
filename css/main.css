@@ -390,6 +390,18 @@ img {
     height: 24px;
 }
 
+/* Badge kecil "menunggu approval" di menu sidebar (mis. Absensi, saat ada
+   Surat Tugas/SPPD yang masih pending) - lihat
+   absensi.refreshSuratTugasBadge() di js/absensi.js. */
+.nav-pending-badge {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #F59E0B;
+    margin-left: auto;
+    flex-shrink: 0;
+}
+
 .nav-link i {
     font-size: var(--font-size-lg);
     width: 24px;
