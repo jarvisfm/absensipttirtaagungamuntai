@@ -146,6 +146,10 @@
                             <a href="#" class="nav-link">
                                 <i class="fas fa-clock"></i>
                                 <span>Absensi</span>
+                                <!-- Badge kecil "menunggu approval" utk Surat Tugas/SPPD yang
+                                     masih pending - lihat absensi.refreshSuratTugasBadge() di
+                                     js/absensi.js. Hidden by default, JS yang munculkan. -->
+                                <span id="nav-badge-absensi" class="nav-pending-badge" style="display:none;" title="Ada Surat Tugas/SPPD yang masih menunggu persetujuan"></span>
                             </a>
                         </li>
                         <li class="nav-item" data-external="true">
