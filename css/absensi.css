@@ -74,6 +74,21 @@
     font-variant-numeric: tabular-nums;
 }
 
+/* Badge kecil "SPPD Menunggu Approval" di bawah jam shift - lihat
+   absensi.refreshSuratTugasBadge() di js/absensi.js. */
+.shift-pending-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    margin-top: 6px;
+    padding: 3px 10px;
+    border-radius: 20px;
+    background: #FEF3C7;
+    color: #D97706;
+    font-size: 0.72rem;
+    font-weight: 600;
+}
+
 .current-datetime {
     text-align: right;
 }
