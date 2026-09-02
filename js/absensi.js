@@ -26,6 +26,12 @@ const absensi = {
     // bawah (setelah data selesai dimuat).
     const myRenderGen = ++this._renderGen;
 
+    // PERBAIKAN PERFORMA: reset cache pemanggilan getIzin() tiap kali
+    // halaman Absensi dibuka ulang (lihat _getIzinDataOnce() di bawah) -
+    // supaya SELALU fresh per kunjungan halaman, bukan memakai data lama
+    // dari kunjungan sebelumnya.
+    this._izinDataPromise = null;
+
     const comingSoonEl = document.getElementById('absensi-coming-soon');
     const realContentEl = document.getElementById('absensi-real-content');
 
@@ -246,7 +252,7 @@ const absensi = {
                             if (rec) this._activeExcusedRecord = { type: 'cuti', tanggalSelesai: rec.endDate };
                         }
                     } else {
-                        const izinRes = await api.getIzin(effectiveId);
+                        const izinRes = await this._getIzinDataOnce(effectiveId);
                         if (izinRes.success) {
                             const rec = (izinRes.data || []).find(i => String(i.id) === String(today.excusedRefId));
                             if (rec) {
@@ -308,6 +314,28 @@ const absensi = {
         }
     },
 
+    /**
+     * PERBAIKAN PERFORMA: bungkus api.getIzin() supaya HANYA benar-benar
+     * memanggil server SEKALI per kunjungan halaman (di-reset di init(),
+     * lihat this._izinDataPromise = null di atas), lalu Promise-nya yang
+     * SAMA dipakai ulang oleh siapa pun yang butuh - SEBELUMNYA ada 3
+     * tempat terpisah yang masing-masing manggil api.getIzin() sendiri
+     * (loadTodayAttendance, _checkPendingIzinToday, loadAttendanceHistory),
+     * padahal loadTodayAttendance() & loadAttendanceHistory() jalan
+     * BERSAMAAN lewat Promise.all() di init() - jadi 1x buka halaman
+     * Absensi bisa memicu sheet "Izin" (yang isinya riwayat pengajuan
+     * SEMUA karyawan, terus bertambah) ke-scan penuh sampai 2 kali. Dengan
+     * cara ini, siapa pun yang minta duluan yang benar-benar memicu
+     * request-nya - yang datang belakangan (walau di function lain) cukup
+     * menunggu Promise yang sama selesai, tanpa request baru sama sekali.
+     */
+    async _getIzinDataOnce(effectiveId) {
+        if (!this._izinDataPromise) {
+            this._izinDataPromise = api.getIzin(effectiveId).catch(e => ({ success: false, error: String(e) }));
+        }
+        return this._izinDataPromise;
+    },
+
     // Cari pengajuan Izin Harian milik user ini yang tanggalnya mencakup
     // HARI INI dan statusnya masih "dalam proses" (sudah diajukan, belum
     // final disetujui/ditolak) - dipakai loadTodayAttendance() untuk state
@@ -328,7 +356,7 @@ const absensi = {
             const todayYMD = (typeof dateTime !== 'undefined' && dateTime.getLocalDate)
                 ? dateTime.getLocalDate()
                 : new Date().toISOString().split('T')[0];
-            const izinRes = await api.getIzin(effectiveId);
+            const izinRes = await this._getIzinDataOnce(effectiveId);
             if (!izinRes.success) return null;
             for (const rec of (izinRes.data || [])) {
                 if (rec.type === 'keluar_kantor' || rec.type === 'sick') continue;
@@ -403,7 +431,7 @@ const absensi = {
             // Persetujuan". Gagal muat pun tidak boleh menggagalkan render
             // riwayat absensi yang asli - cukup anggap tidak ada izin pending.
             try {
-                const izinRes = await api.getIzin(effectiveId);
+                const izinRes = await this._getIzinDataOnce(effectiveId);
                 this._izinDataForHistory = (izinRes && izinRes.success) ? (izinRes.data || []) : [];
             } catch (e) {
                 this._izinDataForHistory = [];
