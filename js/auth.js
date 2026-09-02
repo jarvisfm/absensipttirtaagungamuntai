@@ -356,6 +356,15 @@ const auth = {
             // Isi notifikasi dengan data nyata
             if (window.notifications) notifications.init();
 
+            // Badge kecil "menunggu approval" di menu Absensi (titik oranye)
+            // - muncul kalau karyawan ini punya Surat Tugas/SPPD yang masih
+            // pending, sama cadence-nya dengan notifications.init() di atas.
+            // Aman dipanggil untuk akun admin juga (kalau tidak ada SPPD
+            // miliknya sendiri, badge-nya cuma tidak pernah muncul).
+            if (window.absensi && typeof absensi.refreshSuratTugasBadge === 'function') {
+                absensi.refreshSuratTugasBadge();
+            }
+
             // Selalu reset mode karyawan saat showApp (login baru)
             sessionStorage.removeItem('adminSwitchMode');
             const banner = document.getElementById('admin-switch-banner');
