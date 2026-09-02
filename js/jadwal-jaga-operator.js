@@ -263,6 +263,183 @@ const jadwalJagaOperator = {
     },
 
     /**
+     * Muat pustaka SheetJS (baca Excel/CSV) HANYA saat benar-benar
+     * dipakai (baru tombol "Upload Jadwal" diklik), BUKAN dimuat di
+     * index.html utk semua orang - fitur ini cuma dipakai Admin di
+     * halaman ini saja, jadi tidak perlu ikut memperlambat load halaman
+     * lain (sudah dioptimasi kecepatan loadingnya). Sekali termuat,
+     * dipakai ulang (tidak diunduh dobel).
+     */
+    _ensureXlsxLib() {
+        if (typeof XLSX !== 'undefined') return Promise.resolve();
+        if (this._xlsxLoadPromise) return this._xlsxLoadPromise;
+        this._xlsxLoadPromise = new Promise((resolve, reject) => {
+            const script = document.createElement('script');
+            script.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+            script.onload = () => resolve();
+            script.onerror = () => reject(new Error('Gagal memuat pustaka pembaca Excel/CSV.'));
+            document.head.appendChild(script);
+        });
+        return this._xlsxLoadPromise;
+    },
+
+    /**
+     * Ubah teks tanggal dari file upload jadi nomor hari (1-31) - HANYA
+     * kalau bulan & tahunnya cocok dengan yang sedang dibuka di halaman
+     * ini (this.month/this.year) - baris dengan tanggal bulan lain
+     * dilewati (lihat pemanggilnya). Format yang didukung: "DD/MM/YYYY"
+     * dan "YYYY-MM-DD" (dua format tanggal paling umum dari Excel/CSV).
+     */
+    _parseUploadedDate(raw) {
+        const s = String(raw || '').trim();
+        let m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+        if (m) {
+            const d = parseInt(m[1], 10), mo = parseInt(m[2], 10) - 1, y = parseInt(m[3], 10);
+            return (y === this.year && mo === this.month) ? d : null;
+        }
+        m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+        if (m) {
+            const y = parseInt(m[1], 10), mo = parseInt(m[2], 10) - 1, d = parseInt(m[3], 10);
+            return (y === this.year && mo === this.month) ? d : null;
+        }
+        return null;
+    },
+
+    /**
+     * FITUR BARU (2 September 2026): "Upload Jadwal" - baca file Excel/CSV
+     * berisi jadwal jaga (kolom Tanggal, Sesi, Nama Petugas) lalu otomatis
+     * centang/pilih nama petugas yang cocok di tabel (checkbox utk
+     * multi-grup mis. BNA Amuntai, dropdown utk multi-solo mis. SATPAM) -
+     * supaya Admin tidak perlu centang satu per satu secara manual.
+     * Cuma didukung utk unit dengan pola 'multi-grup'/'multi-solo' (lihat
+     * toggle tombolnya di renderTable()). Mencocokkan NAMA PERSIS (setelah
+     * di-trim & disamakan huruf besar/kecilnya) dengan daftar karyawan
+     * unit ini (this._employeesForUnit) - nama yang tidak ketemu
+     * dilaporkan lewat toast di akhir, TIDAK menggagalkan baris lain.
+     * Tidak langsung Simpan ke server - cuma mengisi state di layar
+     * (this.data, lalu render ulang), Admin tetap perlu tinjau &
+     * tekan "Simpan" sendiri seperti biasa (jaga-jaga kalau ada
+     * kekeliruan cocokkan sebelum tersimpan permanen).
+     */
+    async _handleUploadJadwal(file) {
+        const unit = this._getEffectiveUnit(this.unitKey);
+        if (!unit || (unit.pattern !== 'multi-grup' && unit.pattern !== 'multi-solo')) {
+            toast.warning('Upload jadwal cuma didukung utk unit dengan sesi per-nama (mis. BNA Amuntai, SATPAM).');
+            return;
+        }
+
+        try {
+            await this._ensureXlsxLib();
+        } catch (e) {
+            console.error(e);
+            toast.error('Gagal memuat pustaka pembaca Excel/CSV. Periksa koneksi internet Anda, lalu coba lagi.');
+            return;
+        }
+
+        let rows;
+        try {
+            const buf = await file.arrayBuffer();
+            const wb = XLSX.read(buf, { type: 'array' });
+            const sheet = wb.Sheets[wb.SheetNames[0]];
+            rows = XLSX.utils.sheet_to_json(sheet, { header: 1, raw: false, defval: '' });
+        } catch (e) {
+            console.error('Gagal membaca file jadwal:', e);
+            toast.error('Gagal membaca file. Pastikan formatnya Excel (.xlsx/.xls) atau CSV yang valid.');
+            return;
+        }
+
+        if (!rows || rows.length < 2) {
+            toast.error('File kosong atau tidak ada baris data.');
+            return;
+        }
+
+        const header = (rows[0] || []).map(h => String(h || '').trim().toLowerCase());
+        const idxTanggal = header.findIndex(h => h.includes('tanggal'));
+        const idxNama    = header.findIndex(h => h.includes('petugas') || h.includes('nama'));
+        if (idxTanggal === -1 || idxNama === -1) {
+            toast.error('Format file tidak dikenali. Pastikan ada kolom "Tanggal" dan "Nama Petugas" (lihat keterangan di bawah tombol Upload).');
+            return;
+        }
+
+        // PERUBAHAN (atas permintaan): sesi TIDAK dicocokkan dari
+        // teksnya lagi (label/jam bisa beda-beda tiap file jadwal) -
+        // sesi sekarang ditentukan dari URUTAN BARIS per tanggal: baris
+        // pertama utk tanggal tsb dianggap sesi pertama unit ini
+        // (mis. Pagi), baris kedua sesi kedua (Siang), dst., mengikuti
+        // urutan sesi yang sudah didefinisikan di unit (unit.sessions).
+        // Kalau ada baris LEBIH BANYAK dari jumlah sesi yang didefinisikan
+        // utk tanggal yg sama, baris kelebihannya dilewati & dilaporkan.
+        const sessionKeysInOrder = (unit.sessions || []).map(s => s.key);
+
+        const unitEmployees = this._employeesForUnit(this.unitKey);
+        const notFoundNames = new Set();
+        const skippedDates = [];
+        let extraRowsCount = 0;
+        let matchedRows = 0;
+        const rowCountPerDay = {};
+
+        for (let i = 1; i < rows.length; i++) {
+            const row = rows[i];
+            if (!row || !row.length) continue;
+
+            const tglRaw  = String(row[idxTanggal] || '').trim();
+            const namaRaw = String(row[idxNama] || '').trim();
+            if (!tglRaw && !namaRaw) continue; // baris kosong, lewati diam-diam
+
+            const day = this._parseUploadedDate(tglRaw);
+            if (day === null) { if (tglRaw) skippedDates.push(tglRaw); continue; }
+
+            const names = namaRaw.split(';').map(n => n.trim()).filter(Boolean);
+            if (!names.length) continue;
+
+            const sessionIdx = rowCountPerDay[day] || 0;
+            rowCountPerDay[day] = sessionIdx + 1;
+            const sessionKey = sessionKeysInOrder[sessionIdx];
+            if (!sessionKey) { extraRowsCount++; continue; } // sudah melebihi jumlah sesi unit ini utk tanggal ini
+
+            const matchedIds = [];
+            names.forEach(n => {
+                const emp = unitEmployees.find(e => String(e.nama || '').trim().toLowerCase() === n.toLowerCase());
+                if (emp) matchedIds.push(String(emp.id));
+                else notFoundNames.add(n);
+            });
+            if (!matchedIds.length) continue;
+
+            if (!this.data.days[day]) this.data.days[day] = { sessions: {}, keterangan: '' };
+            if (!this.data.days[day].sessions) this.data.days[day].sessions = {};
+
+            if (unit.pattern === 'multi-grup') {
+                const existing = Array.isArray(this.data.days[day].sessions[sessionKey])
+                    ? this.data.days[day].sessions[sessionKey].map(String) : [];
+                this.data.days[day].sessions[sessionKey] = Array.from(new Set([...existing, ...matchedIds]));
+            } else { // multi-solo - 1 nama per sesi, file yang menang kalau ada >1 nama di baris yg sama
+                this.data.days[day].sessions[sessionKey] = matchedIds[0];
+            }
+            matchedRows++;
+        }
+
+        if (matchedRows > 0) {
+            this._markDirty();
+            this.renderTable();
+        }
+
+        let msg = matchedRows > 0
+            ? `Berhasil mencocokkan ${matchedRows} baris jadwal. Jangan lupa tekan "Simpan".`
+            : 'Tidak ada baris yang berhasil dicocokkan - periksa lagi format Tanggal/Nama Petugas di file.';
+        if (notFoundNames.size) {
+            const list = Array.from(notFoundNames);
+            msg += ` Nama tidak ditemukan di daftar karyawan unit ini: ${list.slice(0, 5).join(', ')}${list.length > 5 ? ', ...' : ''}.`;
+        }
+        if (extraRowsCount) {
+            msg += ` ${extraRowsCount} baris dilewati karena melebihi jumlah sesi (${sessionKeysInOrder.length}) yang didefinisikan unit ini per tanggal.`;
+        }
+        if (skippedDates.length) {
+            msg += ` ${skippedDates.length} baris tanggalnya di luar bulan/tahun yang sedang dibuka atau tidak terbaca.`;
+        }
+        toast[matchedRows > 0 && !notFoundNames.size && !skippedDates.length && !extraRowsCount ? 'success' : 'warning'](msg);
+    },
+
+    /**
      * SINKRONISASI Jadwal Shift <-> Jadwal Jaga Operator (2026-09-01, atas
      * permintaan): unit dengan pola dasar 'kontinu' (1 blok jam/hari - SEMUA
      * unit SPAM di atas, BUKAN 'kontinu-split' yang jam terpisahnya untuk 1
@@ -382,6 +559,8 @@ const jadwalJagaOperator = {
         const cabangEl = document.getElementById('jjo-cabang-trd');
         const btnSimpan = document.getElementById('jjo-btn-simpan');
         const btnCetak  = document.getElementById('jjo-btn-cetak');
+        const btnUpload = document.getElementById('jjo-btn-upload');
+        const uploadInput = document.getElementById('jjo-upload-input');
 
         if (unitSel) unitSel.onchange = async () => {
             if (this._dirty && !confirm('Ada perubahan yang belum disimpan. Ganti unit tanpa menyimpan?')) {
@@ -413,6 +592,24 @@ const jadwalJagaOperator = {
 
         if (btnSimpan) btnSimpan.onclick = () => this.saveData();
         if (btnCetak)  btnCetak.onclick  = () => this.printSchedule();
+
+        // "Upload Jadwal" - klik tombol cuma membuka dialog pilih file
+        // (uploadInput disembunyikan lewat CSS, tombolnya cuma proxy
+        // supaya tampilannya konsisten dengan tombol lain). Tampilkan
+        // hint format file begitu tombol ditekan, supaya tidak
+        // mengganggu tampilan default.
+        if (btnUpload && uploadInput) {
+            btnUpload.onclick = () => {
+                const hint = document.getElementById('jjo-upload-hint');
+                if (hint) hint.style.display = '';
+                uploadInput.value = ''; // reset supaya bisa upload file yg sama 2x berturut-turut
+                uploadInput.click();
+            };
+            uploadInput.onchange = () => {
+                const file = uploadInput.files && uploadInput.files[0];
+                if (file) this._handleUploadJadwal(file);
+            };
+        }
     },
 
     _settingKey() {
@@ -518,6 +715,18 @@ const jadwalJagaOperator = {
                 (unit.jamLabel ? ` &mdash; ${unit.jamLabel}` : '') +
                 (this.unitKey === 'TRD' ? ' &mdash; jadwal piket (jam bebas)' : '');
         }
+
+        // Tombol "Upload Jadwal" (Excel/CSV) cuma relevan utk unit dengan
+        // checkbox/pilih PER NAMA KARYAWAN per sesi (multi-grup/multi-solo,
+        // mis. BNA Amuntai/SATPAM) - lihat _handleUploadJadwal(). Unit
+        // 'kontinu' (1 nama/hari) & TRD (per kode tim, bukan nama
+        // karyawan) tidak didukung fitur ini, jadi tombolnya disembunyikan
+        // supaya tidak membingungkan.
+        const btnUpload = document.getElementById('jjo-btn-upload');
+        const uploadHint = document.getElementById('jjo-upload-hint');
+        const supportsUpload = unit.pattern === 'multi-grup' || unit.pattern === 'multi-solo';
+        if (btnUpload) btnUpload.style.display = supportsUpload ? '' : 'none';
+        if (uploadHint) uploadHint.style.display = 'none'; // cuma tampil sesaat setelah tombol diklik, lihat bindEvents()
 
         switch (unit.pattern) {
             case 'multi-grup':
