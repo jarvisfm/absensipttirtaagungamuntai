@@ -3196,9 +3196,15 @@
                                 <select id="jjo-tahun"></select>
                             </div>
                             <div class="jjo-filter-actions">
+                                <button class="btn btn-outline-secondary" id="jjo-btn-upload" title="Upload jadwal dari Excel/CSV supaya centang petugas terisi otomatis"><i class="fas fa-file-upload"></i> Upload Jadwal</button>
+                                <input type="file" id="jjo-upload-input" accept=".xlsx,.xls,.csv" style="display:none;">
                                 <button class="btn btn-primary" id="jjo-btn-simpan"><i class="fas fa-save"></i> Simpan</button>
                                 <button class="btn btn-secondary" id="jjo-btn-cetak"><i class="fas fa-print"></i> Cetak</button>
                             </div>
+                        </div>
+
+                        <div class="jjo-upload-hint" id="jjo-upload-hint" style="display:none;font-size:0.78rem;color:var(--text-muted);margin-top:-8px;margin-bottom:12px;">
+                            Format file: kolom <strong>Tanggal</strong> (dd/mm/yyyy) dan <strong>Nama Petugas</strong> (kalau lebih dari satu orang, pisahkan dengan titik koma ";" - JANGAN pakai koma karena beberapa nama karyawan sendiri mengandung koma, mis. "..., ST"). Sesinya TIDAK perlu ditulis - baris pertama tiap tanggal otomatis dianggap sesi pertama (mis. Pagi), baris kedua sesi kedua (Siang), dst., mengikuti urutan sesi yang sudah diatur untuk unit ini.
                         </div>
 
                         <div class="jjo-unit-info" id="jjo-unit-info"></div>
