@@ -57,6 +57,11 @@ const suratTugas = {
                 if (window.absensi && typeof absensi.init === 'function') {
                     absensi.init();
                 }
+                // Badge kecil "menunggu approval" di menu sidebar - langsung
+                // muncul tanpa perlu reload/login ulang.
+                if (window.absensi && typeof absensi.refreshSuratTugasBadge === 'function') {
+                    absensi.refreshSuratTugasBadge();
+                }
             } else {
                 toast.error(result.error || 'Gagal menyimpan Surat Tugas');
             }
