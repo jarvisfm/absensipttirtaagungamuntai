@@ -10,25 +10,32 @@ const absensi = {
     liveClockInterval: null,
 
     /**
-     * Badge kecil di menu sidebar "Absensi" (titik oranye) - muncul kalau
-     * karyawan yang login punya Surat Tugas/SPPD yang masih berstatus
-     * 'pending' (belum disetujui/ditolak), hilang otomatis begitu semua
-     * SPPD-nya sudah diputuskan (approved/rejected). Dipanggil dari 2
-     * tempat: (1) auth.js showApp() - sekali tiap kali login/buka
+     * Badge kecil di menu sidebar "Absensi" (titik oranye) DAN badge teks
+     * "SPPD Menunggu Approval" di bawah jam shift kartu Absensi - keduanya
+     * muncul kalau karyawan yang login punya Surat Tugas/SPPD yang masih
+     * berstatus 'pending' (belum disetujui/ditolak), hilang otomatis
+     * begitu semua SPPD-nya sudah diputuskan (approved/rejected). Dipanggil
+     * dari 2 tempat: (1) auth.js showApp() - sekali tiap kali login/buka
      * aplikasi, sama seperti notifications.init(); (2) di sini sendiri,
      * setelah submit SPPD baru berhasil (lihat handleSuratTugasSubmit())
      * supaya badge-nya langsung muncul tanpa perlu reload halaman.
      */
     async refreshSuratTugasBadge() {
-        const badge = document.getElementById('nav-badge-absensi');
-        if (!badge) return;
+        const navBadge = document.getElementById('nav-badge-absensi');
+        const shiftBadge = document.getElementById('shift-badge-surat-tugas');
+        if (!navBadge && !shiftBadge) return;
         try {
             const user = auth.getCurrentUser ? auth.getCurrentUser() : null;
-            if (!user) { badge.style.display = 'none'; return; }
+            if (!user) {
+                if (navBadge) navBadge.style.display = 'none';
+                if (shiftBadge) shiftBadge.style.display = 'none';
+                return;
+            }
             const effectiveId = user.employeeId || user.id;
             const res = await api.getSuratTugas(effectiveId);
             const hasPending = res.success && (res.data || []).some(st => st.status === 'pending');
-            badge.style.display = hasPending ? '' : 'none';
+            if (navBadge) navBadge.style.display = hasPending ? '' : 'none';
+            if (shiftBadge) shiftBadge.style.display = hasPending ? 'inline-flex' : 'none';
         } catch (e) {
             // Diam-diam saja kalau gagal - badge bukan info kritikal,
             // jangan sampai memunculkan error yang mengganggu.
