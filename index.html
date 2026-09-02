@@ -519,6 +519,12 @@
                                 <span class="shift-label">Shift Anda</span>
                                 <h2 class="shift-name" id="current-shift-name">Pagi</h2>
                                 <p class="shift-time" id="current-shift-time">08:00 - 17:00</p>
+                                <!-- Badge kecil "Menunggu Approval" - muncul kalau ada Surat
+                                     Tugas/SPPD yang masih pending, lihat
+                                     absensi.refreshSuratTugasBadge() di js/absensi.js. -->
+                                <span id="shift-badge-surat-tugas" class="shift-pending-badge" style="display:none;">
+                                    <i class="fas fa-hourglass-half"></i> SPPD Menunggu Approval
+                                </span>
                             </div>
                             <div class="current-datetime">
                                 <div class="live-clock" id="live-clock">12:00:00</div>
