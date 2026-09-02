@@ -306,27 +306,39 @@ const jadwalJagaOperator = {
     },
 
     /**
-     * FITUR BARU (2 September 2026): "Upload Jadwal" - baca file Excel/CSV
+     * FITUR BARU (2 September 2026, diperluas atas permintaan supaya semua
+     * unit SPAM ikut kebagian): "Upload Jadwal" - baca file Excel/CSV
      * berisi jadwal jaga (kolom Tanggal, Sesi, Nama Petugas) lalu otomatis
      * centang/pilih nama petugas yang cocok di tabel (checkbox utk
-     * multi-grup mis. BNA Amuntai, dropdown utk multi-solo mis. SATPAM) -
-     * supaya Admin tidak perlu centang satu per satu secara manual.
-     * Cuma didukung utk unit dengan pola 'multi-grup'/'multi-solo' (lihat
-     * toggle tombolnya di renderTable()). Mencocokkan NAMA PERSIS (setelah
-     * di-trim & disamakan huruf besar/kecilnya) dengan daftar karyawan
-     * unit ini (this._employeesForUnit) - nama yang tidak ketemu
-     * dilaporkan lewat toast di akhir, TIDAK menggagalkan baris lain.
-     * Tidak langsung Simpan ke server - cuma mengisi state di layar
-     * (this.data, lalu render ulang), Admin tetap perlu tinjau &
-     * tekan "Simpan" sendiri seperti biasa (jaga-jaga kalau ada
-     * kekeliruan cocokkan sebelum tersimpan permanen).
+     * multi-grup/kontinu mis. BNA Amuntai/SPAM, dropdown utk multi-solo
+     * mis. SATPAM) - supaya Admin tidak perlu centang satu per satu secara
+     * manual. Didukung utk SEMUA pola unit ('multi-grup', 'multi-solo',
+     * 'kontinu', 'kontinu-split' - lihat toggle tombolnya di
+     * renderTable()). Mencocokkan NAMA PERSIS (setelah di-trim & disamakan
+     * huruf besar/kecilnya) dengan daftar karyawan unit ini
+     * (this._employeesForUnit) - nama yang tidak ketemu dilaporkan lewat
+     * toast di akhir, TIDAK menggagalkan baris lain. Tidak langsung Simpan
+     * ke server - cuma mengisi state di layar (this.data, lalu render
+     * ulang), Admin tetap perlu tinjau & tekan "Simpan" sendiri seperti
+     * biasa (jaga-jaga kalau ada kekeliruan cocokkan sebelum tersimpan
+     * permanen).
      */
     async _handleUploadJadwal(file) {
         const unit = this._getEffectiveUnit(this.unitKey);
-        if (!unit || (unit.pattern !== 'multi-grup' && unit.pattern !== 'multi-solo')) {
-            toast.warning('Upload jadwal cuma didukung utk unit dengan sesi per-nama (mis. BNA Amuntai, SATPAM).');
+        const supportedPatterns = ['multi-grup', 'multi-solo', 'kontinu', 'kontinu-split'];
+        if (!unit || supportedPatterns.indexOf(unit.pattern) === -1) {
+            toast.warning('Unit ini belum didukung fitur Upload Jadwal.');
             return;
         }
+        // Unit 'kontinu'/'kontinu-split' (SEMUA unit SPAM) cuma punya 1
+        // "sesi"/hari (bukan Pagi/Siang/Malam terpisah seperti BNA
+        // Amuntai/SATPAM) - namanya langsung tersimpan ke
+        // this.data.days[day].petugas (array ID), BUKAN ke
+        // this.data.days[day].sessions[key]. Kalau file uploadnya punya
+        // lebih dari 1 baris utk tanggal yang sama, SEMUA nama di
+        // baris-baris itu digabung jadi 1 array petugas hari itu (bukan
+        // dianggap sesi berbeda seperti unit multi-grup).
+        const isFlatPetugas = unit.pattern === 'kontinu' || unit.pattern === 'kontinu-split';
 
         try {
             await this._ensureXlsxLib();
@@ -392,11 +404,6 @@ const jadwalJagaOperator = {
             const names = namaRaw.split(';').map(n => n.trim()).filter(Boolean);
             if (!names.length) continue;
 
-            const sessionIdx = rowCountPerDay[day] || 0;
-            rowCountPerDay[day] = sessionIdx + 1;
-            const sessionKey = sessionKeysInOrder[sessionIdx];
-            if (!sessionKey) { extraRowsCount++; continue; } // sudah melebihi jumlah sesi unit ini utk tanggal ini
-
             const matchedIds = [];
             names.forEach(n => {
                 const emp = unitEmployees.find(e => String(e.nama || '').trim().toLowerCase() === n.toLowerCase());
@@ -404,6 +411,22 @@ const jadwalJagaOperator = {
                 else notFoundNames.add(n);
             });
             if (!matchedIds.length) continue;
+
+            if (isFlatPetugas) {
+                // Unit 'kontinu'/'kontinu-split' - tidak ada konsep sesi,
+                // semua nama langsung digabung ke satu array petugas/hari.
+                if (!this.data.days[day]) this.data.days[day] = { petugas: [], keterangan: '' };
+                const existing = Array.isArray(this.data.days[day].petugas)
+                    ? this.data.days[day].petugas.map(String) : [];
+                this.data.days[day].petugas = Array.from(new Set([...existing, ...matchedIds]));
+                matchedRows++;
+                continue;
+            }
+
+            const sessionIdx = rowCountPerDay[day] || 0;
+            rowCountPerDay[day] = sessionIdx + 1;
+            const sessionKey = sessionKeysInOrder[sessionIdx];
+            if (!sessionKey) { extraRowsCount++; continue; } // sudah melebihi jumlah sesi unit ini utk tanggal ini
 
             if (!this.data.days[day]) this.data.days[day] = { sessions: {}, keterangan: '' };
             if (!this.data.days[day].sessions) this.data.days[day].sessions = {};
@@ -716,15 +739,16 @@ const jadwalJagaOperator = {
                 (this.unitKey === 'TRD' ? ' &mdash; jadwal piket (jam bebas)' : '');
         }
 
-        // Tombol "Upload Jadwal" (Excel/CSV) cuma relevan utk unit dengan
-        // checkbox/pilih PER NAMA KARYAWAN per sesi (multi-grup/multi-solo,
-        // mis. BNA Amuntai/SATPAM) - lihat _handleUploadJadwal(). Unit
-        // 'kontinu' (1 nama/hari) & TRD (per kode tim, bukan nama
-        // karyawan) tidak didukung fitur ini, jadi tombolnya disembunyikan
-        // supaya tidak membingungkan.
+        // Tombol "Upload Jadwal" (Excel/CSV) - didukung utk SEMUA unit yang
+        // pilih petugasnya lewat centang/dropdown per nama (multi-grup,
+        // multi-solo, DAN kontinu/kontinu-split - yaitu semua unit SPAM,
+        // diperluas atas permintaan supaya tidak cuma BNA Amuntai/SATPAM).
+        // TRD (pattern multi-grup, 1 sesi "piket") otomatis ikut kebagian
+        // juga lewat kondisi yang sama di bawah - tidak perlu penanganan
+        // khusus.
         const btnUpload = document.getElementById('jjo-btn-upload');
         const uploadHint = document.getElementById('jjo-upload-hint');
-        const supportsUpload = unit.pattern === 'multi-grup' || unit.pattern === 'multi-solo';
+        const supportsUpload = ['multi-grup', 'multi-solo', 'kontinu', 'kontinu-split'].indexOf(unit.pattern) !== -1;
         if (btnUpload) btnUpload.style.display = supportsUpload ? '' : 'none';
         if (uploadHint) uploadHint.style.display = 'none'; // cuma tampil sesaat setelah tombol diklik, lihat bindEvents()
 
