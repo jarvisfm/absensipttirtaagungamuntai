@@ -8,6 +8,34 @@ const absensi = {
     attendanceData: {},
     accessInfo: null,      // hasil checkAttendanceAccess dari backend
     liveClockInterval: null,
+
+    /**
+     * Badge kecil di menu sidebar "Absensi" (titik oranye) - muncul kalau
+     * karyawan yang login punya Surat Tugas/SPPD yang masih berstatus
+     * 'pending' (belum disetujui/ditolak), hilang otomatis begitu semua
+     * SPPD-nya sudah diputuskan (approved/rejected). Dipanggil dari 2
+     * tempat: (1) auth.js showApp() - sekali tiap kali login/buka
+     * aplikasi, sama seperti notifications.init(); (2) di sini sendiri,
+     * setelah submit SPPD baru berhasil (lihat handleSuratTugasSubmit())
+     * supaya badge-nya langsung muncul tanpa perlu reload halaman.
+     */
+    async refreshSuratTugasBadge() {
+        const badge = document.getElementById('nav-badge-absensi');
+        if (!badge) return;
+        try {
+            const user = auth.getCurrentUser ? auth.getCurrentUser() : null;
+            if (!user) { badge.style.display = 'none'; return; }
+            const effectiveId = user.employeeId || user.id;
+            const res = await api.getSuratTugas(effectiveId);
+            const hasPending = res.success && (res.data || []).some(st => st.status === 'pending');
+            badge.style.display = hasPending ? '' : 'none';
+        } catch (e) {
+            // Diam-diam saja kalau gagal - badge bukan info kritikal,
+            // jangan sampai memunculkan error yang mengganggu.
+            console.error('Gagal memuat status badge Surat Tugas:', e);
+        }
+    },
+
     // BUGFIX (2026-08-31): lihat catatan lengkap di handleClockIn() di
     // bawah - field ini SENGAJA tidak ikut direset di init() (beda dari
     // currentState/attendanceData/accessInfo di atas).
@@ -31,6 +59,12 @@ const absensi = {
     // supaya SELALU fresh per kunjungan halaman, bukan memakai data lama
     // dari kunjungan sebelumnya.
     this._izinDataPromise = null;
+
+    // Sekalian refresh badge "menunggu approval" Surat Tugas/SPPD di menu
+    // sidebar tiap kali halaman ini dibuka - jaga-jaga kalau SPPD-nya baru
+    // saja diputuskan Admin sejak terakhir login (fire-and-forget, tidak
+    // perlu ditunggu, bukan bagian kritikal dari render halaman ini).
+    this.refreshSuratTugasBadge();
 
     const comingSoonEl = document.getElementById('absensi-coming-soon');
     const realContentEl = document.getElementById('absensi-real-content');
