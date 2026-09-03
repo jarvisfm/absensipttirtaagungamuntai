@@ -746,7 +746,9 @@ const izin = {
                     <div class="izin-content">
                         <div class="izin-header-row">
                             <h4 class="izin-type">${typeLabel}</h4>
-                            <span class="izin-status ${izin.status}">${this._getDetailedStatusLabel(izin, currentUser)}</span>
+                            <span class="izin-status ${izin.status}" style="cursor:pointer;" onclick="izin.showApprovalProgress(${izin.id})" title="Lihat progress persetujuan">
+                                ${this._getDetailedStatusLabel(izin, currentUser)} <i class="fas fa-chevron-right" style="font-size:0.7em;margin-left:4px;"></i>
+                            </span>
                         </div>
                         <div class="izin-details">
                             <span class="izin-date">
@@ -929,6 +931,140 @@ const izin = {
         return this.getStatusLabel(item.status);
     },
 
+    /**
+     * Bangun daftar TAHAPAN approval (stepper) yang BENAR-BENAR berlaku
+     * untuk pengajuan ini - jumlah & urutan tahapnya BEDA-BEDA tergantung
+     * type (izin_harian/sick/keluar_kantor) dan role+bagian pemohon (lihat
+     * dokumentasi lengkap di Izin.gs, atas approveIzinData). SENGAJA
+     * mengikuti PERSIS cabang logika yang sama dengan _getDetailedStatusLabel()
+     * di atas (bukan tebakan baru) supaya modal progress ini selalu
+     * konsisten dengan label status yang sudah ada di kartu.
+     * Return: array of { key, label, name, at, note, state } - state salah
+     * satu dari 'done' (sudah disetujui, field nama-nya terisi), 'current'
+     * (tahap yang sedang ditunggu SEKARANG), 'upcoming' (belum giliran),
+     * atau 'skipped' (surat sudah ditolak/dibatalkan duluan sebelum sampai
+     * tahap ini, jadi tidak relevan lagi).
+     */
+    _buildApprovalStages(item, emp) {
+        const pemohonRole = emp?.role || 'staff';
+        const bagian = emp?.bagian || '';
+        const isPemohonHr = pemohonRole === 'asmen' && String(bagian).toUpperCase().trim() === 'UMUM DAN KEPEGAWAIAN';
+        const manajerLabel = bagian ? `Manajer ${bagian}` : 'Manajer';
+
+        const stage = (key, label, nameField, atField, noteField) => ({
+            key, label,
+            name: item[nameField] || '',
+            at: item[atField] || '',
+            note: item[noteField] || ''
+        });
+        const ASMEN     = () => stage('asmen', 'Asmen', 'asmenName', 'asmenApprovedAt', 'asmenNote');
+        const MANAJER    = (label) => stage('manajer', label || manajerLabel, 'managerName', 'managerApprovedAt', 'managerNote');
+        const MANAJER_UMUM = () => stage('hrManajer', 'Manajer Umum dan Kepegawaian', 'hrManagerName', 'hrManagerApprovedAt', 'hrManagerNote');
+        const DIREKTUR   = () => stage('direktur', 'Direktur', 'directorName', 'directorApprovedAt', 'directorNote');
+
+        let order;
+        if (item.type === 'sick') {
+            // Sakit: cuma 1 tahap sesuai role pemohon (lihat approveIzinData
+            // - blok "if (izin.type === 'sick')").
+            if (pemohonRole === 'staff')      order = [ASMEN()];
+            else if (pemohonRole === 'asmen') order = [MANAJER()];
+            else                              order = [DIREKTUR()];
+        } else if (item.type === 'keluar_kantor') {
+            // Keluar Kantor: tidak ada tahap Asmen sama sekali.
+            order = (pemohonRole === 'manajer') ? [DIREKTUR()] : [MANAJER()];
+        } else if (pemohonRole === 'manajer') {
+            // Izin Harian/Cuti, pemohon Manajer: tahap Asmen & Manajer dilewati.
+            order = [DIREKTUR()];
+        } else if (pemohonRole === 'asmen') {
+            order = isPemohonHr
+                ? [MANAJER('Manajer Umum dan Kepegawaian'), DIREKTUR()]
+                : [MANAJER(), MANAJER_UMUM(), DIREKTUR()];
+        } else {
+            // staff - berjenjang penuh
+            order = [ASMEN(), MANAJER(), DIREKTUR()];
+        }
+
+        const isStoppedEarly = item.status === 'rejected' || item.status === 'ditolak' || item.status === 'ditunda';
+        let currentAssigned = false;
+        return order.map(s => {
+            if (s.name) return Object.assign({}, s, { state: 'done' });
+            if (isStoppedEarly) return Object.assign({}, s, { state: 'skipped' });
+            if (!currentAssigned) { currentAssigned = true; return Object.assign({}, s, { state: 'current' }); }
+            return Object.assign({}, s, { state: 'upcoming' });
+        });
+    },
+
+    // Format tanggal-jam ISO jadi "31 Agu 2026, 14.05" - dipakai stepper.
+    _formatStageDateTime(iso) {
+        if (!iso) return '';
+        const d = new Date(iso);
+        if (isNaN(d.getTime())) return '';
+        const months = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Ags','Sep','Okt','Nov','Des'];
+        const jam = String(d.getHours()).padStart(2, '0');
+        const menit = String(d.getMinutes()).padStart(2, '0');
+        return `${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}, ${jam}.${menit}`;
+    },
+
+    // Render HTML stepper vertikal dari _buildApprovalStages() - dipakai
+    // modal "Progress Persetujuan" (lihat showApprovalProgress).
+    _renderApprovalStepperHtml(item, emp) {
+        const stages = this._buildApprovalStages(item, emp);
+        const icon = { done: 'fa-check', current: 'fa-hourglass-half', upcoming: 'fa-circle', skipped: 'fa-xmark' };
+        const stepsHtml = stages.map(s => `
+            <div class="approval-step ${s.state}">
+                <div class="approval-step-icon"><i class="fas ${icon[s.state]}"></i></div>
+                <div class="approval-step-body">
+                    <div class="approval-step-label">${s.label}</div>
+                    <div class="approval-step-status">
+                        ${s.state === 'done'
+                            ? `Disetujui oleh <strong>${s.name}</strong>${s.at ? ' &middot; ' + this._formatStageDateTime(s.at) : ''}`
+                            : s.state === 'current' ? 'Menunggu persetujuan...'
+                            : s.state === 'skipped' ? 'Tidak dilanjutkan'
+                            : 'Menunggu tahap sebelumnya'}
+                    </div>
+                    ${s.note ? `<div class="approval-step-note">&ldquo;${s.note}&rdquo;</div>` : ''}
+                </div>
+            </div>`).join('');
+
+        let footerHtml = '';
+        if (item.status === 'rejected') {
+            footerHtml = `<div class="approval-step-final rejected"><i class="fas fa-ban"></i> Pengajuan ini ditolak${item.rejectedByRole ? ' oleh ' + item.rejectedByRole : ''}${item.rejectedNote ? ': "' + item.rejectedNote + '"' : ''}</div>`;
+        } else if (item.status === 'ditunda') {
+            footerHtml = `<div class="approval-step-final postponed"><i class="fas fa-pause-circle"></i> Ditunda oleh Direktur${item.directorNote ? ': "' + item.directorNote + '"' : ''}</div>`;
+        }
+        return `<div class="approval-stepper">${stepsHtml}</div>${footerHtml}`;
+    },
+
+    // Buka modal "Progress Persetujuan" untuk 1 pengajuan - dipakai dari
+    // klik badge status di MANA PUN item ini ditampilkan (Riwayat
+    // Pengajuan Izin milik user sendiri, daftar approval, ATAU riwayat
+    // approval role Asmen/Manajer/Direktur). this._izinCache diisi oleh
+    // setiap fungsi render kartu izin (lihat komentar "// cache utk modal
+    // progress" di tiap render*()) supaya id-nya bisa ditemukan dari
+    // konteks manapun, bukan cuma this.izinData (yang isinya cuma
+    // pengajuan milik user yang login).
+    showApprovalProgress(id) {
+        const item = (this._izinCache && this._izinCache[id]) || this.izinData.find(i => String(i.id) === String(id));
+        if (!item) { toast.error('Data tidak ditemukan'); return; }
+        // Kalau daftar karyawan sudah dimuat (konteks approval), pakai itu
+        // untuk resolve role/bagian pemohon yang SEBENARNYA. Kalau belum
+        // (konteks Riwayat milik user sendiri, _employees belum tentu
+        // dimuat) - item ini pasti milik user yang login sendiri, jadi
+        // currentUser sudah cukup akurat.
+        const emp = (this._employees && this._employees.length) ? this._findEmployee(item.userId) : (auth.getCurrentUser() || {});
+        const modal = document.getElementById('modal-approval-progress');
+        const content = document.getElementById('approval-progress-content');
+        if (!modal || !content) return;
+        content.innerHTML = `
+            <h3 style="margin-bottom:1rem;">${item.typeLabel || 'Progress Persetujuan'}</h3>
+            ${this._renderApprovalStepperHtml(item, emp)}
+            <div style="margin-top:1.25rem;text-align:right;">
+                <button class="btn-secondary" onclick="document.getElementById('modal-approval-progress').style.display='none'">Tutup</button>
+            </div>
+        `;
+        modal.style.display = 'flex';
+    },
+
     // =========================================================
     // APPROVAL BERTINGKAT: Asmen -> Manajer -> Direktur
     // Dipanggil dari router saat halaman approval-asmen/manajer/direktur dibuka.
@@ -1062,6 +1198,8 @@ const izin = {
 
         list.innerHTML = scoped.map(item => {
             const emp = this._findEmployee(item.userId);
+            this._izinCache = this._izinCache || {};
+            this._izinCache[item.id] = item; // cache utk modal progress (showApprovalProgress)
             const typeLabel = item.typeLabel || typeLabelFallback[item.type] || 'Izin';
             const dateFormatted = dateTime.formatDate(new Date(item.date), 'short');
             const dateDisplay = item.dateEnd
@@ -1074,7 +1212,9 @@ const izin = {
                     <div class="izin-content">
                         <div class="izin-header-row">
                             <h4 class="izin-type">${typeLabel}</h4>
-                            <span class="izin-status ${item.status}">${this._getDetailedStatusLabel(item, emp)}</span>
+                            <span class="izin-status ${item.status}" style="cursor:pointer;" onclick="izin.showApprovalProgress(${item.id})" title="Lihat progress persetujuan">
+                                ${this._getDetailedStatusLabel(item, emp)} <i class="fas fa-chevron-right" style="font-size:0.7em;margin-left:4px;"></i>
+                            </span>
                         </div>
                         <div class="izin-details">
                             <span class="izin-date"><i class="fas fa-user"></i> ${emp.nama || 'Tidak diketahui'}</span>
@@ -1202,6 +1342,8 @@ const izin = {
 
         list.innerHTML = sorted.map(item => {
             const emp = this._findEmployee(item.userId);
+            this._izinCache = this._izinCache || {};
+            this._izinCache[item.id] = item; // cache utk modal progress (showApprovalProgress)
             const typeLabel = item.typeLabel || typeLabelFallback[item.type] || 'Izin';
             const dateFormatted = dateTime.formatDate(new Date(item.date), 'short');
             const dateDisplay = item.dateEnd
@@ -1214,7 +1356,9 @@ const izin = {
                     <div class="izin-content">
                         <div class="izin-header-row">
                             <h4 class="izin-type">${typeLabel}</h4>
-                            <span class="izin-status ${item.status}">${this._getDetailedStatusLabel(item, emp)}</span>
+                            <span class="izin-status ${item.status}" style="cursor:pointer;" onclick="izin.showApprovalProgress(${item.id})" title="Lihat progress persetujuan">
+                                ${this._getDetailedStatusLabel(item, emp)} <i class="fas fa-chevron-right" style="font-size:0.7em;margin-left:4px;"></i>
+                            </span>
                         </div>
                         <div class="izin-details">
                             <span class="izin-date"><i class="fas fa-user"></i> ${emp.nama || 'Tidak diketahui'}</span>
@@ -1279,6 +1423,11 @@ const izin = {
             ${infoRow('fa-calendar-day', 'Tanggal Izin', dateDisplay)}
             ${item.type === 'keluar_kantor' ? infoRow('fa-arrow-right-from-bracket', 'Keluar Jam', item.jamKeluar || '-') : ''}
             ${item.type === 'keluar_kantor' ? infoRow('fa-arrow-right-to-bracket', 'Masuk Jam', item.jamMasuk || '-') : ''}
+
+            <div style="margin-top:14px;">
+                <div style="font-size:0.72rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.02em;margin-bottom:8px;">Progress Persetujuan</div>
+                ${this._renderApprovalStepperHtml(item, emp)}
+            </div>
 
             <div style="margin-top:14px;">
                 <div style="font-size:0.72rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.02em;margin-bottom:6px;">Alasan</div>
