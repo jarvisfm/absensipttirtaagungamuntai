@@ -1462,15 +1462,29 @@ const absensi = {
                 }
             }
             if (btnAfterBreak) {
-                btnAfterBreak.style.display = '';
-                btnAfterBreak.disabled = !d.breakStart || !!d.breakEnd || !!d.clockOut || setelahIstirahatBelumBuka;
-                const elAfter = document.getElementById('after-break-time');
-                if (d.breakEnd) {
-                    btnAfterBreak.classList.add('completed');
-                    if (elAfter) elAfter.textContent = d.breakEnd;
-                } else {
-                    btnAfterBreak.classList.remove('completed');
-                    if (elAfter) elAfter.textContent = '--:--';
+                // PERBAIKAN (3 September 2026): sebelumnya tombol/timeline
+                // "Selesai Istirahat" SELALU ditampilkan begitu shift punya
+                // sesi breakStart ("Istirahat"), tanpa cek apakah shift itu
+                // memang mendefinisikan sesi breakEnd-nya sendiri secara
+                // terpisah di Jadwal Shift. Kalau Admin cuma menambahkan
+                // sesi "Istirahat" (breakStart) tanpa sesi "Selesai
+                // Istirahat" (breakEnd) - mis. shift Operator 24 Jam di
+                // laporan ini - "Selesai Istirahat" ikut muncul padahal
+                // seharusnya tidak ada. Sekarang dicek eksplisit: sesi
+                // breakEnd HARUS ada sendiri di konfigurasi shift baru
+                // tombol/timeline ini ditampilkan.
+                const hasAfterBreak = this._getSessions().some(s => s.field === 'breakEnd') || isExcused;
+                btnAfterBreak.style.display = hasAfterBreak ? '' : 'none';
+                if (hasAfterBreak) {
+                    btnAfterBreak.disabled = !d.breakStart || !!d.breakEnd || !!d.clockOut || setelahIstirahatBelumBuka;
+                    const elAfter = document.getElementById('after-break-time');
+                    if (d.breakEnd) {
+                        btnAfterBreak.classList.add('completed');
+                        if (elAfter) elAfter.textContent = d.breakEnd;
+                    } else {
+                        btnAfterBreak.classList.remove('completed');
+                        if (elAfter) elAfter.textContent = '--:--';
+                    }
                 }
             }
         }
@@ -1540,7 +1554,19 @@ const absensi = {
             // Sembunyikan item istirahat jika shift tidak punya istirahat -
             // KECUALI hari ini status excused (Izin/Cuti), tetap tampilkan
             // semua item supaya konsisten dengan card di atas.
-            if ((type === 'break' || type === 'after-break') && !this._hasBreak() && this.currentState !== 'excused') {
+            // PERBAIKAN (3 September 2026): "Selesai Istirahat" (after-break)
+            // dicek TERPISAH dari "Istirahat" (break) - shift bisa saja cuma
+            // definisikan sesi breakStart tanpa breakEnd sendiri (lihat
+            // catatan yang sama di updateUI()), jadi item timeline-nya juga
+            // harus ikut disembunyikan kalau begitu, bukan ikut nyangkut
+            // tampil cuma karena sesi breakStart-nya ada.
+            const isExcusedTimeline = this.currentState === 'excused';
+            const hideThisItem = type === 'break'
+                ? (!this._hasBreak() && !isExcusedTimeline)
+                : type === 'after-break'
+                    ? (!this._getSessions().some(s => s.field === 'breakEnd') && !isExcusedTimeline)
+                    : false;
+            if (hideThisItem) {
                 item.style.display = 'none';
             } else {
                 item.style.display = '';
