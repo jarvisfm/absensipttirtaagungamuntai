@@ -1155,7 +1155,17 @@ const absensi = {
             // dan user bisa coba lagi.
             toast.error(result?.error || 'Absen gagal disimpan. Silakan coba lagi.');
             router.navigate('absensi');
-            return;
+            // BUGFIX (2026-09-03): kembalikan penanda gagal secara EKSPLISIT
+            // (bukan cuma `return;` polos) - face-recognition.js confirmAttendance()
+            // memakai nilai ini untuk MEMUTUSKAN apakah laporan luar-radius/luar-
+            // wilayah (kalau ada) boleh dikirim. Sebelum ini ditambahkan, laporan
+            // itu SELALU terkirim walau absennya sendiri gagal tersimpan (karena
+            // `await` di sana tidak pernah melempar error di jalur gagal ini,
+            // cuma `return` biasa) - itulah sebabnya bisa muncul badge "Luar Unit
+            // Wilayah" di sesi yang jamnya masih kosong ("–") di Riwayat Absensi:
+            // laporannya sempat terkirim duluan sebelum ternyata absennya sendiri
+            // gagal tersimpan.
+            return { success: false };
         }
 
         this.attendanceData = { ...payload, ...(result.data || {}) };
@@ -1201,6 +1211,11 @@ const absensi = {
         // dihapus supaya jeda antara "Wajah Terverifikasi" dan kembali ke
         // menu Absensi tidak lagi menunggu 1 request tambahan yang sia-sia.
         storage.remove('temp_attendance');
+        // BUGFIX (2026-09-03): lihat catatan di titik `return { success: false }`
+        // di atas - ini pasangannya untuk jalur SUKSES, dipakai
+        // face-recognition.js confirmAttendance() sebagai syarat sebelum
+        // mengirim laporan luar-radius/luar-wilayah.
+        return { success: true };
     },
 
     async saveAttendance(payload) {
