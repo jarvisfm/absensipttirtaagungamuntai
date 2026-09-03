@@ -420,3 +420,125 @@
     background: transparent;
     border-color: transparent;
 }
+
+/* Stepper "Progress Persetujuan" - dipakai modal-approval-progress (izin.js
+   & cuti.js) dan modal-detail-leave (admin-reports.js). Setiap tahap
+   (Asmen/Manajer/Manajer Umum/Direktur) punya salah satu dari 4 state:
+   done (hijau, sudah disetujui), current (kuning, sedang ditunggu),
+   upcoming (abu-abu, belum giliran), skipped (merah pudar, surat sudah
+   berhenti duluan karena ditolak/ditunda). */
+.approval-stepper {
+    display: flex;
+    flex-direction: column;
+}
+
+.approval-step {
+    display: flex;
+    gap: 12px;
+    padding-bottom: 18px;
+    position: relative;
+}
+
+.approval-step:not(:last-child)::before {
+    content: '';
+    position: absolute;
+    left: 15px;
+    top: 32px;
+    bottom: 0;
+    width: 2px;
+    background: var(--border-color, #e5e7eb);
+}
+
+.approval-step.done:not(:last-child)::before {
+    background: #10B981;
+}
+
+.approval-step-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    font-size: 0.8rem;
+    background: var(--color-gray-100, #f3f4f6);
+    color: var(--text-muted, #9ca3af);
+    z-index: 1;
+}
+
+.approval-step.done .approval-step-icon {
+    background: #10B981;
+    color: #fff;
+}
+
+.approval-step.current .approval-step-icon {
+    background: #F59E0B;
+    color: #fff;
+    animation: approval-step-pulse 1.5s ease-in-out infinite;
+}
+
+.approval-step.skipped .approval-step-icon {
+    background: rgba(239, 68, 68, 0.15);
+    color: #EF4444;
+}
+
+@keyframes approval-step-pulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.4); }
+    50% { box-shadow: 0 0 0 5px rgba(245, 158, 11, 0); }
+}
+
+.approval-step-body {
+    flex: 1;
+    padding-top: 4px;
+}
+
+.approval-step-label {
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: var(--text-primary, #111827);
+}
+
+.approval-step.upcoming .approval-step-label,
+.approval-step.skipped .approval-step-label {
+    color: var(--text-muted, #9ca3af);
+}
+
+.approval-step-status {
+    font-size: 0.8rem;
+    color: var(--text-secondary, #6b7280);
+    margin-top: 2px;
+}
+
+.approval-step.current .approval-step-status {
+    color: #D97706;
+    font-weight: 600;
+}
+
+.approval-step-note {
+    margin-top: 6px;
+    padding: 6px 10px;
+    border-radius: 6px;
+    background: var(--color-gray-50, #f9fafb);
+    font-size: 0.78rem;
+    font-style: italic;
+    color: var(--text-secondary, #6b7280);
+}
+
+.approval-step-final {
+    margin-top: 4px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+.approval-step-final.rejected {
+    background: rgba(239, 68, 68, 0.1);
+    color: #EF4444;
+}
+
+.approval-step-final.postponed {
+    background: rgba(245, 158, 11, 0.1);
+    color: #D97706;
+}
