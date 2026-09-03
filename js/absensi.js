@@ -1278,6 +1278,32 @@ const absensi = {
             if (statusSubtext) statusSubtext.textContent = s.sub;
         }
 
+        // Daftar jam "mulai bisa absen" untuk SEMUA sesi hari ini
+        // (Masuk/Istirahat Keluar/Istirahat Masuk/Pulang, dst. - mengikuti
+        // jadwal shift yang berlaku, TERMASUK shift multi-sesi Operator
+        // seperti BNA Amuntai/SATPAM, karena semuanya sama-sama lewat
+        // _getSessions()) - supaya karyawan langsung tahu jadwal semua
+        // sesi berikutnya dari awal, tidak cuma pas "Menunggu Jam Masuk"
+        // seperti sebelumnya. Label per baris memakai label sesi PERSIS
+        // seperti yang diatur Admin di menu Jadwal Shift, jadi otomatis
+        // menyesuaikan jadwal apa pun tanpa perlu nama sesi di-hardcode.
+        const sessionsInfoEl = document.getElementById('status-sessions-info');
+        if (sessionsInfoEl) {
+            const showSessionsInfo = ['waiting', 'clocked-in', 'on-break', 'completed'].includes(this.currentState);
+            const sessionsWithOpen = this._getSessions().filter(sesi => sesi.opensAt);
+            sessionsInfoEl.innerHTML = '';
+            if (showSessionsInfo && sessionsWithOpen.length) {
+                sessionsWithOpen.forEach(sesi => {
+                    const line = document.createElement('div');
+                    line.textContent = `${sesi.label} baru bisa dimulai pukul ${sesi.opensAt}`;
+                    sessionsInfoEl.appendChild(line);
+                });
+                sessionsInfoEl.style.display = 'block';
+            } else {
+                sessionsInfoEl.style.display = 'none';
+            }
+        }
+
         // Banner info Dinas Luar (SPPD)
         const dinasInfo = document.getElementById('dinas-luar-info');
         if (dinasInfo) {
