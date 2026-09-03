@@ -455,6 +455,8 @@ const cuti = {
         };
 
         list.innerHTML = sortedLeaves.map(leave => {
+            this._leaveCache = this._leaveCache || {};
+            this._leaveCache[leave.id] = leave; // cache utk modal progress (showApprovalProgress)
             const start = new Date(leave.startDate);
             const end = new Date(leave.endDate);
             const startFormatted = dateTime.formatDate(start, 'short');
@@ -484,7 +486,9 @@ const cuti = {
                     <div class="leave-content">
                         <div class="leave-header">
                             <h4 class="leave-type">${typeLabel}</h4>
-                            <span class="leave-status ${leave.status}">${this._getDetailedStatusLabel(leave, currentUser)}</span>
+                            <span class="leave-status ${leave.status}" style="cursor:pointer;" onclick="cuti.showApprovalProgress(${leave.id})" title="Lihat progress persetujuan">
+                                ${this._getDetailedStatusLabel(leave, currentUser)} <i class="fas fa-chevron-right" style="font-size:0.7em;margin-left:4px;"></i>
+                            </span>
                         </div>
                         <div class="leave-details">
                             <span class="leave-date">
@@ -616,6 +620,128 @@ const cuti = {
         }
 
         return this.getStatusLabel(item.status);
+    },
+
+    /**
+     * Bangun daftar TAHAPAN approval (stepper) untuk pengajuan Cuti -
+     * mengikuti PERSIS 5 alur yang didokumentasikan di Leave.gs (atas
+     * approveLeaveData). PENTING: beda dari Izin Harian - staff pemohon
+     * Cuti (non-HR) TETAP lewat 2 tahap Manajer terpisah (Manajer Bidang
+     * dulu, baru Manajer Umum & Kepegawaian), bukan cuma 1 tahap Manajer
+     * seperti di Izin Harian. Return: array of
+     * { key, label, name, at, note, state } - state 'done'/'current'/
+     * 'upcoming'/'skipped' (skipped = surat sudah berhenti duluan karena
+     * ditolak/ditunda Direktur).
+     */
+    _buildApprovalStages(item, emp) {
+        const pemohonRole = emp?.role || 'staff';
+        const bagian = emp?.bagian || '';
+        const isPemohonHr = String(bagian).toUpperCase().trim() === 'UMUM DAN KEPEGAWAIAN';
+        const manajerLabel = bagian ? `Manajer ${bagian}` : 'Manajer Bidang';
+
+        const stage = (key, label, nameField, atField, noteField) => ({
+            key, label,
+            name: item[nameField] || '',
+            at: item[atField] || '',
+            note: item[noteField] || ''
+        });
+        const ASMEN       = () => stage('asmen', 'Asmen', 'asmenName', 'asmenApprovedAt', 'asmenNote');
+        const MANAJER      = (label) => stage('manajer', label || manajerLabel, 'managerName', 'managerApprovedAt', 'managerNote');
+        const MANAJER_UMUM = () => stage('hrManajer', 'Manajer Umum dan Kepegawaian', 'hrManagerName', 'hrManagerApprovedAt', 'hrManagerNote');
+        const DIREKTUR     = () => stage('direktur', 'Direktur', 'directorName', 'directorApprovedAt', 'directorNote');
+
+        let order;
+        if (pemohonRole === 'manajer') {
+            // Kasus 5: Asmen & Manajer dilewati sama sekali.
+            order = [DIREKTUR()];
+        } else if (pemohonRole === 'asmen') {
+            // Kasus 3/4: tahap Asmen dilewati (pemohon sendiri levelnya Asmen).
+            order = isPemohonHr
+                ? [MANAJER('Manajer Umum dan Kepegawaian'), DIREKTUR()]
+                : [MANAJER(), MANAJER_UMUM(), DIREKTUR()];
+        } else {
+            // Kasus 1/2: staff - TETAP 2 tahap Manajer terpisah kalau bukan
+            // dari bagian Umum & Kepegawaian (beda dari Izin Harian).
+            order = isPemohonHr
+                ? [ASMEN(), MANAJER('Manajer Umum dan Kepegawaian'), DIREKTUR()]
+                : [ASMEN(), MANAJER(), MANAJER_UMUM(), DIREKTUR()];
+        }
+
+        const isStoppedEarly = item.status === 'rejected' || item.status === 'ditunda';
+        let currentAssigned = false;
+        return order.map(s => {
+            if (s.name) return Object.assign({}, s, { state: 'done' });
+            if (isStoppedEarly) return Object.assign({}, s, { state: 'skipped' });
+            if (!currentAssigned) { currentAssigned = true; return Object.assign({}, s, { state: 'current' }); }
+            return Object.assign({}, s, { state: 'upcoming' });
+        });
+    },
+
+    // Format tanggal-jam ISO jadi "31 Agu 2026, 14.05" - dipakai stepper.
+    _formatStageDateTime(iso) {
+        if (!iso) return '';
+        const d = new Date(iso);
+        if (isNaN(d.getTime())) return '';
+        const months = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Ags','Sep','Okt','Nov','Des'];
+        const jam = String(d.getHours()).padStart(2, '0');
+        const menit = String(d.getMinutes()).padStart(2, '0');
+        return `${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}, ${jam}.${menit}`;
+    },
+
+    // Render HTML stepper vertikal dari _buildApprovalStages() - dipakai
+    // modal "Progress Persetujuan" (lihat showApprovalProgress).
+    _renderApprovalStepperHtml(item, emp) {
+        const stages = this._buildApprovalStages(item, emp);
+        const icon = { done: 'fa-check', current: 'fa-hourglass-half', upcoming: 'fa-circle', skipped: 'fa-xmark' };
+        const stepsHtml = stages.map(s => `
+            <div class="approval-step ${s.state}">
+                <div class="approval-step-icon"><i class="fas ${icon[s.state]}"></i></div>
+                <div class="approval-step-body">
+                    <div class="approval-step-label">${s.label}</div>
+                    <div class="approval-step-status">
+                        ${s.state === 'done'
+                            ? `Disetujui oleh <strong>${s.name}</strong>${s.at ? ' &middot; ' + this._formatStageDateTime(s.at) : ''}`
+                            : s.state === 'current' ? 'Menunggu persetujuan...'
+                            : s.state === 'skipped' ? 'Tidak dilanjutkan'
+                            : 'Menunggu tahap sebelumnya'}
+                    </div>
+                    ${s.note ? `<div class="approval-step-note">&ldquo;${s.note}&rdquo;</div>` : ''}
+                </div>
+            </div>`).join('');
+
+        let footerHtml = '';
+        if (item.status === 'rejected') {
+            footerHtml = `<div class="approval-step-final rejected"><i class="fas fa-ban"></i> Pengajuan ini ditolak${item.rejectedByRole ? ' oleh ' + item.rejectedByRole : ''}${item.rejectedNote ? ': "' + item.rejectedNote + '"' : ''}</div>`;
+        } else if (item.status === 'ditunda') {
+            footerHtml = `<div class="approval-step-final postponed"><i class="fas fa-pause-circle"></i> Ditunda oleh Direktur${item.tundaSampai ? ' sampai ' + item.tundaSampai : ''}${item.directorNote ? ': "' + item.directorNote + '"' : ''}</div>`;
+        }
+        return `<div class="approval-stepper">${stepsHtml}</div>${footerHtml}`;
+    },
+
+    // Buka modal "Progress Persetujuan" - dipakai dari klik badge status di
+    // MANA PUN item Cuti ini ditampilkan (Riwayat milik user sendiri,
+    // daftar approval, atau riwayat approval role). this._leaveCache diisi
+    // oleh tiap fungsi render kartu cuti (lihat komentar "cache utk modal
+    // progress" di tiap render*()).
+    showApprovalProgress(id) {
+        const item = (this._leaveCache && this._leaveCache[id]) || (this.leaveData || []).find(i => String(i.id) === String(id));
+        if (!item) { toast.error('Data tidak ditemukan'); return; }
+        const emp = (this._employees && this._employees.length) ? this._findEmployee(item.userId) : (auth.getCurrentUser() || {});
+        const modal = document.getElementById('modal-approval-progress');
+        const content = document.getElementById('approval-progress-content');
+        if (!modal || !content) return;
+        const typeLabels = {
+            annual: 'Cuti Tahunan', important: 'Cuti Penting', sick: 'Cuti Sakit',
+            besar: 'Cuti Besar', maternity: 'Cuti Melahirkan', other: 'Cuti Lainnya'
+        };
+        content.innerHTML = `
+            <h3 style="margin-bottom:1rem;">${item.typeLabel || typeLabels[item.type] || 'Cuti'}</h3>
+            ${this._renderApprovalStepperHtml(item, emp)}
+            <div style="margin-top:1.25rem;text-align:right;">
+                <button class="btn-secondary" onclick="document.getElementById('modal-approval-progress').style.display='none'">Tutup</button>
+            </div>
+        `;
+        modal.style.display = 'flex';
     },
 
     // Admin / Manager functions
@@ -818,6 +944,8 @@ const cuti = {
 
         list.innerHTML = scoped.map(item => {
             const emp = this._findEmployee(item.userId);
+            this._leaveCache = this._leaveCache || {};
+            this._leaveCache[item.id] = item; // cache utk modal progress (showApprovalProgress)
             const typeLabel = item.typeLabel || typeLabels[item.type] || 'Cuti';
             const startFormatted = dateTime.formatDate(new Date(item.startDate), 'short');
             const endFormatted = dateTime.formatDate(new Date(item.endDate), 'short');
@@ -830,7 +958,9 @@ const cuti = {
                     <div class="izin-content">
                         <div class="izin-header-row">
                             <h4 class="izin-type">${typeLabel}</h4>
-                            <span class="izin-status ${item.status}">${this._getDetailedStatusLabel(item, emp)}</span>
+                            <span class="izin-status ${item.status}" style="cursor:pointer;" onclick="cuti.showApprovalProgress(${item.id})" title="Lihat progress persetujuan">
+                                ${this._getDetailedStatusLabel(item, emp)} <i class="fas fa-chevron-right" style="font-size:0.7em;margin-left:4px;"></i>
+                            </span>
                         </div>
                         <div class="izin-details">
                             <span class="izin-date"><i class="fas fa-user"></i> ${emp.nama || 'Tidak diketahui'}</span>
@@ -915,6 +1045,8 @@ const cuti = {
 
         list.innerHTML = sorted.map(item => {
             const emp = this._findEmployee(item.userId);
+            this._leaveCache = this._leaveCache || {};
+            this._leaveCache[item.id] = item; // cache utk modal progress (showApprovalProgress)
             const typeLabel = item.typeLabel || typeLabels[item.type] || 'Cuti';
             const startFormatted = dateTime.formatDate(new Date(item.startDate), 'short');
             const endFormatted = dateTime.formatDate(new Date(item.endDate), 'short');
@@ -927,7 +1059,9 @@ const cuti = {
                     <div class="izin-content">
                         <div class="izin-header-row">
                             <h4 class="izin-type">${typeLabel}</h4>
-                            <span class="izin-status ${item.status}">${this._getDetailedStatusLabel(item, emp)}</span>
+                            <span class="izin-status ${item.status}" style="cursor:pointer;" onclick="cuti.showApprovalProgress(${item.id})" title="Lihat progress persetujuan">
+                                ${this._getDetailedStatusLabel(item, emp)} <i class="fas fa-chevron-right" style="font-size:0.7em;margin-left:4px;"></i>
+                            </span>
                         </div>
                         <div class="izin-details">
                             <span class="izin-date"><i class="fas fa-user"></i> ${emp.nama || 'Tidak diketahui'}</span>
@@ -1022,6 +1156,11 @@ const cuti = {
             ${infoRow('fa-user', 'Nama Karyawan', emp.nama || '-')}
             ${infoRow('fa-briefcase', 'Jabatan', emp.jabatan || '-')}
             ${infoRow('fa-calendar-day', 'Tanggal Cuti', `${dateDisplay} (${item.duration} hari)`)}
+
+            <div style="margin-top:14px;">
+                <div style="font-size:0.72rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.02em;margin-bottom:8px;">Progress Persetujuan</div>
+                ${this._renderApprovalStepperHtml(item, emp)}
+            </div>
 
             <div style="margin-top:14px;">
                 <div style="font-size:0.72rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.02em;margin-bottom:6px;">Untuk Keperluan</div>
