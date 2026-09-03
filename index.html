@@ -2920,6 +2920,22 @@
         <div id="approval-cuti-content" class="modal-form"></div>
     </div>
 </div>
+
+<!-- Modal Progress Persetujuan - dipakai bersama oleh izin.js (Sakit/Izin
+     Harian/Keluar Kantor) dan cuti.js (Cuti), dipanggil lewat
+     showApprovalProgress() begitu badge status di klik, di halaman mana pun
+     item itu ditampilkan (Riwayat sendiri, daftar approval, riwayat approval). -->
+<div class="modal-overlay" id="modal-approval-progress" style="display:none;">
+    <div class="modal-container" style="max-width:480px;max-height:90vh;overflow-y:auto;">
+        <div class="modal-header">
+            <h3>Progress Persetujuan</h3>
+            <button class="btn-close-modal" onclick="document.getElementById('modal-approval-progress').style.display='none'">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div id="approval-progress-content" class="modal-form"></div>
+    </div>
+</div>
                 
                 <!-- Employees Page -->
                 <div class="page" id="page-employees">
