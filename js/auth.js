@@ -456,6 +456,21 @@ const auth = {
         if (userRoleEl) userRoleEl.textContent = this.currentUser.role === 'admin' ? 'Administrator' : (this.currentUser.jabatan || 'Karyawan');
         if (userAvatarEl) userAvatarEl.src = getAvatarUrl(this.currentUser);
         if (welcomeNameEl) welcomeNameEl.textContent = this.currentUser.name.split(' ')[0];
+
+        // TAMBAHAN: sisipkan nama karyawan yang sedang login ke link menu
+        // "Permintaan Barang" (aplikasi terpisah) lewat parameter URL
+        // ?nama=... - supaya begitu link itu dibuka, aplikasi Permintaan
+        // Barang bisa langsung login otomatis (dicocokkan by NAMA saja ke
+        // sheet Users-nya sendiri, lihat autoLoginByNama() di Kode.gs
+        // aplikasi itu) tanpa karyawan perlu login ulang manual.
+        const permintaanBarangLink = document.getElementById('nav-permintaan-barang');
+        if (permintaanBarangLink && this.currentUser.name) {
+            try {
+                const url = new URL(permintaanBarangLink.getAttribute('href'));
+                url.searchParams.set('nama', this.currentUser.name);
+                permintaanBarangLink.setAttribute('href', url.toString());
+            } catch (e) { /* biarkan href apa adanya kalau gagal, link tetap jalan (cuma tanpa auto-login) */ }
+        }
     },
 
     async openProfileModal() {
