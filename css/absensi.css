@@ -230,6 +230,17 @@
     color: var(--text-secondary);
 }
 
+/* Daftar "baru bisa dimulai pukul ..." per sesi (Masuk/Istirahat/Pulang
+   dst.) - tampil di bawah status-subtext, lihat updateUI() di absensi.js.
+   Sengaja elemen BARU (bukan menumpang di status-subtext) supaya tidak
+   mengganggu tampilan/behavior status-subtext yang sudah ada. */
+.status-sessions-info {
+    margin-top: var(--spacing-xs);
+    font-size: var(--font-size-xs);
+    color: var(--text-muted);
+    line-height: 1.6;
+}
+
 /* Attendance Buttons */
 .attendance-buttons {
     display: grid;
