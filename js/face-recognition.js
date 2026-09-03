@@ -1973,8 +1973,28 @@ const faceRecognition = {
         // latar belakang, tidak lagi menunda navigate di atas.
         (async () => {
             try {
+                let saveResult = { success: true }; // default aman kalau window.absensi tidak ada
                 if (window.absensi) {
-                    await window.absensi.processWithVerification(this.currentAction, attendanceData, attendanceSnapshot);
+                    saveResult = await window.absensi.processWithVerification(this.currentAction, attendanceData, attendanceSnapshot);
+                }
+
+                // BUGFIX (2026-09-03): laporan luar-radius/luar-wilayah di
+                // bawah SEKARANG cuma dikirim kalau absennya sendiri BENAR-
+                // BENAR tersimpan (saveResult.success true). Sebelumnya
+                // laporan ini tetap terkirim walau processWithVerification()
+                // gagal menyimpan absennya (backend menolak, mis. alasan
+                // lain di luar soal wilayah) - karena kegagalan itu di sana
+                // cuma `return` biasa, bukan melempar error, jadi `await` di
+                // sini tidak pernah tahu itu gagal. Akibatnya bisa muncul
+                // badge "Luar Unit Wilayah" di sesi yang jamnya masih kosong
+                // ("–") di Riwayat Absensi, seperti yang dilaporkan.
+                if (!saveResult || !saveResult.success) {
+                    this._outOfRadiusNote = null;
+                    this._outOfRadiusPhoto = null;
+                    this._outOfRadiusContext = null;
+                    this._outOfWilayahNote = null;
+                    this._outOfWilayahContext = null;
+                    return;
                 }
 
                 // PERBAIKAN PERFORMA (2026-08-29): laporan luar-radius/luar-
