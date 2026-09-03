@@ -233,6 +233,7 @@ const adminReports = {
                     name: emp.name || emp.nama || l.userId,
                     department: emp.department || emp.unitKerja || '-',
                     bagian: emp.bagian || '-',
+                    role: emp.role || 'staff',
                     position: emp.position || emp.jabatan || '-',
                     type: l.type === 'annual' ? 'Cuti Tahunan'
                         : l.type === 'important' ? 'Cuti Alasan Penting'
@@ -250,7 +251,27 @@ const adminReports = {
                     duration: l.duration != null ? l.duration : '-',
                     reason: l.reason || l.alasan || '-',
                     status: l.status || 'pending',
-                    startDate: l.startDate || ''
+                    startDate: l.startDate || '',
+                    asmenId:          l.asmenId          || '',
+                    asmenName:        l.asmenName        || '',
+                    asmenNik:         l.asmenNik         || '',
+                    asmenApprovedAt:  l.asmenApprovedAt  || '',
+                    asmenNote:        l.asmenNote        || '',
+                    managerName:      l.managerName      || '',
+                    managerNik:       l.managerNik       || '',
+                    managerApprovedAt: l.managerApprovedAt || '',
+                    managerNote:      l.managerNote      || '',
+                    hrManagerName:      l.hrManagerName      || '',
+                    hrManagerNik:       l.hrManagerNik       || '',
+                    hrManagerApprovedAt: l.hrManagerApprovedAt || '',
+                    hrManagerNote:      l.hrManagerNote      || '',
+                    directorName:      l.directorName      || '',
+                    directorNik:       l.directorNik       || '',
+                    directorApprovedAt: l.directorApprovedAt || '',
+                    directorNote:      l.directorNote      || '',
+                    rejectedByRole:    l.rejectedByRole    || '',
+                    rejectedNote:      l.rejectedNote      || '',
+                    tundaSampai:       l.tundaSampai       || ''
                 };
             }),
             ...uniqueIzin.map(i => {
@@ -274,6 +295,7 @@ const adminReports = {
                     name: emp.name || emp.nama || i.userId,
                     department: emp.department || emp.unitKerja || '-',
                     bagian: emp.bagian || '-',
+                    role: emp.role || 'staff',
                     position: emp.position || emp.jabatan || '-',
                     rawType: i.type || '',
                     type: i.type === 'sick' ? 'Sakit'
@@ -295,19 +317,25 @@ const adminReports = {
                     status: i.status || 'pending',
                     startDate: i.date || '',
                     dateEnd: i.dateEnd || '',
-                    asmenId:        i.asmenId        || '',
-                    asmenName:      i.asmenName      || '',
-                    asmenNik:       i.asmenNik       || '',
-                    asmenNote:      i.asmenNote      || '',
-                    managerName:    i.managerName    || '',
-                    managerNik:     i.managerNik     || '',
-                    managerNote:    i.managerNote    || '',
-                    hrManagerName:  i.hrManagerName  || '',
-                    hrManagerNik:   i.hrManagerNik   || '',
-                    hrManagerNote:  i.hrManagerNote  || '',
-                    directorName:   i.directorName   || '',
-                    directorNik:    i.directorNik    || '',
-                    directorNote:   i.directorNote   || ''
+                    asmenId:          i.asmenId          || '',
+                    asmenName:        i.asmenName        || '',
+                    asmenNik:         i.asmenNik         || '',
+                    asmenApprovedAt:  i.asmenApprovedAt  || '',
+                    asmenNote:        i.asmenNote        || '',
+                    managerName:      i.managerName      || '',
+                    managerNik:       i.managerNik       || '',
+                    managerApprovedAt: i.managerApprovedAt || '',
+                    managerNote:      i.managerNote      || '',
+                    hrManagerName:      i.hrManagerName      || '',
+                    hrManagerNik:       i.hrManagerNik       || '',
+                    hrManagerApprovedAt: i.hrManagerApprovedAt || '',
+                    hrManagerNote:      i.hrManagerNote      || '',
+                    directorName:      i.directorName      || '',
+                    directorNik:       i.directorNik       || '',
+                    directorApprovedAt: i.directorApprovedAt || '',
+                    directorNote:      i.directorNote      || '',
+                    rejectedByRole:    i.rejectedByRole    || '',
+                    rejectedNote:      i.rejectedNote      || ''
                 };
             })
         ];
@@ -1457,58 +1485,108 @@ const adminReports = {
         return `<span class="stage-badge tahap-${idx + 1}">Tahap ${idx + 1} &middot; ${stage.label}</span>`;
     },
 
-    // Stepper visual di dalam modal detail
-    _renderStageStepper(row) {
-        const chain = this._approvalChainFor(row);
-        const finished = this._isRowFinished(row);
-        const currentIdx = finished ? chain.length : this._currentStageIndex(row, chain);
+    /**
+     * Bangun daftar TAHAPAN approval (stepper) yang BENAR-BENAR berlaku
+     * untuk baris ini - mengikuti PERSIS cabang logika yang sama dengan
+     * _getDetailedStatusLabel() di izin.js/cuti.js (bukan tebakan baru).
+     * PENTING: row.rawType 'sick' bisa berarti 2 hal berbeda tergantung
+     * row.kind - Sakit (izin, 1 tahap) ATAU Cuti Sakit (leave, berjenjang
+     * penuh seperti Cuti Tahunan) - harus dicek row.kind dulu supaya tidak
+     * salah pilih alur.
+     */
+    _buildApprovalStages(row) {
+        const pemohonRole = row.role || 'staff';
+        const bagian = row.bagian && row.bagian !== '-' ? row.bagian : '';
+        const isPemohonHr = pemohonRole === 'asmen' && String(bagian).toUpperCase().trim() === 'UMUM DAN KEPEGAWAIAN';
+        const manajerLabel = bagian ? `Manajer ${bagian}` : 'Manajer';
 
-        const steps = chain.map((stage, i) => {
-            const state = i < currentIdx ? 'done' : (i === currentIdx ? 'current' : 'upcoming');
-            const dotContent = state === 'done' ? '<i class="fas fa-check"></i>' : (i + 1);
-            const connector = i < chain.length - 1
-                ? `<div class="stage-connector ${i < currentIdx ? 'done' : ''}"></div>`
-                : '';
-            return `
-                <div class="stage-row" style="flex:1;">
-                    <div class="stage-step ${state === 'current' ? 'current' : ''}">
-                        <div class="stage-dot ${state}">${dotContent}</div>
-                        <span class="stage-label">${stage.label}</span>
-                    </div>
-                    ${connector}
-                </div>`;
-        }).join('');
+        const stage = (key, label, nameField, atField, noteField) => ({
+            key, label,
+            name: row[nameField] || '',
+            at: row[atField] || '',
+            note: row[noteField] || ''
+        });
+        const ASMEN        = () => stage('asmen', 'Asmen', 'asmenName', 'asmenApprovedAt', 'asmenNote');
+        const MANAJER       = (label) => stage('manajer', label || manajerLabel, 'managerName', 'managerApprovedAt', 'managerNote');
+        const MANAJER_UMUM  = () => stage('hrManajer', 'Manajer Umum dan Kepegawaian', 'hrManagerName', 'hrManagerApprovedAt', 'hrManagerNote');
+        const DIREKTUR      = () => stage('direktur', 'Direktur', 'directorName', 'directorApprovedAt', 'directorNote');
 
-        return `<div class="stage-stepper">${steps}</div>`;
-    },
-
-    // Riwayat catatan tiap tahap yang sudah lewat
-    _renderApprovalHistory(row) {
-        const chain = this._approvalChainFor(row);
-        let items = chain.map((stage, i) => {
-            const n = i + 1;
-            const name = row[`stage${n}ApproverName`];
-            const decision = row[`stage${n}Decision`];
-            const note = row[`stage${n}Note`];
-            if (!name && !decision) return '';
-            const decisionLabel = decision === 'tolak' ? 'Tolak' : (decision === 'setuju' ? 'Setuju' : '');
-            return `
-                <div class="approval-history-item">
-                    <div class="ah-top">
-                        <span><span class="ah-role">${stage.label}</span><span class="ah-who"> &middot; ${name || '-'}</span></span>
-                        ${decisionLabel ? `<span class="ah-decision ${decision}">${decisionLabel}</span>` : ''}
-                    </div>
-                    ${note ? `<div class="ah-note">&ldquo;${note}&rdquo;</div>` : ''}
-                </div>`;
-        }).filter(Boolean);
-
-        // fallback skema lama (managerName / directorName tanpa catatan)
-        if (!items.length) {
-            if (row.managerName) items.push(`<div class="approval-history-item"><span class="ah-role">Manager</span><span class="ah-who"> &middot; ${row.managerName}</span></div>`);
-            if (row.directorName) items.push(`<div class="approval-history-item"><span class="ah-role">Direktur</span><span class="ah-who"> &middot; ${row.directorName}</span></div>`);
+        const isIzin = row.kind === 'izin';
+        let order;
+        if (isIzin && row.rawType === 'sick') {
+            // Sakit: cuma 1 tahap sesuai role pemohon.
+            if (pemohonRole === 'staff')      order = [ASMEN()];
+            else if (pemohonRole === 'asmen') order = [MANAJER()];
+            else                              order = [DIREKTUR()];
+        } else if (isIzin && row.rawType === 'keluar_kantor') {
+            order = (pemohonRole === 'manajer') ? [DIREKTUR()] : [MANAJER()];
+        } else if (pemohonRole === 'manajer') {
+            order = [DIREKTUR()];
+        } else if (pemohonRole === 'asmen') {
+            order = isPemohonHr
+                ? [MANAJER('Manajer Umum dan Kepegawaian'), DIREKTUR()]
+                : [MANAJER(), MANAJER_UMUM(), DIREKTUR()];
+        } else if (!isIzin) {
+            // Cuti, pemohon staff: TETAP 2 tahap Manajer terpisah kalau
+            // bukan dari bagian Umum & Kepegawaian (beda dari Izin Harian
+            // yang cuma 1 tahap Manajer) - lihat Leave.gs approveLeaveData.
+            order = isPemohonHr
+                ? [ASMEN(), MANAJER('Manajer Umum dan Kepegawaian'), DIREKTUR()]
+                : [ASMEN(), MANAJER(), MANAJER_UMUM(), DIREKTUR()];
+        } else {
+            // Izin Harian, pemohon staff - berjenjang penuh (1 tahap Manajer saja).
+            order = [ASMEN(), MANAJER(), DIREKTUR()];
         }
 
-        return items.length ? `<div class="approval-history">${items.join('')}</div>` : '';
+        const isStoppedEarly = row.status === 'rejected' || row.status === 'ditolak' || row.status === 'ditunda';
+        let currentAssigned = false;
+        return order.map(s => {
+            if (s.name) return Object.assign({}, s, { state: 'done' });
+            if (isStoppedEarly) return Object.assign({}, s, { state: 'skipped' });
+            if (!currentAssigned) { currentAssigned = true; return Object.assign({}, s, { state: 'current' }); }
+            return Object.assign({}, s, { state: 'upcoming' });
+        });
+    },
+
+    _formatStageDateTime(iso) {
+        if (!iso) return '';
+        const d = new Date(iso);
+        if (isNaN(d.getTime())) return '';
+        const months = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Ags','Sep','Okt','Nov','Des'];
+        const jam = String(d.getHours()).padStart(2, '0');
+        const menit = String(d.getMinutes()).padStart(2, '0');
+        return `${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}, ${jam}.${menit}`;
+    },
+
+    // Stepper visual di dalam modal detail (dipakai viewLeaveDetail via
+    // _renderApprovalHistory di bawah) - menggantikan versi lama yang
+    // berdasarkan field yang tidak pernah ada (stage1ApproverName dkk).
+    _renderApprovalHistory(row) {
+        const stages = this._buildApprovalStages(row);
+        const icon = { done: 'fa-check', current: 'fa-hourglass-half', upcoming: 'fa-circle', skipped: 'fa-xmark' };
+        const stepsHtml = stages.map(s => `
+            <div class="approval-step ${s.state}">
+                <div class="approval-step-icon"><i class="fas ${icon[s.state]}"></i></div>
+                <div class="approval-step-body">
+                    <div class="approval-step-label">${s.label}</div>
+                    <div class="approval-step-status">
+                        ${s.state === 'done'
+                            ? `Disetujui oleh <strong>${s.name}</strong>${s.at ? ' &middot; ' + this._formatStageDateTime(s.at) : ''}`
+                            : s.state === 'current' ? 'Menunggu persetujuan...'
+                            : s.state === 'skipped' ? 'Tidak dilanjutkan'
+                            : 'Menunggu tahap sebelumnya'}
+                    </div>
+                    ${s.note ? `<div class="approval-step-note">&ldquo;${s.note}&rdquo;</div>` : ''}
+                </div>
+            </div>`).join('');
+
+        let footerHtml = '';
+        if (row.status === 'rejected') {
+            footerHtml = `<div class="approval-step-final rejected"><i class="fas fa-ban"></i> Pengajuan ini ditolak${row.rejectedByRole ? ' oleh ' + row.rejectedByRole : ''}${row.rejectedNote ? ': "' + row.rejectedNote + '"' : ''}</div>`;
+        } else if (row.status === 'ditunda') {
+            footerHtml = `<div class="approval-step-final postponed"><i class="fas fa-pause-circle"></i> Ditunda oleh Direktur${row.tundaSampai ? ' sampai ' + row.tundaSampai : ''}${row.directorNote ? ': "' + row.directorNote + '"' : ''}</div>`;
+        }
+        return `<div class="approval-stepper">${stepsHtml}</div>${footerHtml}`;
     },
 
     // Sementara pakai auth.isManager()/isAdmin() sampai backend kirim data
