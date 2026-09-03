@@ -1278,26 +1278,28 @@ const absensi = {
             if (statusSubtext) statusSubtext.textContent = s.sub;
         }
 
-        // Daftar jam "mulai bisa absen" untuk SEMUA sesi hari ini
-        // (Masuk/Istirahat Keluar/Istirahat Masuk/Pulang, dst. - mengikuti
-        // jadwal shift yang berlaku, TERMASUK shift multi-sesi Operator
-        // seperti BNA Amuntai/SATPAM, karena semuanya sama-sama lewat
-        // _getSessions()) - supaya karyawan langsung tahu jadwal semua
-        // sesi berikutnya dari awal, tidak cuma pas "Menunggu Jam Masuk"
-        // seperti sebelumnya. Label per baris memakai label sesi PERSIS
-        // seperti yang diatur Admin di menu Jadwal Shift, jadi otomatis
-        // menyesuaikan jadwal apa pun tanpa perlu nama sesi di-hardcode.
+        // Cuma tampilkan 1 baris - utk sesi BERIKUTNYA yang belum diabsen
+        // (mis. sudah Masuk & sudah Istirahat Keluar -> yang ditampilkan
+        // "Istirahat Masuk baru bisa dimulai pukul ..."), BUKAN semua sesi
+        // sekaligus. Sengaja TIDAK ditampilkan sama sekali di state
+        // 'waiting' (belum absen Masuk) - jam bukanya Masuk sudah ada di
+        // status-subtext ("Absen baru bisa dimulai pukul ...") begitu
+        // portalnya belum buka, jadi kalau ditambah lagi di sini jadi
+        // dobel/percuma. Berlaku otomatis utk SEMUA jenis jadwal (Reguler
+        // maupun shift multi-sesi Operator spt BNA Amuntai/SATPAM) karena
+        // sama-sama lewat _getSessions(); label barisnya pakai label sesi
+        // PERSIS seperti yang diatur Admin di menu Jadwal Shift.
         const sessionsInfoEl = document.getElementById('status-sessions-info');
         if (sessionsInfoEl) {
-            const showSessionsInfo = ['waiting', 'clocked-in', 'on-break', 'completed'].includes(this.currentState);
-            const sessionsWithOpen = this._getSessions().filter(sesi => sesi.opensAt);
             sessionsInfoEl.innerHTML = '';
-            if (showSessionsInfo && sessionsWithOpen.length) {
-                sessionsWithOpen.forEach(sesi => {
-                    const line = document.createElement('div');
-                    line.textContent = `${sesi.label} baru bisa dimulai pukul ${sesi.opensAt}`;
-                    sessionsInfoEl.appendChild(line);
-                });
+            const showSessionsInfo = ['clocked-in', 'on-break'].includes(this.currentState);
+            const nextSession = showSessionsInfo
+                ? this._getSessions().find(sesi => sesi.opensAt && !this.attendanceData[sesi.field])
+                : null;
+            if (nextSession) {
+                const line = document.createElement('div');
+                line.textContent = `${nextSession.label} baru bisa dimulai pukul ${nextSession.opensAt}`;
+                sessionsInfoEl.appendChild(line);
                 sessionsInfoEl.style.display = 'block';
             } else {
                 sessionsInfoEl.style.display = 'none';
