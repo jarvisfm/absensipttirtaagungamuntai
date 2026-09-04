@@ -907,31 +907,76 @@ const absensi = {
     },
 
     // Cek apakah tombol sesi tertentu sudah boleh diakses berdasarkan jam
+    //
+    // PERBAIKAN (2026-09-05): SEBELUMNYA baris pertama function ini ("if
+    // (nowMin >= openMin) return true") langsung membandingkan jam MENTAH
+    // 0-23:59, tanpa peduli sesi ini bagian shift yang MELEWATI TENGAH
+    // MALAM atau tidak. Untuk sesi seperti Pulang shift Malam/SATPAM/
+    // Operator (opensAt dini hari, mis. "04:45", padahal Masuk-nya malam
+    // sebelumnya jam "20:45") ini SALAH: begitu karyawan selesai Masuk jam
+    // 21:xx malam, nowMin (1260-an) SUDAH otomatis >= openMin Pulang
+    // (285) secara angka mentah - padahal jam beneran belum sampai sama
+    // sekali - jadi tombol Pulang langsung kebaca "sudah buka" cuma
+    // beberapa menit setelah Masuk. Inilah akar bug "tombol Pulang shift
+    // Malam/SATPAM/Operator terbuka sebelum waktunya" yang dilaporkan -
+    // dan efek lanjutannya, karyawan yang melihat tombol Pulang SELALU
+    // "menyala" sepanjang shift jadi tidak punya sinyal jelas kapan
+    // harusnya benar-benar Pulang, salah satu penyebab sesi Pulang sering
+    // "terlewat"/tidak pernah ditekan sampai shift berakhir.
+    //
+    // Sekarang: sesi SELAIN Masuk (Istirahat/Selesai Istirahat/Pulang)
+    // dibandingkan sebagai "menit sejak Masuk mulai bisa absen" untuk
+    // KEDUA sisi (jam target sesi & jam sekarang) - bukan jam mentah -
+    // supaya urutannya SELALU benar baik sebelum maupun sesudah tengah
+    // malam, berapa kali pun. Sesi Masuk sendiri (atau kalau data sesi
+    // Masuk tidak ketemu) TETAP pakai logika lama (dibanding jam mentah +
+    // perpanjangan "masih kelanjutan shift semalam" berdasar jam Pulang) -
+    // TIDAK diubah - supaya karyawan yang telat Masuk (mis. jam 01:00,
+    // shift Malam belum berakhir sampai jam Pulang) tetap bisa Masuk
+    // seperti sebelumnya.
     _isSessionOpen(opensAt) {
         if (!opensAt) return true;
         const now = dateTime.now();
         const nowMin = this._getWitaMinutesOfDay(now);
         const openMin = this._toMinutes(opensAt);
-        if (nowMin >= openMin) return true;
 
-        // Sesi yang melewati tengah malam (mis. Malam 23:00-08:00) - begitu
-        // WITA sudah masuk hari baru, "jam sekarang" (nowMin) jadi kecil
-        // lagi, sedangkan "mulai bisa absen" sesi semalam (openMin) masih
-        // besar (mis. 22:45), jadi perbandingan mentah di atas SELALU
-        // salah kebaca "belum buka" walau sesinya masih berlangsung.
-        // Dicek pakai jam target Pulang (clockOut) sesi yang sama: kalau
-        // target Pulang-nya LEBIH KECIL dari opensAt ini (tandanya
-        // pulangnya di hari berikutnya, melewati tengah malam) DAN
-        // sekarang masih SEBELUM jam Pulang itu, sesi ini dianggap MASIH
-        // BUKA (kelanjutan dari semalam), bukan "belum buka".
-        const pulang = this._getSessions().find(s => s.field === 'clockOut');
-        if (pulang && pulang.time) {
-            const pulangMin = this._toMinutes(pulang.time);
-            if (pulangMin < openMin && nowMin < pulangMin) {
-                return true;
+        const sessions = this._getSessions();
+        const masuk = sessions.find(s => s.field === 'clockIn');
+        const masukOpenMin = (masuk && masuk.opensAt) ? this._toMinutes(masuk.opensAt) : null;
+
+        // Sesi Masuk itu sendiri (opensAt yang dicek PERSIS opensAt Masuk),
+        // atau data sesi Masuk tidak ketemu - perilaku SAMA seperti
+        // sebelumnya, tidak diubah.
+        if (masukOpenMin == null || openMin === masukOpenMin) {
+            if (nowMin >= openMin) return true;
+
+            // Sesi yang melewati tengah malam (mis. Malam 23:00-08:00) -
+            // begitu WITA sudah masuk hari baru, "jam sekarang" (nowMin)
+            // jadi kecil lagi, sedangkan "mulai bisa absen" sesi semalam
+            // (openMin) masih besar (mis. 22:45), jadi perbandingan mentah
+            // di atas SELALU salah kebaca "belum buka" walau sesinya
+            // masih berlangsung. Dicek pakai jam target Pulang (clockOut)
+            // sesi yang sama: kalau target Pulang-nya LEBIH KECIL dari
+            // opensAt ini (tandanya pulangnya di hari berikutnya,
+            // melewati tengah malam) DAN sekarang masih SEBELUM jam
+            // Pulang itu, sesi ini dianggap MASIH BUKA (kelanjutan dari
+            // semalam), bukan "belum buka".
+            const pulang = sessions.find(s => s.field === 'clockOut');
+            if (pulang && pulang.time) {
+                const pulangMin = this._toMinutes(pulang.time);
+                if (pulangMin < openMin && nowMin < pulangMin) {
+                    return true;
+                }
             }
+            return false;
         }
-        return false;
+
+        // Sesi Istirahat/Selesai Istirahat/Pulang - bandingkan sebagai
+        // menit sejak Masuk mulai bisa absen (lihat penjelasan di atas).
+        const offsetFromMasuk = function (min) {
+            return ((min - masukOpenMin) % 1440 + 1440) % 1440;
+        };
+        return offsetFromMasuk(nowMin) >= offsetFromMasuk(openMin);
     },
 
     // "Jam:menit sekarang" (dalam total menit sejak 00:00) tapi dihitung
