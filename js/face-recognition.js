@@ -1405,22 +1405,52 @@ const faceRecognition = {
                     // Panggang" absen di kantor "BNA Amuntai"). Cek ini
                     // HANYA kalau unitWilayah karyawan memang cocok dengan
                     // salah satu NAMA lokasi kantor yang terdaftar di
-                    // Settings - skema SATPAM/TRD menyimpan "SATPAM"/"TRD"
-                    // di field yang sama (lihat karyawan.js), jadi otomatis
+                    // Settings - skema SATPAM menyimpan "SATPAM" polos di
+                    // field yang sama (lihat karyawan.js), jadi otomatis
                     // dilewati karena nilainya tidak akan pernah cocok
                     // dengan nama lokasi kantor manapun.
+                    //
+                    // PERBAIKAN (2026-09-03, atas permintaan): karyawan TRD
+                    // per-cabang (unitWilayah "TRD - BNA Amuntai"/"TRD -
+                    // Cabang I/II/III" - lihat karyawan.js) SEBELUMNYA JUGA
+                    // ikut otomatis terlewat sama seperti SATPAM (nilainya
+                    // bukan nama kantor tunggal) - padahal beda dari SATPAM,
+                    // TRD per cabang itu MEMANG SEHARUSNYA dicek, cuma
+                    // wilayah kerja sahnya bukan 1 kantor tunggal, melainkan
+                    // SEKELOMPOK unit SPAM sekaligus (teknisi TRD 1 cabang
+                    // wajar berpindah-pindah di antara beberapa unit dalam
+                    // cabang yang sama). Pengelompokannya (dikonfirmasi
+                    // manual, cocok dengan tabel pembagian cabang TRD):
+                    const TRD_CABANG_OFFICE_GROUPS = {
+                        'TRD - BNA Amuntai': ['BNA Amuntai'],
+                        'TRD - Cabang I':   ['SPAM Muara Tapus', 'SPAM Jarang Kuantan', 'SPAM Sungai Tabukan', 'SPAM Alabio'],
+                        'TRD - Cabang II':  ['SPAM Babirik', 'SPAM Danau Panggang', 'SPAM Paminggir', 'SPAM Rantau Bujur'],
+                        'TRD - Cabang III': ['SPAM Muara Baruh', 'SPAM Tangkawang', 'SPAM Telaga Silaba', 'SPAM Banjang']
+                    };
+
                     let userWilayah = '';
                     try {
                         const u = auth.getCurrentUser ? auth.getCurrentUser() : null;
                         userWilayah = (u && u.unitWilayah) ? String(u.unitWilayah).trim() : '';
                     } catch (e) { /* lanjut tanpa unitWilayah */ }
 
-                    const wilayahIsKnownOffice = userWilayah && officeLocations.some(
-                        loc => String(loc.nama || '').trim().toLowerCase() === userWilayah.toLowerCase()
-                    );
+                    const trdOfficeGroup = TRD_CABANG_OFFICE_GROUPS[userWilayah] || null;
+                    const nearestNameLower = String(nearest.nama || '').trim().toLowerCase();
 
-                    if (wilayahIsKnownOffice && nearest.nama &&
-                        nearest.nama.trim().toLowerCase() !== userWilayah.toLowerCase()) {
+                    const wilayahIsKnownOffice = !!trdOfficeGroup || (userWilayah && officeLocations.some(
+                        loc => String(loc.nama || '').trim().toLowerCase() === userWilayah.toLowerCase()
+                    ));
+
+                    // Untuk TRD (trdOfficeGroup ada isinya): di luar wilayah
+                    // kalau kantor terdekat BUKAN salah satu anggota
+                    // kelompok cabangnya. Untuk yang lain (perilaku LAMA,
+                    // tidak berubah): di luar wilayah kalau kantor terdekat
+                    // bukan PERSIS nama wilayahnya sendiri.
+                    const isOutsideWilayah = trdOfficeGroup
+                        ? !trdOfficeGroup.some(name => String(name).trim().toLowerCase() === nearestNameLower)
+                        : (nearest.nama && nearestNameLower !== userWilayah.toLowerCase());
+
+                    if (wilayahIsKnownOffice && isOutsideWilayah) {
                         if (statusEl) {
                             statusEl.innerHTML = '<i class="fas fa-exclamation-circle" style="color:#D97706;"></i> <span style="color:#D97706;">Di luar Unit Wilayah - isi catatan untuk lanjut</span>';
                             statusEl.classList.remove('verified');
