@@ -1301,22 +1301,34 @@ const izin = {
             });
         } else if (role === 'direktur') {
             filtered = data.filter(i => {
-                // Izin Keluar Kantor: alur sendiri, langsung ke Direktur begitu
-                // status masih pending — apapun jabatan pemohonnya (staff/asmen/manajer).
-                if (i.type === 'keluar_kantor') {
-                    return i.status === 'pending';
-                }
-
                 const pemohon = this._findEmployee(i.userId);
                 const pemohonRole = pemohon.role || 'staff';
 
                 if (pemohonRole === 'manajer') {
-                    // Langsung dari pending, tahap Manajer dilewati sama sekali
+                    // Pemohon Manajer (semua jenis surat termasuk Sakit):
+                    // Direktur SATU-SATUNYA approver representatif (tahap
+                    // Manajer dilewati sama sekali) - approve-nya di sini
+                    // TETAP final seperti biasa.
                     return i.status === 'pending';
                 }
-                // Staff & Asmen (bagian manapun, termasuk Asmen HR sendiri):
-                // semuanya harus sudah disetujui Manajer dulu (manajer_approved)
-                return i.status === 'manajer_approved';
+
+                // Sakit pemohon staff/asmen: alur sendiri (1 tahap approval
+                // sesuai level pemohon - Asmen/Manajer, TIDAK PERNAH sampai
+                // ke Direktur sama sekali - lihat approveIzinData blok
+                // 'sick'). Sengaja dikecualikan di sini supaya tidak nyasar
+                // masuk ke kriteria "review" generik izin_harian/keluar_kantor
+                // di bawah (Sakit tidak punya konsep peninjauan Direktur).
+                if (i.type === 'sick') return false;
+
+                // Staff & Asmen (bagian manapun, termasuk Asmen HR sendiri),
+                // baik Izin Harian maupun Keluar Kantor: keputusan FINAL
+                // sudah di tahap Manajer (lihat approveIzinData - Manajer
+                // sekarang mewakili Direktur, perubahan 2026-09-02). Direktur
+                // di sini CUMA opsional meninjau (reviewedOnly=true, status
+                // TIDAK berubah) - begitu sudah pernah ditinjau
+                // (directorReviewedAt terisi), hilang dari daftar supaya
+                // tidak menumpuk terus di antrean.
+                return i.status === 'approved' && !i.directorReviewedAt;
             });
         }
 
@@ -1448,6 +1460,13 @@ const izin = {
                 <textarea id="approval-catatan" rows="3" placeholder="Tulis catatan/pertimbangan Anda di sini..."></textarea>
             </div>
 
+            ${(role === 'direktur' && item.status === 'approved') ? `
+            <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px;">
+                <button class="btn-primary" onclick="izin.submitApproval(${item.id}, '${role}', 'approve')">
+                    <i class="fas fa-check"></i> Tandai Sudah Ditinjau
+                </button>
+            </div>
+            ` : `
             <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px;">
                 <button class="btn-secondary" onclick="izin.submitApproval(${item.id}, '${role}', 'reject')">
                     <i class="fas fa-times"></i> Tolak
@@ -1456,6 +1475,7 @@ const izin = {
                     <i class="fas fa-check"></i> Setuju
                 </button>
             </div>
+            `}
         `;
 
         modal.style.display = 'flex';
@@ -1495,10 +1515,12 @@ const izin = {
             this._populateApprovalHistoryMonthFilter(role);
             this.renderApprovalHistory(role);
             if (decision === 'approve' && result.reviewedOnly) {
-                // Direktur "approve" Izin Keluar Kantor yang pemohonnya
-                // BUKAN Manajer - ini cuma catatan peninjauan beliau, BUKAN
-                // keputusan final (itu wewenang Manajer bagian terkait).
-                toast.success('Peninjauan Anda tercatat. Keputusan final tetap menunggu approval Manajer bagian terkait (kalau belum).');
+                // Direktur "approve" Izin Harian/Keluar Kantor yang
+                // pemohonnya BUKAN Manajer - ini CUMA catatan peninjauan
+                // beliau, keputusan final SUDAH tuntas di tahap Manajer
+                // bagian terkait sebelumnya (email & efek samping sudah
+                // terkirim/berjalan saat itu, TIDAK diulang lagi di sini).
+                toast.success('Peninjauan Anda tercatat. Pengajuan ini sudah final disetujui oleh Manajer terkait.');
             } else {
                 toast.success(decision === 'approve' ? 'Pengajuan disetujui' : 'Pengajuan ditolak');
             }
@@ -1507,7 +1529,10 @@ const izin = {
             // sepenuhnya), otomatis generate PDF surat (persis tampilan
             // "Cetak Surat") dan kirim ke email pemohon. Berjalan di
             // belakang layar, tidak memblokir/mengganggu UI approver.
-            if (decision === 'approve' && result.data && result.data.status === 'approved' && window.printLetters) {
+            // SENGAJA DILEWATI kalau reviewedOnly (Direktur cuma meninjau
+            // pengajuan yang statusnya SUDAH 'approved' sejak tahap Manajer
+            // sebelumnya) - supaya email TIDAK terkirim DUA KALI.
+            if (decision === 'approve' && !result.reviewedOnly && result.data && result.data.status === 'approved' && window.printLetters) {
                 printLetters.sendSuratEmailIfApproved('izin', result.data);
             }
         } catch (error) {
