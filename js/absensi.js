@@ -877,14 +877,20 @@ const absensi = {
         `;
     }).join('');
 
-    // Konfigurasi jam per Jenis Jadwal (buat hitung status per sesi di atas)
-    // - dimuat SEKALI lalu di-cache, kalau belum ada cache-nya, muat dulu
-    // lalu render ULANG supaya label per sesi langsung muncul tanpa perlu
-    // ganti bulan/reload manual.
+    // Konfigurasi jam per Jenis Jadwal (buat hitung status per sesi di atas,
+    // dan buat badge "Hadir Terlambat" di renderHistoryStats) - dimuat
+    // SEKALI lalu di-cache, kalau belum ada cache-nya, muat dulu lalu
+    // render ULANG supaya label per sesi & badge-nya langsung muncul benar
+    // tanpa perlu ganti bulan/reload manual. PERBAIKAN: renderHistoryStats()
+    // ikut dipanggil ulang di sini juga (sebelumnya cuma renderHistory()) -
+    // tanpa ini, badge "Hadir Terlambat" kepakai nilai 0 yang sempat
+    // dihitung SEBELUM config ini selesai dimuat, dan tidak pernah
+    // dihitung ulang lagi walau tabelnya sendiri sudah benar.
     if (!this._shiftTypesConfigFullCache) {
         getShiftTypesConfigFull().then(config => {
             this._shiftTypesConfigFullCache = config;
             this.renderHistory(historyData);
+            this.renderHistoryStats(historyData);
         }).catch(() => { /* biarkan tampil tanpa label per sesi kalau gagal dimuat */ });
     }
 },
