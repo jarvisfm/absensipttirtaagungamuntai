@@ -721,11 +721,14 @@ const adminReports = {
             // merefleksikan status keseluruhan hari, pada praktiknya cuma
             // mencerminkan sesi Masuk). Di sini dihitung per KEJADIAN
             // (bukan per hari) - tiap sesi (Masuk/Istirahat/Kembali/Pulang)
-            // yang kena label terlambat lewat getSessionAttendanceLabel()
-            // (fungsi yang SAMA dipakai mewarnai tiap sel di tabel, lihat
-            // baris ~862) dihitung +1 sendiri-sendiri - jadi kalau dalam
-            // 1 hari ada 2 sesi yang telat sekaligus, badge ini bertambah
-            // +2 untuk hari itu, bukan +1.
+            // yang kena label PERSIS "Hadir Terlambat" lewat
+            // getSessionAttendanceLabel() (fungsi yang SAMA dipakai
+            // mewarnai tiap sel di tabel, lihat baris ~862) dihitung +1
+            // sendiri-sendiri. PENTING: sesi Masuk yang SANGAT telat
+            // (veryLate) teksnya "Terlambat" (bukan "Hadir Terlambat") -
+            // lihat session-status.js - jadi harus dicek lbl.text-nya
+            // PERSIS, bukan cuma flag lbl.late/lbl.veryLate (keduanya sama-
+            // sama true untuk kasus veryLate, padahal labelnya beda).
             let totalHadirTerlambat = 0;
             if (this.shiftTypesConfigFull) {
                 rows.forEach(r => {
@@ -734,7 +737,7 @@ const adminReports = {
                     ['clockIn','breakStart','breakEnd','clockOut'].forEach(field => {
                         if (!r[field]) return;
                         const lbl = getSessionAttendanceLabel(this.shiftTypesConfigFull, r.shift, r.date, field, r[field]);
-                        if (lbl && (lbl.late || lbl.veryLate)) totalHadirTerlambat++;
+                        if (lbl && lbl.text === 'Hadir Terlambat') totalHadirTerlambat++;
                     });
                 });
             }
@@ -1008,7 +1011,7 @@ const adminReports = {
                     ['clockIn','breakStart','breakEnd','clockOut'].forEach(field => {
                         if (!r[field]) return;
                         const lbl = getSessionAttendanceLabel(this.shiftTypesConfigFull, r.shift, r.date, field, r[field]);
-                        if (lbl && (lbl.late || lbl.veryLate)) totalHadirTerlambat++;
+                        if (lbl && lbl.text === 'Hadir Terlambat') totalHadirTerlambat++;
                     });
                 });
             }
