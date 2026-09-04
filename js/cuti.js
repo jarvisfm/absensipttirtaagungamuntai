@@ -586,9 +586,12 @@ const cuti = {
     _getDetailedStatusLabel(item, emp) {
         if (item.status === 'approved') {
             // Approver TERAKHIR yang sebenarnya menyelesaikan pengajuan ini -
-            // Cuti selalu berakhir di Direktur (termasuk jalur pintas
-            // pemohon-Manajer), urutan prioritas di bawah otomatis mengambil
-            // field yang benar-benar terisi paling akhir/senior.
+            // SEJAK PERUBAHAN 2026-09-02, Manajer sudah final untuk pemohon
+            // staff/asmen (Direktur cuma opsional meninjau, TIDAK mengisi
+            // directorName kalau belum ditinjau), Cuti pemohon-Manajer tetap
+            // berakhir di Direktur seperti biasa. Urutan prioritas di bawah
+            // otomatis mengambil field yang benar-benar terisi paling
+            // akhir/senior untuk kedua kasus itu.
             const nama = item.directorName || item.hrManagerName || item.managerName || item.asmenName || '';
             return nama ? `Disetujui oleh ${nama}` : this.getStatusLabel(item.status);
         }
@@ -1016,9 +1019,20 @@ const cuti = {
                 const pemohon = this._findEmployee(l.userId);
                 const pemohonRole = pemohon.role || 'staff';
                 if (pemohonRole === 'manajer') {
+                    // Pemohon Manajer: Direktur SATU-SATUNYA approver
+                    // representatif (tahap Manajer dilewati sama sekali) -
+                    // approve-nya di sini TETAP final seperti biasa.
                     return l.status === 'pending';
                 }
-                return l.status === 'manajer_approved';
+                // Staff & Asmen (bagian manapun, termasuk Asmen HR sendiri):
+                // keputusan FINAL sudah di tahap Manajer (Manajer sekarang
+                // mewakili Direktur, perubahan 2026-09-02 - lihat
+                // approveLeaveData di Leave.gs). Direktur di sini CUMA
+                // opsional meninjau (reviewedOnly=true, status TIDAK
+                // berubah) - begitu sudah pernah ditinjau
+                // (directorReviewedAt terisi), hilang dari daftar supaya
+                // tidak menumpuk terus di antrean.
+                return l.status === 'approved' && !l.directorReviewedAt;
             });
         }
 
@@ -1116,8 +1130,21 @@ const cuti = {
 
         // Direktur punya 2 pilihan keputusan: Setuju, atau Tunda (dengan
         // tanggal "Sampai dengan Tanggal ..."). Asmen/Manajer cuma Setuju/Tolak.
+        // KHUSUS Direktur DAN pengajuan yang statusnya SUDAH 'approved'
+        // (final di tahap Manajer, perubahan 2026-09-02): Direktur di sini
+        // CUMA meninjau (reviewedOnly), jadi Tolak/Tunda SENGAJA
+        // disembunyikan - menolak/menunda cuti yang kuotanya sudah terpotong
+        // & Riwayat Absensinya sudah ditandai izin bisa bikin data
+        // tidak konsisten. Cukup 1 tombol "Tandai Sudah Ditinjau".
         const isDirektur = role === 'direktur';
-        const actionButtons = isDirektur ? `
+        const isReviewOnly = isDirektur && item.status === 'approved';
+        const actionButtons = isReviewOnly ? `
+            <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px;">
+                <button class="btn-primary" onclick="cuti.submitApproval(${item.id}, '${role}', 'approve')">
+                    <i class="fas fa-check"></i> Tandai Sudah Ditinjau
+                </button>
+            </div>
+        ` : isDirektur ? `
             <div class="form-group" id="cuti-tunda-date-group" style="display:none;margin-top:10px;">
                 <label for="cuti-tunda-sampai">Sampai dengan Tanggal</label>
                 <input type="date" id="cuti-tunda-sampai">
@@ -1249,12 +1276,26 @@ const cuti = {
             this.renderApprovalHistory(role);
 
             const messages = { approve: 'Pengajuan cuti disetujui', reject: 'Pengajuan cuti ditolak', postpone: 'Pengajuan cuti ditunda' };
-            toast.success(messages[decision] || 'Berhasil diproses');
+            if (decision === 'approve' && result.reviewedOnly) {
+                // Direktur "approve" Cuti yang pemohonnya BUKAN Manajer - ini
+                // CUMA catatan peninjauan beliau, keputusan final SUDAH
+                // tuntas di tahap Manajer bagian terkait sebelumnya (email &
+                // efek samping/potong kuota sudah terjadi saat itu, TIDAK
+                // diulang lagi di sini) - perubahan 2026-09-02, Manajer jadi
+                // approver final untuk pemohon staff/asmen (lihat
+                // approveLeaveData di Leave.gs).
+                toast.success('Peninjauan Anda tercatat. Pengajuan ini sudah final disetujui oleh Manajer terkait.');
+            } else {
+                toast.success(messages[decision] || 'Berhasil diproses');
+            }
 
             // Sama seperti di izin.js: kalau ini approval TAHAP TERAKHIR
             // (status jadi 'approved' sepenuhnya), otomatis generate PDF
             // (persis tampilan "Cetak Surat") dan kirim ke email pemohon.
-            if (decision === 'approve' && result.data && result.data.status === 'approved' && window.printLetters) {
+            // SENGAJA DILEWATI kalau reviewedOnly (Direktur cuma meninjau
+            // pengajuan yang statusnya SUDAH 'approved' sejak tahap Manajer
+            // sebelumnya) - supaya email TIDAK terkirim DUA KALI.
+            if (decision === 'approve' && !result.reviewedOnly && result.data && result.data.status === 'approved' && window.printLetters) {
                 printLetters.sendSuratEmailIfApproved('cuti', result.data);
             }
         } catch (error) {
