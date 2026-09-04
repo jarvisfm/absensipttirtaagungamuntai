@@ -549,12 +549,17 @@ const absensi = {
         // merefleksikan status keseluruhan hari, pada praktiknya cuma
         // mencerminkan sesi Masuk). Di sini dihitung per KEJADIAN
         // (bukan per hari) - tiap sesi (Masuk/Istirahat/Kembali/Pulang)
-        // yang kena label terlambat lewat getSessionAttendanceLabel()
-        // (fungsi yang SAMA dipakai mewarnai tiap sel di tabel Riwayat,
-        // lihat sessionLabel() di renderHistory) dihitung +1 sendiri-
-        // sendiri - jadi kalau dalam 1 hari ada 2 sesi yang telat
-        // sekaligus (mis. Masuk DAN Kembali sama-sama telat), badge ini
-        // bertambah +2 untuk hari itu, bukan +1.
+        // yang kena label PERSIS "Hadir Terlambat" lewat
+        // getSessionAttendanceLabel() (fungsi yang SAMA dipakai mewarnai
+        // tiap sel di tabel Riwayat, lihat sessionLabel() di renderHistory)
+        // dihitung +1 sendiri-sendiri - jadi kalau dalam 1 hari ada 2 sesi
+        // yang telat sekaligus, badge ini bertambah +2 untuk hari itu,
+        // bukan +1. PENTING: sesi Masuk yang SANGAT telat (veryLate)
+        // teksnya "Terlambat" (bukan "Hadir Terlambat") - lihat
+        // session-status.js - jadi harus dicek lbl.text-nya PERSIS, bukan
+        // cuma flag lbl.late/lbl.veryLate (keduanya sama-sama true untuk
+        // kasus veryLate, padahal labelnya beda dan tidak boleh ikut
+        // kehitung sebagai "Hadir Terlambat").
         const shiftCfgForLate = this._shiftTypesConfigFullCache;
         let totalHadirTerlambat = 0;
         if (shiftCfgForLate) {
@@ -564,7 +569,7 @@ const absensi = {
                 ['clockIn', 'breakStart', 'breakEnd', 'clockOut'].forEach(field => {
                     if (!r[field]) return;
                     const lbl = getSessionAttendanceLabel(shiftCfgForLate, r.shift, r.date, field, r[field]);
-                    if (lbl && (lbl.late || lbl.veryLate)) totalHadirTerlambat++;
+                    if (lbl && lbl.text === 'Hadir Terlambat') totalHadirTerlambat++;
                 });
             });
         }
