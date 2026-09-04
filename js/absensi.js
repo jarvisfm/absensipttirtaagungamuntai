@@ -547,24 +547,27 @@ const absensi = {
 
         // "Hadir Terlambat" - beda dari "Terlambat" di atas (yang cuma
         // merefleksikan status keseluruhan hari, pada praktiknya cuma
-        // mencerminkan sesi Masuk). Di sini dihitung per SESI - hari
-        // dianggap "Hadir Terlambat" kalau SALAH SATU dari 4 sesi
-        // (Masuk/Istirahat/Kembali/Pulang) kena label terlambat lewat
-        // getSessionAttendanceLabel() yang SAMA dipakai buat mewarnai
-        // tiap sel di tabel Riwayat (lihat sessionLabel() di renderHistory)
-        // - jadi kalau cuma sesi Kembali yang telat sementara Masuk tepat
-        // waktu, hari itu tetap kehitung di sini walau "Terlambat" di atas
-        // tetap 0.
+        // mencerminkan sesi Masuk). Di sini dihitung per KEJADIAN
+        // (bukan per hari) - tiap sesi (Masuk/Istirahat/Kembali/Pulang)
+        // yang kena label terlambat lewat getSessionAttendanceLabel()
+        // (fungsi yang SAMA dipakai mewarnai tiap sel di tabel Riwayat,
+        // lihat sessionLabel() di renderHistory) dihitung +1 sendiri-
+        // sendiri - jadi kalau dalam 1 hari ada 2 sesi yang telat
+        // sekaligus (mis. Masuk DAN Kembali sama-sama telat), badge ini
+        // bertambah +2 untuk hari itu, bukan +1.
         const shiftCfgForLate = this._shiftTypesConfigFullCache;
-        const totalHadirTerlambat = shiftCfgForLate ? rows.filter(r => {
-            const statusLower = String(r.status || '').toLowerCase();
-            if (!['hadir', 'ontime', 'terlambat', 'late'].includes(statusLower)) return false;
-            return ['clockIn', 'breakStart', 'breakEnd', 'clockOut'].some(field => {
-                if (!r[field]) return false;
-                const lbl = getSessionAttendanceLabel(shiftCfgForLate, r.shift, r.date, field, r[field]);
-                return !!(lbl && (lbl.late || lbl.veryLate));
+        let totalHadirTerlambat = 0;
+        if (shiftCfgForLate) {
+            rows.forEach(r => {
+                const statusLower = String(r.status || '').toLowerCase();
+                if (!['hadir', 'ontime', 'terlambat', 'late'].includes(statusLower)) return;
+                ['clockIn', 'breakStart', 'breakEnd', 'clockOut'].forEach(field => {
+                    if (!r[field]) return;
+                    const lbl = getSessionAttendanceLabel(shiftCfgForLate, r.shift, r.date, field, r[field]);
+                    if (lbl && (lbl.late || lbl.veryLate)) totalHadirTerlambat++;
+                });
             });
-        }).length : 0;
+        }
 
         el.innerHTML = `
             <span style="background:#d1fae5;color:#065f46;padding:3px 10px;border-radius:20px;font-weight:500;">Hadir: ${totalHadir}</span>
