@@ -717,6 +717,25 @@ const adminReports = {
             const totalHadir = rows.filter(r => ['hadir','ontime','terlambat','late','izin','cuti'].includes(String(r.status||'').toLowerCase())).length;
             const totalHari = rows.length;
 
+            // "Hadir Terlambat" - beda dari "Terlambat" di atas (yang cuma
+            // merefleksikan status keseluruhan hari, pada praktiknya cuma
+            // mencerminkan sesi Masuk). Di sini dihitung per SESI - hari
+            // dianggap "Hadir Terlambat" kalau SALAH SATU dari 4 sesi
+            // (Masuk/Istirahat/Kembali/Pulang) kena label terlambat lewat
+            // getSessionAttendanceLabel() yang SAMA dipakai mewarnai tiap
+            // sel di tabel (lihat baris ~862) - jadi kalau cuma sesi
+            // Kembali yang telat sementara Masuk tepat waktu, hari itu
+            // tetap terhitung di sini walau "Terlambat" di atas tetap 0.
+            const totalHadirTerlambat = this.shiftTypesConfigFull ? rows.filter(r => {
+                const statusLower = String(r.status || '').toLowerCase();
+                if (!['hadir','ontime','terlambat','late'].includes(statusLower)) return false;
+                return ['clockIn','breakStart','breakEnd','clockOut'].some(field => {
+                    if (!r[field]) return false;
+                    const lbl = getSessionAttendanceLabel(this.shiftTypesConfigFull, r.shift, r.date, field, r[field]);
+                    return !!(lbl && (lbl.late || lbl.veryLate));
+                });
+            }).length : 0;
+
             // Baris pending izin semu digabung SETELAH statistik di atas
             // dihitung, supaya cuma memengaruhi tampilan tabel per-hari, bukan
             // badge Hadir/Terlambat/Total.
@@ -738,6 +757,7 @@ const adminReports = {
                             <div style="display:flex;gap:12px;font-size:0.8rem;">
                                 <span style="background:#d1fae5;color:#065f46;padding:3px 10px;border-radius:20px;font-weight:500;">Hadir: ${totalHadir}</span>
                                 <span style="background:#fef3c7;color:#92400e;padding:3px 10px;border-radius:20px;font-weight:500;">Terlambat: ${totalTerlambat}</span>
+                                <span style="background:#FFE4D6;color:#C2410C;padding:3px 10px;border-radius:20px;font-weight:500;">Hadir Terlambat: ${totalHadirTerlambat}</span>
                                 <span style="background:#e0e7ff;color:#3730a3;padding:3px 10px;border-radius:20px;font-weight:500;">Total: ${totalHari} hari</span>
                             </div>
                         </div>
@@ -975,6 +995,18 @@ const adminReports = {
             const totalHadir = rows.filter(r => ['hadir','ontime','terlambat','late','izin','cuti'].includes(String(r.status||'').toLowerCase())).length;
             const totalHari = rows.length;
 
+            // "Hadir Terlambat" per-sesi - lihat komentar lengkap di versi
+            // desktop (renderAttendanceReports) di atas, logikanya sama persis.
+            const totalHadirTerlambat = this.shiftTypesConfigFull ? rows.filter(r => {
+                const statusLower = String(r.status || '').toLowerCase();
+                if (!['hadir','ontime','terlambat','late'].includes(statusLower)) return false;
+                return ['clockIn','breakStart','breakEnd','clockOut'].some(field => {
+                    if (!r[field]) return false;
+                    const lbl = getSessionAttendanceLabel(this.shiftTypesConfigFull, r.shift, r.date, field, r[field]);
+                    return !!(lbl && (lbl.late || lbl.veryLate));
+                });
+            }).length : 0;
+
             const pendingIzinRowsM = this._buildPendingIzinRowsForEmployee(emp.id, month);
             rows = [...rows, ...pendingIzinRowsM];
             rows.sort((a, b) => String(b.date).localeCompare(String(a.date)));
@@ -991,6 +1023,7 @@ const adminReports = {
                     <div style="display:flex;gap:8px;font-size:0.75rem;margin-bottom:10px;flex-wrap:wrap;">
                         <span style="background:#d1fae5;color:#065f46;padding:3px 10px;border-radius:20px;font-weight:500;">Hadir: ${totalHadir}</span>
                         <span style="background:#fef3c7;color:#92400e;padding:3px 10px;border-radius:20px;font-weight:500;">Terlambat: ${totalTerlambat}</span>
+                        <span style="background:#FFE4D6;color:#C2410C;padding:3px 10px;border-radius:20px;font-weight:500;">Hadir Terlambat: ${totalHadirTerlambat}</span>
                         <span style="background:#e0e7ff;color:#3730a3;padding:3px 10px;border-radius:20px;font-weight:500;">Total: ${totalHari} hari</span>
                     </div>
             `;
