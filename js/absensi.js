@@ -1218,7 +1218,20 @@ const absensi = {
         }
 
         // Jika ada sesi istirahat, harus selesai dulu
-        if (this._hasBreak() && this.attendanceData.breakStart && !this.attendanceData.breakEnd) {
+        // BUGFIX (2026-09-07): sebelumnya dicek pakai this._hasBreak() yang
+        // cuma memastikan sesi breakStart ("Istirahat") ada di jadwal - TIDAK
+        // ikut memastikan sesi breakEnd ("Istirahat Masuk"/"Selesai
+        // Istirahat") juga ada. Kalau shift cuma didefinisikan sampai
+        // breakStart saja (breakEnd belum ditambahkan admin di Jadwal Shift -
+        // lihat laporan shift Operator - 24 Jam Pagi/Malam, awalnya cuma 3
+        // sesi: Masuk/Istirahat/Pulang), begitu breakStart terisi, guard ini
+        // tetap menuntut breakEnd terisi padahal TIDAK ADA tombol/sesi
+        // breakEnd sama sekali untuk mengisinya (lihat hasAfterBreak di
+        // updateButtonStates di bawah) - Pulang jadi terkunci permanen.
+        // Sekarang dicek dulu apakah sesi breakEnd memang ada di jadwal yang
+        // sedang berlaku sebelum menuntutnya harus terisi.
+        const hasBreakEndSession = this._getSessions().some(s => s.field === 'breakEnd');
+        if (hasBreakEndSession && this.attendanceData.breakStart && !this.attendanceData.breakEnd) {
             toast.warning('Selesaikan absen istirahat masuk terlebih dahulu');
             return;
         }
