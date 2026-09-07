@@ -774,6 +774,22 @@ const absensi = {
     const tbody = document.getElementById('attendance-history');
     if (!tbody) return;
 
+    // Judul kolom "Istirahat"/"Kembali" ikut label sesi breakStart/breakEnd
+    // dari shift AKTIF karyawan saat ini (this._getSessions()) - BUKAN per
+    // baris, karena satu tabel Riwayat ini bisa memuat banyak tanggal
+    // dengan Jenis Jadwal berbeda-beda (mis. karyawan pernah pindah shift).
+    // Kalau shift aktif tidak punya label khusus (atau belum termuat),
+    // jatuh balik ke teks bawaan "Istirahat"/"Kembali".
+    const historyTable = tbody.closest('table');
+    if (historyTable) {
+        const breakStartTh = historyTable.querySelector('thead th:nth-child(4)');
+        const breakEndTh = historyTable.querySelector('thead th:nth-child(5)');
+        const sesiBreakStart = this._getSessions().find(s => s.field === 'breakStart');
+        const sesiBreakEnd = this._getSessions().find(s => s.field === 'breakEnd');
+        if (breakStartTh) breakStartTh.textContent = (sesiBreakStart && sesiBreakStart.label) ? sesiBreakStart.label : 'Istirahat';
+        if (breakEndTh) breakEndTh.textContent = (sesiBreakEnd && sesiBreakEnd.label) ? sesiBreakEnd.label : 'Kembali';
+    }
+
     const shiftTypesConfigFull = this._shiftTypesConfigFullCache || null;
     const selectedMonth = document.getElementById('attendance-history-month')?.value || '';
     const selectedYear = selectedMonth.split('-')[0];
