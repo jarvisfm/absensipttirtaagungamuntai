@@ -1997,6 +1997,18 @@ const faceRecognition = {
         // meski karyawan sudah terlanjur melihat "Wajah Terverifikasi".
         const attendanceSnapshot = window.absensi ? { ...window.absensi.attendanceData } : {};
 
+        // [TAMBAHAN - analisis bug "sesi Masuk hilang karena app ditutup
+        // sebelum proses simpan selesai"] Lengkapi temp_attendance yang
+        // sudah disimpan di atas (storage.set('temp_attendance', ...))
+        // dengan snapshot ini SEKALIAN - supaya kalau proses simpan di
+        // latar belakang di bawah somehow tidak sempat selesai (app
+        // ditutup total oleh user persis di tengah proses), data yang
+        // tertinggal di localStorage ini cukup lengkap (termasuk field
+        // "date"-nya) untuk dikenali & diberitahukan ke user lain kali
+        // aplikasi dibuka lagi - lihat _notifyUnsavedAttendanceIfAny() di
+        // absensi.js.
+        storage.set('temp_attendance', { ...attendanceData, baseAttendanceData: attendanceSnapshot });
+
         router.navigate('absensi');
 
         // Wrap in async IIFE - proses simpan & laporan tambahan berjalan di
@@ -2135,3 +2147,27 @@ document.addEventListener('visibilitychange', () => {
 
 // Expose
 window.faceRecognition = faceRecognition;
+
+// [TAMBAHAN - analisis bug "sesi Masuk hilang karena app ditutup sebelum
+// proses simpan selesai"] Sejak perubahan 2026-08-31, begitu wajah
+// terverifikasi, app LANGSUNG pindah ke menu Absensi sementara proses
+// simpan absennya sendiri lanjut di LATAR BELAKANG (lihat catatan
+// lengkap di confirmAttendance() di atas) - window.absensi._pendingAction
+// bertanda TERISI selama proses latar belakang itu masih berjalan,
+// dikosongkan lagi begitu selesai (berhasil ataupun gagal). Kalau user
+// mencoba MENUTUP TAB/BROWSER (bukan cuma pindah halaman di dalam app)
+// SELAGI _pendingAction masih terisi, browser akan menampilkan konfirmasi
+// bawaan "Yakin ingin keluar?" - mencegah proses simpan yang belum
+// selesai ini ikut terputus begitu saja. CATATAN: ini cuma menjaga kasus
+// menutup TAB/browser di desktop - kalau aplikasi dipakai sebagai PWA
+// dan usernya langsung "swipe close"/force-close dari task switcher HP,
+// event ini tidak selalu sempat terpanggil (di luar kendali JS), makanya
+// _notifyUnsavedAttendanceIfAny() di absensi.js tetap dipasang sebagai
+// jaring pengaman kedua untuk kasus itu.
+window.addEventListener('beforeunload', (e) => {
+    if (window.absensi && window.absensi._pendingAction) {
+        e.preventDefault();
+        e.returnValue = 'Absen Anda masih diproses/disimpan. Yakin ingin menutup halaman ini?';
+        return e.returnValue;
+    }
+});
