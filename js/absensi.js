@@ -102,6 +102,25 @@ const absensi = {
         storage.remove('temp_attendance');
     },
 
+    // [TAMBAHAN] Tampilkan/sembunyikan banner "sedang menyimpan absen,
+    // jangan tutup aplikasi" (elemen #pending-save-info di index.html)
+    // sesuai window.absensi._pendingAction - terisi selagi proses simpan
+    // absen ke server (setelah verifikasi wajah) masih berjalan di latar
+    // belakang (lihat face-recognition.js confirmAttendance()). Dipanggil
+    // di init() di bawah supaya banner ini langsung kelihatan begitu
+    // halaman Absensi dibuka (kalau memang masih ada proses simpan yang
+    // berjalan) - dan otomatis hilang lagi begitu proses itu selesai,
+    // karena confirmAttendance() memicu absensi.init() SEKALI LAGI setelah
+    // _pendingAction dikosongkan (lihat catatan reorder di sana - PENTING:
+    // urutannya SENGAJA dibalik supaya _pendingAction sudah kosong DULU
+    // sebelum navigate kedua itu jalan, kalau tidak banner ini malah
+    // nyangkut terus muncul walau absennya sudah beres tersimpan).
+    _updatePendingSaveBanner() {
+        const banner = document.getElementById('pending-save-info');
+        if (!banner) return;
+        banner.style.display = this._pendingAction ? 'flex' : 'none';
+    },
+
     async init() {
     // BUGFIX (2026-08-31, lanjutan): tangkap this._renderGen SAAT init()
     // ini mulai - lihat penjelasan lengkap di pengecekan myRenderGen di
@@ -123,6 +142,12 @@ const absensi = {
     // [TAMBAHAN] Lihat catatan lengkap di _notifyUnsavedAttendanceIfAny()
     // di atas - fire-and-forget, tidak perlu ditunggu.
     this._notifyUnsavedAttendanceIfAny();
+
+    // [TAMBAHAN] Lihat catatan lengkap di _updatePendingSaveBanner() di
+    // bawah - dipanggil paling awal supaya banner-nya langsung tampil
+    // begitu halaman dibuka, tanpa perlu menunggu data absen selesai
+    // dimuat dulu.
+    this._updatePendingSaveBanner();
 
     const comingSoonEl = document.getElementById('absensi-coming-soon');
     const realContentEl = document.getElementById('absensi-real-content');
