@@ -560,6 +560,16 @@
                             Tidak ada jadwal absen hari ini.
                         </div>
 
+                        <!-- [TAMBAHAN] Banner "sedang menyimpan absen, jangan tutup aplikasi" -
+                             muncul selagi window.absensi._pendingAction masih terisi (proses
+                             simpan absen ke server masih berjalan di latar belakang setelah
+                             verifikasi wajah berhasil). Ditoggle oleh
+                             absensi._updatePendingSaveBanner() di js/absensi.js. -->
+                        <div id="pending-save-info" style="display:none;background:#FFFBEB;border:1px solid #FDE68A;color:#92400E;border-radius:10px;padding:12px 16px;margin-bottom:1rem;font-size:0.85rem;align-items:center;gap:10px;">
+                            <i class="fas fa-spinner fa-spin"></i>
+                            <span>Absen Anda sedang disimpan ke server. <strong>Jangan tutup aplikasi/tab ini dulu</strong> sampai muncul notifikasi berhasil.</span>
+                        </div>
+
                         <div class="absensi-grid">
                             <div class="attendance-main-card">
                                 <div class="attendance-status" id="attendance-status">
