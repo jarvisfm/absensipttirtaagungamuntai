@@ -1514,13 +1514,25 @@ img {
     }
 }
 
-/* Tombol "refresh halaman" - persis di sebelah kiri tombol "kembali ke
-   atas" (lihat #back-to-top-btn di atas), tapi SELALU tampil (tidak nunggu
-   scroll) supaya user bisa refresh kapan saja tanpa swipe-to-refresh atau
-   tombol refresh browser. Lihat initRefreshPageButton() di main.js. */
+/* Tombol "refresh halaman" - SELALU tampil (tidak nunggu scroll) supaya
+   user bisa refresh kapan saja tanpa swipe-to-refresh atau tombol refresh
+   browser. Lihat initRefreshPageButton() di main.js.
+
+   [TAMBAHAN] Posisi tombol ini sekarang DINAMIS mengikuti tombol "kembali
+   ke atas" (#back-to-top-btn) - lihat toggleVisibility() di
+   initBackToTopButton() (main.js), yang menambah/menghapus class
+   "shifted" di sini persis bersamaan dengan class "show" di
+   #back-to-top-btn:
+     - #back-to-top-btn TIDAK tampil (belum scroll) -> refresh SENDIRIAN,
+       jadi menempati posisi paling kanan (posisi default di bawah, sama
+       seperti posisi #back-to-top-btn).
+     - #back-to-top-btn TAMPIL (sudah scroll) -> class "shifted"
+       ditambahkan, refresh digeser ke kiri supaya tidak tumpang tindih
+       dengan #back-to-top-btn yang sekarang muncul di posisi paling
+       kanan itu. */
 #refresh-page-btn {
     position: fixed;
-    right: 72px;
+    right: 20px;
     bottom: 20px;
     width: 44px;
     height: 44px;
@@ -1535,7 +1547,11 @@ img {
     cursor: pointer;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
     z-index: 150;
-    transition: transform 0.2s ease, filter 0.2s ease;
+    transition: right 0.2s ease, transform 0.2s ease, filter 0.2s ease;
+}
+
+#refresh-page-btn.shifted {
+    right: 72px;
 }
 
 #refresh-page-btn:hover {
@@ -1556,7 +1572,11 @@ img {
 
 @media (max-width: 768px) {
     #refresh-page-btn {
-        right: 68px;
+        right: 16px;
         bottom: calc(16px + var(--bottom-nav-height, 60px));
+    }
+
+    #refresh-page-btn.shifted {
+        right: 68px;
     }
 }
