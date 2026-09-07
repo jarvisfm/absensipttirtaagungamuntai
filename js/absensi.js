@@ -55,6 +55,53 @@ const absensi = {
     // urutannya tetap konsisten dilacak lintas panggilan init().
     _renderGen: 0,
 
+    // [TAMBAHAN - analisis bug "sesi Masuk hilang karena app ditutup
+    // sebelum proses simpan selesai"] Dipanggil dari init() di bawah,
+    // tiap kali halaman Absensi dibuka. Cek localStorage: kalau
+    // 'temp_attendance' MASIH ADA, itu tandanya proses simpan absen
+    // sebelumnya TIDAK PERNAH sampai selesai (kalau berhasil, key ini
+    // otomatis dihapus - lihat storage.remove('temp_attendance') di
+    // processWithVerification() di bawah) - kemungkinan besar karena app
+    // ditutup TOTAL persis di tengah proses simpan latar belakang (lihat
+    // catatan lengkap di face-recognition.js confirmAttendance()).
+    //
+    // SENGAJA TIDAK auto-kirim ulang diam-diam di sini: jam yang tercatat
+    // sebagai clockIn/dst diambil dari jam SERVER SAAT PROSES SIMPAN
+    // BERJALAN (bukan saat wajah difoto, lihat processWithVerification())
+    // - kalau data lama ini dikirim ulang begitu saja belakangan, jam
+    // yang tercatat jadi jam SAAT RESUME INI, bukan jam sebenarnya
+    // karyawan absen tadi - bisa keliru tercatat "terlambat". Makanya di
+    // sini cuma MEMBERITAHU karyawan lewat toast supaya sadar & bisa
+    // absen ulang sendiri (kalau masih hari yang sama, tombolnya memang
+    // otomatis masih aktif karena sesi itu belum tercatat) atau lapor
+    // Admin untuk koreksi manual (kalau sudah beda hari - tidak bisa
+    // diperbaiki lewat absen ulang biasa karena hari itu sudah lewat).
+    _notifyUnsavedAttendanceIfAny() {
+        const leftover = storage.get('temp_attendance');
+        if (!leftover || !leftover.action) return;
+
+        const snapshot = leftover.baseAttendanceData || {};
+        const todayStr = (typeof dateTime !== 'undefined' && dateTime.getLocalDate)
+            ? dateTime.getLocalDate()
+            : new Date().toISOString().split('T')[0];
+        const actionLabel = {
+            'clock-in': 'Masuk', 'break': 'Istirahat',
+            'after-break': 'Selesai Istirahat', 'clock-out': 'Pulang'
+        }[leftover.action] || leftover.action;
+
+        console.warn('Ditemukan sesi absen yang sempat gagal tersimpan (aplikasi tertutup di tengah proses):', leftover);
+
+        if (snapshot.date === todayStr) {
+            toast.warning(`Sesi absen "${actionLabel}" tadi sempat GAGAL tersimpan karena aplikasi tertutup sebelum proses selesai. Silakan cek status absen Anda - kalau belum tercatat, absen ulang sekarang.`);
+        } else {
+            toast.error(`Sesi absen "${actionLabel}" tanggal ${snapshot.date || '-'} sempat GAGAL tersimpan (aplikasi tertutup sebelum proses selesai) dan tidak bisa diajukan ulang otomatis karena bukan hari ini. Mohon hubungi Admin untuk koreksi manual.`);
+        }
+
+        // Sudah diberitahukan - hapus supaya tidak terus-menerus muncul
+        // tiap kali halaman Absensi dibuka ulang.
+        storage.remove('temp_attendance');
+    },
+
     async init() {
     // BUGFIX (2026-08-31, lanjutan): tangkap this._renderGen SAAT init()
     // ini mulai - lihat penjelasan lengkap di pengecekan myRenderGen di
@@ -72,6 +119,10 @@ const absensi = {
     // saja diputuskan Admin sejak terakhir login (fire-and-forget, tidak
     // perlu ditunggu, bukan bagian kritikal dari render halaman ini).
     this.refreshSuratTugasBadge();
+
+    // [TAMBAHAN] Lihat catatan lengkap di _notifyUnsavedAttendanceIfAny()
+    // di atas - fire-and-forget, tidak perlu ditunggu.
+    this._notifyUnsavedAttendanceIfAny();
 
     const comingSoonEl = document.getElementById('absensi-coming-soon');
     const realContentEl = document.getElementById('absensi-real-content');
