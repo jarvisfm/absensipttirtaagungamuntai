@@ -2122,7 +2122,23 @@ const faceRecognition = {
                 // cuma di jalur sukses) supaya kalau gagal/error pun,
                 // tombol absen tidak ikut terkunci selamanya gara-gara
                 // guard ini.
-                if (window.absensi) window.absensi._pendingAction = null;
+                if (window.absensi) {
+                    window.absensi._pendingAction = null;
+
+                    // [TAMBAHAN] Langsung refresh banner "jangan tutup
+                    // aplikasi, sedang menyimpan" di sini juga (bukan cuma
+                    // mengandalkan efek samping router.navigate('absensi')
+                    // di atas yang memicu absensi.init() ulang) - supaya
+                    // banner itu PASTI ikut hilang di KEDUA jalur: jalur
+                    // sukses (navigate di atas tetap jalan seperti biasa)
+                    // MAUPUN jalur error/catch (yang TIDAK memanggil
+                    // navigate lagi, jadi tanpa baris ini banner bisa
+                    // nyangkut terus sampai user pindah halaman lalu balik
+                    // lagi secara manual).
+                    if (typeof window.absensi._updatePendingSaveBanner === 'function') {
+                        window.absensi._updatePendingSaveBanner();
+                    }
+                }
             }
         })();
     },
