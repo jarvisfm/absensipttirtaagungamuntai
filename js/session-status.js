@@ -79,6 +79,38 @@ function _groupForShiftRaw(configAll, shiftRaw, dateStr) {
             }
         }
     }
+
+    // 3) Jenis Jadwal rosterCheck TANPA shiftOptions eksplisit tapi punya
+    // LEBIH DARI SATU dayGroups (mis. "Operator - 24 Jam" dengan grup
+    // "Pagi"/"Malam") - kolom shift-nya juga tercatat "<key> - <Label
+    // Grup>" (SAMA seperti kasus #2 di atas), TAPI konfigurasi shiftOptions
+    // untuk grup-grup ini TIDAK PERNAH disimpan ke setting
+    // 'shift_types_config' - ia cuma disintesis on-the-fly di backend lewat
+    // _getEffectiveRosterShiftOptions() (lihat Attendance.gs) tiap kali
+    // checkAttendanceAccess() dipanggil. Tanpa langkah ini, shift jenis ini
+    // tidak pernah ketemu groupnya di sini, sehingga getSessionAttendanceLabel()
+    // selalu return null dan label Hadir/Hadir Terlambat/Terlambat per sesi
+    // tidak pernah muncul untuk shift ini di Riwayat maupun Rekap. Sintesis
+    // di bawah SENGAJA dibuat identik (nama key "grp0"/"grp1"/dst, label
+    // dari g.label, fallback "Sesi N") dengan _getEffectiveRosterShiftOptions
+    // supaya kedua sisi selalu sepakat.
+    for (const key of Object.keys(configAll)) {
+        const cfg = configAll[key];
+        if (cfg.shiftOptions) continue; // sudah ditangani di langkah #2
+        const groups = cfg.dayGroups || [];
+        if (groups.length <= 1) continue;
+        for (let idx = 0; idx < groups.length; idx++) {
+            const label = groups[idx].label || `Sesi ${idx + 1}`;
+            if (raw === `${key} - ${label}`) {
+                return {
+                    batasLambat: groups[idx].batasLambat,
+                    toleransi: groups[idx].toleransi,
+                    sessions: groups[idx].sessions || []
+                };
+            }
+        }
+    }
+
     return null;
 }
 
