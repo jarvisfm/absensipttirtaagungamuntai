@@ -153,7 +153,7 @@
                             </a>
                         </li>
                         <li class="nav-item" data-external="true">
-                            <a id="nav-permintaan-barang" href="https://script.google.com/macros/s/AKfycbxQLNqvmx0i-2x0iEFj0acsXAAdKyACA7crw9U63O_0YoTuY3tLgctmUD3X3s-72vBFRA/exec" target="_blank" rel="noopener" class="nav-link">
+                            <a id="nav-permintaan-barang" href="https://script.google.com/macros/s/AKfycbweQRH11wQBW7warQXeFUQWnecdwvllaKrNcqGyoE4M7N-GAvnPr6yIvp4hghdkpQogog/exec" target="_blank" rel="noopener" class="nav-link">
                                 <i class="fas fa-box-open"></i>
                                 <span>Permintaan Barang</span>
                                 <i class="fas fa-external-link-alt" style="margin-left:auto;font-size:0.7rem;opacity:0.6;"></i>
@@ -869,7 +869,7 @@
                             </div>
                             <div style="display:flex;gap:8px;margin-top:1.25rem;">
                                 <button type="button" onclick="document.getElementById('modal-surat-tugas').style.display='none'" style="flex:1;background:none;border:1px solid var(--border-color);color:var(--text-muted);padding:10px;border-radius:8px;cursor:pointer;">Batal</button>
-                                <button type="button" id="st-btn-simpan" onclick="suratTugas.submit()" style="flex:1;background:var(--color-primary);color:#fff;border:none;padding:10px;border-radius:8px;cursor:pointer;font-weight:600;">Simpan</button>
+                                <button type="button" onclick="suratTugas.submit()" style="flex:1;background:var(--color-primary);color:#fff;border:none;padding:10px;border-radius:8px;cursor:pointer;font-weight:600;">Simpan</button>
                             </div>
                         </div>
                     </div>
@@ -2935,27 +2935,6 @@
             </button>
         </div>
         <div id="approval-progress-content" class="modal-form"></div>
-    </div>
-</div>
-
-<!-- [TAMBAHAN] Modal danger: cegah pengajuan "Permohonan Izin Harian"
-     (izin_harian) kalau user sudah absen Masuk hari ini. Dipanggil dari
-     izin.js > _showIzinHarianBlockedModal(). Elemen baru, tidak
-     mengubah/menyentuh modal lain yang sudah ada. -->
-<div class="modal-overlay" id="modal-izin-harian-blocked" style="display:none;">
-    <div class="modal-container" style="max-width:400px;width:92%;">
-        <div style="padding:1.75rem 1.5rem 1.5rem;text-align:center;">
-            <div style="width:56px;height:56px;border-radius:50%;background:#FEE2E2;color:#DC2626;display:flex;align-items:center;justify-content:center;margin:0 auto 1rem;font-size:1.4rem;">
-                <i class="fas fa-triangle-exclamation"></i>
-            </div>
-            <h3 style="margin-bottom:0.5rem;font-size:1.05rem;">Tidak Bisa Mengajukan Izin Harian</h3>
-            <p style="color:var(--text-muted);font-size:0.85rem;margin-bottom:1.5rem;line-height:1.5;">
-                Anda sudah tercatat Absen Masuk hari ini, jadi tidak bisa mengajukan Permohonan Izin Harian. Silakan pilih Jenis Izin lain (Sakit/Izin Keluar Kantor) jika diperlukan.
-            </p>
-            <button type="button" onclick="document.getElementById('modal-izin-harian-blocked').style.display='none'" style="width:100%;background:#DC2626;color:#fff;border:none;padding:10px;border-radius:8px;cursor:pointer;font-weight:600;">
-                Mengerti
-            </button>
-        </div>
     </div>
 </div>
                 
