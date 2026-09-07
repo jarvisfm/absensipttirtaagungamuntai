@@ -1513,3 +1513,50 @@ img {
         bottom: calc(16px + var(--bottom-nav-height, 60px));
     }
 }
+
+/* Tombol "refresh halaman" - persis di sebelah kiri tombol "kembali ke
+   atas" (lihat #back-to-top-btn di atas), tapi SELALU tampil (tidak nunggu
+   scroll) supaya user bisa refresh kapan saja tanpa swipe-to-refresh atau
+   tombol refresh browser. Lihat initRefreshPageButton() di main.js. */
+#refresh-page-btn {
+    position: fixed;
+    right: 72px;
+    bottom: 20px;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    border: none;
+    background: var(--color-primary-gradient);
+    color: #fff;
+    font-size: 1.1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    z-index: 150;
+    transition: transform 0.2s ease, filter 0.2s ease;
+}
+
+#refresh-page-btn:hover {
+    filter: brightness(1.05);
+}
+
+/* Sedikit animasi putar saat diklik supaya user dapat feedback jelas
+   proses refresh sedang berjalan (lihat toggle class "spinning" di
+   main.js) */
+#refresh-page-btn.spinning i {
+    animation: refresh-btn-spin 0.6s linear;
+}
+
+@keyframes refresh-btn-spin {
+    from { transform: rotate(0deg); }
+    to   { transform: rotate(360deg); }
+}
+
+@media (max-width: 768px) {
+    #refresh-page-btn {
+        right: 68px;
+        bottom: calc(16px + var(--bottom-nav-height, 60px));
+    }
+}
