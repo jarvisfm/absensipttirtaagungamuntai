@@ -533,6 +533,10 @@ function initBackToTopButton() {
     const container = document.getElementById('page-content');
     if (!btn) return;
 
+    // [TAMBAHAN] Dipakai di toggleVisibility() di bawah - lihat catatan
+    // lengkap di CSS #refresh-page-btn.shifted (main.css).
+    const refreshBtn = document.getElementById('refresh-page-btn');
+
     const SHOW_AFTER_PX = 300;
 
     // Struktur CSS app ini pakai min-height (bukan height tetap) di
@@ -547,7 +551,13 @@ function initBackToTopButton() {
         container ? container.scrollTop : 0
     );
     const toggleVisibility = () => {
-        btn.classList.toggle('show', getScrollTop() > SHOW_AFTER_PX);
+        const scrolled = getScrollTop() > SHOW_AFTER_PX;
+        btn.classList.toggle('show', scrolled);
+        // [TAMBAHAN] Geser tombol refresh supaya menempati posisi tombol
+        // "kembali ke atas" selagi tombol itu tidak tampil, dan geser lagi
+        // ke samping begitu tombol "kembali ke atas" muncul - lihat
+        // catatan lengkap di CSS #refresh-page-btn.shifted (main.css).
+        if (refreshBtn) refreshBtn.classList.toggle('shifted', scrolled);
     };
 
     window.addEventListener('scroll', toggleVisibility, { passive: true });
