@@ -1577,6 +1577,11 @@ const absensi = {
 
         const btnIn = document.getElementById('btn-clock-in');
         if (btnIn) {
+            // Judul tombol ikut nama sesi yang diatur Admin di Jadwal Shift
+            // (mis. "Masuk"), bukan teks tetap - supaya konsisten dengan
+            // nama yang admin pilih sendiri di halaman Jadwal Shift.
+            const inLabelEl = btnIn.querySelector('.btn-label');
+            if (inLabelEl && sesiMasuk && sesiMasuk.label) inLabelEl.textContent = sesiMasuk.label;
             btnIn.disabled = !!d.clockIn || isLibur || masukBelumBuka;
             const el = document.getElementById('clock-in-time');
             if (d.clockIn) {
@@ -1610,6 +1615,11 @@ const absensi = {
 
             if (breakSection) breakSection.style.display = '';
             if (btnBreak) {
+                // Judul tombol ikut nama sesi breakStart yang diatur Admin
+                // di Jadwal Shift (mis. "Absen Malam"), bukan teks tetap
+                // "Istirahat" - lihat catatan yang sama di btnIn di atas.
+                const breakLabelEl = btnBreak.querySelector('.btn-label');
+                if (breakLabelEl && sesiIstirahat && sesiIstirahat.label) breakLabelEl.textContent = sesiIstirahat.label;
                 btnBreak.style.display = '';
                 btnBreak.disabled = !d.clockIn || !!d.breakStart || !!d.clockOut || istirahatBelumBuka;
                 const el = document.getElementById('break-time');
@@ -1636,6 +1646,11 @@ const absensi = {
                 const hasAfterBreak = this._getSessions().some(s => s.field === 'breakEnd') || isExcused;
                 btnAfterBreak.style.display = hasAfterBreak ? '' : 'none';
                 if (hasAfterBreak) {
+                    // Judul tombol ikut nama sesi breakEnd yang diatur Admin
+                    // di Jadwal Shift (mis. "Absen malam 2"), bukan teks
+                    // tetap "Selesai Istirahat".
+                    const afterBreakLabelEl = btnAfterBreak.querySelector('.btn-label');
+                    if (afterBreakLabelEl && sesiSetelahIstirahat && sesiSetelahIstirahat.label) afterBreakLabelEl.textContent = sesiSetelahIstirahat.label;
                     btnAfterBreak.disabled = !d.breakStart || !!d.breakEnd || !!d.clockOut || setelahIstirahatBelumBuka;
                     const elAfter = document.getElementById('after-break-time');
                     if (d.breakEnd) {
@@ -1655,6 +1670,10 @@ const absensi = {
 
         const btnOut = document.getElementById('btn-clock-out');
         if (btnOut) {
+            // Judul tombol ikut nama sesi clockOut yang diatur Admin di
+            // Jadwal Shift (mis. "Pulang"), bukan teks tetap.
+            const outLabelEl = btnOut.querySelector('.btn-label');
+            if (outLabelEl && sesiPulang && sesiPulang.label) outLabelEl.textContent = sesiPulang.label;
             btnOut.disabled = !d.clockIn || !!d.clockOut || pulangBelumBuka;
             const el = document.getElementById('clock-out-time');
             if (d.clockOut) {
@@ -1688,11 +1707,28 @@ const absensi = {
         const timeline = document.getElementById('attendance-timeline');
         if (!timeline) return;
 
+        // Peta type timeline -> field sesi, dipakai supaya judul tiap item
+        // timeline ikut nama sesi yang diatur Admin di Jadwal Shift (mis.
+        // "Absen Malam"), bukan teks tetap "Istirahat"/"Selesai Istirahat" -
+        // sama seperti label tombol di updateUI().
+        const timelineFieldByType = {
+            'clock-in':    'clockIn',
+            'break':       'breakStart',
+            'after-break': 'breakEnd',
+            'clock-out':   'clockOut',
+        };
+
         timeline.querySelectorAll('.timeline-item').forEach(item => {
             const type   = item.dataset.type;
             const timeEl = item.querySelector('.timeline-time');
             item.className = 'timeline-item pending';
             const d = this.attendanceData;
+
+            const titleEl = item.querySelector('.timeline-title');
+            if (titleEl) {
+                const sesiForType = this._getSessions().find(s => s.field === timelineFieldByType[type]);
+                if (sesiForType && sesiForType.label) titleEl.textContent = sesiForType.label;
+            }
 
             const map = {
                 'clock-in':    d.clockIn,
