@@ -311,6 +311,38 @@ const izin = {
         }
     },
 
+    // [TAMBAHAN] Cek apakah user SUDAH melakukan absen Masuk hari ini -
+    // dipakai untuk mencegah pengajuan "Permohonan Izin Harian" (izin_harian)
+    // kalau user sudah hadir/absen masuk hari ini (lihat _showIzinHarianBlockedModal
+    // & guard di submitIzinForm di bawah). SENGAJA TIDAK memakai
+    // window.absensi.currentState, karena state itu cuma keisi kalau user
+    // sempat membuka halaman Absensi lebih dulu di sesi ini - di sini kita
+    // query langsung ke api.getTodayAttendance() (sumber data yang sama
+    // dipakai absensi.js) supaya akurat dari halaman manapun/urutan buka
+    // halaman apapun.
+    async _cekSudahAbsenMasukHariIni() {
+        try {
+            const currentUser = auth.getCurrentUser();
+            const effectiveId = currentUser?.employeeId || currentUser?.id;
+            if (!effectiveId) return false;
+            const result = await api.getTodayAttendance(effectiveId);
+            const today = result?.data || {};
+            return !!today.clockIn;
+        } catch (e) {
+            console.error('Gagal cek status absen hari ini:', e);
+            // Gagal cek (mis. offline) - jangan sampai memblokir pengajuan
+            // izin cuma karena error jaringan, anggap belum absen.
+            return false;
+        }
+    },
+
+    // [TAMBAHAN] Tampilkan modal danger "tidak bisa mengajukan Izin Harian
+    // karena sudah absen masuk hari ini".
+    _showIzinHarianBlockedModal() {
+        const modal = document.getElementById('modal-izin-harian-blocked');
+        if (modal) modal.style.display = 'flex';
+    },
+
     initForm() {
         // Guard: cegah listener dobel kalau initForm() terpanggil ulang
         // (terjadi setiap kali router membuka halaman Izin lagi)
@@ -338,6 +370,24 @@ const izin = {
             // masih ikut mode restricted Izin Harian sampai user iseng
             // ganti-ganti dropdown dulu.
             this.toggleKeluarKantorFields(typeSelect.value);
+        }
+
+        // [TAMBAHAN] Listener TERPISAH (bukan mengubah listener 'change'
+        // yang sudah ada di atas) - peringatan dini begitu user memilih
+        // "Permohonan Izin Harian" padahal sudah absen masuk hari ini:
+        // langsung tampilkan modal danger & kembalikan dropdown ke kosong,
+        // supaya user tidak lanjut mengisi form yang toh nanti ditolak
+        // saat submit (lihat guard yang sama di submitIzinForm()).
+        if (typeSelect) {
+            typeSelect.addEventListener('change', async (e) => {
+                if (e.target.value !== 'izin_harian') return;
+                const sudahAbsen = await this._cekSudahAbsenMasukHariIni();
+                if (sudahAbsen) {
+                    this._showIzinHarianBlockedModal();
+                    e.target.value = '';
+                    this.toggleKeluarKantorFields('');
+                }
+            });
         }
 
         document.querySelectorAll('input[name="izin-jam-masuk-mode"]').forEach(radio => {
@@ -553,6 +603,17 @@ const izin = {
             : ((jamMasukHV && jamMasukMV) ? `${jamMasukHV}:${jamMasukMV}` : '');
         const dateStart      = document.getElementById('izin-date-start')?.value;
         const dateEnd        = document.getElementById('izin-date-end')?.value;
+
+        // [TAMBAHAN] Jaga-jaga lapis kedua (selain peringatan dini saat
+        // dropdown Jenis Izin diganti, lihat listener di initForm()) -
+        // kalau-kalau user sempat absen masuk SETELAH form izin_harian
+        // ini dibuka/dipilih, submit tetap ditolak di sini supaya tidak
+        // ada Permohonan Izin Harian yang lolos padahal user sudah hadir
+        // hari ini.
+        if (type === 'izin_harian' && await this._cekSudahAbsenMasukHariIni()) {
+            this._showIzinHarianBlockedModal();
+            return;
+        }
 
         if (!type || !reason) {
             toast.error('Harap isi semua field yang wajib diisi!');
