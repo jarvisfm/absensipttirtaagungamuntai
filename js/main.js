@@ -561,6 +561,22 @@ function initBackToTopButton() {
 }
 document.addEventListener('DOMContentLoaded', initBackToTopButton);
 
+// Tombol "refresh halaman" - alternatif buat swipe-to-refresh/refresh
+// browser. Router (lihat router.js) sudah menyimpan halaman aktif ke
+// storage ('currentPage') dan membacanya balik saat load, jadi reload
+// biasa otomatis kembali ke halaman yang sama, bukan balik ke Dashboard.
+function initRefreshPageButton() {
+    const btn = document.getElementById('refresh-page-btn');
+    if (!btn) return;
+
+    btn.addEventListener('click', () => {
+        btn.disabled = true;
+        btn.classList.add('spinning');
+        window.location.reload();
+    });
+}
+document.addEventListener('DOMContentLoaded', initRefreshPageButton);
+
 // Siapkan Firebase Cloud Messaging (kalau firebaseConfig di
 // push-notifications.js sudah diisi - kalau belum, init() diam saja/tidak
 // melakukan apa-apa). Ini CUMA menyiapkan listener pesan masuk; MEMINTA IZIN
