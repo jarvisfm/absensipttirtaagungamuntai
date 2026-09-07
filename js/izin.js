@@ -340,7 +340,17 @@ const izin = {
     // karena sudah absen masuk hari ini".
     _showIzinHarianBlockedModal() {
         const modal = document.getElementById('modal-izin-harian-blocked');
-        if (modal) modal.style.display = 'flex';
+        if (modal) {
+            modal.style.display = 'flex';
+        } else {
+            // Fallback: kalau markup modal ini (di index.html) belum ter-deploy
+            // di halaman yang sedang jalan, jangan sampai user cuma diam-diam
+            // ke-reset dropdown-nya tanpa penjelasan sama sekali - tetap kasih
+            // tahu alasannya lewat toast (mekanisme notifikasi yang sudah pasti
+            // ada, dipakai di semua bagian form ini).
+            console.error('Modal #modal-izin-harian-blocked tidak ditemukan di halaman - pastikan index.html sudah versi terbaru.');
+            toast.error('Tidak bisa mengajukan Permohonan Izin Harian karena Anda sudah Absen Masuk hari ini.');
+        }
     },
 
     initForm() {
