@@ -52,6 +52,22 @@ const izin = {
         // (status 'approved', dijumlah dari `duration`, per tahun berjalan)
         // dengan izinHarianQuota di admin-reports.js supaya konsisten.
         this._checkIzinHarianQuota();
+
+        // [TAMBAHAN] Prefetch status "sudah Absen Masuk hari ini?" SEKALI
+        // saat halaman dibuka (disimpan di this._sudahAbsenMasukCache),
+        // supaya nanti saat dropdown Jenis Izin diganti ke "Permohonan Izin
+        // Harian" (lihat listener di initForm()) jawabannya sudah tersedia
+        // instan tanpa perlu nunggu round-trip ke server lagi (Apps Script
+        // kadang butuh 1-3 detik) - itu yang bikin modal danger-nya terasa
+        // delay. Sengaja TIDAK di-await di sini (fire-and-forget) supaya
+        // tidak menahan proses init() lain menunggu network call ini
+        // selesai duluan.
+        this._prefetchSudahAbsenMasukHariIni();
+    },
+
+    // [TAMBAHAN] Lihat catatan di pemanggilnya (init()) di atas.
+    async _prefetchSudahAbsenMasukHariIni() {
+        this._sudahAbsenMasukCache = await this._cekSudahAbsenMasukHariIni();
     },
 
     // Lihat catatan di pemanggilnya (init()) - toast info saja, tidak
@@ -391,7 +407,14 @@ const izin = {
         if (typeSelect) {
             typeSelect.addEventListener('change', async (e) => {
                 if (e.target.value !== 'izin_harian') return;
-                const sudahAbsen = await this._cekSudahAbsenMasukHariIni();
+                // Pakai cache dari prefetch di init() kalau sudah tersedia
+                // (instan, tanpa delay) - fallback ke network call cuma
+                // kalau prefetch-nya somehow belum sempat selesai (mis.
+                // dropdown diganti sepersekian detik setelah halaman
+                // dibuka).
+                const sudahAbsen = (this._sudahAbsenMasukCache !== undefined)
+                    ? this._sudahAbsenMasukCache
+                    : await this._cekSudahAbsenMasukHariIni();
                 if (sudahAbsen) {
                     this._showIzinHarianBlockedModal();
                     e.target.value = '';
