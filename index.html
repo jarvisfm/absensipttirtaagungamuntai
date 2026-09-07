@@ -114,6 +114,14 @@
         <!-- Mobile Sidebar Overlay -->
         <div class="sidebar-overlay" id="sidebar-overlay"></div>
 
+        <!-- Tombol "refresh halaman" - selalu tampil (tidak nunggu scroll
+             seperti tombol kembali ke atas), supaya user bisa refresh tanpa
+             swipe-to-refresh atau refresh browser. Lihat initRefreshPageButton()
+             di main.js. -->
+        <button id="refresh-page-btn" type="button" aria-label="Refresh halaman" title="Refresh halaman">
+            <i class="fas fa-rotate-right"></i>
+        </button>
+
         <!-- Tombol "kembali ke atas" - lihat initBackToTopButton() di main.js -->
         <button id="back-to-top-btn" type="button" aria-label="Kembali ke atas" title="Kembali ke atas">
             <i class="fas fa-arrow-up"></i>
