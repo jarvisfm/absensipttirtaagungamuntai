@@ -1103,7 +1103,7 @@ const jadwalJagaOperator = {
 
         const overlay = this._ensureOverlay();
         overlay.innerHTML = `
-            <div class="print-letter-page">
+            <div class="print-letter-page jjo-print-page">
                 <div class="letter-kop-img-wrap">
                     <img src="assets/kop-surat.jpeg" alt="Kop Surat" class="letter-kop-img">
                 </div>
