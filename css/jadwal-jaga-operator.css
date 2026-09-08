@@ -223,6 +223,41 @@
     .no-print {
         display: none !important;
     }
+
+    /* PERBAIKAN (2026-09-08): halaman cetak Jadwal Jaga Operator dulu
+       kepotong jadi cuma 1 halaman (sisa hari di bulan itu hilang, tidak
+       ikut tercetak) karena container-nya (.print-letter-page, dipakai
+       BARENG surat-surat lain yang memang selalu 1 halaman - lihat
+       css/print-letters.css) dipaksa tinggi PERSIS 297mm & overflow:hidden.
+       Jadwal Jaga Operator bisa jauh lebih panjang dari 1 halaman A4 (bisa
+       30 hari x beberapa sesi), jadi khusus utk halaman ini (ditandai class
+       tambahan "jjo-print-page" - TIDAK mengubah print-letters.css supaya
+       surat lain yang memang harus 1 halaman tetap seperti sebelumnya)
+       batasannya dilepas supaya kontennya boleh lanjut ke halaman
+       berikutnya secara alami.  */
+    .print-letter-page.jjo-print-page {
+        height: auto !important;
+        min-height: 0 !important;
+        overflow: visible !important;
+        page-break-after: auto !important;
+        page-break-inside: auto !important;
+    }
+
+    /* Supaya baris tabel (1 sesi jaga) tidak terpotong di tengah antara 2
+       halaman, dan header kolom (No/Hari/Jam/dst) ikut terulang muncul di
+       setiap halaman baru - perilaku standar browser utk <thead>, dipertegas
+       di sini supaya konsisten. */
+    .jjo-print-page .jjo-print-table thead {
+        display: table-header-group;
+    }
+    .jjo-print-page .jjo-print-table tr {
+        page-break-inside: avoid;
+    }
+    /* Blok TTD "Diketahui Oleh"/"Dibuat Oleh" jangan sampai kepisah jadi 2
+       bagian antar halaman. */
+    .jjo-print-page .jjo-print-signature {
+        page-break-inside: avoid;
+    }
 }
 
 /* ── Dropdown pilih petugas (Fase 2b - menggantikan teks bebas) ── */
@@ -272,16 +307,4 @@
     height: 14px;
     flex-shrink: 0;
     cursor: pointer;
-}
-
-/* ── Dropdown pilih Nama TTD "Diketahui Oleh"/"Dibuat Oleh" pada Cetak
-   Jadwal Jaga Operator (PENAMBAHAN 2026-09-08) - ditandai .no-print
-   (lihat aturan @media print di atas) supaya tidak ikut tercetak. ── */
-.jjo-sig-select {
-    margin: 6px auto 0;
-    max-width: 260px;
-}
-
-.jjo-sig-select .jjo-select {
-    width: 100%;
 }
