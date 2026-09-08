@@ -66,6 +66,20 @@ function _groupForShiftRaw(configAll, shiftRaw, dateStr) {
         return _groupFromDayGroups(configAll[raw], dateStr);
     }
 
+    // PERBAIKAN (8 Sep 2026): langkah #2 & #3 di bawah SEBELUMNYA
+    // mencocokkan raw ke rekonstruksi "<key> - <label>" secara case-
+    // SENSITIVE dan EXACT (termasuk syarat dayGroups.length > 1 khusus
+    // di #3) - kalau nama Jenis Jadwal-nya sendiri sudah berakhiran kata
+    // yang sama dengan label sesi (mis. "Operator - 24 Jam Malam" dengan
+    // sesi "Malam", tersimpan sebagai "Operator - 24 Jam Malam - Malam" -
+    // lihat catatan yang sama di _formatShiftDisplay() di absensi.js),
+    // pencocokan bisa gagal kalau ada perbedaan spasi/besar-kecil huruf
+    // sekecil apa pun. Perbandingan di bawah sekarang trim() + lowercase,
+    // dan syarat "harus >1 sesi" di #3 DIHAPUS (cuma dipakai dulu sebagai
+    // heuristik longgar, bukan syarat sebenarnya - kalau memang ada
+    // key+label yang cocok persis, pakai saja, apa pun jumlah sesinya).
+    const rawLower = raw.toLowerCase();
+
     // 2) Jenis Jadwal dengan shiftOptions (BNA Amuntai/SATPAM Pagi/Siang/
     // Malam) - kolom shift-nya sudah tercatat sebagai "<key> - <Label Sesi>"
     // sejak clock-in (lihat saveAttendanceData() di Attendance.gs).
@@ -74,7 +88,7 @@ function _groupForShiftRaw(configAll, shiftRaw, dateStr) {
         if (!opts) continue;
         for (const optKey of Object.keys(opts)) {
             const label = opts[optKey].label || optKey;
-            if (raw === `${key} - ${label}`) {
+            if (rawLower === `${key} - ${label}`.trim().toLowerCase()) {
                 return opts[optKey] || null;
             }
         }
@@ -98,10 +112,9 @@ function _groupForShiftRaw(configAll, shiftRaw, dateStr) {
         const cfg = configAll[key];
         if (cfg.shiftOptions) continue; // sudah ditangani di langkah #2
         const groups = cfg.dayGroups || [];
-        if (groups.length <= 1) continue;
         for (let idx = 0; idx < groups.length; idx++) {
             const label = groups[idx].label || `Sesi ${idx + 1}`;
-            if (raw === `${key} - ${label}`) {
+            if (rawLower === `${key} - ${label}`.trim().toLowerCase()) {
                 return {
                     batasLambat: groups[idx].batasLambat,
                     toleransi: groups[idx].toleransi,
