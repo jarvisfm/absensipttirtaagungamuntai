@@ -68,6 +68,14 @@ const izin = {
     // [TAMBAHAN] Lihat catatan di pemanggilnya (init()) di atas.
     async _prefetchSudahAbsenMasukHariIni() {
         this._sudahAbsenMasukCache = await this._cekSudahAbsenMasukHariIni();
+        // Kalau prefetch ini baru selesai SETELAH user sempat memilih
+        // "Permohonan Izin Harian" duluan (jarang terjadi, tapi bisa kalau
+        // network lambat), pastikan kalendernya ikut disesuaikan begitu
+        // hasilnya datang - bukan cuma nunggu user ganti-ganti dropdown lagi.
+        const currentType = document.getElementById('izin-type')?.value || '';
+        if (this._sudahAbsenMasukCache && currentType === 'izin_harian') {
+            this._setIzinDateRangeRestricted(true, true);
+        }
     },
 
     // Lihat catatan di pemanggilnya (init()) - toast info saja, tidak
@@ -99,17 +107,39 @@ const izin = {
      * dipilih. Kalau jendela 4 tanggal ini menyeberangi pergantian bulan
      * (mis. akhir Agustus ke awal September), otomatis ikut - fungsi ini
      * cuma mengumpulkan tanggal aslinya, bukan per-bulan.
+     *
+     * [TAMBAHAN] Parameter excludeToday: kalau true, tanggal HARI INI ikut
+     * dilewati dari daftar (dipakai saat user SUDAH Absen Masuk hari ini -
+     * lihat _cekSudahAbsenMasukHariIni() - supaya tetap bisa mengajukan
+     * Permohonan Izin Harian untuk BESOK/setelahnya, cuma tanggal hari ini
+     * saja yang tidak boleh dipilih). Total tanggal yang dikembalikan tetap
+     * 4, jadi kalau hari ini dilewati maka jendelanya otomatis maju 1 hari
+     * kerja tambahan ke depan.
      */
-    _getAllowedIzinHarianDates() {
+    _getAllowedIzinHarianDates(excludeToday = false) {
         const allowed = [];
         const cursor = new Date();
         cursor.setHours(0, 0, 0, 0);
+        const todayTime = cursor.getTime();
         while (allowed.length < 4) {
             const day = cursor.getDay(); // 0 = Minggu, 6 = Sabtu
-            if (day !== 0 && day !== 6) allowed.push(new Date(cursor));
+            const isWeekend = (day === 0 || day === 6);
+            const isSkippedToday = excludeToday && cursor.getTime() === todayTime;
+            if (!isWeekend && !isSkippedToday) allowed.push(new Date(cursor));
             cursor.setDate(cursor.getDate() + 1);
         }
         return allowed;
+    },
+
+    // [TAMBAHAN] Tanggal hari ini dalam format yyyy-MM-dd, SAMA dengan
+    // format value #izin-date-start/#izin-date-end (flatpickr dateFormat
+    // 'Y-m-d') supaya bisa dibandingkan langsung sebagai string. Pakai
+    // dateTime.getLocalDate() (jam server, anti akal-akalan ganti jam HP)
+    // kalau tersedia, sama seperti dipakai _checkActiveBlock() di atas.
+    _getTodayDateStr() {
+        return (typeof dateTime !== 'undefined' && dateTime.getLocalDate)
+            ? dateTime.getLocalDate()
+            : new Date().toISOString().split('T')[0];
     },
 
     /**
@@ -155,9 +185,12 @@ const izin = {
      *   (lihat .flatpickr-day.flatpickr-disabled di izin.css - class itu
      *   otomatis tidak pernah kepasang kalau semua tanggal enabled).
      */
-    _setIzinDateRangeRestricted(restricted) {
+    // [TAMBAHAN] Parameter excludeToday diteruskan ke _getAllowedIzinHarianDates()
+    // - dipakai supaya tanggal hari ini ikut di-nonaktifkan di kalender saat
+    // user sudah Absen Masuk hari ini (lihat pemanggil-pemanggilnya).
+    _setIzinDateRangeRestricted(restricted, excludeToday = false) {
         if (!this._izinDateFP || !this._izinDateFP.length) return;
-        const enableOption = restricted ? this._getAllowedIzinHarianDates() : [() => true];
+        const enableOption = restricted ? this._getAllowedIzinHarianDates(excludeToday) : [() => true];
         this._izinDateFP.forEach(fp => fp.set('enable', enableOption));
     },
 
@@ -399,11 +432,16 @@ const izin = {
         }
 
         // [TAMBAHAN] Listener TERPISAH (bukan mengubah listener 'change'
-        // yang sudah ada di atas) - peringatan dini begitu user memilih
-        // "Permohonan Izin Harian" padahal sudah absen masuk hari ini:
-        // langsung tampilkan modal danger & kembalikan dropdown ke kosong,
-        // supaya user tidak lanjut mengisi form yang toh nanti ditolak
-        // saat submit (lihat guard yang sama di submitIzinForm()).
+        // yang sudah ada di atas) - begitu user memilih "Permohonan Izin
+        // Harian" padahal sudah Absen Masuk hari ini: BUKAN diblokir total
+        // lagi, tapi tanggal HARI INI saja yang dilewati dari kalender
+        // (user tetap boleh mengajukan untuk BESOK/setelahnya - lihat
+        // _getAllowedIzinHarianDates(excludeToday) & guard final yang
+        // sepadan di submitIzinForm()). Kalau tanggal yang sedang terisi
+        // di form kebetulan masih tanggal hari ini, otomatis digeser ke
+        // tanggal valid pertama yang tersisa, lalu user diberi tahu lewat
+        // toast info (bukan modal danger) supaya tidak menahan pengisian
+        // form.
         if (typeSelect) {
             typeSelect.addEventListener('change', async (e) => {
                 if (e.target.value !== 'izin_harian') return;
@@ -415,10 +453,18 @@ const izin = {
                 const sudahAbsen = (this._sudahAbsenMasukCache !== undefined)
                     ? this._sudahAbsenMasukCache
                     : await this._cekSudahAbsenMasukHariIni();
+                this._sudahAbsenMasukCache = sudahAbsen;
                 if (sudahAbsen) {
-                    this._showIzinHarianBlockedModal();
-                    e.target.value = '';
-                    this.toggleKeluarKantorFields('');
+                    this._setIzinDateRangeRestricted(true, true);
+                    const todayStr = this._getTodayDateStr();
+                    const allowedAfterExclusion = this._getAllowedIzinHarianDates(true);
+                    ['izin-date-start', 'izin-date-end'].forEach((id) => {
+                        const el = document.getElementById(id);
+                        if (el && el.value === todayStr && el._flatpickr && allowedAfterExclusion.length) {
+                            el._flatpickr.setDate(allowedAfterExclusion[0], true);
+                        }
+                    });
+                    toast.info('Anda sudah Absen Masuk hari ini, jadi Permohonan Izin Harian untuk HARI INI tidak bisa diajukan. Silakan pilih tanggal besok atau setelahnya.');
                 }
             });
         }
@@ -521,7 +567,11 @@ const izin = {
         // BEBAS (semua tanggal bisa dipilih, termasuk tanggal yang sudah
         // lewat - wajar untuk Sakit yang kadang baru dilaporkan setelah
         // beberapa hari) - lihat _setIzinDateRangeRestricted().
-        if (usesDateRange) this._setIzinDateRangeRestricted(isIzinHarian);
+        // [TAMBAHAN] Kalau tipe-nya Izin Harian DAN user sudah Absen Masuk
+        // hari ini (cache dari prefetch di init()), tanggal HARI INI ikut
+        // dinonaktifkan dari kalender - user tetap bisa mengajukan untuk
+        // besok/setelahnya (lihat guard final di submitIzinForm()).
+        if (usesDateRange) this._setIzinDateRangeRestricted(isIzinHarian, isIzinHarian && !!this._sudahAbsenMasukCache);
 
         // Durasi — dihitung otomatis (disembunyikan dari input manual) untuk
         // keluar_kantor, izin_harian, DAN sekarang sakit juga.
@@ -637,13 +687,21 @@ const izin = {
         const dateStart      = document.getElementById('izin-date-start')?.value;
         const dateEnd        = document.getElementById('izin-date-end')?.value;
 
-        // [TAMBAHAN] Jaga-jaga lapis kedua (selain peringatan dini saat
+        // [TAMBAHAN] Jaga-jaga lapis kedua (selain penyesuaian kalender saat
         // dropdown Jenis Izin diganti, lihat listener di initForm()) -
-        // kalau-kalau user sempat absen masuk SETELAH form izin_harian
-        // ini dibuka/dipilih, submit tetap ditolak di sini supaya tidak
-        // ada Permohonan Izin Harian yang lolos padahal user sudah hadir
-        // hari ini.
-        if (type === 'izin_harian' && await this._cekSudahAbsenMasukHariIni()) {
+        // kalau-kalau user sempat absen masuk SETELAH form izin_harian ini
+        // dibuka/dipilih, submit tetap ditolak di sini SUPAYA TIDAK ADA
+        // Permohonan Izin Harian untuk tanggal HARI INI yang lolos padahal
+        // user sudah hadir hari ini.
+        //
+        // [PERUBAHAN] Pengecualian: kalau tanggal yang diajukan (dateStart)
+        // BUKAN hari ini (mis. besok atau hari kerja setelahnya - lihat
+        // _getAllowedIzinHarianDates), pengajuan tetap DIIZINKAN meski user
+        // sudah Absen Masuk hari ini - karena yang diajukan izinnya untuk
+        // hari lain, bukan hari ini. Guard ini HANYA membatasi Permohonan
+        // Izin Harian untuk tanggal hari ini itu sendiri.
+        const isTanggalMulaiHariIni = dateStart === this._getTodayDateStr();
+        if (type === 'izin_harian' && isTanggalMulaiHariIni && await this._cekSudahAbsenMasukHariIni()) {
             this._showIzinHarianBlockedModal();
             return;
         }
