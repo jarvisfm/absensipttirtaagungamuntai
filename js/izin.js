@@ -163,7 +163,17 @@ const izin = {
         const opts = {
             dateFormat: 'Y-m-d',
             enable: allowedDates,
-            defaultDate: allowedDates[0]
+            defaultDate: allowedDates[0],
+            // [TAMBAHAN] Lapis pengaman TAMBAHAN di atas 'enable' (yang
+            // menonaktifkan tanggal hari ini di kalender saat sudah Absen
+            // Masuk) - kalau dengan cara apapun tanggal hari ini tetap
+            // ke-pilih (mis. 'enable' belum sempat ke-update saat user
+            // klik cepat), onChange ini mengecek ULANG status absen
+            // langsung ke server begitu tanggal dipilih, dan kalau memang
+            // sudah absen hari ini, LANGSUNG batalkan pilihan tanggal itu +
+            // tampilkan notif tegas - jangan cuma diam2 dibiarkan lolos
+            // sampai tombol Kirim ditekan.
+            onChange: (selectedDates, dateStr) => this._handleIzinDateStartChanged(dateStr)
         };
         this._izinDateFP = [];
         ['izin-date-start', 'izin-date-end'].forEach((id) => {
@@ -171,6 +181,30 @@ const izin = {
             if (el && !el._flatpickr) flatpickr(el, opts);
             if (el && el._flatpickr) this._izinDateFP.push(el._flatpickr);
         });
+    },
+
+    // [TAMBAHAN] Lihat catatan onChange di _initIzinHarianDatePickers() di
+    // atas. Hanya relevan untuk Jenis Izin = izin_harian (Sakit boleh pilih
+    // tanggal hari ini/lewat dengan bebas, tidak ada larangan).
+    async _handleIzinDateStartChanged(dateStr) {
+        const typeSelect = document.getElementById('izin-type');
+        if (!typeSelect || typeSelect.value !== 'izin_harian') return;
+        if (dateStr !== this._getTodayDateStr()) return;
+
+        const sudahAbsen = await this._cekSudahAbsenMasukHariIni();
+        this._sudahAbsenMasukCache = sudahAbsen;
+        if (!sudahAbsen) return;
+
+        toast.error('Tidak bisa mengajukan Permohonan Izin Harian untuk HARI INI karena Anda sudah Absen Masuk. Silakan pilih tanggal besok atau setelahnya.');
+
+        // Nonaktifkan tanggal hari ini dari kalender & geser pilihan ke
+        // tanggal valid pertama berikutnya, supaya form tidak nyangkut di
+        // tanggal yang baru saja ditolak.
+        this._setIzinDateRangeRestricted(true, true);
+        const allowedAfterExclusion = this._getAllowedIzinHarianDates(true);
+        if (allowedAfterExclusion.length) {
+            this._izinDateFP.forEach(fp => fp.setDate(allowedAfterExclusion[0], false));
+        }
     },
 
     /**
@@ -398,7 +432,7 @@ const izin = {
             // tahu alasannya lewat toast (mekanisme notifikasi yang sudah pasti
             // ada, dipakai di semua bagian form ini).
             console.error('Modal #modal-izin-harian-blocked tidak ditemukan di halaman - pastikan index.html sudah versi terbaru.');
-            toast.error('Tidak bisa mengajukan Permohonan Izin Harian karena Anda sudah Absen Masuk hari ini.');
+            toast.error('Tidak bisa mengajukan Permohonan Izin Harian untuk HARI INI karena Anda sudah Absen Masuk. Silakan pilih tanggal besok atau setelahnya.');
         }
     },
 
