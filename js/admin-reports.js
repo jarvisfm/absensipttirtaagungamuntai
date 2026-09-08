@@ -10,7 +10,7 @@ const adminReports = {
     leaveQuota: {},
     izinHarianQuota: {},
     filters: {
-        attendance: { month: '', name: '', bagian: '' },
+        attendance: { month: '', name: '', bagian: '', dateFrom: '', dateTo: '' },
         jurnal: { month: '', employee: '', status: '' },
         leave: { month: '', type: '', status: '', bagian: '' }
     },
@@ -495,6 +495,22 @@ const adminReports = {
                 this.renderAttendanceReports();
             });
         }
+
+        // Filter "Dari Tanggal" / "Sampai Tanggal" - dipakai BERBARENGAN
+        // (AND) dengan filter Bulan yang sudah ada, bukan menggantikannya.
+        // Kosong berarti tidak dibatasi ke arah itu (mis. cuma isi "Dari
+        // Tanggal" saja berarti "sejak tanggal itu s.d. seterusnya").
+        const dateFromFilter = document.getElementById('attendance-date-from-filter');
+        if (dateFromFilter) dateFromFilter.addEventListener('change', (e) => {
+            this.filters.attendance.dateFrom = e.target.value;
+            this.renderAttendanceReports();
+        });
+
+        const dateToFilter = document.getElementById('attendance-date-to-filter');
+        if (dateToFilter) dateToFilter.addEventListener('change', (e) => {
+            this.filters.attendance.dateTo = e.target.value;
+            this.renderAttendanceReports();
+        });
     },
 
     bindJurnalEvents() {
@@ -589,14 +605,19 @@ const adminReports = {
     },
 
     getFilteredAttendance() {
-        const { month, name, bagian } = this.filters.attendance;
+        const { month, name, bagian, dateFrom, dateTo } = this.filters.attendance;
         return this.rawAttendance.filter(row => {
             const emp = this.rawEmployees.find(e => String(e.id) === String(row.userId));
             if (!emp) return false;
             const matchesBagian = !bagian || emp.bagian === bagian;
             const matchesName = !name || String(emp.name || '').toLowerCase().includes(name.toLowerCase());
             const matchesMonth = !month || (row.date && row.date.startsWith(month));
-            return matchesBagian && matchesName && matchesMonth;
+            // Filter "Dari Tanggal"/"Sampai Tanggal" - format tanggal di
+            // data ("YYYY-MM-DD") bisa dibandingkan langsung sebagai teks
+            // karena urutannya sama dengan urutan kronologisnya.
+            const matchesDateFrom = !dateFrom || (row.date && row.date >= dateFrom);
+            const matchesDateTo = !dateTo || (row.date && row.date <= dateTo);
+            return matchesBagian && matchesName && matchesMonth && matchesDateFrom && matchesDateTo;
         }).map(row => {
             const emp = this.rawEmployees.find(e => String(e.id) === String(row.userId));
             return { ...row, empName: emp?.name || '-', empDept: emp?.department || '-' };
@@ -675,11 +696,25 @@ const adminReports = {
         return rows;
     },
 
+    /**
+     * Helper bersama untuk filter Bulan + Dari Tanggal + Sampai Tanggal di
+     * halaman Rekap Absensi - dipakai di 3 tempat (tabel desktop, lookup
+     * alamat GPS, kartu mobile) supaya hasilnya selalu konsisten satu sama
+     * lain, tidak ada yang kelewat diperbarui saat filter tanggal ditambah.
+     */
+    _applyAttendanceDateFilters(rows, month, dateFrom, dateTo) {
+        let filtered = rows;
+        if (month) filtered = filtered.filter(r => r.date && r.date.startsWith(month));
+        if (dateFrom) filtered = filtered.filter(r => r.date && r.date >= dateFrom);
+        if (dateTo) filtered = filtered.filter(r => r.date && r.date <= dateTo);
+        return filtered;
+    },
+
     renderAttendanceReports() {
         const container = document.getElementById('attendance-reports-body');
         if (!container) return;
 
-        const { month, name, bagian } = this.filters.attendance;
+        const { month, name, bagian, dateFrom, dateTo } = this.filters.attendance;
         const months = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Ags','Sep','Okt','Nov','Des'];
 
         let employees = [...(this.rawEmployees || [])];
@@ -699,7 +734,7 @@ const adminReports = {
         let html = '';
         employees.forEach(emp => {
             let rows = (this.rawAttendance || []).filter(r => String(r.userId) === String(emp.id));
-            if (month) rows = rows.filter(r => r.date && r.date.startsWith(month));
+            rows = this._applyAttendanceDateFilters(rows, month, dateFrom, dateTo);
 
             const initials = (emp.name || 'K').split(' ').map(w => w[0]).join('').substring(0, 2).toUpperCase();
             const colors = ['#F59E0B','#3B82F6','#10B981','#EF4444','#8B5CF6'];
@@ -953,11 +988,11 @@ const adminReports = {
         });
 
         container.innerHTML = html;
-        this.renderAttendanceMobileCards(employees, month, months);
+        this.renderAttendanceMobileCards(employees, month, months, dateFrom, dateTo);
 
         employees.forEach(emp => {
             let rows = (this.rawAttendance || []).filter(r => String(r.userId) === String(emp.id));
-            if (month) rows = rows.filter(r => r.date && r.date.startsWith(month));
+            rows = this._applyAttendanceDateFilters(rows, month, dateFrom, dateTo);
             rows.forEach(async (row) => {
                 const coords = this._parseLatLng(row.verificationLocation);
                 if (!coords) return;
@@ -973,7 +1008,7 @@ const adminReports = {
         });
     },
 
-    renderAttendanceMobileCards(employees, month, months) {
+    renderAttendanceMobileCards(employees, month, months, dateFrom, dateTo) {
         const container = document.getElementById('attendance-mobile-cards');
         if (!container) return;
 
@@ -985,7 +1020,7 @@ const adminReports = {
         let html = '';
         employees.forEach(emp => {
             let rows = (this.rawAttendance || []).filter(r => String(r.userId) === String(emp.id));
-            if (month) rows = rows.filter(r => r.date && r.date.startsWith(month));
+            rows = this._applyAttendanceDateFilters(rows, month, dateFrom, dateTo);
 
             const initials = (emp.name || 'K').split(' ').map(w => w[0]).join('').substring(0, 2).toUpperCase();
             const colors = ['#F59E0B','#3B82F6','#10B981','#EF4444','#8B5CF6'];
