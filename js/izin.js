@@ -186,6 +186,17 @@ const izin = {
     // [TAMBAHAN] Lihat catatan onChange di _initIzinHarianDatePickers() di
     // atas. Hanya relevan untuk Jenis Izin = izin_harian (Sakit boleh pilih
     // tanggal hari ini/lewat dengan bebas, tidak ada larangan).
+    //
+    // [PERUBAHAN] Sebelumnya tanggal yang ditolak ini langsung DIGANTI
+    // OTOMATIS ke tanggal valid berikutnya (mis. besok) TANPA user sadar -
+    // ini bikin bingung: user mengira masih mengajukan untuk HARI INI
+    // (karena tidak ngeh field-nya sudah bergeser sendiri), padahal yang
+    // benar-benar terkirim itu untuk BESOK. Sekarang field-nya cuma
+    // DIKOSONGKAN (bukan diisi otomatis) supaya user WAJIB memilih ulang
+    // tanggalnya sendiri secara sadar dari kalender yang sudah tidak
+    // menyertakan hari ini - validasi "Harap isi Tanggal Mulai dan Tanggal
+    // Selesai!" di submitIzinForm() otomatis mencegah submit sebelum user
+    // memilih tanggal penggantinya.
     async _handleIzinDateStartChanged(dateStr) {
         const typeSelect = document.getElementById('izin-type');
         if (!typeSelect || typeSelect.value !== 'izin_harian') return;
@@ -195,16 +206,14 @@ const izin = {
         this._sudahAbsenMasukCache = sudahAbsen;
         if (!sudahAbsen) return;
 
-        toast.error('Tidak bisa mengajukan Permohonan Izin Harian untuk HARI INI karena Anda sudah Absen Masuk. Silakan pilih tanggal besok atau setelahnya.');
+        toast.error('Tidak bisa memilih tanggal HARI INI untuk Permohonan Izin Harian karena Anda sudah Absen Masuk. Silakan pilih tanggal besok atau setelahnya di kalender.');
 
-        // Nonaktifkan tanggal hari ini dari kalender & geser pilihan ke
-        // tanggal valid pertama berikutnya, supaya form tidak nyangkut di
-        // tanggal yang baru saja ditolak.
+        // Nonaktifkan tanggal hari ini dari kalender & KOSONGKAN pilihan
+        // yang baru saja ditolak - JANGAN diisi otomatis, supaya user
+        // sadar betul harus memilih ulang secara manual (lihat catatan di
+        // atas).
         this._setIzinDateRangeRestricted(true, true);
-        const allowedAfterExclusion = this._getAllowedIzinHarianDates(true);
-        if (allowedAfterExclusion.length) {
-            this._izinDateFP.forEach(fp => fp.setDate(allowedAfterExclusion[0], false));
-        }
+        this._izinDateFP.forEach(fp => fp.clear());
     },
 
     /**
@@ -471,11 +480,14 @@ const izin = {
         // lagi, tapi tanggal HARI INI saja yang dilewati dari kalender
         // (user tetap boleh mengajukan untuk BESOK/setelahnya - lihat
         // _getAllowedIzinHarianDates(excludeToday) & guard final yang
-        // sepadan di submitIzinForm()). Kalau tanggal yang sedang terisi
-        // di form kebetulan masih tanggal hari ini, otomatis digeser ke
-        // tanggal valid pertama yang tersisa, lalu user diberi tahu lewat
-        // toast info (bukan modal danger) supaya tidak menahan pengisian
-        // form.
+        // sepadan di submitIzinForm()).
+        //
+        // [PERUBAHAN] Kalau tanggal yang sedang terisi di form kebetulan
+        // masih tanggal hari ini (default saat halaman dibuka), field-nya
+        // SEKARANG DIKOSONGKAN (bukan otomatis digeser ke besok) - supaya
+        // user sadar & memilih sendiri tanggal penggantinya dari kalender,
+        // bukan diam-diam terkirim untuk tanggal yang tidak mereka sadari
+        // sudah berubah. Toast info di bawah menjelaskan alasannya.
         if (typeSelect) {
             typeSelect.addEventListener('change', async (e) => {
                 if (e.target.value !== 'izin_harian') return;
@@ -491,14 +503,17 @@ const izin = {
                 if (sudahAbsen) {
                     this._setIzinDateRangeRestricted(true, true);
                     const todayStr = this._getTodayDateStr();
-                    const allowedAfterExclusion = this._getAllowedIzinHarianDates(true);
+                    let adaTanggalHariIniYangDikosongkan = false;
                     ['izin-date-start', 'izin-date-end'].forEach((id) => {
                         const el = document.getElementById(id);
-                        if (el && el.value === todayStr && el._flatpickr && allowedAfterExclusion.length) {
-                            el._flatpickr.setDate(allowedAfterExclusion[0], true);
+                        if (el && el.value === todayStr && el._flatpickr) {
+                            el._flatpickr.clear();
+                            adaTanggalHariIniYangDikosongkan = true;
                         }
                     });
-                    toast.info('Anda sudah Absen Masuk hari ini, jadi Permohonan Izin Harian untuk HARI INI tidak bisa diajukan. Silakan pilih tanggal besok atau setelahnya.');
+                    toast.info(adaTanggalHariIniYangDikosongkan
+                        ? 'Anda sudah Absen Masuk hari ini, jadi tanggal hari ini otomatis dikosongkan dari Permohonan Izin Harian. Silakan pilih sendiri tanggal besok atau setelahnya di kalender.'
+                        : 'Anda sudah Absen Masuk hari ini, jadi Permohonan Izin Harian untuk HARI INI tidak bisa diajukan. Silakan pilih tanggal besok atau setelahnya.');
                 }
             });
         }
