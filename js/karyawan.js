@@ -125,6 +125,11 @@ const karyawanManager = {
         this.resetForm();
         this.switchTab('profil');
         this._populateApproverDropdown(id);
+        // PENAMBAHAN (2026-09-08): dropdown Manajer Mengetahui Jadwal Jaga
+        // Operator tidak bergantung Bagian, jadi cukup diisi sekali di sini
+        // (opsi terpilihnya, kalau Edit, di-set ulang di loadDetailForEdit()
+        // di bawah begitu data lama selesai dimuat).
+        this._populateJjoManajerDropdown(id, '');
         // Karyawan baru: belum ada Bagian dipilih, jadi dropdown Asmen
         // kosong dulu - terisi begitu admin pilih Bagian (lihat
         // onBagianChange()). loadDetailForEdit() di bawah akan mengisinya
@@ -295,6 +300,38 @@ const karyawanManager = {
         }
     },
 
+    /**
+     * PENAMBAHAN (2026-09-08): Isi dropdown "Manajer Mengetahui Jadwal Jaga
+     * Operator" - dipakai halaman Jadwal Jaga Operator (js/jadwal-jaga-operator.js)
+     * untuk otomatis mengisi kolom TTD "Diketahui Oleh" saat Cetak, supaya
+     * admin TIDAK perlu memilih nama apa pun lagi tiap kali mencetak - cukup
+     * diatur SEKALI di sini lewat Edit Karyawan.
+     *
+     * SENGAJA menampilkan SEMUA Manajer AKTIF lintas Bagian (BUKAN cuma
+     * Bagian yang sama seperti dropdown Asmen Penyetuju Izin/Cuti di atas) -
+     * Manajer yang mengetahui jadwal jaga operator suatu unit tidak harus
+     * sebidang dengan Asmen pemegang jadwalnya. Sumber datanya cukup
+     * this.karyawanList yang sudah dimuat di awal (lihat init()), tidak
+     * perlu panggilan API baru.
+     */
+    _populateJjoManajerDropdown(excludeId, selectedId) {
+        const select = document.getElementById('p-jjoManajerId');
+        if (!select) return;
+
+        const list = (this.karyawanList || [])
+            .filter(k => String(k.role || '').toLowerCase() === 'manajer'
+                && String(k.statusKaryawan || '').toUpperCase() === 'AKTIF'
+                && String(k.id) !== String(excludeId))
+            .sort((a, b) => String(a.nama || '').localeCompare(String(b.nama || '')));
+
+        select.innerHTML = list.length
+            ? '<option value="">-- Tidak Ada --</option>' +
+              list.map(k => `<option value="${k.id}">${this._esc(k.nama)}${k.jabatan ? ' - ' + this._esc(k.jabatan) : ''}</option>`).join('')
+            : '<option value="">Belum ada data Manajer AKTIF</option>';
+
+        if (selectedId) select.value = selectedId;
+    },
+
     // Dipanggil dari onchange select #p-bagian - muat ulang daftar Asmen
     // sesuai Bagian yang baru dipilih (tanpa nilai terpilih, karena Bagian
     // berubah berarti Asmen lama kemungkinan sudah tidak relevan).
@@ -398,6 +435,10 @@ const karyawanManager = {
                     cb.checked = selectedUnits.includes(cb.value);
                 });
             }
+            // PENAMBAHAN (2026-09-08): set ulang pilihan Manajer Mengetahui
+            // Jadwal Jaga Operator yang sudah tersimpan (opsi-opsinya sudah
+            // diisi lebih dulu di openModal() lewat _populateJjoManajerDropdown()).
+            this._populateJjoManajerDropdown(id, p.jjoManajerId || '');
 
             // Tab Keluarga
             const keluarga = p.keluarga || [];
@@ -457,6 +498,8 @@ const karyawanManager = {
         if (asmenResetEl) asmenResetEl.innerHTML = '<option value="">-- Pilih Bagian dahulu --</option>';
         const opScheduleResetEl = document.getElementById('p-operatorScheduleUnit');
         if (opScheduleResetEl) opScheduleResetEl.querySelectorAll('.op-schedule-unit-checkbox').forEach(cb => cb.checked = false);
+        const jjoManajerResetEl = document.getElementById('p-jjoManajerId');
+        if (jjoManajerResetEl) jjoManajerResetEl.value = '';
 
         document.getElementById('foto-preview').src = '';
         document.getElementById('foto-preview').style.display = 'none';
@@ -727,6 +770,10 @@ const karyawanManager = {
             locationExemptApproverId: document.getElementById('p-locationExemptApproverId')?.value || '',
             asmenPenyetujuId: document.getElementById('p-asmenPenyetujuId')?.value || '',
             operatorScheduleUnit: Array.from(document.querySelectorAll('#p-operatorScheduleUnit .op-schedule-unit-checkbox:checked')).map(cb => cb.value).join(','),
+            // PENAMBAHAN (2026-09-08): Manajer yang otomatis muncul sebagai
+            // "Diketahui Oleh" saat Cetak Jadwal Jaga Operator - lihat
+            // _populateJjoManajerDropdown() di atas.
+            jjoManajerId:     document.getElementById('p-jjoManajerId')?.value || '',
             username:         document.getElementById('p-username').value.trim(),
             keluarga
         };
