@@ -317,7 +317,21 @@ const absensi = {
         }
 
         const baseName = this._cleanShiftBaseName(parts.slice(0, -1).join(' - '));
-        return baseName ? `${baseName} ${lastPart}` : lastPart;
+        if (!baseName) return lastPart;
+
+        // PERBAIKAN (8 Sep 2026): kalau NAMA JENIS JADWAL itu sendiri sudah
+        // berakhiran kata sesi yang sama (mis. Jenis Jadwal dinamai
+        // "Operator - 24 Jam Malam" lalu sesi di dalamnya JUGA dilabeli
+        // "Malam" - hasil gabungan dari backend jadi "Operator - 24 Jam
+        // Malam - Malam"), jangan diulang lagi jadi "... Malam Malam" di
+        // tampilan - nama dasarnya saja sudah cukup mewakili sesi itu.
+        const baseWords = baseName.split(' ');
+        const baseLastWord = baseWords[baseWords.length - 1];
+        if (baseLastWord.toLowerCase() === lastPart.toLowerCase()) {
+            return baseName;
+        }
+
+        return `${baseName} ${lastPart}`;
     },
 
     async loadTodayAttendance() {
