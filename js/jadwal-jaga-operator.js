@@ -217,13 +217,13 @@ const jadwalJagaOperator = {
             const res = await api.getKaryawanList();
             const all = (res.success && res.data) ? res.data : [];
             this._employees = all.filter(e => this._isOperatorShift(e.shift));
-            // PENAMBAHAN (2026-09-08, dropdown Nama TTD Cetak Jadwal Jaga):
+            // PENAMBAHAN (2026-09-08, TTD Cetak Jadwal Jaga Operator):
             // simpan juga daftar LENGKAP semua karyawan (semua Jenis Jadwal,
-            // semua Unit Wilayah) - dibutuhkan _managerOptions()/_asmenOptions()
-            // di bawah supaya dropdown Nama "Diketahui Oleh"/"Dibuat Oleh" bisa
-            // menampilkan SEMUA Manajer/Asmen lintas bidang, bukan cuma yang
-            // bertugas di unit operator ini (this._employees tetap dipakai
-            // persis seperti sebelumnya, tidak diubah).
+            // semua Unit Wilayah) - dibutuhkan _signatureFor() di bawah untuk
+            // menentukan nama "Diketahui Oleh"/"Dibuat Oleh" secara OTOMATIS
+            // dari pengaturan Admin di Edit Karyawan (bukan dipilih user saat
+            // mencetak). this._employees tetap dipakai persis seperti
+            // sebelumnya untuk daftar petugas jaga, tidak diubah.
             this._allEmployeesRaw = all;
         } catch (e) {
             console.error('Gagal memuat daftar karyawan Operator:', e);
@@ -233,22 +233,46 @@ const jadwalJagaOperator = {
         }
     },
 
-    // PENAMBAHAN (2026-09-08): daftar semua karyawan AKTIF berjabatan
-    // (field role) "manajer" - lintas bidang/departemen - untuk dropdown
-    // Nama "Diketahui Oleh" di Cetak Jadwal Jaga Operator.
-    _managerOptions() {
-        return (this._allEmployeesRaw || [])
-            .filter(e => String(e.role || '').toLowerCase() === 'manajer' && String(e.statusKaryawan || '').toUpperCase() === 'AKTIF')
-            .sort((a, b) => String(a.nama || '').localeCompare(String(b.nama || '')));
-    },
+    // PENAMBAHAN (2026-09-08): tentukan nama & jabatan untuk TTD "Diketahui
+    // Oleh" (Manajer) dan "Dibuat Oleh" (Asmen) pada Cetak Jadwal Jaga
+    // Operator - SEPENUHNYA otomatis dari pengaturan Admin di Edit Karyawan
+    // (field "Pemegang Jadwal Jaga Operator" + "Manajer Mengetahui Jadwal
+    // Jaga Operator"), BUKAN dipilih user saat mencetak.
+    //
+    // "Dibuat Oleh" = karyawan AKTIF berjabatan (role) "asmen" yang
+    // ditunjuk sebagai pemegang unit ini (operatorScheduleUnit berisi
+    // unitKey ini, diatur admin lewat checklist "Pemegang Jadwal Jaga
+    // Operator" di Edit Karyawan).
+    // "Diketahui Oleh" = Manajer yang dipilih admin di field
+    // "Manajer Mengetahui Jadwal Jaga Operator" MILIK Asmen pemegang unit
+    // itu (jjoManajerId).
+    // Kalau tidak ada Asmen yang ditunjuk untuk unit ini (mis. unitnya
+    // masih dipegang admin sendiri tanpa ditunjuk lewat checklist), kedua
+    // nama dikosongkan (tetap tampil "(...........................)" seperti
+    // sebelumnya di _buildPrintTable pemanggilnya).
+    _signatureFor(unitKey) {
+        const dibuat = (this._allEmployeesRaw || []).find(e => {
+            if (String(e.role || '').toLowerCase() !== 'asmen') return false;
+            if (String(e.statusKaryawan || '').toUpperCase() !== 'AKTIF') return false;
+            const units = String(e.operatorScheduleUnit || '').split(',').map(s => s.trim()).filter(Boolean);
+            return units.includes(unitKey);
+        });
 
-    // PENAMBAHAN (2026-09-08): daftar semua karyawan AKTIF berjabatan
-    // (field role) "asmen" - lintas bidang/departemen - untuk dropdown
-    // Nama "Dibuat Oleh" di Cetak Jadwal Jaga Operator.
-    _asmenOptions() {
-        return (this._allEmployeesRaw || [])
-            .filter(e => String(e.role || '').toLowerCase() === 'asmen' && String(e.statusKaryawan || '').toUpperCase() === 'AKTIF')
-            .sort((a, b) => String(a.nama || '').localeCompare(String(b.nama || '')));
+        let diketahui = null;
+        if (dibuat && dibuat.jjoManajerId) {
+            diketahui = (this._allEmployeesRaw || []).find(m =>
+                String(m.id) === String(dibuat.jjoManajerId)
+                && String(m.role || '').toLowerCase() === 'manajer'
+                && String(m.statusKaryawan || '').toUpperCase() === 'AKTIF'
+            );
+        }
+
+        return {
+            dibuatNama:       dibuat ? dibuat.nama : '',
+            dibuatJabatan:    dibuat ? (dibuat.jabatan || '') : '',
+            diketahuiNama:    diketahui ? diketahui.nama : '',
+            diketahuiJabatan: diketahui ? (diketahui.jabatan || '') : ''
+        };
     },
 
     // true kalau Jenis Jadwal karyawan ini salah satu pola jaga unit operator
@@ -1047,7 +1071,11 @@ const jadwalJagaOperator = {
 
         const unit = this._getEffectiveUnit(this.unitKey);
         const judulUnit = this.unitKey === 'TRD' ? `${unit.label} - ${this.cabangTrd}` : unit.label;
-        const sig = this.data.signatures || {};
+        // PENAMBAHAN (2026-09-08): Nama & Jabatan TTD "Diketahui Oleh"/"Dibuat
+        // Oleh" SEPENUHNYA otomatis mengikuti pengaturan Admin di Edit
+        // Karyawan (lihat _signatureFor()) - user yang mencetak tidak
+        // memilih apa-apa lagi di sini.
+        const sig = this._signatureFor(this.unitKey);
 
         let bodyHtml = `
             <div class="jjo-print-title">
@@ -1058,47 +1086,17 @@ const jadwalJagaOperator = {
 
         bodyHtml += this._buildPrintTable(unit);
 
-        // PENAMBAHAN (2026-09-08): dropdown pilih Nama untuk TTD "Diketahui
-        // Oleh" (Manajer) & "Dibuat Oleh" (Asmen) - sebelumnya baris nama di
-        // bawah garis selalu kosong "(...)" karena tidak ada cara mengisinya
-        // sama sekali. Daftar nama diambil dari SEMUA karyawan AKTIF
-        // berjabatan (field role) Manajer/Asmen lintas bidang (lihat
-        // _managerOptions()/_asmenOptions()), BUKAN dibatasi ke bidang
-        // "Operasi dan Jaringan" saja. Dropdown ditandai "no-print" (aturan
-        // CSS-nya sudah ada) supaya TIDAK ikut tercetak - yang tercetak cuma
-        // teks Nama & Jabatan hasil pilihan.
-        const managerOpts = this._managerOptions();
-        const asmenOpts = this._asmenOptions();
-        const managerOptionsHtml = managerOpts.map(m =>
-            `<option value="${this._escAttr(m.id)}" ${String(sig.diketahuiId || '') === String(m.id) ? 'selected' : ''}>${this._escAttr(m.nama)}${m.jabatan ? ' - ' + this._escAttr(m.jabatan) : ''}</option>`
-        ).join('');
-        const asmenOptionsHtml = asmenOpts.map(a =>
-            `<option value="${this._escAttr(a.id)}" ${String(sig.dibuatId || '') === String(a.id) ? 'selected' : ''}>${this._escAttr(a.nama)}${a.jabatan ? ' - ' + this._escAttr(a.jabatan) : ''}</option>`
-        ).join('');
-
         bodyHtml += `
             <div class="jjo-print-signature">
                 <div class="jjo-sig-left">
-                    <p>Diketahui Oleh<br><span id="jjo-sig-diketahui-jabatan">${this._escAttr(sig.diketahuiJabatan || '')}</span></p>
-                    <div class="jjo-sig-select no-print">
-                        <select class="jjo-select" id="jjo-sig-diketahui-select">
-                            <option value="">-- Pilih Nama Manajer --</option>
-                            ${managerOptionsHtml}
-                        </select>
-                    </div>
-                    <br><br>
-                    <p><u id="jjo-sig-diketahui-nama">${this._escAttr(sig.diketahuiNama || '(...........................)')}</u></p>
+                    <p>Diketahui Oleh<br>${this._escAttr(sig.diketahuiJabatan || '')}</p>
+                    <br><br><br>
+                    <p><u>${this._escAttr(sig.diketahuiNama || '(...........................)')}</u></p>
                 </div>
                 <div class="jjo-sig-right">
-                    <p>Dibuat Oleh<br><span id="jjo-sig-dibuat-jabatan">${this._escAttr(sig.dibuatJabatan || '')}</span></p>
-                    <div class="jjo-sig-select no-print">
-                        <select class="jjo-select" id="jjo-sig-dibuat-select">
-                            <option value="">-- Pilih Nama Asmen --</option>
-                            ${asmenOptionsHtml}
-                        </select>
-                    </div>
-                    <br><br>
-                    <p><u id="jjo-sig-dibuat-nama">${this._escAttr(sig.dibuatNama || '(...........................)')}</u></p>
+                    <p>Dibuat Oleh<br>${this._escAttr(sig.dibuatJabatan || '')}</p>
+                    <br><br><br>
+                    <p><u>${this._escAttr(sig.dibuatNama || '(...........................)')}</u></p>
                 </div>
             </div>
         `;
@@ -1128,42 +1126,6 @@ const jadwalJagaOperator = {
             overlay.classList.remove('active');
             overlay.innerHTML = '';
             document.body.style.overflow = '';
-        };
-
-        // PENAMBAHAN (2026-09-08): begitu admin memilih Nama Manajer/Asmen
-        // dari dropdown, langsung (1) update this.data.signatures dengan
-        // Nama & Jabatan ASLI milik orang yang dipilih (supaya jabatan yang
-        // tercetak selalu sesuai bidang orangnya, bukan teks tetap), (2)
-        // tulis ulang teks di bawah garis pada pratinjau, lalu (3) simpan
-        // otomatis (saveData() yang sudah ada) supaya pilihan ini tidak
-        // hilang begitu pratinjau ditutup.
-        const selDiketahui = document.getElementById('jjo-sig-diketahui-select');
-        const selDibuat = document.getElementById('jjo-sig-dibuat-select');
-        if (selDiketahui) selDiketahui.onchange = async () => {
-            const emp = managerOpts.find(m => String(m.id) === selDiketahui.value);
-            this.data.signatures = this.data.signatures || {};
-            this.data.signatures.diketahuiId = emp ? emp.id : '';
-            this.data.signatures.diketahuiNama = emp ? emp.nama : '';
-            this.data.signatures.diketahuiJabatan = emp ? (emp.jabatan || '') : (this._emptyData().signatures.diketahuiJabatan);
-            const elJabatan = document.getElementById('jjo-sig-diketahui-jabatan');
-            const elNama = document.getElementById('jjo-sig-diketahui-nama');
-            if (elJabatan) elJabatan.textContent = this.data.signatures.diketahuiJabatan || '';
-            if (elNama) elNama.textContent = this.data.signatures.diketahuiNama || '(...........................)';
-            this._markDirty();
-            await this.saveData();
-        };
-        if (selDibuat) selDibuat.onchange = async () => {
-            const emp = asmenOpts.find(a => String(a.id) === selDibuat.value);
-            this.data.signatures = this.data.signatures || {};
-            this.data.signatures.dibuatId = emp ? emp.id : '';
-            this.data.signatures.dibuatNama = emp ? emp.nama : '';
-            this.data.signatures.dibuatJabatan = emp ? (emp.jabatan || '') : '';
-            const elJabatan = document.getElementById('jjo-sig-dibuat-jabatan');
-            const elNama = document.getElementById('jjo-sig-dibuat-nama');
-            if (elJabatan) elJabatan.textContent = this.data.signatures.dibuatJabatan || '';
-            if (elNama) elNama.textContent = this.data.signatures.dibuatNama || '(...........................)';
-            this._markDirty();
-            await this.saveData();
         };
     },
 
