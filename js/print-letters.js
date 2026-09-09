@@ -413,7 +413,6 @@ const printLetters = {
                 <p style="margin:0 0 2px;">${label}</p>
                 <p style="margin:0 0 2px; min-height:1.4em;">${subLabel || '&nbsp;'}</p>
                 <div class="signature-space"></div>
-                <div class="signature-line"></div>
                 <p style="text-align:center; margin:4px 0 2px;">
                     <input type="text" readonly class="letter-input-plain letter-input-center"
                         value="${name || ''}" placeholder="......................">
