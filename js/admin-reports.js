@@ -1830,8 +1830,8 @@ const adminReports = {
     // "employee-group-header", colspan 9, berisi avatar+nama+departemen+
     // badge statistik] -> 1 baris label kolom [Tanggal/Shift/Masuk/dst] ->
     // sekian baris data, berulang per karyawan) jadi blok flex per
-    // karyawan: panel kiri (isi baris header apa adanya) + tabel kanan
-    // (baris label kolom + baris data apa adanya). TIDAK mengubah cara
+    // karyawan: panel kiri (avatar+nama+departemen saja) + kanan (baris
+    // badge Hadir/dst DI ATAS tabel Tanggal/Shift/dst). TIDAK mengubah cara
     // data itu sendiri dihitung/dirender oleh renderAttendanceReports() -
     // cuma dipakai .cloneNode(true), jadi tabel ASLI yang tampil di layar
     // admin tidak tersentuh sama sekali - transformasi ini murni untuk
@@ -1853,24 +1853,29 @@ const adminReports = {
                 continue;
             }
 
-            // Panel kiri = isi <td> baris header (avatar+nama+badge), disalin
-            // PERSIS seperti aslinya - tidak ada yang diubah di dalamnya,
-            // KECUALI penyesuaian kecil di bawah ini: aslinya avatar+nama
-            // (kiri) & badge Hadir/dst (kanan) sejajar horizontal karena
-            // memang didesain utk baris penuh selebar tabel - begitu
-            // dipindah ke panel sempit (220px) di kiri, keduanya ditumpuk
-            // vertikal saja (badge di bawah nama, boleh wrap) supaya tetap
-            // enak dibaca. Cuma penyesuaian tata letak di SALINAN cetak ini
-            // - baris aslinya di layar admin tidak tersentuh.
+            // Panel kiri = avatar+nama+departemen SAJA (disalin PERSIS
+            // seperti aslinya). Badge Hadir/Terlambat/Hadir Terlambat/Total
+            // TIDAK ikut ke panel kiri lagi (sebelumnya di sini, jadi
+            // sempit & menumpuk) - sekarang dipindah jadi 1 baris DI ATAS
+            // tabel Tanggal/dst di sebelah kanan, biar lega & tidak
+            // menumpuk. Isi masing-masing (nama & badge) tetap disalin apa
+            // adanya dari baris header asli, cuma posisinya yang ditata
+            // ulang - baris aslinya di layar admin tidak tersentuh.
             const headerCell = headerRow.querySelector('td');
             const outerFlex = headerCell ? headerCell.querySelector(':scope > div') : null;
+            let nameBlockHtml = '';
+            let badgesBlockHtml = '';
             if (outerFlex && outerFlex.children.length >= 2) {
-                outerFlex.style.flexDirection = 'column';
-                outerFlex.style.alignItems = 'flex-start';
-                outerFlex.children[1].style.flexWrap = 'wrap';
-                outerFlex.children[1].style.marginTop = '8px';
+                const badgesDiv = outerFlex.children[1];
+                badgesDiv.style.flexWrap = 'wrap';
+                badgesDiv.style.marginBottom = '10px';
+                nameBlockHtml = outerFlex.children[0].outerHTML;
+                badgesBlockHtml = badgesDiv.outerHTML;
+            } else if (headerCell) {
+                // Fallback kalau strukturnya di luar dugaan - tampilkan apa
+                // adanya di panel kiri saja supaya tidak sampai hilang.
+                nameBlockHtml = headerCell.innerHTML;
             }
-            const headerCellHtml = headerCell ? headerCell.innerHTML : '';
 
             const colHeaderRow = rows[i + 1] || null;
             let j = i + 2;
@@ -1883,9 +1888,10 @@ const adminReports = {
             html += `
                 <div style="display:flex; gap:14px; align-items:flex-start; margin-bottom:18px;">
                     <div style="flex:0 0 220px; max-width:220px; background:#f8f9fa; border-radius:8px; padding:12px;">
-                        ${headerCellHtml}
+                        ${nameBlockHtml}
                     </div>
                     <div style="flex:1; min-width:0;">
+                        ${badgesBlockHtml}
                         <table>
                             <tbody>
                                 ${colHeaderRow ? colHeaderRow.outerHTML : ''}
