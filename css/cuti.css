@@ -247,6 +247,11 @@
     color: var(--color-danger);
 }
 
+.leave-status.cancelled {
+    background: rgba(107, 114, 128, 0.1);
+    color: #6B7280;
+}
+
 .leave-details {
     margin-bottom: var(--spacing-xs);
 }
