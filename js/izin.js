@@ -982,6 +982,12 @@ const izin = {
                                 <strong>Catatan Direktur:</strong> ${izin.directorNote}
                             </div>
                         ` : ''}
+                        ${izin.status === 'cancelled' && izin.cancelledNote ? `
+                            <div style="margin-top:8px;padding:8px 12px;border-radius:8px;background:rgba(107,114,128,0.1);border-left:3px solid var(--text-muted,#6B7280);font-size:var(--font-size-sm);color:var(--text-secondary);">
+                                <i class="fas fa-ban" style="margin-right:6px;"></i>
+                                <strong>Alasan Pembatalan:</strong> ${izin.cancelledNote}
+                            </div>
+                        ` : ''}
                         ${izin.status === 'approved' && (izin.emailSent === false || izin.emailSent === 'false') ? `
                             <div style="margin-top:8px;padding:8px 12px;border-radius:8px;background:rgba(245,158,11,0.08);border-left:3px solid var(--color-warning);font-size:var(--font-size-sm);color:var(--text-secondary);">
                                 <i class="fas fa-triangle-exclamation" style="color:var(--color-warning);margin-right:6px;"></i>
@@ -1008,7 +1014,7 @@ const izin = {
                                 </button>
                             </div>
                         ` : ''}
-                        ${izin.status === 'pending' ? `
+                        ${this.CANCELABLE_IZIN_STATUSES.includes(izin.status) ? `
                             <div style="margin-top:8px;display:flex;gap:6px;">
                                 <button class="btn-small btn-outline" style="color:var(--color-danger,#EF4444);border-color:var(--color-danger,#EF4444);" onclick="izin.cancelIzinRequest(${izin.id})">
                                     <i class="fas fa-trash-alt"></i> Batalkan Pengajuan
@@ -1021,25 +1027,40 @@ const izin = {
         }).join('');
     },
 
+    // Tahap-tahap status yang MASIH BOLEH dibatalkan sendiri oleh pemohon -
+    // yaitu selama belum final/belum ada email surat yang terkirim (lihat
+    // CANCELABLE_IZIN_STATUSES di cancelIzinData(), Izin.gs). Begitu sudah
+    // 'approved' (surat sudah dicetak/dikirim email), 'rejected', atau
+    // 'ditunda', tombol Batalkan tidak lagi ditampilkan.
+    CANCELABLE_IZIN_STATUSES: ['pending', 'asmen_approved', 'manajer_bidang_approved', 'manajer_approved'],
+
     /**
-     * Batalkan pengajuan izin yang masih "Menunggu" (belum ada satupun
-     * approval berjalan) - dipakai karyawan sendiri kalau salah kirim,
-     * dobel pengajuan, atau ternyata tidak jadi izin. Backend
-     * (cancelIzinData di Izin.gs) menolak kalau statusnya sudah bukan
-     * 'pending' lagi, jadi aman dari race condition dengan approver.
+     * Batalkan pengajuan izin milik sendiri, selama belum final (lihat
+     * CANCELABLE_IZIN_STATUSES di atas). Alasan pembatalan WAJIB diisi -
+     * dipakai backend (cancelIzinData di Izin.gs) supaya tersimpan di
+     * riwayat DAN diberi tahu ke Asmen/Manajer/Direktur yang gilirannya
+     * lagi menunggu (lewat push notification), bukan cuma "hilang" begitu
+     * saja. Baris TIDAK dihapus lagi - status-nya jadi 'cancelled' supaya
+     * tetap muncul di Riwayat Pengajuan Izin.
      */
     async cancelIzinRequest(id) {
-        if (!confirm('Batalkan pengajuan izin ini? Tindakan ini tidak bisa dibatalkan.')) return;
+        const catatan = prompt('Alasan membatalkan pengajuan izin ini (wajib diisi):');
+        if (catatan === null) return; // user menekan Cancel di prompt
+        if (!catatan.trim()) {
+            toast.error('Alasan pembatalan wajib diisi');
+            return;
+        }
 
         try {
             const currentUser = auth.getCurrentUser();
             const userId = currentUser?.employeeId || currentUser?.id || 'demo-user';
-            const result = await api.cancelIzin(id, userId);
+            const result = await api.cancelIzin(id, userId, catatan.trim());
             if (!result.success) {
                 toast.error(result.error || 'Gagal membatalkan pengajuan izin');
                 return;
             }
-            this.izinData = this.izinData.filter(i => String(i.id) !== String(id));
+            const idx = this.izinData.findIndex(i => String(i.id) === String(id));
+            if (idx !== -1) this.izinData[idx] = Object.assign({}, this.izinData[idx], result.data);
             toast.success('Pengajuan izin berhasil dibatalkan.');
             this.renderIzinList();
             this.updateStats();
@@ -1056,7 +1077,8 @@ const izin = {
             'manajer_approved': 'Disetujui Manajer',
             'manager_approved': 'Disetujui Manager',
             'approved': 'Disetujui',
-            'rejected': 'Ditolak'
+            'rejected': 'Ditolak',
+            'cancelled': 'Dibatalkan'
         };
         return labels[status] || status;
     },
@@ -1185,7 +1207,7 @@ const izin = {
             order = [ASMEN(), MANAJER(), DIREKTUR()];
         }
 
-        const isStoppedEarly = item.status === 'rejected' || item.status === 'ditolak' || item.status === 'ditunda';
+        const isStoppedEarly = item.status === 'rejected' || item.status === 'ditolak' || item.status === 'ditunda' || item.status === 'cancelled';
         let currentAssigned = false;
         return order.map(s => {
             if (s.name) return Object.assign({}, s, { state: 'done' });
@@ -1232,6 +1254,8 @@ const izin = {
             footerHtml = `<div class="approval-step-final rejected"><i class="fas fa-ban"></i> Pengajuan ini ditolak${item.rejectedByRole ? ' oleh ' + item.rejectedByRole : ''}${item.rejectedNote ? ': "' + item.rejectedNote + '"' : ''}</div>`;
         } else if (item.status === 'ditunda') {
             footerHtml = `<div class="approval-step-final postponed"><i class="fas fa-pause-circle"></i> Ditunda oleh Direktur${item.directorNote ? ': "' + item.directorNote + '"' : ''}</div>`;
+        } else if (item.status === 'cancelled') {
+            footerHtml = `<div class="approval-step-final cancelled"><i class="fas fa-ban"></i> Dibatalkan oleh pemohon${item.cancelledNote ? ': "' + item.cancelledNote + '"' : ''}</div>`;
         }
         return `<div class="approval-stepper">${stepsHtml}</div>${footerHtml}`;
     },
@@ -1423,6 +1447,12 @@ const izin = {
                         <div class="izin-details">
                             <span class="izin-date"><i class="fas fa-calendar"></i> ${dateDisplay}</span>
                         </div>
+                        ${item.status === 'cancelled' && item.cancelledNote ? `
+                            <div style="margin-top:8px;padding:8px 12px;border-radius:8px;background:rgba(107,114,128,0.1);border-left:3px solid var(--text-muted,#6B7280);font-size:var(--font-size-sm);color:var(--text-secondary);">
+                                <i class="fas fa-ban" style="margin-right:6px;"></i>
+                                <strong>Alasan Pembatalan:</strong> ${item.cancelledNote}
+                            </div>
+                        ` : ''}
                     </div>
                 </div>
             `;
