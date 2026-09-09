@@ -3050,6 +3050,17 @@
                                 <div class="filter-group"><label>Bulan</label><input type="month" id="attendance-month-filter"></div>
                                 <div class="filter-group"><label>Dari Tanggal</label><input type="date" id="attendance-date-from-filter"></div>
                                 <div class="filter-group"><label>Sampai Tanggal</label><input type="date" id="attendance-date-to-filter"></div>
+                                <!-- [TAMBAHAN] "Tanpa Kabar" (mangkir tanpa keterangan) tidak
+                                     tersimpan di sistem manapun (attendance cuma mencatat
+                                     kejadian ABSEN NYATA - hadir/terlambat/izin/cuti, bukan
+                                     "tidak ada aktivitas sama sekali"), jadi TIDAK bisa
+                                     dihitung otomatis dari data yang ada tanpa berisiko salah
+                                     hitung. Sama seperti sebelumnya (lihat Excel manual admin),
+                                     angkanya diisi manual di sini SEBELUM cetak, lalu dipakai
+                                     printReport() untuk ditulis ke tabel ringkasan di halaman
+                                     cetak - lihat _buildAttendanceSummaryHtml() di
+                                     admin-reports.js. -->
+                                <div class="filter-group"><label>Tanpa Kabar (isi manual, utk cetak)</label><input type="number" id="attendance-tanpa-kabar-input" min="0" placeholder="0"></div>
                             </div>
                         </div>
                         <div class="reports-table-card">
