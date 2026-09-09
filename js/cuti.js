@@ -552,17 +552,18 @@ const cuti = {
      * tetap muncul di Riwayat Pengajuan Cuti.
      */
     async cancelLeaveRequest(id) {
-        const catatan = prompt('Alasan membatalkan pengajuan cuti ini (wajib diisi):');
-        if (catatan === null) return; // user menekan Cancel di prompt
-        if (!catatan.trim()) {
-            toast.error('Alasan pembatalan wajib diisi');
-            return;
-        }
+        const catatan = await confirmReasonModal.show({
+            title: 'Batalkan Pengajuan Cuti',
+            message: 'Pengajuan ini akan dibatalkan dan approver yang sedang menunggu akan diberi tahu alasannya.',
+            placeholder: 'Contoh: salah tanggal, tidak jadi cuti, dobel pengajuan...',
+            confirmText: 'Batalkan Pengajuan'
+        });
+        if (catatan === null) return; // user membatalkan lewat tombol Batal/klik luar/Esc
 
         try {
             const currentUser = auth.getCurrentUser();
             const userId = currentUser?.employeeId || currentUser?.id || 'demo-user';
-            const result = await api.cancelLeave(id, userId, catatan.trim());
+            const result = await api.cancelLeave(id, userId, catatan);
             if (!result.success) {
                 toast.error(result.error || 'Gagal membatalkan pengajuan cuti');
                 return;
