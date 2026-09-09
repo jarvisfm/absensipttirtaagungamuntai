@@ -1870,10 +1870,32 @@ const adminReports = {
             let nameBlockHtml = '';
             let badgesBlockHtml = '';
             if (outerFlex && outerFlex.children.length >= 2) {
+                const nameDiv = outerFlex.children[0];
                 const badgesDiv = outerFlex.children[1];
                 badgesDiv.style.flexWrap = 'wrap';
                 badgesDiv.style.marginBottom = '10px';
-                nameBlockHtml = outerFlex.children[0].outerHTML;
+
+                // PENAMBAHAN (2026-09-09): baris detail (Unit Wilayah —
+                // Bagian — Jabatan — Jenis Jadwal) aslinya 1 baris panjang
+                // dipisah " — ", susah dibaca di panel sempit - dipecah jadi
+                // 3 baris terpisah: (1) Unit Wilayah - Bagian, (2) Jabatan,
+                // (3) Jenis Jadwal. Isi tiap bagian tetap disalin apa adanya
+                // dari teks aslinya (cuma dipecah ulang penempatan barisnya),
+                // gaya (warna/ukuran font) mengikuti gaya baris aslinya.
+                const textWrap = nameDiv.children[1];
+                const detailDiv = textWrap ? textWrap.children[1] : null;
+                if (detailDiv) {
+                    const parts = detailDiv.textContent.split('—').map(s => s.trim());
+                    const [dept, bagian, position, shift] = parts;
+                    const detailStyle = detailDiv.getAttribute('style') || '';
+                    detailDiv.innerHTML = `
+                        <div style="${detailStyle}">${[dept, bagian].filter(Boolean).join(' - ') || '-'}</div>
+                        <div style="${detailStyle}">${position || '-'}</div>
+                        <div style="${detailStyle}">${shift || '-'}</div>
+                    `;
+                }
+
+                nameBlockHtml = nameDiv.outerHTML;
                 badgesBlockHtml = badgesDiv.outerHTML;
             } else if (headerCell) {
                 // Fallback kalau strukturnya di luar dugaan - tampilkan apa
@@ -1891,7 +1913,7 @@ const adminReports = {
 
             html += `
                 <div style="display:flex; gap:14px; align-items:stretch; margin-bottom:18px;">
-                    <div style="flex:0 0 220px; max-width:220px; background:#f8f9fa; border-radius:8px; padding:12px; display:flex; align-items:center; justify-content:center; text-align:center;">
+                    <div style="flex:0 0 220px; max-width:220px; background:#f8f9fa; border:1px solid #d1d5db; border-radius:8px; padding:12px; display:flex; align-items:center; justify-content:center; text-align:center;">
                         ${nameBlockHtml}
                     </div>
                     <div style="flex:1; min-width:0;">
