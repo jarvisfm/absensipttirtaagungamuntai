@@ -99,6 +99,77 @@ const toast = {
     }
 };
 
+// Modal generik untuk minta alasan/catatan WAJIB DIISI sebelum konfirmasi
+// aksi tertentu (dipakai izin.js/cuti.js untuk tombol "Batalkan
+// Pengajuan" - pengganti prompt() bawaan browser yang tampilannya kurang
+// bagus/tidak konsisten dengan desain app). SENGAJA dibuat dinamis lewat
+// JS (elemen di-inject ke document.body saat dipakai, mengikuti pola yang
+// sama seperti toast di atas) supaya TIDAK perlu utak-atik markup
+// index.html yang sudah besar. Style memakai class .modal-overlay/
+// .modal-container yang sudah ada di modal.css supaya tampilannya
+// konsisten dengan modal-modal lain di app. Pemakaian:
+//   const alasan = await confirmReasonModal.show({ title, message, placeholder, confirmText });
+//   if (alasan === null) return; // user membatalkan
+const confirmReasonModal = {
+    _resolve: null,
+    _overlay: null,
+
+    show({ title = 'Konfirmasi', message = '', placeholder = 'Tulis alasan di sini...', confirmText = 'Lanjutkan', confirmDanger = true } = {}) {
+        this._close(null); // jaga-jaga ada instance lama masih terbuka (dobel klik dsb)
+
+        return new Promise((resolve) => {
+            this._resolve = resolve;
+
+            const overlay = document.createElement('div');
+            overlay.className = 'modal-overlay';
+            overlay.innerHTML = `
+                <div class="modal-container" style="max-width:420px;width:92%;">
+                    <div style="padding:1.5rem;">
+                        <h3 style="margin-bottom:0.5rem;font-size:1.05rem;color:var(--text-primary);">${title}</h3>
+                        ${message ? `<p style="color:var(--text-muted);font-size:0.85rem;margin-bottom:1rem;line-height:1.5;">${message}</p>` : ''}
+                        <textarea id="confirm-reason-modal-input" rows="3" placeholder="${placeholder}" style="width:100%;resize:vertical;"></textarea>
+                        <div id="confirm-reason-modal-error" style="display:none;color:var(--color-danger,#EF4444);font-size:0.78rem;margin-top:6px;"></div>
+                        <div style="display:flex;gap:8px;margin-top:1.25rem;">
+                            <button type="button" id="confirm-reason-modal-cancel" style="flex:1;background:none;border:1px solid var(--border-color);color:var(--text-muted);padding:10px;border-radius:8px;cursor:pointer;font-weight:500;">Batal</button>
+                            <button type="button" id="confirm-reason-modal-ok" style="flex:1;background:${confirmDanger ? '#DC2626' : 'var(--color-primary)'};color:#fff;border:none;padding:10px;border-radius:8px;cursor:pointer;font-weight:600;">${confirmText}</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(overlay);
+            this._overlay = overlay;
+
+            const textarea = overlay.querySelector('#confirm-reason-modal-input');
+            const errorEl = overlay.querySelector('#confirm-reason-modal-error');
+            setTimeout(() => textarea.focus(), 50);
+
+            const submit = () => {
+                const val = textarea.value.trim();
+                if (!val) {
+                    errorEl.textContent = 'Alasan wajib diisi';
+                    errorEl.style.display = 'block';
+                    textarea.focus();
+                    return;
+                }
+                this._close(val);
+            };
+
+            overlay.querySelector('#confirm-reason-modal-ok').onclick = submit;
+            overlay.querySelector('#confirm-reason-modal-cancel').onclick = () => this._close(null);
+            overlay.addEventListener('click', (e) => { if (e.target === overlay) this._close(null); });
+            textarea.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) submit();
+                if (e.key === 'Escape') this._close(null);
+            });
+        });
+    },
+
+    _close(value) {
+        if (this._overlay) { this._overlay.remove(); this._overlay = null; }
+        if (this._resolve) { const r = this._resolve; this._resolve = null; r(value); }
+    }
+};
+
 // Date & Time Utilities
 const dateTime = {
     // ===== Sinkronisasi jam SERVER (bukan jam HP) =====
@@ -517,6 +588,7 @@ document.addEventListener('DOMContentLoaded', () => {
 // Export for other modules
 window.storage = storage;
 window.toast = toast;
+window.confirmReasonModal = confirmReasonModal;
 window.dateTime = dateTime;
 window.formUtils = formUtils;
 window.animations = animations;
