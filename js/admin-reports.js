@@ -1788,6 +1788,18 @@ const adminReports = {
         const tableId = { attendance: 'attendance-reports-table', jurnal: 'jurnal-reports-table', leave: 'leave-reports-table' };
         const table = document.getElementById(tableId[type]);
         if (!table) return;
+
+        // PENAMBAHAN (2026-09-09): khusus format cetak "Rekap Absensi
+        // Karyawan" - panel Nama Karyawan (avatar + nama + departemen +
+        // badge Hadir/Terlambat/dst) yang tadinya jadi baris header PENUH
+        // (colspan) DI ATAS tabel Tanggal/Shift/dst, dipindah jadi panel DI
+        // KIRI, di samping tabelnya. HANYA menata ulang POSISI blok itu di
+        // versi cetak saja - tampilan di LAYAR (renderAttendanceReports())
+        // SAMA SEKALI TIDAK diubah/disentuh, begitu juga format cetak untuk
+        // Jurnal & Cuti/Izin (masih persis seperti sebelumnya). Lihat
+        // _buildAttendancePrintHtml() di bawah.
+        const printBodyHtml = (type === 'attendance') ? this._buildAttendancePrintHtml(table) : table.outerHTML;
+
         const printWindow = window.open('', '_blank');
         printWindow.document.write(`
             <!DOCTYPE html><html><head>
@@ -1805,12 +1817,87 @@ const adminReports = {
             </head><body>
             <h2>PT. Tirta Agung Amuntai</h2>
             <p>${titles[type]} — Dicetak: ${new Date().toLocaleDateString('id-ID', {day:'numeric',month:'long',year:'numeric'})}</p>
-            ${table.outerHTML}
+            ${printBodyHtml}
             </body></html>
         `);
         printWindow.document.close();
         printWindow.focus();
         setTimeout(() => { printWindow.print(); }, 500);
+    },
+
+    // PENAMBAHAN (2026-09-09): pecah isi tbody #attendance-reports-body
+    // (yang formatnya: 1 baris header per-karyawan [class
+    // "employee-group-header", colspan 9, berisi avatar+nama+departemen+
+    // badge statistik] -> 1 baris label kolom [Tanggal/Shift/Masuk/dst] ->
+    // sekian baris data, berulang per karyawan) jadi blok flex per
+    // karyawan: panel kiri (isi baris header apa adanya) + tabel kanan
+    // (baris label kolom + baris data apa adanya). TIDAK mengubah cara
+    // data itu sendiri dihitung/dirender oleh renderAttendanceReports() -
+    // cuma dipakai .cloneNode(true), jadi tabel ASLI yang tampil di layar
+    // admin tidak tersentuh sama sekali - transformasi ini murni untuk
+    // teks HTML yang dikirim ke jendela cetak.
+    _buildAttendancePrintHtml(table) {
+        const clone = table.cloneNode(true);
+        const rows = Array.from(clone.querySelectorAll('tbody > tr'));
+        if (rows.length === 0) return clone.outerHTML;
+
+        let html = '';
+        let i = 0;
+        while (i < rows.length) {
+            const headerRow = rows[i];
+            if (!headerRow.classList.contains('employee-group-header')) {
+                // Baris di luar pola grup per-karyawan (mis. "Tidak ada data
+                // karyawan") - tampilkan apa adanya, jangan diutak-atik.
+                html += `<table><tbody>${headerRow.outerHTML}</tbody></table>`;
+                i++;
+                continue;
+            }
+
+            // Panel kiri = isi <td> baris header (avatar+nama+badge), disalin
+            // PERSIS seperti aslinya - tidak ada yang diubah di dalamnya,
+            // KECUALI penyesuaian kecil di bawah ini: aslinya avatar+nama
+            // (kiri) & badge Hadir/dst (kanan) sejajar horizontal karena
+            // memang didesain utk baris penuh selebar tabel - begitu
+            // dipindah ke panel sempit (220px) di kiri, keduanya ditumpuk
+            // vertikal saja (badge di bawah nama, boleh wrap) supaya tetap
+            // enak dibaca. Cuma penyesuaian tata letak di SALINAN cetak ini
+            // - baris aslinya di layar admin tidak tersentuh.
+            const headerCell = headerRow.querySelector('td');
+            const outerFlex = headerCell ? headerCell.querySelector(':scope > div') : null;
+            if (outerFlex && outerFlex.children.length >= 2) {
+                outerFlex.style.flexDirection = 'column';
+                outerFlex.style.alignItems = 'flex-start';
+                outerFlex.children[1].style.flexWrap = 'wrap';
+                outerFlex.children[1].style.marginTop = '8px';
+            }
+            const headerCellHtml = headerCell ? headerCell.innerHTML : '';
+
+            const colHeaderRow = rows[i + 1] || null;
+            let j = i + 2;
+            const dataRows = [];
+            while (j < rows.length && !rows[j].classList.contains('employee-group-header')) {
+                dataRows.push(rows[j]);
+                j++;
+            }
+
+            html += `
+                <div style="display:flex; gap:14px; align-items:flex-start; margin-bottom:18px;">
+                    <div style="flex:0 0 220px; max-width:220px; background:#f8f9fa; border-radius:8px; padding:12px;">
+                        ${headerCellHtml}
+                    </div>
+                    <div style="flex:1; min-width:0;">
+                        <table>
+                            <tbody>
+                                ${colHeaderRow ? colHeaderRow.outerHTML : ''}
+                                ${dataRows.map(r => r.outerHTML).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+            i = j;
+        }
+        return html;
     },
 
     viewJurnalDetail(name, date) {
