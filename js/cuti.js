@@ -503,6 +503,12 @@ const cuti = {
                                 <strong>Catatan Direktur:</strong> ${leave.directorNote}
                             </div>
                         ` : ''}
+                        ${leave.status === 'cancelled' && leave.cancelledNote ? `
+                            <div style="margin-top:8px;padding:8px 12px;border-radius:8px;background:rgba(107,114,128,0.1);border-left:3px solid var(--text-muted,#6B7280);font-size:var(--font-size-sm);color:var(--text-secondary);">
+                                <i class="fas fa-ban" style="margin-right:6px;"></i>
+                                <strong>Alasan Pembatalan:</strong> ${leave.cancelledNote}
+                            </div>
+                        ` : ''}
                         ${(leave.status === 'approved' || leave.status === 'ditunda') ? `
                             <div style="margin-top:8px;">
                                 <button class="btn-small btn-outline" onclick="printLetters.openCuti(${leave.id})">
@@ -516,7 +522,7 @@ const cuti = {
                                 ${leave.emailError || 'Isi email supaya surat dikirimkan'}
                             </div>
                         ` : ''}
-                        ${leave.status === 'pending' ? `
+                        ${this.CANCELABLE_LEAVE_STATUSES.includes(leave.status) ? `
                             <div style="margin-top:8px;">
                                 <button class="btn-small btn-outline" style="color:var(--color-danger,#EF4444);border-color:var(--color-danger,#EF4444);" onclick="cuti.cancelLeaveRequest(${leave.id})">
                                     <i class="fas fa-trash-alt"></i> Batalkan Pengajuan
@@ -529,25 +535,40 @@ const cuti = {
         }).join('');
     },
 
+    // Tahap-tahap status yang MASIH BOLEH dibatalkan sendiri oleh pemohon -
+    // yaitu selama belum final/belum ada email surat yang terkirim (lihat
+    // CANCELABLE_LEAVE_STATUSES di cancelLeaveData(), Leave.gs). Begitu sudah
+    // 'approved', 'rejected', atau 'ditunda', tombol Batalkan tidak lagi
+    // ditampilkan.
+    CANCELABLE_LEAVE_STATUSES: ['pending', 'asmen_approved', 'manajer_bidang_approved', 'manajer_approved'],
+
     /**
-     * Batalkan pengajuan cuti yang masih "Menunggu" (belum ada satupun
-     * approval berjalan) - dipakai karyawan sendiri kalau salah kirim,
-     * dobel pengajuan, atau ternyata tidak jadi cuti. Backend
-     * (cancelLeaveData di Leave.gs) menolak kalau statusnya sudah bukan
-     * 'pending' lagi, jadi aman dari race condition dengan approver.
+     * Batalkan pengajuan cuti milik sendiri, selama belum final (lihat
+     * CANCELABLE_LEAVE_STATUSES di atas). Alasan pembatalan WAJIB diisi -
+     * dipakai backend (cancelLeaveData di Leave.gs) supaya tersimpan di
+     * riwayat DAN diberi tahu ke Asmen/Manajer/Direktur yang gilirannya
+     * lagi menunggu (lewat push notification), bukan cuma "hilang" begitu
+     * saja. Baris TIDAK dihapus lagi - status-nya jadi 'cancelled' supaya
+     * tetap muncul di Riwayat Pengajuan Cuti.
      */
     async cancelLeaveRequest(id) {
-        if (!confirm('Batalkan pengajuan cuti ini? Tindakan ini tidak bisa dibatalkan.')) return;
+        const catatan = prompt('Alasan membatalkan pengajuan cuti ini (wajib diisi):');
+        if (catatan === null) return; // user menekan Cancel di prompt
+        if (!catatan.trim()) {
+            toast.error('Alasan pembatalan wajib diisi');
+            return;
+        }
 
         try {
             const currentUser = auth.getCurrentUser();
             const userId = currentUser?.employeeId || currentUser?.id || 'demo-user';
-            const result = await api.cancelLeave(id, userId);
+            const result = await api.cancelLeave(id, userId, catatan.trim());
             if (!result.success) {
                 toast.error(result.error || 'Gagal membatalkan pengajuan cuti');
                 return;
             }
-            this.leaves = this.leaves.filter(l => String(l.id) !== String(id));
+            const idx = this.leaves.findIndex(l => String(l.id) === String(id));
+            if (idx !== -1) this.leaves[idx] = Object.assign({}, this.leaves[idx], result.data);
             toast.success('Pengajuan cuti berhasil dibatalkan.');
             this.renderLeaveList();
             this.updateStats();
@@ -566,7 +587,8 @@ const cuti = {
             manager_approved: 'Disetujui Manager',
             approved: 'Disetujui',
             ditunda: 'Ditunda',
-            rejected: 'Ditolak'
+            rejected: 'Ditolak',
+            cancelled: 'Dibatalkan'
         };
         return labels[status] || status;
     },
@@ -670,7 +692,7 @@ const cuti = {
                 : [ASMEN(), MANAJER(), MANAJER_UMUM(), DIREKTUR()];
         }
 
-        const isStoppedEarly = item.status === 'rejected' || item.status === 'ditunda';
+        const isStoppedEarly = item.status === 'rejected' || item.status === 'ditunda' || item.status === 'cancelled';
         let currentAssigned = false;
         return order.map(s => {
             if (s.name) return Object.assign({}, s, { state: 'done' });
@@ -717,6 +739,8 @@ const cuti = {
             footerHtml = `<div class="approval-step-final rejected"><i class="fas fa-ban"></i> Pengajuan ini ditolak${item.rejectedByRole ? ' oleh ' + item.rejectedByRole : ''}${item.rejectedNote ? ': "' + item.rejectedNote + '"' : ''}</div>`;
         } else if (item.status === 'ditunda') {
             footerHtml = `<div class="approval-step-final postponed"><i class="fas fa-pause-circle"></i> Ditunda oleh Direktur${item.tundaSampai ? ' sampai ' + item.tundaSampai : ''}${item.directorNote ? ': "' + item.directorNote + '"' : ''}</div>`;
+        } else if (item.status === 'cancelled') {
+            footerHtml = `<div class="approval-step-final cancelled"><i class="fas fa-ban"></i> Dibatalkan oleh pemohon${item.cancelledNote ? ': "' + item.cancelledNote + '"' : ''}</div>`;
         }
         return `<div class="approval-stepper">${stepsHtml}</div>${footerHtml}`;
     },
