@@ -2061,11 +2061,6 @@ const adminReports = {
                         <tr><td><strong>Total</strong></td><td><strong>${total}</strong></td></tr>
                     </tbody>
                 </table>
-                <p style="text-align:left;color:#888;font-size:10px;max-width:340px;margin-top:4px;">
-                    *Total = Tanpa Kabar + Terlambat + Kendali + Sakit + Izin + cuti (Hadir &amp; Hadir Terlambat
-                    tidak ikut dijumlah ke Total supaya tidak dobel hitung dengan Terlambat).
-                    ${tanpaKabarFilled ? '' : ' Tanpa Kabar belum diisi manual sebelum cetak - isi dulu di kolom filter "Tanpa Kabar" kalau perlu.'}
-                </p>
             </div>
         `;
     },
