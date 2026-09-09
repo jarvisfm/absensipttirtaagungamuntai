@@ -1044,17 +1044,18 @@ const izin = {
      * tetap muncul di Riwayat Pengajuan Izin.
      */
     async cancelIzinRequest(id) {
-        const catatan = prompt('Alasan membatalkan pengajuan izin ini (wajib diisi):');
-        if (catatan === null) return; // user menekan Cancel di prompt
-        if (!catatan.trim()) {
-            toast.error('Alasan pembatalan wajib diisi');
-            return;
-        }
+        const catatan = await confirmReasonModal.show({
+            title: 'Batalkan Pengajuan Izin',
+            message: 'Pengajuan ini akan dibatalkan dan approver yang sedang menunggu akan diberi tahu alasannya.',
+            placeholder: 'Contoh: salah tanggal, tidak jadi izin, dobel pengajuan...',
+            confirmText: 'Batalkan Pengajuan'
+        });
+        if (catatan === null) return; // user membatalkan lewat tombol Batal/klik luar/Esc
 
         try {
             const currentUser = auth.getCurrentUser();
             const userId = currentUser?.employeeId || currentUser?.id || 'demo-user';
-            const result = await api.cancelIzin(id, userId, catatan.trim());
+            const result = await api.cancelIzin(id, userId, catatan);
             if (!result.success) {
                 toast.error(result.error || 'Gagal membatalkan pengajuan izin');
                 return;
