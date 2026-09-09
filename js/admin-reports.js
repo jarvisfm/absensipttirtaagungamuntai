@@ -1860,7 +1860,11 @@ const adminReports = {
             // tabel Tanggal/dst di sebelah kanan, biar lega & tidak
             // menumpuk. Isi masing-masing (nama & badge) tetap disalin apa
             // adanya dari baris header asli, cuma posisinya yang ditata
-            // ulang - baris aslinya di layar admin tidak tersentuh.
+            // ulang - baris aslinya di layar admin tidak tersentuh. Panel
+            // kiri ini juga di-stretch supaya tingginya menyamai tabel di
+            // sebelahnya (align-items:stretch di container luar), lalu
+            // avatar+nama-nya diletakkan di TENGAH panel (horizontal &
+            // vertikal) - sebelumnya nempel di pojok kiri-atas.
             const headerCell = headerRow.querySelector('td');
             const outerFlex = headerCell ? headerCell.querySelector(':scope > div') : null;
             let nameBlockHtml = '';
@@ -1886,8 +1890,8 @@ const adminReports = {
             }
 
             html += `
-                <div style="display:flex; gap:14px; align-items:flex-start; margin-bottom:18px;">
-                    <div style="flex:0 0 220px; max-width:220px; background:#f8f9fa; border-radius:8px; padding:12px;">
+                <div style="display:flex; gap:14px; align-items:stretch; margin-bottom:18px;">
+                    <div style="flex:0 0 220px; max-width:220px; background:#f8f9fa; border-radius:8px; padding:12px; display:flex; align-items:center; justify-content:center; text-align:center;">
                         ${nameBlockHtml}
                     </div>
                     <div style="flex:1; min-width:0;">
