@@ -423,6 +423,11 @@
     color: var(--color-danger);
 }
 
+.status-badge.cancelled {
+    background: rgba(107, 114, 128, 0.1);
+    color: #6B7280;
+}
+
 /* Action Buttons */
 .btn-action {
     width: 32px;
