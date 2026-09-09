@@ -542,3 +542,13 @@
     background: rgba(245, 158, 11, 0.1);
     color: #D97706;
 }
+
+.approval-step-final.cancelled {
+    background: rgba(107, 114, 128, 0.1);
+    color: #6B7280;
+}
+
+.izin-status.cancelled {
+    background: rgba(107, 114, 128, 0.1);
+    color: #6B7280;
+}
