@@ -285,16 +285,22 @@ const api = {
         return this.request('submitLeave', data);
     },
 
-    // Batalkan pengajuan cuti milik sendiri - HANYA jalan kalau statusnya
-    // masih 'pending' (lihat cancelLeaveData() di Leave.gs).
-    async cancelLeave(id, userId) {
+    // Batalkan pengajuan cuti milik sendiri - boleh selama belum final
+    // (lihat CANCELABLE_LEAVE_STATUSES di cancelLeaveData() di Leave.gs).
+    // catatan (alasan pembatalan) wajib diisi - ditolak backend kalau kosong.
+    async cancelLeave(id, userId, catatan) {
         if (!API_BASE_URL) {
             const all = storage.get('leaves', []);
-            const filtered = all.filter(l => l.id !== id);
-            storage.set('leaves', filtered);
-            return { success: true, data: { id } };
+            const leave = all.find(l => l.id === id);
+            if (leave) {
+                leave.status = 'cancelled';
+                leave.cancelledAt = new Date().toISOString();
+                leave.cancelledNote = catatan;
+                storage.set('leaves', all);
+            }
+            return { success: true, data: leave || { id } };
         }
-        return this.request('cancelLeave', { id, userId });
+        return this.request('cancelLeave', { id, userId, catatan });
     },
 
     // Preview durasi cuti (hari kerja - Sabtu/Minggu/tanggal merah nasional
@@ -396,16 +402,22 @@ const api = {
         return this.request('submitIzin', data);
     },
 
-    // Batalkan pengajuan izin milik sendiri - HANYA jalan kalau statusnya
-    // masih 'pending' (lihat cancelIzinData() di Izin.gs).
-    async cancelIzin(id, userId) {
+    // Batalkan pengajuan izin milik sendiri - boleh selama belum final
+    // (lihat CANCELABLE_IZIN_STATUSES di cancelIzinData() di Izin.gs).
+    // catatan (alasan pembatalan) wajib diisi - ditolak backend kalau kosong.
+    async cancelIzin(id, userId, catatan) {
         if (!API_BASE_URL) {
             const all = storage.get('izin', []);
-            const filtered = all.filter(i => i.id !== id);
-            storage.set('izin', filtered);
-            return { success: true, data: { id } };
+            const izin = all.find(i => i.id === id);
+            if (izin) {
+                izin.status = 'cancelled';
+                izin.cancelledAt = new Date().toISOString();
+                izin.cancelledNote = catatan;
+                storage.set('izin', all);
+            }
+            return { success: true, data: izin || { id } };
         }
-        return this.request('cancelIzin', { id, userId });
+        return this.request('cancelIzin', { id, userId, catatan });
     },
 
     async approveIzin(id, approver, catatan) {
