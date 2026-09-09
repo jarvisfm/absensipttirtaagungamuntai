@@ -271,7 +271,10 @@ const adminReports = {
                     directorNote:      l.directorNote      || '',
                     rejectedByRole:    l.rejectedByRole    || '',
                     rejectedNote:      l.rejectedNote      || '',
-                    tundaSampai:       l.tundaSampai       || ''
+                    tundaSampai:       l.tundaSampai       || '',
+                    cancelledNote:        l.cancelledNote        || '',
+                    cancelledAt:          l.cancelledAt          || '',
+                    cancelledBy:          l.cancelledBy          || ''
                 };
             }),
             ...uniqueIzin.map(i => {
@@ -335,7 +338,10 @@ const adminReports = {
                     directorApprovedAt: i.directorApprovedAt || '',
                     directorNote:      i.directorNote      || '',
                     rejectedByRole:    i.rejectedByRole    || '',
-                    rejectedNote:      i.rejectedNote      || ''
+                    rejectedNote:      i.rejectedNote      || '',
+                    cancelledNote:        i.cancelledNote        || '',
+                    cancelledAt:          i.cancelledAt          || '',
+                    cancelledBy:          i.cancelledBy          || ''
                 };
             })
         ];
@@ -1414,7 +1420,7 @@ const adminReports = {
             return;
         }
 
-        const statusLabels = { 'pending': 'Menunggu', 'asmen_approved': 'Disetujui Asmen', 'manajer_bidang_approved': 'Disetujui Manajer Bidang', 'manajer_approved': 'Disetujui Manajer', 'approved': 'Disetujui', 'rejected': 'Ditolak' };
+        const statusLabels = { 'pending': 'Menunggu', 'asmen_approved': 'Disetujui Asmen', 'manajer_bidang_approved': 'Disetujui Manajer Bidang', 'manajer_approved': 'Disetujui Manajer', 'approved': 'Disetujui', 'rejected': 'Ditolak', 'ditunda': 'Ditunda', 'cancelled': 'Dibatalkan' };
 
         tbody.innerHTML = data.map(row => {
             const isKeluarKantor = row.kind === 'izin' && row.rawType === 'keluar_kantor';
@@ -1454,7 +1460,7 @@ const adminReports = {
             return;
         }
 
-        const statusLabels = { 'pending': 'Menunggu', 'asmen_approved': 'Disetujui Asmen', 'manajer_bidang_approved': 'Disetujui Manajer Bidang', 'manajer_approved': 'Disetujui Manajer', 'approved': 'Disetujui', 'rejected': 'Ditolak' };
+        const statusLabels = { 'pending': 'Menunggu', 'asmen_approved': 'Disetujui Asmen', 'manajer_bidang_approved': 'Disetujui Manajer Bidang', 'manajer_approved': 'Disetujui Manajer', 'approved': 'Disetujui', 'rejected': 'Ditolak', 'ditunda': 'Ditunda', 'cancelled': 'Dibatalkan' };
 
         container.innerHTML = data.map(row => {
             const isKeluarKantor = row.kind === 'izin' && row.rawType === 'keluar_kantor';
@@ -1615,7 +1621,7 @@ const adminReports = {
             order = [ASMEN(), MANAJER(), DIREKTUR()];
         }
 
-        const isStoppedEarly = row.status === 'rejected' || row.status === 'ditolak' || row.status === 'ditunda';
+        const isStoppedEarly = row.status === 'rejected' || row.status === 'ditolak' || row.status === 'ditunda' || row.status === 'cancelled';
         let currentAssigned = false;
         return order.map(s => {
             if (s.name) return Object.assign({}, s, { state: 'done' });
@@ -1662,6 +1668,8 @@ const adminReports = {
             footerHtml = `<div class="approval-step-final rejected"><i class="fas fa-ban"></i> Pengajuan ini ditolak${row.rejectedByRole ? ' oleh ' + row.rejectedByRole : ''}${row.rejectedNote ? ': "' + row.rejectedNote + '"' : ''}</div>`;
         } else if (row.status === 'ditunda') {
             footerHtml = `<div class="approval-step-final postponed"><i class="fas fa-pause-circle"></i> Ditunda oleh Direktur${row.tundaSampai ? ' sampai ' + row.tundaSampai : ''}${row.directorNote ? ': "' + row.directorNote + '"' : ''}</div>`;
+        } else if (row.status === 'cancelled') {
+            footerHtml = `<div class="approval-step-final cancelled"><i class="fas fa-ban"></i> Dibatalkan oleh pemohon${row.cancelledNote ? ': "' + row.cancelledNote + '"' : ''}</div>`;
         }
         return `<div class="approval-stepper">${stepsHtml}</div>${footerHtml}`;
     },
@@ -1881,8 +1889,8 @@ const adminReports = {
                        </div>`)
             : '';
 
-        const statusLabels = { 'pending': 'Menunggu', 'asmen_approved': 'Disetujui Asmen', 'manajer_bidang_approved': 'Disetujui Manajer Bidang', 'manajer_approved': 'Disetujui Manajer', 'approved': 'Disetujui', 'rejected': 'Ditolak' };
-        const statusColors = { 'pending': '#F59E0B', 'manager_approved': '#3B82F6', 'approved': '#10B981', 'rejected': '#EF4444' };
+        const statusLabels = { 'pending': 'Menunggu', 'asmen_approved': 'Disetujui Asmen', 'manajer_bidang_approved': 'Disetujui Manajer Bidang', 'manajer_approved': 'Disetujui Manajer', 'approved': 'Disetujui', 'rejected': 'Ditolak', 'ditunda': 'Ditunda', 'cancelled': 'Dibatalkan' };
+        const statusColors = { 'pending': '#F59E0B', 'manager_approved': '#3B82F6', 'approved': '#10B981', 'rejected': '#EF4444', 'ditunda': '#F59E0B', 'cancelled': '#6B7280' };
         const statusColor = statusColors[row.status] || '#94A3B8';
 
         const content = `
@@ -1906,6 +1914,15 @@ const adminReports = {
                 <div style="font-size:0.72rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.02em;margin-bottom:6px;">Alasan</div>
                 <div style="background:var(--color-gray-50);border-radius:10px;padding:12px 14px;font-size:0.88rem;color:var(--text-primary);line-height:1.5;">${row.reason}</div>
             </div>
+
+            ${row.status === 'cancelled' && row.cancelledNote ? `
+            <div style="margin-top:14px;">
+                <div style="font-size:0.72rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.02em;margin-bottom:6px;">Alasan Pembatalan</div>
+                <div style="background:rgba(107,114,128,0.1);border-left:3px solid #6B7280;border-radius:10px;padding:12px 14px;font-size:0.88rem;color:var(--text-primary);line-height:1.5;">
+                    <i class="fas fa-ban" style="margin-right:6px;color:#6B7280;"></i>${row.cancelledNote}
+                </div>
+            </div>
+            ` : ''}
 
             ${attachmentHtml}
 
