@@ -1821,7 +1821,7 @@ const adminReports = {
         const { periodeLabel, rows } = this._buildAttendanceRekapBulananData();
         const summary = this._buildAttendanceSummaryData();
 
-        const HEADERS = ['NO','NAMA','JABATAN','HADIR','HADIR TERLAMBAT','TANPA KABAR (Kali)','TERLAMBAT (Kali)','KENDALI (Kali)','SAKIT (Hari)','IZIN (Hari)','Hari Cuti','Keterangan Cuti'];
+        const HEADERS = ['NO','NAMA','JABATAN','HADIR','HADIR TERLAMBAT','TANPA KABAR (Kali)','TERLAMBAT (Kali)','Keluar Kantor','SAKIT (Hari)','IZIN (Hari)','Hari Cuti','Keterangan Cuti'];
 
         const aoa = [];
         aoa.push(['LAPORAN DAFTAR REKAP ABSEN PEGAWAI']);
