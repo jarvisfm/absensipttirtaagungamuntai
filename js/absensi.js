@@ -1370,22 +1370,33 @@ const absensi = {
 
         this.attendanceData = { ...payload, ...(result.data || {}) };
 
+        // [TAMBAHAN - Absensi Offline] result.offline ditandai oleh
+        // saveAttendance()/_queueOffline() di atas kalau absen ini
+        // sebenarnya BELUM sampai ke server, cuma disimpan dulu ke
+        // antrean offline (lihat js/offline-queue.js) - tambahkan
+        // keterangan ini di toast supaya karyawan tahu absennya akan
+        // tersinkron otomatis, bukan mengira sudah pasti tersimpan di
+        // server saat itu juga.
+        const offlineNote = result.offline
+            ? ' (tersimpan offline - akan tersinkron otomatis saat ada sinyal)'
+            : '';
+
         switch (action) {
             case 'clock-in':
                 this.currentState = 'clocked-in';
-                toast.success(`Absen masuk berhasil: ${timeStr}`);
+                toast.success(`Absen masuk berhasil: ${timeStr}${offlineNote}`);
                 break;
             case 'break':
                 this.currentState = 'on-break';
-                toast.info(`Absen istirahat: ${timeStr}`);
+                toast.info(`Absen istirahat: ${timeStr}${offlineNote}`);
                 break;
             case 'after-break':
                 this.currentState = 'clocked-in';
-                toast.success(`Absen kembali bekerja: ${timeStr}`);
+                toast.success(`Absen kembali bekerja: ${timeStr}${offlineNote}`);
                 break;
             case 'clock-out':
                 this.currentState = 'completed';
-                toast.success(`Absen pulang berhasil: ${timeStr}`);
+                toast.success(`Absen pulang berhasil: ${timeStr}${offlineNote}`);
                 break;
         }
 
@@ -1449,13 +1460,56 @@ const absensi = {
             return { success: true, data: {} };
         }
 
+        // [TAMBAHAN - Absensi Offline] Perangkat memang sedang tidak ada
+        // koneksi (mode pesawat/tidak ada sinyal) - jangan buang waktu
+        // mencoba fetch() dulu (bakal timeout lama), langsung simpan ke
+        // antrean offline. Lihat js/offline-db.js & js/offline-queue.js.
+        if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+            return this._queueOffline(data);
+        }
+
         try {
             const result = await api.saveAttendance(data);
+            // api.request() (js/api.js) MENELAN error jaringan asli & selalu
+            // membalas pesan generik persis ini lewat _localFallback() -
+            // satu-satunya cara di sini membedakannya dari PENOLAKAN SAH
+            // oleh backend (yang selalu membawa pesan error spesifik dari
+            // Apps Script sendiri, misal "di luar radius kantor"). Kalau
+            // suatu saat _localFallback() diubah, sesuaikan juga pesan ini.
+            if (!result.success && result.error === 'No fallback for action: saveAttendance') {
+                return this._queueOffline(data);
+            }
             return result;
         } catch (e) {
             console.error('Error saving attendance:', e);
-            return { success: false, error: 'Terjadi kesalahan koneksi saat menyimpan absensi. Coba lagi.' };
+            return this._queueOffline(data);
         }
+    },
+
+    // [TAMBAHAN - Absensi Offline] Simpan payload absen ke antrean
+    // IndexedDB (lewat offline-queue.js) supaya tidak pernah gagal
+    // tersimpan hanya karena tidak ada sinyal - lalu balas ke pemanggil
+    // SEOLAH sukses (success:true, dengan flag `offline:true`) supaya
+    // processWithVerification() tetap jalan seperti alur absen berhasil
+    // biasa (status berubah, timeline ke-update, dst), cuma toast-nya beda
+    // (lihat pemakaian flag `offline` di processWithVerification()).
+    //
+    // CATATAN JUJUR (perlu diketahui): validasi "di luar radius kantor"
+    // dilakukan backend saat request BENAR-BENAR diterima server. Selama
+    // masih di antrean offline, absen ini BELUM tervalidasi radius-nya -
+    // kalau nanti pas disinkronkan ternyata ditolak backend, record-nya
+    // ditandai 'failed' di IndexedDB (TIDAK dihapus, TIDAK diulang
+    // otomatis lagi) supaya bisa ditinjau manual, meski karyawan sudah
+    // sempat melihat status "berhasil" di HP-nya duluan.
+    async _queueOffline(data) {
+        if (typeof offlineQueue === 'undefined') {
+            // js/offline-queue.js entah kenapa belum termuat - JANGAN
+            // pura-pura sukses, supaya tidak ada absen yang hilang tanpa
+            // jejak sama sekali.
+            return { success: false, error: 'Tidak ada koneksi & modul absen offline tidak tersedia. Coba lagi setelah memuat ulang halaman.' };
+        }
+        await offlineQueue.enqueueAttendance(data);
+        return { success: true, data: { ...data }, offline: true };
     },
 
     updateUI() {
