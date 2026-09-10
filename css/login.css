@@ -179,6 +179,37 @@
     color: rgba(255,255,255,0.8);
 }
 
+/* [TAMBAHAN] Widget jam & tanggal live di halaman Login - kartu kaca
+   (glassmorphism) senada dengan aksen oranye tema login yang sudah ada. */
+.login-live-clock {
+    margin-top: var(--spacing-lg);
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    padding: 10px 28px;
+    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(245, 158, 11, 0.25);
+    backdrop-filter: blur(6px);
+}
+
+.login-live-clock-time {
+    font-size: 26px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 1px;
+    color: #fbbf24;
+    text-shadow: 0 0 14px rgba(245, 158, 11, 0.45);
+}
+
+.login-live-clock-date {
+    font-size: 12.5px;
+    font-weight: 500;
+    color: rgba(255,255,255,0.65);
+    text-transform: capitalize;
+}
+
 /* Login Right Side */
 .login-right {
     flex: 1;
