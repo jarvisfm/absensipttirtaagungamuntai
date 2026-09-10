@@ -1980,6 +1980,33 @@ const adminReports = {
         printWindow.document.close();
         printWindow.focus();
         setTimeout(() => { printWindow.print(); }, 500);
+
+        // PERBAIKAN (2026-09-10, dilaporkan admin): setelah menekan tombol
+        // Cetak (buka tab/jendela baru berisi halaman cetak ini) lalu
+        // kembali ke tab aplikasi utama, halaman utama jadi TIDAK BISA
+        // discroll lagi. Ini BUKAN kode kita yang mengunci scroll -
+        // printReport() di atas tidak pernah menyentuh
+        // document.body.style.overflow milik tab utama sama sekali, cuma
+        // menulis ke DOCUMENT TAB BARU yang terpisah (printWindow). Ini
+        // kuirk lama di Chrome/Edge: saat dialog cetak NATIVE browser
+        // muncul dari sebuah popup yang masih terhubung ke tab pembukanya
+        // (window.open TANPA 'noopener' - di atas memang harus tanpa itu,
+        // karena referensinya dipakai untuk document.write()/print() di
+        // atas), browser kadang salah "membekukan" ukuran/scroll viewport
+        // TAB PEMBUKANYA juga selama dialog cetak itu terbuka, dan tidak
+        // selalu mengembalikannya dengan benar setelah dialog ditutup.
+        // Sebagai jaring pengaman: begitu tab aplikasi utama ini kembali
+        // aktif (fokus lagi) setelah tombol Cetak ditekan, style overflow
+        // milik <html>/<body> dipaksa dikosongkan lagi (balik ke aturan
+        // CSS normal) - memperbaiki scroll yang sempat "macet" itu.
+        // Listener dilepas lagi setelah 1x jalan (once: true) supaya tidak
+        // ikut campur di event focus lain yang tidak berhubungan dengan
+        // Cetak (mis. modal lain yang memang sengaja mengunci scroll).
+        window.addEventListener('focus', function _restoreScrollAfterCetak() {
+            document.documentElement.style.overflow = '';
+            document.body.style.overflow = '';
+            window.removeEventListener('focus', _restoreScrollAfterCetak);
+        }, { once: true });
     },
 
     // PENAMBAHAN (2026-09-09): pecah isi tbody #attendance-reports-body
