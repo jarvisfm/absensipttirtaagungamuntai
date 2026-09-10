@@ -86,6 +86,34 @@ const auth = {
             }
         }
         this._setupBiometricLogin(); // NEW
+        this._startLoginClock(); // [TAMBAHAN] widget jam & tanggal live di halaman Login
+    },
+
+    // [TAMBAHAN] Widget jam & tanggal live di halaman Login - murni
+    // pemanis tampilan, tidak berhubungan dengan jam absen sungguhan (jam
+    // absen tetap diambil dari SERVER, bukan dari jam perangkat ini - lihat
+    // getServerTime() di api.js). Aman dipanggil di halaman mana pun; kalau
+    // elemennya tidak ada (mis. dipanggil ulang setelah showApp()), cukup
+    // berhenti diam-diam tanpa error.
+    _startLoginClock() {
+        const timeEl = document.getElementById('login-live-clock-time');
+        const dateEl = document.getElementById('login-live-clock-date');
+        if (!timeEl || !dateEl) return;
+
+        const HARI = ['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'];
+        const BULAN = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+
+        const tick = () => {
+            const now = new Date();
+            const hh = String(now.getHours()).padStart(2, '0');
+            const mm = String(now.getMinutes()).padStart(2, '0');
+            const ss = String(now.getSeconds()).padStart(2, '0');
+            timeEl.textContent = `${hh}:${mm}:${ss}`;
+            dateEl.textContent = `${HARI[now.getDay()]}, ${now.getDate()} ${BULAN[now.getMonth()]} ${now.getFullYear()}`;
+        };
+        tick();
+        if (this._loginClockIntervalId) clearInterval(this._loginClockIntervalId);
+        this._loginClockIntervalId = setInterval(tick, 1000);
     },
 
     async handleLogin(e) {
