@@ -24,12 +24,24 @@ const api = {
             return this._localFallback(action, data);
         }
 
+        // [TAMBAHAN] Batas waktu tunggu (timeout) untuk koneksi yang LAMBAT
+        // (bukan cuma yang benar-benar putus) - sebelumnya kalau internet
+        // lelet, fetch() ini bisa menggantung TANPA BATAS, tombol Login
+        // (atau proses lain) jadi macet di posisi "loading" selamanya tanpa
+        // pesan apa pun ke user. Sekarang dibatasi 20 detik - kalau lewat,
+        // dianggap "koneksi lambat" (dibedakan dari "tidak ada koneksi sama
+        // sekali" lewat reason di bawah, supaya pesannya ke user bisa lebih
+        // tepat/tidak membingungkan).
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 20000);
+
         try {
             const response = await fetch(API_BASE_URL, {
                 method: 'POST',
                 redirect: 'follow',
                 headers: { 'Content-Type': 'text/plain' },
-                body: JSON.stringify({ action, ...data })
+                body: JSON.stringify({ action, ...data }),
+                signal: controller.signal
             });
 
             const text = await response.text();
@@ -41,8 +53,13 @@ const api = {
             }
         } catch (error) {
             console.error('API Error:', error);
+            // 'AbortError' = timeout 20 detik kelewat (koneksi lambat),
+            // selain itu = fetch gagal total (tidak ada koneksi/DNS/dst).
+            const reason = error && error.name === 'AbortError' ? 'timeout' : 'offline';
             // Fallback to localStorage on network error
-            return this._localFallback(action, data);
+            return this._localFallback(action, data, reason);
+        } finally {
+            clearTimeout(timeoutId);
         }
     },
 
@@ -628,9 +645,21 @@ const api = {
         return { success: true, data: null };
     },
 
-    _localFallback(action, data) {
+    // [PERBAIKAN] Field `error` teknis di bawah SENGAJA TIDAK diubah -
+    // beberapa bagian kode lain (mis. handleClockIn() di absensi.js) cek
+    // teksnya persis ("No fallback for action: saveAttendance") untuk tahu
+    // kapan harus menyimpan ke antrean offline. Pesan ramah untuk user
+    // ditambahkan LEWAT FIELD BARU `userMessage` supaya tidak mengganggu
+    // pengecekan itu - tampilan yang mau memakai pesan ramah (mis.
+    // handleLogin() di auth.js) tinggal pakai result.userMessage kalau ada.
+    _localFallback(action, data, reason) {
         console.warn(`API Fallback: ${action} - using localStorage`);
-        return { success: false, error: 'No fallback for action: ' + action };
+        const userMessage = reason === 'timeout'
+            ? 'Koneksi internet lambat, coba lagi.'
+            : (reason === 'offline'
+                ? 'Tidak ada koneksi internet. Periksa jaringan Anda, lalu coba lagi.'
+                : null);
+        return { success: false, error: 'No fallback for action: ' + action, userMessage };
     },
 
     // ========== KARYAWAN ==========
