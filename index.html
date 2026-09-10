@@ -570,6 +570,18 @@
                             <span>Absen Anda sedang disimpan ke server. <strong>Jangan tutup aplikasi/tab ini dulu</strong> sampai muncul notifikasi berhasil.</span>
                         </div>
 
+                        <!-- [TAMBAHAN - Absensi Offline] Muncul kalau masih ada absen yang
+                             tersimpan di IndexedDB perangkat ini & belum tersinkron ke server -
+                             ditoggle otomatis oleh offlineQueue._renderBadge() (js/offline-queue.js)
+                             tiap kali antrean berubah (event 'offline-queue-changed'). Tombol
+                             "Sinkron Sekarang" memaksa coba kirim ulang tanpa menunggu jeda
+                             acak/interval berkala. -->
+                        <div id="offline-queue-banner" style="display:none;background:#EFF6FF;border:1px solid #BFDBFE;color:#1E40AF;border-radius:10px;padding:12px 16px;margin-bottom:1rem;font-size:0.85rem;align-items:center;gap:10px;justify-content:space-between;">
+                            <span><i class="fas fa-cloud-upload-alt"></i>
+                                <strong id="offline-queue-count">0</strong> absen tersimpan offline, menunggu koneksi untuk disinkronkan otomatis.</span>
+                            <button type="button" id="offline-queue-sync-btn" class="btn-secondary" style="white-space:nowrap;">Sinkron Sekarang</button>
+                        </div>
+
                         <div class="absensi-grid">
                             <div class="attendance-main-card">
                                 <div class="attendance-status" id="attendance-status">
@@ -3778,6 +3790,12 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/flatpickr.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/flatpickr.min.js"></script>
     <script src="js/api.js"></script>
+    <!-- [TAMBAHAN - Absensi Offline] Urutan penting: offline-db.js (wrapper
+         IndexedDB) HARUS dimuat SEBELUM offline-queue.js (pakai offlineDB),
+         dan keduanya SEBELUM absensi.js (memanggil offlineQueue saat absen
+         gagal karena tidak ada koneksi) - lihat js/absensi.js saveAttendance(). -->
+    <script src="js/offline-db.js"></script>
+    <script src="js/offline-queue.js"></script>
     <script src="js/push-notifications.js"></script>
     <script src="js/jenis-jadwal-util.js"></script>
     <script src="js/main.js"></script>
