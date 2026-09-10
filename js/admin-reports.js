@@ -2002,9 +2002,24 @@ const adminReports = {
         // Listener dilepas lagi setelah 1x jalan (once: true) supaya tidak
         // ikut campur di event focus lain yang tidak berhubungan dengan
         // Cetak (mis. modal lain yang memang sengaja mengunci scroll).
+        // PERBAIKAN LANJUTAN (2026-09-10): percobaan pertama (reset
+        // overflow di <html>/<body>) ternyata TIDAK cukup - container yang
+        // BENAR-BENAR mengatur scroll di layout aplikasi ini adalah
+        // #page-content (overflow-y:auto, lihat css/main.css), BUKAN
+        // <body> (yang overflow-y-nya default/tidak dikunci apa pun).
+        // Diperluas: reset juga overflow #page-content secara eksplisit,
+        // dan picu event 'resize' supaya perhitungan tinggi/layout flex
+        // yang mungkin sempat "nyangkut" gara-gara tab ini sempat tidak
+        // aktif (background) ikut dihitung ulang begitu tab aktif lagi.
         window.addEventListener('focus', function _restoreScrollAfterCetak() {
             document.documentElement.style.overflow = '';
             document.body.style.overflow = '';
+            const pageContent = document.getElementById('page-content');
+            if (pageContent) {
+                pageContent.style.overflow = '';
+                pageContent.style.overflowY = '';
+            }
+            window.dispatchEvent(new Event('resize'));
             window.removeEventListener('focus', _restoreScrollAfterCetak);
         }, { once: true });
     },
