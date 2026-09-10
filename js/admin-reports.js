@@ -1829,7 +1829,7 @@ const adminReports = {
                 h2 { text-align: center; margin-bottom: 4px; }
                 p { text-align: center; color: #666; margin-bottom: 16px; }
                 table { width: 100%; border-collapse: collapse; }
-                th, td { border: 1px solid #ddd; padding: 6px 8px; text-align: left; vertical-align: middle; }
+                th, td { border: 1px solid #000; padding: 6px 8px; text-align: left; vertical-align: middle; }
                 th { background: #f59e0b; color: white; font-weight: 600; }
                 tr:nth-child(even) { background: #f9f9f9; }
                 img { display: none; } button { display: none; }
@@ -2076,8 +2076,8 @@ const adminReports = {
         return `
             <table>
                 <thead>
-                    <tr><th colspan="12" style="text-align:center;">LAPORAN DAFTAR REKAP ABSEN PEGAWAI</th></tr>
-                    <tr><th colspan="12" style="text-align:center;">${periodeLabel}</th></tr>
+                    <tr><th colspan="12" style="text-align:center;color:#000;background:#fff;">LAPORAN DAFTAR REKAP ABSEN PEGAWAI</th></tr>
+                    <tr><th colspan="12" style="text-align:center;color:#000;background:#fff;">${periodeLabel}</th></tr>
                     <tr>
                         <th style="width:36px;">NO</th>
                         <th>NAMA</th>
