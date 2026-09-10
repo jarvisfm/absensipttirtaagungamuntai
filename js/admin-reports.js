@@ -2100,8 +2100,8 @@ const adminReports = {
         return `
             <table>
                 <thead>
-                    <tr><th colspan="12" style="text-align:center;color:#000;background:#fff;">LAPORAN DAFTAR REKAP ABSEN PEGAWAI</th></tr>
-                    <tr><th colspan="12" style="text-align:center;color:#000;background:#fff;">${periodeLabel}</th></tr>
+                    <tr><th colspan="12" style="text-align:center;color:#000;background:#fff;border-bottom:none;">LAPORAN DAFTAR REKAP ABSEN PEGAWAI</th></tr>
+                    <tr><th colspan="12" style="text-align:center;color:#000;background:#fff;border-top:none;">${periodeLabel}</th></tr>
                     <tr>
                         <th style="width:36px;">NO</th>
                         <th>NAMA</th>
