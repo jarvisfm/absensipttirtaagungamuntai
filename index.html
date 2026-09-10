@@ -60,6 +60,16 @@
                 </div>
                 <p class="tagline">Sistem Absensi Karyawan</p>
                 <h1 class="company-name" id="login-company-name">PT. TIRTA AGUNG AMUNTAI (PERSERODA)</h1>
+
+                <!-- [TAMBAHAN] Widget jam & tanggal live - murni pemanis
+                     tampilan halaman Login, diperbarui tiap detik lewat
+                     _startLoginClock() di js/auth.js. Ditaruh di sini
+                     (bukan sisi kanan/form) supaya tidak mengganggu layout
+                     form login sama sekali. -->
+                <div class="login-live-clock" id="login-live-clock">
+                    <div class="login-live-clock-time" id="login-live-clock-time">--:--:--</div>
+                    <div class="login-live-clock-date" id="login-live-clock-date">-</div>
+                </div>
             </div>
         </div>
         <div class="login-right">
