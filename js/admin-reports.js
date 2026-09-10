@@ -2238,7 +2238,7 @@ const adminReports = {
                         <th>HADIR<br>TERLAMBAT</th>
                         <th>TANPA KABAR<br>(Kali)</th>
                         <th>TERLAMBAT<br>(Kali)</th>
-                        <th>KENDALI<br>(Kali)</th>
+                        <th>KELUAR KANTOR<br>(Kali)</th>
                         <th>SAKIT<br>(Hari)</th>
                         <th>IZIN<br>(Hari)</th>
                         <th>Hari Cuti</th>
