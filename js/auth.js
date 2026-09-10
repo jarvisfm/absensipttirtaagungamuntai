@@ -143,7 +143,7 @@ const auth = {
                 };
     
             } else {
-                toast.error(result.error || 'Email atau password salah!');
+                toast.error(result.userMessage || result.error || 'Email atau password salah!');
                 submitBtn.classList.remove('loading');
                 submitBtn.disabled = false;
                 return;
