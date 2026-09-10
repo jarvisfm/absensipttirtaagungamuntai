@@ -1798,7 +1798,19 @@ const adminReports = {
         // SAMA SEKALI TIDAK diubah/disentuh, begitu juga format cetak untuk
         // Jurnal & Cuti/Izin (masih persis seperti sebelumnya). Lihat
         // _buildAttendancePrintHtml() di bawah.
-        const printBodyHtml = (type === 'attendance') ? this._buildAttendancePrintHtml(table) : table.outerHTML;
+        // PERBAIKAN (2026-09-10, permintaan admin): format cetak "Rekap
+        // Absensi Karyawan" sebelumnya masih tabel detail HARIAN per
+        // karyawan (Tanggal/Shift/Masuk/dst, dari _buildAttendancePrintHtml
+        // di atas) - admin minta formatnya disamakan dengan rekap Excel
+        // manual yang selama ini dipakai: 1 BARIS PER KARYAWAN berisi
+        // rekap satu bulan (NO/NAMA/JABATAN/TANPA KABAR/TERLAMBAT/KENDALI/
+        // SAKIT/IZIN/Hari Cuti/Keterangan Cuti), bukan rincian per hari.
+        // _buildAttendancePrintHtml() (tabel detail harian) TIDAK dihapus
+        // dari file ini - cuma tidak dipakai lagi di sini - supaya kalau
+        // suatu saat format detail harian ini dibutuhkan lagi, tidak perlu
+        // ditulis ulang dari nol. Jurnal & Cuti/Izin tetap seperti
+        // sebelumnya, tidak disentuh.
+        const printBodyHtml = (type === 'attendance') ? this._buildAttendanceRekapBulananHtml() : table.outerHTML;
 
         // [TAMBAHAN] Tabel ringkasan "Absen Karyawan Bulan ..." di paling
         // bawah halaman cetak Rekap Absensi (meniru rekap manual Excel admin:
@@ -1941,37 +1953,164 @@ const adminReports = {
         return html;
     },
 
-    // [TAMBAHAN] Bangun tabel ringkasan "Absen Karyawan Bulan ..." untuk
+    // [TAMBAHAN 2026-09-10] Tabel rekap bulanan PER KARYAWAN untuk halaman
+    // cetak "Rekap Absensi Karyawan" - formatnya meniru PERSIS rekap Excel
+    // manual admin (kolom: NO/NAMA/JABATAN/TANPA KABAR (Kali)/TERLAMBAT
+    // (Kali)/KENDALI (Kali)/SAKIT (Hari)/IZIN (Hari)/Hari Cuti/Keterangan
+    // Cuti), menggantikan tabel detail harian yang dipakai sebelumnya.
+    //
+    // Cakupan karyawan & periode DISAMAKAN dengan filter yang sedang aktif
+    // di layar (Nama/Bagian/Bulan/Dari-Sampai Tanggal - this.filters.attendance),
+    // sama seperti _buildAttendanceSummaryHtml() di bawah.
+    //
+    // TERLAMBAT/KENDALI/SAKIT/IZIN/Hari Cuti dihitung PER KARYAWAN dengan
+    // rumus yang SAMA PERSIS dengan versi agregat di
+    // _buildAttendanceSummaryHtml() (cuma tidak dijumlah lintas karyawan
+    // lagi) - lihat komentar lengkap definisi tiap kategori di sana.
+    //
+    // "TANPA KABAR" SENGAJA dikosongkan (bukan 0) untuk tiap karyawan -
+    // sama seperti alasan di _buildAttendanceSummaryHtml(): sistem ini
+    // cuma mencatat kejadian ABSEN NYATA (hadir/terlambat/izin/cuti),
+    // bukan "sama sekali tidak ada aktivitas", dan pola jadwal kerja
+    // beda-beda per unit (Reguler Senin-Jumat vs Operator 24 Jam dst) -
+    // jadi tidak bisa dihitung otomatis dengan aman. Kolomnya tetap
+    // ditampilkan (kosong) supaya admin bisa isi manual dengan pulpen di
+    // atas kertas hasil cetak, sama seperti sebelumnya - hanya saja
+    // sekarang PER KARYAWAN (kolom kosong di tiap baris), bukan lagi 1
+    // angka gabungan yang diisi lewat input sebelum cetak.
+    _buildAttendanceRekapBulananHtml() {
+        const { month, name, bagian, dateFrom, dateTo } = this.filters.attendance;
+
+        let employees = [...(this.rawEmployees || [])];
+        if (bagian) employees = employees.filter(e => e.bagian === bagian);
+        if (name) employees = employees.filter(e => String(e.name || '').toLowerCase().includes(name.toLowerCase()));
+        employees.sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')));
+
+        const dateInRange = (dateStr) => {
+            if (!dateStr) return false;
+            if (month && !dateStr.startsWith(month)) return false;
+            if (dateFrom && dateStr < dateFrom) return false;
+            if (dateTo && dateStr > dateTo) return false;
+            return true;
+        };
+
+        const rowsHtml = employees.map((emp, idx) => {
+            let attRows = (this.rawAttendance || []).filter(r => String(r.userId) === String(emp.id));
+            attRows = this._applyAttendanceDateFilters(attRows, month, dateFrom, dateTo);
+            const terlambat = attRows.filter(r => ['terlambat', 'late'].includes(String(r.status || '').toLowerCase())).length;
+
+            let kendali = 0, sakit = 0, izinHarian = 0;
+            (this.rawIzin || []).forEach(i => {
+                if (i.status !== 'approved') return;
+                if (String(i.userId) !== String(emp.id)) return;
+                if (!dateInRange(i.date)) return;
+                const hari = parseInt(i.duration) || 1;
+                if (i.type === 'keluar_kantor') kendali += hari;
+                else if (i.type === 'sick') sakit += hari;
+                else if (i.type === 'izin_harian') izinHarian += hari;
+            });
+
+            let cuti = 0;
+            const keteranganCutiSet = new Set();
+            (this.rawLeaves || []).forEach(l => {
+                if (l.status !== 'approved') return;
+                if (String(l.userId) !== String(emp.id)) return;
+                if (!dateInRange(l.startDate)) return;
+                cuti += parseInt(l.duration) || 1;
+                if (l.typeLabel) keteranganCutiSet.add(l.typeLabel);
+            });
+            const keteranganCuti = Array.from(keteranganCutiSet).join(', ');
+
+            return `
+                <tr>
+                    <td style="text-align:center;">${idx + 1}</td>
+                    <td>${emp.name || '-'}</td>
+                    <td>${emp.position || emp.jabatan || '-'}</td>
+                    <td style="text-align:center;"></td>
+                    <td style="text-align:center;">${terlambat || ''}</td>
+                    <td style="text-align:center;">${kendali || ''}</td>
+                    <td style="text-align:center;">${sakit || ''}</td>
+                    <td style="text-align:center;">${izinHarian || ''}</td>
+                    <td style="text-align:center;">${cuti || ''}</td>
+                    <td>${keteranganCuti}</td>
+                </tr>`;
+        }).join('');
+
+        const BULAN_NAMA = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+        let periodeLabel;
+        if (month) {
+            const [y, m] = month.split('-');
+            periodeLabel = `BULAN ${(BULAN_NAMA[parseInt(m, 10) - 1] || m).toUpperCase()} ${y}`;
+        } else if (dateFrom || dateTo) {
+            const fromLabel = dateFrom ? dateTime.formatDate(dateFrom, 'dmy') : '...';
+            const toLabel = dateTo ? dateTime.formatDate(dateTo, 'dmy') : '...';
+            periodeLabel = `PERIODE ${fromLabel} - ${toLabel}`;
+        } else {
+            periodeLabel = 'SELURUH DATA';
+        }
+
+        return `
+            <table>
+                <thead>
+                    <tr><th colspan="10" style="text-align:center;">LAPORAN DAFTAR REKAP ABSEN PEGAWAI</th></tr>
+                    <tr><th colspan="10" style="text-align:center;">${periodeLabel}</th></tr>
+                    <tr>
+                        <th style="width:36px;">NO</th>
+                        <th>NAMA</th>
+                        <th>JABATAN</th>
+                        <th>TANPA KABAR<br>(Kali)</th>
+                        <th>TERLAMBAT<br>(Kali)</th>
+                        <th>KENDALI<br>(Kali)</th>
+                        <th>SAKIT<br>(Hari)</th>
+                        <th>IZIN<br>(Hari)</th>
+                        <th>Hari Cuti</th>
+                        <th>Keterangan Cuti</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${rowsHtml || '<tr><td colspan="10" style="text-align:center;">Tidak ada data karyawan</td></tr>'}
+                </tbody>
+            </table>
+        `;
+    },
+
+
     // ditaruh di paling bawah halaman cetak Rekap Absensi - meniru rekap
-    // manual Excel admin (kolom: Tanpa Kabar/Hadir/Hadir Terlambat/
-    // Terlambat/Kendali/Sakit/Izin/cuti/Total). "Kendali" = Izin Keluar
-    // Kantor (istilah admin sendiri, lihat instruksi).
+    // manual Excel admin (kolom: Tanpa Kabar/Terlambat/Kendali/Sakit/
+    // Izin/cuti/Total). "Kendali" = Izin Keluar Kantor (istilah admin
+    // sendiri, lihat instruksi).
     //
     // Cakupan karyawan & periode di sini DISAMAKAN dengan filter yang
     // sedang aktif di layar (Nama/Bagian/Bulan/Dari-Sampai Tanggal - lihat
     // this.filters.attendance) supaya angkanya benar-benar mencerminkan
     // apa yang sedang dicetak, bukan seluruh data perusahaan.
     //
-    // Hadir/Hadir Terlambat/Terlambat dihitung PERSIS memakai rumus yang
-    // sama dengan renderAttendanceReports() di atas (di-copy, BUKAN
-    // memanggil ulang fungsi itu supaya tampilan layar tidak tersentuh
-    // sama sekali) - lihat komentar aslinya di sana untuk detail definisi
-    // tiap kategori. Kendali/Sakit/Izin dihitung dari this.rawIzin (field
-    // `type`: 'keluar_kantor'/'sick'/'izin_harian'), cuti dari
-    // this.rawLeaves - keduanya dijumlah per HARI (field `duration`,
-    // fallback 1 hari) supaya sebanding dengan leaveDays di
-    // this.attendanceData/loadData().
+    // Terlambat dihitung PERSIS memakai rumus yang sama dengan
+    // renderAttendanceReports() di atas (di-copy, BUKAN memanggil ulang
+    // fungsi itu supaya tampilan layar tidak tersentuh sama sekali) -
+    // lihat komentar aslinya di sana untuk detail definisi kategori ini.
+    // Kendali/Sakit/Izin dihitung dari this.rawIzin (field `type`:
+    // 'keluar_kantor'/'sick'/'izin_harian'), cuti dari this.rawLeaves -
+    // keduanya dijumlah per HARI (field `duration`, fallback 1 hari)
+    // supaya sebanding dengan leaveDays di this.attendanceData/loadData().
     //
-    // "Tanpa Kabar" (mangkir tanpa keterangan) SENGAJA TIDAK dihitung
-    // otomatis - Attendance di sistem ini cuma mencatat kejadian nyata
-    // (hadir/terlambat/izin/cuti terekam), bukan "tidak ada aktivitas sama
-    // sekali", dan tidak ada catatan jadwal kerja per-karyawan yang bisa
-    // dipakai menghitung hari mangkir dengan pasti (beda pola shift per
-    // unit - Reguler Senin-Jumat vs Operator 24 Jam dst.). Daripada
-    // menampilkan angka yang bisa salah untuk kategori sensitif begini,
-    // admin mengisinya sendiri lewat input #attendance-tanpa-kabar-input
-    // (lihat index.html) sebelum cetak - sama seperti proses manual yang
-    // sudah berjalan di Excel selama ini.
+    // PERBAIKAN (2026-09-10, permintaan admin): kolom "Hadir"/"Hadir
+    // Terlambat" (tidak ada di rekap Excel aslinya) dihapus dari box ini -
+    // sekarang isinya PERSIS sama seperti kolom di rekap Excel manual
+    // admin: Tanpa Kabar/Terlambat/Kendali/Sakit/Izin/cuti/Total.
+    //
+    // "Tanpa Kabar" (mangkir tanpa keterangan) SENGAJA TETAP dikosongkan
+    // (bukan dihitung 0) - Attendance di sistem ini cuma mencatat
+    // kejadian nyata (hadir/terlambat/izin/cuti terekam), bukan "tidak
+    // ada aktivitas sama sekali", dan tidak ada catatan jadwal kerja
+    // per-karyawan yang bisa dipakai menghitung hari mangkir dengan pasti
+    // (beda pola shift per unit - Reguler Senin-Jumat vs Operator 24 Jam
+    // dst.). Sebelumnya admin mengisi angka ini lewat input manual
+    // #attendance-tanpa-kabar-input SEBELUM cetak (lihat index.html) -
+    // input itu sudah dihapus atas permintaan admin, jadi sekarang
+    // baris "Tanpa Kabar" di box ini SELALU kosong, diisi manual dengan
+    // pulpen di atas kertas hasil cetak (sama seperti kolom "Tanpa Kabar"
+    // per-baris karyawan di _buildAttendanceRekapBulananHtml() di atas).
     _buildAttendanceSummaryHtml() {
         const { month, name, bagian, dateFrom, dateTo } = this.filters.attendance;
 
@@ -1988,23 +2127,11 @@ const adminReports = {
             return true;
         };
 
-        let hadir = 0, terlambat = 0, hadirTerlambat = 0;
+        let terlambat = 0;
         employees.forEach(emp => {
             let rows = (this.rawAttendance || []).filter(r => String(r.userId) === String(emp.id));
             rows = this._applyAttendanceDateFilters(rows, month, dateFrom, dateTo);
             terlambat += rows.filter(r => ['terlambat', 'late'].includes(String(r.status || '').toLowerCase())).length;
-            hadir += rows.filter(r => ['hadir', 'ontime', 'terlambat', 'late', 'izin', 'cuti'].includes(String(r.status || '').toLowerCase())).length;
-            if (this.shiftTypesConfigFull) {
-                rows.forEach(r => {
-                    const statusLower = String(r.status || '').toLowerCase();
-                    if (!['hadir', 'ontime', 'terlambat', 'late'].includes(statusLower)) return;
-                    ['clockIn', 'breakStart', 'breakEnd', 'clockOut'].forEach(field => {
-                        if (!r[field]) return;
-                        const lbl = getSessionAttendanceLabel(this.shiftTypesConfigFull, r.shift, r.date, field, r[field]);
-                        if (lbl && lbl.text === 'Hadir Terlambat') hadirTerlambat++;
-                    });
-                });
-            }
         });
 
         let kendali = 0, sakit = 0, izinHarian = 0;
@@ -2026,11 +2153,7 @@ const adminReports = {
             cuti += parseInt(l.duration) || 1;
         });
 
-        const tanpaKabarInput = document.getElementById('attendance-tanpa-kabar-input');
-        const tanpaKabarFilled = !!(tanpaKabarInput && tanpaKabarInput.value !== '');
-        const tanpaKabar = tanpaKabarFilled ? (parseInt(tanpaKabarInput.value, 10) || 0) : 0;
-
-        const total = tanpaKabar + terlambat + kendali + sakit + izinHarian + cuti;
+        const total = terlambat + kendali + sakit + izinHarian + cuti;
 
         const BULAN_NAMA = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
         let periodeLabel;
@@ -2050,9 +2173,7 @@ const adminReports = {
                 <table style="width:340px;">
                     <tbody>
                         <tr><th colspan="2" style="text-align:center;">Absen Karyawan ${periodeLabel}</th></tr>
-                        <tr><td>Tanpa Kabar</td><td>${tanpaKabarFilled ? tanpaKabar : ''}</td></tr>
-                        <tr><td>Hadir</td><td>${hadir}</td></tr>
-                        <tr><td>Hadir Terlambat</td><td>${hadirTerlambat}</td></tr>
+                        <tr><td>Tanpa Kabar</td><td></td></tr>
                         <tr><td>Terlambat</td><td>${terlambat}</td></tr>
                         <tr><td>Kendali</td><td>${kendali}</td></tr>
                         <tr><td>Sakit</td><td>${sakit}</td></tr>
