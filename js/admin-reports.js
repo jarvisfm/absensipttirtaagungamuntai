@@ -1846,11 +1846,21 @@ const adminReports = {
                    HITAM supaya selalu terbaca jelas apa pun setting cetaknya. */
                 th { background: #f59e0b; color: #000; font-weight: 600; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
                 tr:nth-child(even) { background: #f9f9f9; }
+                /* [PERBAIKAN 2026-09-10, permintaan admin] Baris dengan NAMA/
+                   JABATAN panjang jadi 2-3 baris teks (tinggi baris membesar) -
+                   kalau baris seperti itu jatuh persis di batas halaman,
+                   browser bisa memotongnya jadi dua bagian, dan garis tepi sel
+                   yang terpotong itu hilang. page-break-inside:avoid memaksa
+                   satu baris tabel SELALU pindah utuh ke halaman berikutnya
+                   kalau tidak cukup muat, tidak pernah dipotong di tengah. */
+                tr { page-break-inside: avoid; break-inside: avoid; }
                 img { display: none; } button { display: none; }
             </style>
             </head><body>
+            ${type === 'attendance' ? '' : `
             <h2>PT. Tirta Agung Amuntai</h2>
             <p>${titles[type]} — Dicetak: ${new Date().toLocaleDateString('id-ID', {day:'numeric',month:'long',year:'numeric'})}</p>
+            `}
             ${printBodyHtml}
             ${summaryHtml}
             </body></html>
