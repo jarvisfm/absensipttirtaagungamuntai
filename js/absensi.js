@@ -92,9 +92,9 @@ const absensi = {
         console.warn('Ditemukan sesi absen yang sempat gagal tersimpan (aplikasi tertutup di tengah proses):', leftover);
 
         if (snapshot.date === todayStr) {
-            toast.warning(`Sesi absen "${actionLabel}" tadi sempat GAGAL tersimpan karena aplikasi tertutup sebelum proses selesai. Silakan cek status absen Anda - kalau belum tercatat, absen ulang sekarang.`);
+            toast.warning(`Jangan tutup aplikasi sampai muncul notif tersimpan. Cek riwayat Anda - kalau sesi "${actionLabel}" belum tercatat, absen ulang.`);
         } else {
-            toast.error(`Sesi absen "${actionLabel}" tanggal ${snapshot.date || '-'} sempat GAGAL tersimpan (aplikasi tertutup sebelum proses selesai) dan tidak bisa diajukan ulang otomatis karena bukan hari ini. Mohon hubungi Admin untuk koreksi manual.`);
+            toast.error(`Jangan tutup aplikasi sampai muncul notif tersimpan. Cek riwayat Anda tgl ${snapshot.date || '-'} - kalau sesi "${actionLabel}" belum tercatat, hubungi Admin (sudah lewat hari itu).`);
         }
 
         // Sudah diberitahukan - hapus supaya tidak terus-menerus muncul
