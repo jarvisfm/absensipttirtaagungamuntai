@@ -1954,10 +1954,12 @@ const adminReports = {
     },
 
     // [TAMBAHAN 2026-09-10] Tabel rekap bulanan PER KARYAWAN untuk halaman
-    // cetak "Rekap Absensi Karyawan" - formatnya meniru PERSIS rekap Excel
-    // manual admin (kolom: NO/NAMA/JABATAN/TANPA KABAR (Kali)/TERLAMBAT
-    // (Kali)/KENDALI (Kali)/SAKIT (Hari)/IZIN (Hari)/Hari Cuti/Keterangan
-    // Cuti), menggantikan tabel detail harian yang dipakai sebelumnya.
+    // cetak "Rekap Absensi Karyawan" - formatnya meniru rekap Excel manual
+    // admin (kolom: NO/NAMA/JABATAN/HADIR/HADIR TERLAMBAT/TANPA KABAR (Kali)/
+    // TERLAMBAT (Kali)/KENDALI (Kali)/SAKIT (Hari)/IZIN (Hari)/Hari Cuti/
+    // Keterangan Cuti - kolom HADIR & HADIR TERLAMBAT ditambahkan atas
+    // permintaan admin, tidak ada di rekap Excel aslinya), menggantikan
+    // tabel detail harian yang dipakai sebelumnya.
     //
     // Cakupan karyawan & periode DISAMAKAN dengan filter yang sedang aktif
     // di layar (Nama/Bagian/Bulan/Dari-Sampai Tanggal - this.filters.attendance),
@@ -1999,6 +2001,26 @@ const adminReports = {
             attRows = this._applyAttendanceDateFilters(attRows, month, dateFrom, dateTo);
             const terlambat = attRows.filter(r => ['terlambat', 'late'].includes(String(r.status || '').toLowerCase())).length;
 
+            // [TAMBAHAN 2026-09-10] Kolom "Hadir" dan "Hadir Terlambat" -
+            // rumusnya PERSIS sama dengan badge "Hadir: N"/"Hadir Terlambat: N"
+            // di kartu per-karyawan renderAttendanceReports() (lihat komentar
+            // lengkap definisi kategori ini di ~baris 748 & ~761), supaya
+            // angkanya konsisten dengan yang tampil di layar - cuma dipakai
+            // di sini per-baris rekap, bukan menggantikan badge aslinya.
+            const hadir = attRows.filter(r => ['hadir', 'ontime', 'terlambat', 'late', 'izin', 'cuti'].includes(String(r.status || '').toLowerCase())).length;
+            let hadirTerlambat = 0;
+            if (this.shiftTypesConfigFull) {
+                attRows.forEach(r => {
+                    const statusLower = String(r.status || '').toLowerCase();
+                    if (!['hadir', 'ontime', 'terlambat', 'late'].includes(statusLower)) return;
+                    ['clockIn', 'breakStart', 'breakEnd', 'clockOut'].forEach(field => {
+                        if (!r[field]) return;
+                        const lbl = getSessionAttendanceLabel(this.shiftTypesConfigFull, r.shift, r.date, field, r[field]);
+                        if (lbl && lbl.text === 'Hadir Terlambat') hadirTerlambat++;
+                    });
+                });
+            }
+
             let kendali = 0, sakit = 0, izinHarian = 0;
             (this.rawIzin || []).forEach(i => {
                 if (i.status !== 'approved') return;
@@ -2026,6 +2048,8 @@ const adminReports = {
                     <td style="text-align:center;">${idx + 1}</td>
                     <td>${emp.name || '-'}</td>
                     <td>${emp.position || emp.jabatan || '-'}</td>
+                    <td style="text-align:center;">${hadir || ''}</td>
+                    <td style="text-align:center;">${hadirTerlambat || ''}</td>
                     <td style="text-align:center;"></td>
                     <td style="text-align:center;">${terlambat || ''}</td>
                     <td style="text-align:center;">${kendali || ''}</td>
@@ -2052,12 +2076,14 @@ const adminReports = {
         return `
             <table>
                 <thead>
-                    <tr><th colspan="10" style="text-align:center;">LAPORAN DAFTAR REKAP ABSEN PEGAWAI</th></tr>
-                    <tr><th colspan="10" style="text-align:center;">${periodeLabel}</th></tr>
+                    <tr><th colspan="12" style="text-align:center;">LAPORAN DAFTAR REKAP ABSEN PEGAWAI</th></tr>
+                    <tr><th colspan="12" style="text-align:center;">${periodeLabel}</th></tr>
                     <tr>
                         <th style="width:36px;">NO</th>
                         <th>NAMA</th>
                         <th>JABATAN</th>
+                        <th>HADIR</th>
+                        <th>HADIR<br>TERLAMBAT</th>
                         <th>TANPA KABAR<br>(Kali)</th>
                         <th>TERLAMBAT<br>(Kali)</th>
                         <th>KENDALI<br>(Kali)</th>
@@ -2068,7 +2094,7 @@ const adminReports = {
                     </tr>
                 </thead>
                 <tbody>
-                    ${rowsHtml || '<tr><td colspan="10" style="text-align:center;">Tidak ada data karyawan</td></tr>'}
+                    ${rowsHtml || '<tr><td colspan="12" style="text-align:center;">Tidak ada data karyawan</td></tr>'}
                 </tbody>
             </table>
         `;
