@@ -1751,16 +1751,128 @@ const adminReports = {
         }
     },
 
+    // [TAMBAHAN 2026-09-10] Muat pustaka SheetJS HANYA saat tombol "Export
+    // Excel" benar-benar diklik (bukan dimuat duluan di index.html untuk
+    // semua orang) - pola & sumber CDN-nya PERSIS sama dengan
+    // _ensureXlsxLib() di jadwal-jaga-operator.js (constructor object yang
+    // beda, jadi tidak bisa dipakai bareng, harus salinan sendiri di sini).
+    // Kalau XLSX sudah termuat (mis. karena Jadwal Jaga Operator sudah
+    // dibuka duluan di sesi ini), langsung dipakai ulang, tidak diunduh dobel.
+    _ensureXlsxLib() {
+        if (typeof XLSX !== 'undefined') return Promise.resolve();
+        if (this._xlsxLoadPromise) return this._xlsxLoadPromise;
+        this._xlsxLoadPromise = new Promise((resolve, reject) => {
+            const script = document.createElement('script');
+            script.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+            script.onload = () => resolve();
+            script.onerror = () => reject(new Error('Gagal memuat pustaka pembuat Excel.'));
+            document.head.appendChild(script);
+        });
+        return this._xlsxLoadPromise;
+    },
+
     exportToExcel(type) {
+        // [PERBAIKAN 2026-09-10, permintaan admin] Khusus 'attendance':
+        // sebelumnya cuma dump data mentah per-baris absensi ke CSV - admin
+        // minta formatnya disamakan dengan hasil "Cetak" (1 baris per
+        // karyawan, rekap bulanan) DAN filenya jadi .xlsx asli (bukan CSV
+        // yang diganti nama ekstensinya). Jurnal & Cuti/Izin TIDAK diubah -
+        // masih .csv seperti sebelumnya, tidak diminta.
+        if (type === 'attendance') {
+            this._exportAttendanceXlsx();
+            return;
+        }
         let data = [];
         let filename = '';
         switch (type) {
-            case 'attendance': data = this.getFilteredAttendance(); filename = 'Rekap_Absensi.csv'; break;
             case 'jurnal': data = this.getFilteredJurnal(); filename = 'Rekap_Jurnal.csv'; break;
             case 'leave': data = this.getFilteredLeave(); filename = 'Rekap_Cuti_Izin.csv'; break;
         }
         const csv = this.convertToCSV(data);
         this.downloadFile(csv, filename, 'text/csv');
+        toast.success(`Data berhasil diexport ke ${filename}`);
+    },
+
+    // [TAMBAHAN 2026-09-10] Export "Rekap Absensi" ke file .xlsx ASLI
+    // (bukan CSV) dengan susunan PERSIS sama seperti halaman Cetak: judul
+    // laporan + periode, header 12 kolom, 1 baris per karyawan, lalu box
+    // ringkasan di bawahnya - datanya diambil dari
+    // _buildAttendanceRekapBulananData()/_buildAttendanceSummaryData() yang
+    // SAMA PERSIS dipakai halaman Cetak, supaya angkanya tidak mungkin beda.
+    //
+    // CATATAN JUJUR: pustaka SheetJS versi gratis yang dipakai di browser
+    // (xlsx.full.min.js dari CDN) TIDAK mendukung menulis warna latar/garis
+    // tabel ke file .xlsx (fitur itu cuma ada di versi SheetJS Pro
+    // berbayar) - beda dengan hasil "Cetak" yang full HTML/CSS jadi bisa
+    // berwarna. Jadi file .xlsx ini SUSUNAN & ISI datanya sama persis
+    // (judul digabung/merge, kolom sama, baris sama), tapi TANPA warna
+    // oranye/garis tebal seperti di kertas cetak - polos hitam-putih
+    // standar Excel. Kalau nanti warnanya juga wajib sama, perlu pustaka
+    // berbayar atau digenerate dari server (Apps Script SpreadsheetApp),
+    // bukan dari browser.
+    async _exportAttendanceXlsx() {
+        try {
+            await this._ensureXlsxLib();
+        } catch (e) {
+            toast.error(e.message || 'Gagal memuat pustaka Excel.');
+            return;
+        }
+
+        const { periodeLabel, rows } = this._buildAttendanceRekapBulananData();
+        const summary = this._buildAttendanceSummaryData();
+
+        const HEADERS = ['NO','NAMA','JABATAN','HADIR','HADIR TERLAMBAT','TANPA KABAR (Kali)','TERLAMBAT (Kali)','KENDALI (Kali)','SAKIT (Hari)','IZIN (Hari)','Hari Cuti','Keterangan Cuti'];
+
+        const aoa = [];
+        aoa.push(['LAPORAN DAFTAR REKAP ABSEN PEGAWAI']);
+        aoa.push([periodeLabel]);
+        aoa.push(HEADERS);
+        rows.forEach(r => {
+            aoa.push([
+                r.no, r.nama, r.jabatan, r.hadir || '', r.hadirTerlambat || '',
+                r.tanpaKabar || '', r.terlambat || '', r.kendali || '',
+                r.sakit || '', r.izinHarian || '', r.cuti || '', r.keteranganCuti || ''
+            ]);
+        });
+
+        // Baris kosong pemisah, lalu box ringkasan (persis konten di bawah
+        // hasil Cetak) - ditaruh memanjang ke bawah (bukan ke samping)
+        // supaya tidak perlu mengatur ulang lebar kolom tambahan.
+        aoa.push([]);
+        aoa.push([`Absen Karyawan ${summary.periodeLabel}`]);
+        aoa.push(['Tanpa Kabar', summary.tanpaKabar || '']);
+        aoa.push(['Terlambat', summary.terlambat]);
+        aoa.push(['Kendali', summary.kendali]);
+        aoa.push(['Sakit', summary.sakit]);
+        aoa.push(['Izin', summary.izinHarian]);
+        aoa.push(['cuti', summary.cuti]);
+        aoa.push(['Total', summary.total]);
+
+        const ws = XLSX.utils.aoa_to_sheet(aoa);
+
+        // Gabung (merge) baris judul & periode selebar 12 kolom, sama
+        // seperti colspan="12" di versi HTML/Cetak.
+        ws['!merges'] = [
+            { s: { r: 0, c: 0 }, e: { r: 0, c: 11 } },
+            { s: { r: 1, c: 0 }, e: { r: 1, c: 11 } },
+        ];
+
+        // Lebar kolom disesuaikan supaya NAMA/JABATAN/Keterangan Cuti tidak
+        // terlalu sempit (mengikuti proporsi lebar di tampilan Cetak).
+        ws['!cols'] = [
+            { wch: 5 }, { wch: 28 }, { wch: 26 }, { wch: 8 }, { wch: 10 },
+            { wch: 12 }, { wch: 12 }, { wch: 10 }, { wch: 10 }, { wch: 10 },
+            { wch: 10 }, { wch: 24 }
+        ];
+
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'Rekap Absensi');
+
+        const BULAN_NAMA = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+        const now = new Date();
+        const filename = `Rekap_Absensi_${BULAN_NAMA[now.getMonth()]}_${now.getFullYear()}.xlsx`;
+
+        XLSX.writeFile(wb, filename);
         toast.success(`Data berhasil diexport ke ${filename}`);
     },
 
@@ -2004,7 +2116,14 @@ const adminReports = {
     // atas kertas hasil cetak, sama seperti sebelumnya - hanya saja
     // sekarang PER KARYAWAN (kolom kosong di tiap baris), bukan lagi 1
     // angka gabungan yang diisi lewat input sebelum cetak.
-    _buildAttendanceRekapBulananHtml() {
+    // [REFACTOR 2026-09-10] Data mentah tabel rekap bulanan PER KARYAWAN
+    // dipisah dari HTML-nya (_buildAttendanceRekapBulananHtml() di bawah
+    // sekarang cuma me-render array ini) supaya bisa dipakai ULANG oleh
+    // export Excel (exportToExcel()) - angkanya WAJIB identik dengan versi
+    // cetak, jadi sumber datanya harus satu, bukan dihitung ulang terpisah
+    // dan berisiko beda rumus. Tidak ada perubahan perilaku HTML sama
+    // sekali - murni pemindahan logika hitungnya ke fungsi sendiri.
+    _buildAttendanceRekapBulananData() {
         const { month, name, bagian, dateFrom, dateTo } = this.filters.attendance;
 
         let employees = [...(this.rawEmployees || [])];
@@ -2020,17 +2139,11 @@ const adminReports = {
             return true;
         };
 
-        const rowsHtml = employees.map((emp, idx) => {
+        const rows = employees.map((emp, idx) => {
             let attRows = (this.rawAttendance || []).filter(r => String(r.userId) === String(emp.id));
             attRows = this._applyAttendanceDateFilters(attRows, month, dateFrom, dateTo);
             const terlambat = attRows.filter(r => ['terlambat', 'late'].includes(String(r.status || '').toLowerCase())).length;
 
-            // [TAMBAHAN 2026-09-10] Kolom "Hadir" dan "Hadir Terlambat" -
-            // rumusnya PERSIS sama dengan badge "Hadir: N"/"Hadir Terlambat: N"
-            // di kartu per-karyawan renderAttendanceReports() (lihat komentar
-            // lengkap definisi kategori ini di ~baris 748 & ~761), supaya
-            // angkanya konsisten dengan yang tampil di layar - cuma dipakai
-            // di sini per-baris rekap, bukan menggantikan badge aslinya.
             const hadir = attRows.filter(r => ['hadir', 'ontime', 'terlambat', 'late', 'izin', 'cuti'].includes(String(r.status || '').toLowerCase())).length;
             let hadirTerlambat = 0;
             if (this.shiftTypesConfigFull) {
@@ -2067,22 +2180,15 @@ const adminReports = {
             });
             const keteranganCuti = Array.from(keteranganCutiSet).join(', ');
 
-            return `
-                <tr>
-                    <td style="text-align:center;">${idx + 1}</td>
-                    <td>${emp.name || '-'}</td>
-                    <td>${emp.position || emp.jabatan || '-'}</td>
-                    <td style="text-align:center;">${hadir || ''}</td>
-                    <td style="text-align:center;">${hadirTerlambat || ''}</td>
-                    <td style="text-align:center;"></td>
-                    <td style="text-align:center;">${terlambat || ''}</td>
-                    <td style="text-align:center;">${kendali || ''}</td>
-                    <td style="text-align:center;">${sakit || ''}</td>
-                    <td style="text-align:center;">${izinHarian || ''}</td>
-                    <td style="text-align:center;">${cuti || ''}</td>
-                    <td>${keteranganCuti}</td>
-                </tr>`;
-        }).join('');
+            return {
+                no: idx + 1,
+                nama: emp.name || '-',
+                jabatan: emp.position || emp.jabatan || '-',
+                hadir, hadirTerlambat,
+                tanpaKabar: '', // lihat catatan di _buildAttendanceRekapBulananHtml()
+                terlambat, kendali, sakit, izinHarian, cuti, keteranganCuti
+            };
+        });
 
         const BULAN_NAMA = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
         let periodeLabel;
@@ -2096,6 +2202,28 @@ const adminReports = {
         } else {
             periodeLabel = 'SELURUH DATA';
         }
+
+        return { periodeLabel, rows };
+    },
+
+    _buildAttendanceRekapBulananHtml() {
+        const { periodeLabel, rows } = this._buildAttendanceRekapBulananData();
+
+        const rowsHtml = rows.map(r => `
+                <tr>
+                    <td style="text-align:center;">${r.no}</td>
+                    <td>${r.nama}</td>
+                    <td>${r.jabatan}</td>
+                    <td style="text-align:center;">${r.hadir || ''}</td>
+                    <td style="text-align:center;">${r.hadirTerlambat || ''}</td>
+                    <td style="text-align:center;"></td>
+                    <td style="text-align:center;">${r.terlambat || ''}</td>
+                    <td style="text-align:center;">${r.kendali || ''}</td>
+                    <td style="text-align:center;">${r.sakit || ''}</td>
+                    <td style="text-align:center;">${r.izinHarian || ''}</td>
+                    <td style="text-align:center;">${r.cuti || ''}</td>
+                    <td>${r.keteranganCuti}</td>
+                </tr>`).join('');
 
         return `
             <table>
@@ -2161,7 +2289,10 @@ const adminReports = {
     // baris "Tanpa Kabar" di box ini SELALU kosong, diisi manual dengan
     // pulpen di atas kertas hasil cetak (sama seperti kolom "Tanpa Kabar"
     // per-baris karyawan di _buildAttendanceRekapBulananHtml() di atas).
-    _buildAttendanceSummaryHtml() {
+    // [REFACTOR 2026-09-10] Sama seperti _buildAttendanceRekapBulananData()
+    // di atas - data mentah box ringkasan dipisah dari HTML-nya supaya
+    // export Excel bisa memakai angka yang SAMA PERSIS dengan versi cetak.
+    _buildAttendanceSummaryData() {
         const { month, name, bagian, dateFrom, dateTo } = this.filters.attendance;
 
         let employees = [...(this.rawEmployees || [])];
@@ -2217,6 +2348,12 @@ const adminReports = {
         } else {
             periodeLabel = 'Seluruh Data';
         }
+
+        return { periodeLabel, tanpaKabar: '', terlambat, kendali, sakit, izinHarian, cuti, total };
+    },
+
+    _buildAttendanceSummaryHtml() {
+        const { periodeLabel, terlambat, kendali, sakit, izinHarian, cuti, total } = this._buildAttendanceSummaryData();
 
         return `
             <div style="margin-top:24px;">
