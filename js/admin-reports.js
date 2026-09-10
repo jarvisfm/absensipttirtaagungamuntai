@@ -2200,6 +2200,22 @@ const adminReports = {
                 });
             }
 
+            // [TAMBAHAN 2026-09-10, permintaan admin] "Tanpa Kabar" sekarang
+            // dihitung PER SESI dari keterangan "Tidak Hadir" yang otomatis
+            // ditulis backend ke field sesi yang kosong saat baris kemarin
+            // ditutup paksa (lihat _autoCloseStaleOvernightRowIfShiftReopened()
+            // & _autoCloseStaleRosterSessionRow() di Attendance.gs - field
+            // sesi terkait DIISI LITERAL teks "Tidak Hadir", bukan jam).
+            // Dihitung per KEJADIAN sesi (persis pola hadirTerlambat di
+            // atas) - misalnya breakStart DAN breakEnd sama-sama "Tidak
+            // Hadir" di hari yang sama = 2, bukan 1 per hari. clockIn ikut
+            // dicek juga untuk jaga-jaga walau backend saat ini tidak
+            // pernah menulis "Tidak Hadir" ke clockIn.
+            const tanpaKabar = attRows.reduce((count, r) => {
+                return count + ['clockIn', 'breakStart', 'breakEnd', 'clockOut']
+                    .filter(field => r[field] === 'Tidak Hadir').length;
+            }, 0);
+
             let kendali = 0, sakit = 0, izinHarian = 0;
             (this.rawIzin || []).forEach(i => {
                 if (i.status !== 'approved') return;
@@ -2227,7 +2243,7 @@ const adminReports = {
                 nama: emp.name || '-',
                 jabatan: emp.position || emp.jabatan || '-',
                 hadir, hadirTerlambat,
-                tanpaKabar: '', // lihat catatan di _buildAttendanceRekapBulananHtml()
+                tanpaKabar,
                 terlambat, kendali, sakit, izinHarian, cuti, keteranganCuti
             };
         });
@@ -2258,7 +2274,7 @@ const adminReports = {
                     <td>${r.jabatan}</td>
                     <td style="text-align:center;">${r.hadir || ''}</td>
                     <td style="text-align:center;">${r.hadirTerlambat || ''}</td>
-                    <td style="text-align:center;"></td>
+                    <td style="text-align:center;">${r.tanpaKabar || ''}</td>
                     <td style="text-align:center;">${r.terlambat || ''}</td>
                     <td style="text-align:center;">${r.kendali || ''}</td>
                     <td style="text-align:center;">${r.sakit || ''}</td>
@@ -2314,23 +2330,13 @@ const adminReports = {
     // keduanya dijumlah per HARI (field `duration`, fallback 1 hari)
     // supaya sebanding dengan leaveDays di this.attendanceData/loadData().
     //
-    // PERBAIKAN (2026-09-10, permintaan admin): kolom "Hadir"/"Hadir
-    // Terlambat" (tidak ada di rekap Excel aslinya) dihapus dari box ini -
-    // sekarang isinya PERSIS sama seperti kolom di rekap Excel manual
-    // admin: Tanpa Kabar/Terlambat/Kendali/Sakit/Izin/cuti/Total.
-    //
-    // "Tanpa Kabar" (mangkir tanpa keterangan) SENGAJA TETAP dikosongkan
-    // (bukan dihitung 0) - Attendance di sistem ini cuma mencatat
-    // kejadian nyata (hadir/terlambat/izin/cuti terekam), bukan "tidak
-    // ada aktivitas sama sekali", dan tidak ada catatan jadwal kerja
-    // per-karyawan yang bisa dipakai menghitung hari mangkir dengan pasti
-    // (beda pola shift per unit - Reguler Senin-Jumat vs Operator 24 Jam
-    // dst.). Sebelumnya admin mengisi angka ini lewat input manual
-    // #attendance-tanpa-kabar-input SEBELUM cetak (lihat index.html) -
-    // input itu sudah dihapus atas permintaan admin, jadi sekarang
-    // baris "Tanpa Kabar" di box ini SELALU kosong, diisi manual dengan
-    // pulpen di atas kertas hasil cetak (sama seperti kolom "Tanpa Kabar"
-    // per-baris karyawan di _buildAttendanceRekapBulananHtml() di atas).
+    // [PERBAIKAN 2026-09-10, permintaan admin] "Tanpa Kabar" SEBELUMNYA
+    // sengaja dikosongkan (diisi manual pakai pulpen di kertas) karena
+    // belum ada cara pasti menghitung mangkir. Sekarang ada keterangan
+    // "Tidak Hadir" yang ditulis backend per sesi (lihat catatan lengkap
+    // di _buildAttendanceRekapBulananData() di atas), jadi dihitung
+    // otomatis dari situ - jumlah semua kejadian "Tidak Hadir" per sesi,
+    // seluruh karyawan yang lolos filter.
     // [REFACTOR 2026-09-10] Sama seperti _buildAttendanceRekapBulananData()
     // di atas - data mentah box ringkasan dipisah dari HTML-nya supaya
     // export Excel bisa memakai angka yang SAMA PERSIS dengan versi cetak.
@@ -2350,11 +2356,15 @@ const adminReports = {
             return true;
         };
 
-        let terlambat = 0;
+        let terlambat = 0, tanpaKabar = 0;
         employees.forEach(emp => {
             let rows = (this.rawAttendance || []).filter(r => String(r.userId) === String(emp.id));
             rows = this._applyAttendanceDateFilters(rows, month, dateFrom, dateTo);
             terlambat += rows.filter(r => ['terlambat', 'late'].includes(String(r.status || '').toLowerCase())).length;
+            tanpaKabar += rows.reduce((count, r) => {
+                return count + ['clockIn', 'breakStart', 'breakEnd', 'clockOut']
+                    .filter(field => r[field] === 'Tidak Hadir').length;
+            }, 0);
         });
 
         let kendali = 0, sakit = 0, izinHarian = 0;
@@ -2376,7 +2386,7 @@ const adminReports = {
             cuti += parseInt(l.duration) || 1;
         });
 
-        const total = terlambat + kendali + sakit + izinHarian + cuti;
+        const total = tanpaKabar + terlambat + kendali + sakit + izinHarian + cuti;
 
         const BULAN_NAMA = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
         let periodeLabel;
@@ -2391,7 +2401,7 @@ const adminReports = {
             periodeLabel = 'Seluruh Data';
         }
 
-        return { periodeLabel, tanpaKabar: '', terlambat, kendali, sakit, izinHarian, cuti, total };
+        return { periodeLabel, tanpaKabar, terlambat, kendali, sakit, izinHarian, cuti, total };
     },
 
     _buildAttendanceSummaryHtml() {
