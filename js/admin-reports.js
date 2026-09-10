@@ -1825,12 +1825,26 @@ const adminReports = {
             <!DOCTYPE html><html><head>
             <title>${titles[type]}</title>
             <style>
-                body { font-family: Arial, sans-serif; font-size: 12px; margin: 20px; }
+                /* [PERBAIKAN 2026-09-10, permintaan admin] Khusus untuk Rekap
+                   Absensi: tabelnya 12 kolom, kepanjangan untuk kertas portrait
+                   - kolom paling kanan (Keterangan Cuti dst) jadi terdorong
+                   keluar area cetak sehingga garis tepi kanannya hilang di
+                   sebagian baris. Dicetak landscape + table-layout:fixed supaya
+                   SEMUA kolom selalu muat dalam lebar kertas, tidak ada lagi
+                   yang terpotong. Jurnal & Cuti/Izin ikut landscape juga (tidak
+                   masalah untuk tabel yang lebih sempit). */
+                @page { size: landscape; margin: 10mm 8mm; }
+                body { font-family: Arial, sans-serif; font-size: 11px; margin: 12px; }
                 h2 { text-align: center; margin-bottom: 4px; }
                 p { text-align: center; color: #666; margin-bottom: 16px; }
-                table { width: 100%; border-collapse: collapse; }
-                th, td { border: 1px solid #000; padding: 6px 8px; text-align: left; vertical-align: middle; }
-                th { background: #f59e0b; color: white; font-weight: 600; }
+                table { width: 100%; table-layout: fixed; border-collapse: collapse; }
+                th, td { border: 1px solid #000; padding: 6px 8px; text-align: left; vertical-align: middle; word-wrap: break-word; overflow-wrap: break-word; }
+                /* Judul kolom (NO/NAMA/JABATAN/dst) & judul tabel sebelumnya
+                   putih di atas latar oranye - tidak semua browser mencetak
+                   warna latar itu (tergantung setting "Print backgrounds"),
+                   jadi tulisannya kelihatan pudar/abu-abu. Sekarang dipaksa
+                   HITAM supaya selalu terbaca jelas apa pun setting cetaknya. */
+                th { background: #f59e0b; color: #000; font-weight: 600; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
                 tr:nth-child(even) { background: #f9f9f9; }
                 img { display: none; } button { display: none; }
             </style>
