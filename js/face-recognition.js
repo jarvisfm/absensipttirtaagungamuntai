@@ -307,6 +307,45 @@ const faceRecognition = {
         }
     },
 
+    // [TAMBAHAN] Update tampilan progress bertahap verifikasi wajah (lihat
+    // markup #face-verify-progress di index.html). `step` salah satu dari:
+    // 'camera' -> 'detect' -> 'match' -> 'verified'. Progress-nya berbasis
+    // TAHAP MANA yang sudah tercapai, BUKAN hitung mundur waktu - lihat
+    // catatan lengkap di markup HTML-nya kenapa ini pilihan yang lebih
+    // jujur dibanding janji "berapa detik lagi" untuk proses yang durasinya
+    // memang tidak tetap (tergantung user & kondisi jaringan/GPS).
+    _setVerifyProgress(step) {
+        const order = ['camera', 'detect', 'match'];
+        const idx = order.indexOf(step === 'verified' ? 'match' : step);
+        if (idx === -1) return;
+
+        const bar = document.getElementById('face-verify-bar-fill');
+        if (bar) bar.style.width = (step === 'verified' ? 100 : Math.round(((idx + 1) / order.length) * 100)) + '%';
+
+        const labels = {
+            camera: 'Menyiapkan kamera...',
+            detect: 'Posisikan wajah Anda di dalam frame...',
+            match: 'Mencocokkan wajah dengan foto profil...',
+            verified: 'Wajah terverifikasi!'
+        };
+        const labelEl = document.getElementById('face-verify-label');
+        if (labelEl) labelEl.textContent = labels[step] || '';
+
+        order.forEach((key, i) => {
+            const stepEl = document.querySelector(`.face-verify-step[data-step="${key}"]`);
+            if (!stepEl) return;
+            const iconEl = stepEl.querySelector('.face-verify-step-icon');
+            const labelSpan = stepEl.querySelector('span');
+            const isDone = i < idx || step === 'verified';
+            const isActive = i === idx && step !== 'verified';
+            if (iconEl) {
+                iconEl.style.background = isDone ? 'var(--color-success)' : (isActive ? 'var(--color-primary)' : 'var(--border-color)');
+                iconEl.style.color = (isDone || isActive) ? '#fff' : 'var(--text-muted)';
+            }
+            if (labelSpan) labelSpan.style.color = (isDone || isActive) ? 'var(--text-primary)' : 'var(--text-muted)';
+        });
+    },
+
     async initCamera() {
         this.video = document.getElementById('camera-video');
         this.canvas = document.getElementById('camera-canvas');
@@ -325,6 +364,11 @@ const faceRecognition = {
         // ada di halaman lain (mis. Dashboard) - persis laporan bug-nya.
         const mySession = (this._camSession = (this._camSession || 0) + 1);
         const isStale = () => this._camSession !== mySession;
+
+        // [TAMBAHAN] Reset tampilan progress ke tahap awal tiap kali kamera
+        // diinisialisasi ulang (termasuk lewat retakePhoto()) - lihat
+        // _setVerifyProgress().
+        this._setVerifyProgress('camera');
 
         try {
             // Request camera access
@@ -407,9 +451,11 @@ const faceRecognition = {
                     // dan melewati pemanggilan faceapi (lihat di sana).
                     this.faceDetected = true;
                     this.livenessDetected = true;
+                    this._setVerifyProgress('detect');
                     this._startFaceDetectionLoop();
                     return;
                 }
+                this._setVerifyProgress('detect');
                 this._startFaceDetectionLoop();
 
                 // Mulai muat model recognition + hitung referensi dari foto
@@ -1158,6 +1204,7 @@ const faceRecognition = {
             // dilepas - kalau tidak, loop-nya justru tidak akan menyala
             // lagi setelah modal luar-radius ditutup buat karyawan yang
             // kebetulan kena kasus model gagal dimuat ini.
+            this._setVerifyProgress('detect');
             this._startFaceDetectionLoop();
         }
     },
@@ -1689,6 +1736,10 @@ const faceRecognition = {
         const captureBtnEl = document.getElementById('btn-capture');
         if (captureBtnEl) captureBtnEl.disabled = true;
 
+        // [TAMBAHAN] Lolos kedua guard di atas (lokasi & liveness) - berarti
+        // benar-benar mulai memproses foto & mencocokkan wajah sekarang.
+        this._setVerifyProgress('match');
+
         const ctx = this.canvas.getContext('2d');
         this.canvas.width = this.video.videoWidth;
         this.canvas.height = this.video.videoHeight;
@@ -1793,6 +1844,11 @@ const faceRecognition = {
                     // menjalankan loop deteksi ini (lihat initCamera()) -
                     // bedanya cuma OFF tidak mewajibkan liveness kedip mata.
                     this._faceMismatchRetrying = true;
+                    // [TAMBAHAN] Wajah tidak cocok - kembalikan progress ke
+                    // tahap 'detect' (bukan tetap di 'match'), supaya
+                    // tampilannya jujur mencerminkan bahwa sistem kembali
+                    // menunggu wajah stabil untuk dicoba cocokkan lagi.
+                    this._setVerifyProgress('detect');
                     if (!this._mismatchToastShown) {
                         this._mismatchToastShown = true;
                         toast.error(identity.checked
@@ -1820,6 +1876,7 @@ const faceRecognition = {
             }
 
             // Show verification success
+            this._setVerifyProgress('verified');
             const statusEl = document.getElementById('verification-status');
             if (statusEl) {
                 statusEl.classList.add('show');
