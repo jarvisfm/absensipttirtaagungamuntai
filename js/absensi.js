@@ -1527,6 +1527,18 @@ const absensi = {
 
         this.updateUI();
         this.renderTimeline();
+        // [TAMBAHAN 2026-09-14] Update cache HP LANGSUNG di sini, tepat
+        // setelah absen berhasil tersimpan - sebelumnya cache cuma
+        // diperbarui di init() (lihat _saveAttendanceSnapshotToCache() di
+        // sana), padahal alur absen ini SELALU dipicu lewat
+        // router.navigate('absensi') LEBIH DULU (lihat catatan panjang di
+        // atas & di face-recognition.js) - artinya init() sempat jalan &
+        // membaca cache LAMA (masih "belum absen") SEBELUM absen ini
+        // benar-benar selesai tersimpan di sini. Tanpa baris ini, cache
+        // baru akan ke-refresh nanti (kunjungan berikutnya), sehingga
+        // sempat kelihatan status lama sesaat begitu halaman Absensi
+        // dibuka ulang - persis gejala yang dilaporkan.
+        this._saveAttendanceSnapshotToCache();
         // BUGFIX (2026-08-31, lanjutan): naikkan this._renderGen SETELAH
         // menerapkan state yang benar di atas - lihat penjelasan lengkap
         // di init(). Ini memastikan init() manapun yang SEDANG/masih
