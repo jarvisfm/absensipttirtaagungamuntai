@@ -313,6 +313,19 @@ const faceRecognition = {
 
         if (!this.video) return;
 
+        // [TAMBAHAN] Token generasi kamera - getUserMedia() & pemuatan model
+        // di bawah ini semuanya ASYNC dan bisa makan waktu beberapa detik
+        // (terutama di HP: negosiasi izin kamera, koneksi lambat buat unduh
+        // model). Kalau user PINDAH MENU sebelum proses ini selesai,
+        // stopCamera() (dipanggil router.js) akan menaikkan this._camSession -
+        // begitu proses async di bawah akhirnya lanjut, isStale() jadi true
+        // dan seluruh proses dibatalkan (stream baru langsung dimatikan lagi,
+        // TIDAK ditampilkan/dipakai sama sekali). Tanpa ini, kamera tetap
+        // menyala & mulai mendeteksi wajah di background walau user sudah
+        // ada di halaman lain (mis. Dashboard) - persis laporan bug-nya.
+        const mySession = (this._camSession = (this._camSession || 0) + 1);
+        const isStale = () => this._camSession !== mySession;
+
         try {
             // Request camera access
             this.stream = await navigator.mediaDevices.getUserMedia({
@@ -324,6 +337,15 @@ const faceRecognition = {
                 audio: false
             });
 
+            // [TAMBAHAN] Halaman sudah ditinggalkan SELAGI menunggu izin
+            // kamera - langsung matikan lagi stream yang baru saja didapat
+            // ini, jangan sampai terpasang ke video element sama sekali.
+            if (isStale()) {
+                this.stream.getTracks().forEach(track => track.stop());
+                this.stream = null;
+                return;
+            }
+
             this.video.srcObject = this.stream;
 
             // Dulu: tombol capture langsung di-enable begitu kamera nyala,
@@ -331,6 +353,10 @@ const faceRecognition = {
             // deteksi wajah siap, lalu tombol capture cuma aktif selama
             // wajah BENAR-BENAR terdeteksi di frame (lihat _startFaceDetectionLoop).
             this.video.onloadedmetadata = async () => {
+                // [TAMBAHAN] Ditinggalkan tepat di celah antara srcObject
+                // di-set & metadata video siap - lihat catatan isStale() di atas.
+                if (isStale()) return;
+
                 // Toggle "Face Recognition" di Settings admin sedang OFF -
                 // TIDAK mewajibkan liveness kedip mata, tapi alur deteksi +
                 // auto-capture di bawah (sama persis dengan toggle ON) tetap
@@ -352,6 +378,12 @@ const faceRecognition = {
                 }
 
                 const ready = await this._loadFaceModels();
+
+                // [TAMBAHAN] Ditinggalkan lagi selagi model masih dimuat
+                // (bisa makan waktu beberapa detik di koneksi lambat) -
+                // lihat catatan isStale() di atas.
+                if (isStale()) return;
+
                 if (!ready) {
                     // BUGFIX (2026-08-29): model gagal dimuat (mis. koneksi
                     // lambat/CDN tidak terjangkau saat itu di HP karyawan -
@@ -1894,10 +1926,24 @@ const faceRecognition = {
 
     stopCamera() {
         this._stopFaceDetectionLoop();
+
+        // [TAMBAHAN] Naikkan token sesi kamera - membatalkan initCamera()
+        // yang mungkin masih berjalan di background (getUserMedia/pemuatan
+        // model belum selesai) SEBELUM stopCamera() ini dipanggil (lihat
+        // isStale()/this._camSession di initCamera()) - inilah yang
+        // mencegah kamera menyala sendiri beberapa saat SETELAH user sudah
+        // pindah ke menu lain.
+        this._camSession = (this._camSession || 0) + 1;
+
         if (this.stream) {
             this.stream.getTracks().forEach(track => track.stop());
             this.stream = null;
         }
+
+        // [TAMBAHAN] Sebagian browser mobile tidak sepenuhnya melepas
+        // hardware kamera hanya dari track.stop() saja selama video element
+        // masih memegang referensi stream-nya - lepas juga di sini.
+        if (this.video) this.video.srcObject = null;
     },
 
     checkCanSubmit() {
