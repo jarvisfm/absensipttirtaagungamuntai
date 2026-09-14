@@ -245,6 +245,30 @@ const absensi = {
 },
 
     // Cek jadwal & sesi absensi hari ini dari backend
+    //
+    // PERBAIKAN (2026-09-14): SEBELUMNYA kalau request checkAttendanceAccess
+    // ini gagal (server sibuk/timeout - lihat batas 20 detik di
+    // api.request(), gampang kena saat banyak karyawan buka Absensi
+    // bersamaan pas jam masuk kerja, karena Apps Script Web App punya batas
+    // jumlah eksekusi bersamaan) atau backend mengembalikan error, kegagalan
+    // itu cuma di-console.warn/console.error - this.accessInfo TETAP null,
+    // TIDAK ada penanda "ini gagal karena jaringan/server". Akibatnya kode
+    // di bawah (updateShiftInfoCard, loadTodayAttendance) yang cuma mengecek
+    // "!this.accessInfo" tidak bisa membedakan "server bilang hari ini
+    // libur" dari "belum sempat tahu jadwalnya karena request gagal" - dua
+    // kondisi itu SAMA-SAMA membuat this.accessInfo bernilai null, sehingga
+    // keduanya ditampilkan sebagai "Hari Libur". Inilah akar bug "jadwal
+    // berubah jadi libur" yang paling sering muncul di karyawan shift
+    // Reguler - jam masuknya paling serentak (07:00-08:10), jadi paling
+    // sering menumpuk request ke server di jam yang sama, paling sering kena
+    // gagal/timeout ini.
+    //
+    // this._accessInfoFailed sekarang jadi penanda EKSPLISIT: true kalau
+    // request ini gagal/timeout/error (bukan hasil resmi backend), false
+    // kalau backend benar-benar sudah menjawab (baik canAccess true maupun
+    // false). Dipakai oleh updateShiftInfoCard() & loadTodayAttendance() di
+    // bawah untuk menampilkan pesan yang jujur ("Gagal memuat jadwal, coba
+    // muat ulang") alih-alih "Hari Libur" yang menyesatkan.
     async loadAccessInfo() {
     const user = auth.getCurrentUser();
     if (!user) return;
@@ -253,11 +277,14 @@ const absensi = {
         const result = await api.checkAttendanceAccess(effectiveId);
         if (result && result.success) {
             this.accessInfo = result.data;
+            this._accessInfoFailed = false;
         } else {
             console.warn('checkAttendanceAccess gagal:', result);
+            this._accessInfoFailed = true;
         }
     } catch (e) {
         console.error('Error checkAttendanceAccess:', e);
+        this._accessInfoFailed = true;
     }
 },
 
@@ -270,6 +297,17 @@ const absensi = {
         const nameEl = document.getElementById('current-shift-name');
         const timeEl = document.getElementById('current-shift-time');
         if (!nameEl || !timeEl) return;
+
+        // PERBAIKAN (2026-09-14): dulu blok ini cuma mengecek "!this.accessInfo"
+        // dan langsung menampilkan "Libur" - lihat catatan lengkap di
+        // loadAccessInfo() di atas. Sekarang dicek dulu apakah accessInfo
+        // memang kosong karena REQUEST-NYA GAGAL (this._accessInfoFailed),
+        // bukan karena backend resmi bilang hari ini tidak ada jadwal.
+        if (this._accessInfoFailed) {
+            nameEl.textContent = 'Gagal memuat jadwal';
+            timeEl.textContent = 'Server sedang sibuk, coba muat ulang halaman';
+            return;
+        }
 
         if (!this.accessInfo || !this.accessInfo.canAccess) {
             nameEl.textContent = 'Libur';
@@ -395,6 +433,15 @@ const absensi = {
                         }
                     }
                 } catch (e) { /* banner tetap tampil sebagai 'excused' (hijau), cuma tanpa tanggal selesai */ }
+            } else if (this._accessInfoFailed) {
+                // PERBAIKAN (2026-09-14): request checkAttendanceAccess gagal/
+                // timeout (server sibuk) - BUKAN backend bilang libur. Lihat
+                // catatan lengkap di loadAccessInfo(). State terpisah ini
+                // supaya tombol absen TETAP dikunci sementara (aman, sama
+                // seperti sebelumnya - kita memang belum tahu jadwal
+                // sebenarnya), tapi pesannya jujur & tidak membuat karyawan
+                // mengira hari ini libur padahal cuma server sedang sibuk.
+                this.currentState = 'access-error';
             } else if (!this.accessInfo || !this.accessInfo.canAccess) {
                 this.currentState = 'libur';
             } else if (today.isDinasLuar) {
@@ -1540,6 +1587,11 @@ const absensi = {
                 // (hijau/abu) di atas yang khusus untuk yang sudah disetujui
                 // penuh.
                 'excused-pending': { cls: 'pending-review', text: this._activeExcusedRecord?.typeLabel || 'Izin', sub: 'Sudah diajukan, menunggu persetujuan atasan' },
+                // PERBAIKAN (2026-09-14): dulu kondisi ini ikut tertampung di
+                // 'libur' (lihat catatan di loadAccessInfo()/loadTodayAttendance()) -
+                // sekarang state sendiri supaya tidak terbaca seolah hari ini
+                // memang tidak ada jadwal kerja.
+                'access-error': { cls: 'waiting', text: 'Gagal Memuat Jadwal', sub: 'Server sedang sibuk - muat ulang halaman untuk coba lagi' },
             };
             const s = states[this.currentState] || states.waiting;
             statusRing.classList.add(s.cls);
@@ -1665,7 +1717,14 @@ const absensi = {
             }
         }
 
-        const isLibur     = this.currentState === 'libur';
+        // PERBAIKAN (2026-09-14): tombol absen tetap dikunci untuk state baru
+        // 'access-error' juga (sama seperti 'libur' sebelumnya) - PERILAKU
+        // AMAN ini SENGAJA TIDAK diubah, karena selama jadwal hari ini belum
+        // berhasil dimuat dari backend, aplikasi memang belum tahu jam/sesi
+        // absen yang berlaku. Yang berubah cuma PESAN yang dilihat karyawan
+        // (lihat states map di atas & updateShiftInfoCard()), bukan
+        // perilaku tombolnya.
+        const isLibur     = this.currentState === 'libur' || this.currentState === 'access-error';
         const isExcused   = this.currentState === 'excused';
         // Hari Izin/Cuti (excused) selalu tampilkan semua sesi (Clock In,
         // Istirahat, Selesai Istirahat, Clock Out) meski _hasBreak() false
