@@ -1188,6 +1188,24 @@ img {
     box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.1);
 }
 
+/* PERBAIKAN (2026-09-14): checkbox pilihan sesi di modal Input SPK &
+   Sanggahan Absensi (.spk-sesi-checkbox / .sa-session-checkbox) ikut
+   kena ".form-group input" di atas (width:100% + padding + border),
+   soalnya checkbox itu juga cuma <input> biasa yang ditaruh di dalam
+   .form-group - hasilnya checkbox membengkak jadi kotak bergaris lebar
+   penuh, dan teks labelnya kedorong jauh ke kanan. Reset balik ke ukuran
+   checkbox normal khusus untuk dua class ini saja - checkbox/input lain
+   di seluruh aplikasi TIDAK terpengaruh. */
+.spk-sesi-checkbox,
+.sa-session-checkbox {
+    width: 16px !important;
+    height: 16px;
+    padding: 0 !important;
+    border: 1px solid var(--border-color) !important;
+    border-radius: 3px !important;
+    flex-shrink: 0;
+}
+
 .form-row {
     display: flex;
     gap: var(--spacing-md);
