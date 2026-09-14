@@ -2,9 +2,9 @@
  * Portal Karyawan - Admin: Approval Surat Tugas (SPPD) & Sanggahan Absensi
  * PT. Tirta Agung Amuntai
  *
- * Halaman khusus Admin untuk meninjau DUA jenis pengajuan karyawan sekaligus
- * (dipilih lewat dropdown "Jenis Dokumen" di atas filter Status - lihat
- * index.html #st-doctype-filter), satu pintu approval untuk keduanya:
+ * Halaman khusus Admin untuk meninjau pengajuan karyawan sekaligus (dipilih
+ * lewat dropdown "Jenis Dokumen" di atas filter Status - lihat index.html
+ * #st-doctype-filter), satu pintu approval untuk semuanya:
  *
  * 1) Surat Tugas (SPPD) - begitu di-approve, Attendance karyawan otomatis
  *    ditandai Dinas Luar untuk seluruh rentang tanggalnya (lihat
@@ -13,17 +13,25 @@
  *    (mis. Istirahat/Selesai Istirahat karena jaringan mati) otomatis
  *    ditandai "Hadir (Kendala Teknis)" di Attendance (lihat
  *    approveSanggahanAbsensi() di SanggahanAbsensi.gs).
+ * 3) SPK (Surat Perintah Kerja) - PENAMBAHAN (2026-09-09), khusus petugas
+ *    lapangan Transmisi & Distribusi. Begitu di-approve, HANYA sesi-sesi
+ *    yang dipilih karyawan (bukan seluruh hari, beda dengan Surat Tugas)
+ *    otomatis ditandai "SPK" di Attendance (lihat approveSpkData() di
+ *    Spk.gs).
  *
  * Kalau ditolak (jenis manapun), TIDAK ada efek apapun ke Attendance.
  *
- * rawData/renderSuratTugas* menangani SPPD (kode ASLI, tidak diubah logic-nya -
- * cuma dipisah biar bisa gantian tampil dengan Sanggahan lewat docType).
- * sanggahanRawData/renderSanggahan* adalah bagian BARU untuk Sanggahan Absensi.
+ * rawData/renderSuratTugas* menangani SPPD (kode ASLI, tidak diubah logic-nya).
+ * sanggahanRawData/renderSanggahan* menangani Sanggahan Absensi (juga tidak
+ * diubah logic-nya). spkRawData/renderSpk* adalah bagian BARU untuk SPK -
+ * ditambahkan mengikuti pola persis yang sama seperti Sanggahan Absensi di
+ * atasnya, supaya ketiganya bisa gantian tampil lewat docType.
  */
 const adminSuratTugas = {
-    docType: 'surat_tugas', // 'surat_tugas' | 'sanggahan_absensi'
+    docType: 'surat_tugas', // 'surat_tugas' | 'sanggahan_absensi' | 'spk'
     rawData: [],
     sanggahanRawData: [],
+    spkRawData: [],
     filterStatus: '',
 
     async init() {
@@ -70,10 +78,23 @@ const adminSuratTugas = {
             this.sanggahanRawData = [];
         }
         this.sanggahanRawData.sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')));
+
+        // PENAMBAHAN (2026-09-09): muat juga data SPK - pola sama persis
+        // seperti Sanggahan Absensi di atas.
+        try {
+            const result = await api.getAllSpk();
+            this.spkRawData = result.success ? (result.data || []) : [];
+        } catch (e) {
+            console.error('Error loading SPK:', e);
+            this.spkRawData = [];
+        }
+        this.spkRawData.sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')));
     },
 
     getFiltered() {
-        const source = this.docType === 'sanggahan_absensi' ? this.sanggahanRawData : this.rawData;
+        const source = this.docType === 'sanggahan_absensi' ? this.sanggahanRawData
+            : this.docType === 'spk' ? this.spkRawData
+            : this.rawData;
         if (!this.filterStatus) return source;
         return source.filter(row => (row.status || 'pending') === this.filterStatus);
     },
@@ -91,16 +112,27 @@ const adminSuratTugas = {
     _renderThead() {
         const thead = document.getElementById('surat-tugas-approval-thead');
         if (!thead) return;
-        thead.innerHTML = this.docType === 'sanggahan_absensi'
-            ? `<tr>
+        if (this.docType === 'sanggahan_absensi') {
+            thead.innerHTML = `<tr>
                    <th>Karyawan</th>
                    <th>Tanggal Absensi</th>
                    <th>Sesi Bermasalah</th>
                    <th>Keterangan</th>
                    <th>Status</th>
                    <th>Aksi</th>
-               </tr>`
-            : `<tr>
+               </tr>`;
+        } else if (this.docType === 'spk') {
+            // PENAMBAHAN (2026-09-09)
+            thead.innerHTML = `<tr>
+                   <th>Karyawan</th>
+                   <th>Tanggal</th>
+                   <th>Sesi Digantikan</th>
+                   <th>Keterangan</th>
+                   <th>Status</th>
+                   <th>Aksi</th>
+               </tr>`;
+        } else {
+            thead.innerHTML = `<tr>
                    <th>Karyawan</th>
                    <th>No. Surat</th>
                    <th>Tujuan</th>
@@ -109,12 +141,15 @@ const adminSuratTugas = {
                    <th>Status</th>
                    <th>Aksi</th>
                </tr>`;
+        }
     },
 
     render() {
         this._renderThead();
         if (this.docType === 'sanggahan_absensi') {
             this.renderSanggahan();
+        } else if (this.docType === 'spk') {
+            this.renderSpk();
         } else {
             this.renderSuratTugas();
         }
@@ -360,6 +395,129 @@ const adminSuratTugas = {
             }
         } catch (e) {
             console.error('Error reject Sanggahan Absensi:', e);
+            toast.error('Terjadi kesalahan');
+        }
+    },
+
+    // ---- SPK (Surat Perintah Kerja) - PENAMBAHAN (2026-09-09), pola persis
+    // sama seperti Sanggahan Absensi di atas ----
+    renderSpk() {
+        const tbody = document.getElementById('surat-tugas-approval-body');
+        const cardsContainer = document.getElementById('surat-tugas-approval-mobile-cards');
+        const data = this.getFiltered();
+
+        if (!tbody) return;
+
+        if (data.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:2rem;color:var(--text-muted);">Tidak ada data</td></tr>';
+            if (cardsContainer) cardsContainer.innerHTML = '<div style="text-align:center;padding:2rem;color:var(--text-muted);">Tidak ada data</div>';
+            return;
+        }
+
+        tbody.innerHTML = data.map(row => {
+            const status = row.status || 'pending';
+            const needsAction = status === 'pending';
+            return `
+            <tr>
+                <td>${row.userName || '-'}</td>
+                <td>${row.tanggal || '-'}</td>
+                <td>${row.sesiLabel || '-'}</td>
+                <td>${row.keterangan || '-'}</td>
+                <td><span class="status-badge ${status}">${this._statusLabel(status)}</span></td>
+                <td style="white-space:nowrap;">
+                    ${needsAction ? `
+                        <button class="btn-action" style="background:rgba(16,185,129,0.1);color:var(--color-success);" title="Setujui" onclick="adminSuratTugas.approveSpk('${row.id}')">
+                            <i class="fas fa-check"></i>
+                        </button>
+                        <button class="btn-action" style="background:rgba(239,68,68,0.1);color:var(--color-danger);" title="Tolak" onclick="adminSuratTugas.rejectSpk('${row.id}')">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    ` : `<span class="status-badge ${status}">${this._statusLabel(status)}</span>`}
+                    ${row.fileUrl ? `<button class="btn-action view" title="Lihat Dokumen" onclick="window.open('${row.fileUrl}', '_blank')"><i class="fas fa-file-lines"></i></button>` : ''}
+                </td>
+            </tr>`;
+        }).join('');
+
+        this.renderMobileCardsSpk(data);
+    },
+
+    renderMobileCardsSpk(data) {
+        const container = document.getElementById('surat-tugas-approval-mobile-cards');
+        if (!container) return;
+
+        if (!data || data.length === 0) {
+            container.innerHTML = '<div style="text-align:center;padding:2rem;color:var(--text-muted);">Tidak ada data</div>';
+            return;
+        }
+
+        container.innerHTML = data.map(row => {
+            const status = row.status || 'pending';
+            const needsAction = status === 'pending';
+            return `
+            <div class="mobile-card" style="margin-bottom:16px;">
+                <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;">
+                    <div>
+                        <div style="font-weight:600;">${row.userName || '-'}</div>
+                        <div style="font-size:0.8rem;color:var(--text-muted);">${row.tanggal || '-'}</div>
+                    </div>
+                    <span class="status-badge ${status}">${this._statusLabel(status)}</span>
+                </div>
+                <div style="font-size:0.85rem;margin-bottom:4px;"><strong>Sesi Digantikan:</strong> ${row.sesiLabel || '-'}</div>
+                ${row.keterangan ? `<div style="font-size:0.85rem;margin-bottom:8px;"><strong>Keterangan:</strong> ${row.keterangan}</div>` : ''}
+                <div style="display:flex;gap:8px;margin-top:8px;">
+                    ${needsAction ? `
+                        <button class="btn-action" style="flex:1;background:var(--color-success);color:#fff;" onclick="adminSuratTugas.approveSpk('${row.id}')">
+                            <i class="fas fa-check"></i> Setujui
+                        </button>
+                        <button class="btn-action" style="flex:1;background:var(--color-danger);color:#fff;" onclick="adminSuratTugas.rejectSpk('${row.id}')">
+                            <i class="fas fa-times"></i> Tolak
+                        </button>
+                    ` : ''}
+                    ${row.fileUrl ? `<button class="btn-action" style="flex:1;background:var(--bg-secondary);border:1px solid var(--border-color);" onclick="window.open('${row.fileUrl}', '_blank')"><i class="fas fa-file-lines"></i> Dokumen</button>` : ''}
+                </div>
+            </div>`;
+        }).join('');
+    },
+
+    async approveSpk(id) {
+        if (!confirm('Setujui SPK ini? Sesi yang dipilih akan otomatis tercatat "SPK" di absensi karyawan.')) return;
+
+        const user = auth.getCurrentUser();
+        const approver = { name: user?.name || '', nik: user?.nik || '' };
+
+        try {
+            const result = await api.approveSpk(id, approver);
+            if (result.success) {
+                toast.success('SPK disetujui. Sesi terkait otomatis tercatat SPK.');
+                await this.loadData();
+                this.render();
+            } else {
+                toast.error(result.error || 'Gagal menyetujui SPK');
+            }
+        } catch (e) {
+            console.error('Error approve SPK:', e);
+            toast.error('Terjadi kesalahan');
+        }
+    },
+
+    async rejectSpk(id) {
+        const catatan = prompt('Catatan penolakan (opsional):') || '';
+        if (!confirm('Tolak SPK ini?')) return;
+
+        const user = auth.getCurrentUser();
+        const approver = { name: user?.name || '', nik: user?.nik || '' };
+
+        try {
+            const result = await api.rejectSpk(id, approver, catatan);
+            if (result.success) {
+                toast.success('SPK ditolak.');
+                await this.loadData();
+                this.render();
+            } else {
+                toast.error(result.error || 'Gagal menolak SPK');
+            }
+        } catch (e) {
+            console.error('Error reject SPK:', e);
             toast.error('Terjadi kesalahan');
         }
     }
