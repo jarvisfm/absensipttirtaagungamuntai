@@ -746,6 +746,37 @@
                                             style="display: none;"><i
                                                 class="fas fa-redo"></i><span>Ulangi</span></button>
                                     </div>
+
+                                    <!-- [TAMBAHAN] Progress bertahap verifikasi wajah - dipakai
+                                         supaya karyawan tahu proses ini ADA DI TAHAP MANA, bukan
+                                         janji "berapa detik lagi" (durasinya tidak tetap - tergantung
+                                         kecepatan user memposisikan wajah, kedipan mata, dst). Tahap
+                                         "kirim ke server" SENGAJA tidak ikut di sini - lihat
+                                         confirmAttendance() di js/face-recognition.js, halaman ini
+                                         sudah ditinggalkan (pindah ke menu Absensi) SEBELUM proses
+                                         simpan itu selesai; proses simpan ditandai lewat banner
+                                         #pending-save-info di halaman Absensi, bukan di sini. Diisi/
+                                         diupdate lewat _setVerifyProgress() di face-recognition.js. -->
+                                    <div class="face-verify-progress" id="face-verify-progress" style="margin-top:14px;">
+                                        <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
+                                            <div class="face-verify-step" data-step="camera" style="display:flex;flex-direction:column;align-items:center;gap:4px;flex:1;">
+                                                <div class="face-verify-step-icon" style="width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:var(--color-primary);color:#fff;font-size:12px;transition:background 0.2s,color 0.2s;"><i class="fas fa-video"></i></div>
+                                                <span style="font-size:10.5px;color:var(--text-primary);text-align:center;transition:color 0.2s;">Kamera</span>
+                                            </div>
+                                            <div class="face-verify-step" data-step="detect" style="display:flex;flex-direction:column;align-items:center;gap:4px;flex:1;">
+                                                <div class="face-verify-step-icon" style="width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:var(--border-color);color:var(--text-muted);font-size:12px;transition:background 0.2s,color 0.2s;"><i class="fas fa-user"></i></div>
+                                                <span style="font-size:10.5px;color:var(--text-muted);text-align:center;transition:color 0.2s;">Deteksi</span>
+                                            </div>
+                                            <div class="face-verify-step" data-step="match" style="display:flex;flex-direction:column;align-items:center;gap:4px;flex:1;">
+                                                <div class="face-verify-step-icon" style="width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:var(--border-color);color:var(--text-muted);font-size:12px;transition:background 0.2s,color 0.2s;"><i class="fas fa-check-double"></i></div>
+                                                <span style="font-size:10.5px;color:var(--text-muted);text-align:center;transition:color 0.2s;">Cocokkan</span>
+                                            </div>
+                                        </div>
+                                        <div style="height:5px;background:var(--border-color);border-radius:4px;overflow:hidden;">
+                                            <div id="face-verify-bar-fill" style="height:100%;width:33%;background:var(--color-primary);border-radius:4px;transition:width 0.3s ease;"></div>
+                                        </div>
+                                        <p id="face-verify-label" style="font-size:11.5px;color:var(--text-muted);text-align:center;margin:6px 0 0;">Menyiapkan kamera...</p>
+                                    </div>
                                 </div>
                             </div>
                             <div class="location-section">
