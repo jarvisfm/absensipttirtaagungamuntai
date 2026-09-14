@@ -280,6 +280,23 @@ const api = {
         return this.request('rejectSuratTugas', { id, approver, catatan });
     },
 
+    // PENAMBAHAN (2026-09-09): SPK (Surat Perintah Kerja)
+    async submitSpk(data) {
+        return this.request('submitSpk', data);
+    },
+    async getSpk(userId) {
+        return this.request('getSpk', { userId });
+    },
+    async getAllSpk() {
+        return this.request('getAllSpk');
+    },
+    async approveSpk(id, approver, catatan) {
+        return this.request('approveSpk', { id, approver, catatan });
+    },
+    async rejectSpk(id, approver, catatan) {
+        return this.request('rejectSpk', { id, approver, catatan });
+    },
+
     // ---- Sanggahan Absensi ----
     async getAttendanceSessionsForDate(userId, date) {
         return this.request('getAttendanceSessionsForDate', { userId, date });
