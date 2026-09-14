@@ -138,6 +138,10 @@ const absensi = {
     // saja diputuskan Admin sejak terakhir login (fire-and-forget, tidak
     // perlu ditunggu, bukan bagian kritikal dari render halaman ini).
     this.refreshSuratTugasBadge();
+    // [TAMBAHAN] Sama seperti di atas, tapi untuk sub-teks tombol
+    // "Sanggahan Absensi" - lihat sanggahanAbsensi.refreshBadge()
+    // (sanggahan-absensi.js).
+    if (window.sanggahanAbsensi) sanggahanAbsensi.refreshBadge();
 
     // [TAMBAHAN] Lihat catatan lengkap di _notifyUnsavedAttendanceIfAny()
     // di atas - fire-and-forget, tidak perlu ditunggu.
