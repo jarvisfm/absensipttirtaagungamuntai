@@ -155,21 +155,53 @@ const absensi = {
     if (comingSoonEl) comingSoonEl.style.display = 'none';
     if (realContentEl) realContentEl.style.display = '';
 
+    // [TAMBAHAN 2026-09-14, permintaan admin: "loading-nya bisa dipercepat
+    // pakai cache HP?"] Sebelum reset state & tampilkan "Memuat...", coba
+    // dulu tampilkan sekilas hasil kunjungan TERAKHIR (kalau ada & masih
+    // dari HARI INI) langsung dari cache HP (localStorage) - supaya kartu
+    // status/tombol/timeline langsung kelihatan SEKETIKA, tidak nunggu
+    // kosong dulu. Ini CUMA lapisan "tampilan sementara" di atas alur yang
+    // SUDAH ADA di bawah - Promise.all(loadAccessInfo/loadTodayAttendance/
+    // loadAttendanceHistory) ke server TETAP jalan seperti biasa persis
+    // sama sekali tidak dilewati, dan begitu hasil ASLI dari server datang,
+    // this.updateUI()/renderTimeline() di baris paling bawah otomatis
+    // menimpa tampilan sementara ini dengan data yang benar (lihat juga
+    // _saveAttendanceSnapshotToCache() di bawah, dipanggil di ujung
+    // fungsi ini setelah data asli terkonfirmasi). Kalau tidak ada cache
+    // valid, baris di bawah ini tidak melakukan apa-apa - perilaku persis
+    // seperti sebelum perubahan ini.
+    const cachedSnapshot = this._readAttendanceSnapshotFromCache();
+    if (cachedSnapshot) {
+        this.accessInfo = cachedSnapshot.accessInfo;
+        this.attendanceData = cachedSnapshot.attendanceData;
+        this.updateShiftInfoCard();
+        this.initButtons();
+        this.renderTimeline();
+        this.updateUI();
+    }
+
     // Reset state dulu sebelum load data baru
     this.currentState = 'waiting';
-    this.attendanceData = {};
-    this.accessInfo = null;
+    if (!cachedSnapshot) {
+        this.attendanceData = {};
+        this.accessInfo = null;
+    }
 
     // Tampilkan status "Memuat..." dulu supaya tombol/teks lama tidak
-    // sempat kelihatan seolah sudah siap-pakai sebelum data asli datang
-    const statusText = document.querySelector('.status-text');
-    const statusSubtext = document.querySelector('.status-subtext');
-    if (statusText) statusText.textContent = 'Memuat...';
-    if (statusSubtext) statusSubtext.textContent = 'Mengecek data absensi Anda';
-    ['btn-clock-in', 'btn-break', 'btn-after-break', 'btn-clock-out'].forEach(id => {
-        const btn = document.getElementById(id);
-        if (btn) btn.disabled = true;
-    });
+    // sempat kelihatan seolah sudah siap-pakai sebelum data asli datang.
+    // Kalau BARU SAJA ditampilkan dari cache di atas, lewati baris ini -
+    // biarkan tampilan cache itu yang kelihatan (bukan "Memuat...") sampai
+    // data asli dari server datang dan menimpanya sendiri di updateUI().
+    if (!cachedSnapshot) {
+        const statusText = document.querySelector('.status-text');
+        const statusSubtext = document.querySelector('.status-subtext');
+        if (statusText) statusText.textContent = 'Memuat...';
+        if (statusSubtext) statusSubtext.textContent = 'Mengecek data absensi Anda';
+        ['btn-clock-in', 'btn-break', 'btn-after-break', 'btn-clock-out'].forEach(id => {
+            const btn = document.getElementById(id);
+            if (btn) btn.disabled = true;
+        });
+    }
 
     // PERBAIKAN: tabel "Riwayat Absensi" ikut direset ke status loading di
     // sini juga - supaya setiap kali halaman Absensi dibuka/dibuka ULANG
@@ -242,7 +274,53 @@ const absensi = {
     this.initButtons();
     this.renderTimeline();
     this.updateUI();
+
+    // [TAMBAHAN 2026-09-14] Simpan hasil ASLI dari server ini ke cache HP,
+    // supaya kunjungan berikutnya (hari yang sama) bisa langsung tampil
+    // instan dari cache di bagian atas init() sebelum data server datang.
+    this._saveAttendanceSnapshotToCache();
 },
+
+    // [TAMBAHAN 2026-09-14] Pasangan _readAttendanceSnapshotFromCache() di
+    // bawah - lihat catatan lengkap pemakaiannya di init() di atas. Cuma
+    // dipakai untuk kartu status/tombol/timeline (accessInfo+attendanceData
+    // hari ini) - TIDAK termasuk tabel Riwayat Absensi (itu sudah punya
+    // loading indicator sendiri yang terpisah & tidak disentuh perubahan
+    // ini). Kunci cache disertai userId & tanggal HARI INI supaya otomatis
+    // tidak terpakai lagi begitu gonta-ganti akun atau sudah ganti hari.
+    _attendanceCacheKey() {
+        const user = auth.getCurrentUser();
+        if (!user) return null;
+        const effectiveId = user.employeeId || user.id;
+        return `absensi_snapshot_cache_${effectiveId}`;
+    },
+
+    _saveAttendanceSnapshotToCache() {
+        try {
+            const key = this._attendanceCacheKey();
+            if (!key) return;
+            const todayStr = new Date().toISOString().slice(0, 10);
+            storage.set(key, {
+                dateStr: todayStr,
+                accessInfo: this.accessInfo,
+                attendanceData: this.attendanceData
+            });
+        } catch (e) { /* cache cuma pemanis, gagal simpan tidak masalah */ }
+    },
+
+    _readAttendanceSnapshotFromCache() {
+        try {
+            const key = this._attendanceCacheKey();
+            if (!key) return null;
+            const cached = storage.get(key);
+            if (!cached || !cached.accessInfo) return null;
+            const todayStr = new Date().toISOString().slice(0, 10);
+            if (cached.dateStr !== todayStr) return null; // beda hari, jangan dipakai
+            return cached;
+        } catch (e) {
+            return null;
+        }
+    },
 
     // Cek jadwal & sesi absensi hari ini dari backend
     //
