@@ -655,11 +655,19 @@
                                                 class="timeline-time">--:--</span></div>
                                     </div>
                                 </div>
-                                <button type="button" class="surat-tugas-trigger" id="btn-surat-tugas-trigger" onclick="suratTugas.openModal()" style="margin:12px 16px 16px;width:calc(100% - 32px);">
+                                <button type="button" class="surat-tugas-trigger" id="btn-surat-tugas-trigger" onclick="suratTugas.openModal()" style="margin:12px 16px 0;width:calc(100% - 32px);">
                                     <span class="surat-tugas-trigger-icon"><i class="fas fa-suitcase"></i></span>
                                     <span class="surat-tugas-trigger-text">
                                         <strong>Input Surat Tugas (SPPD)</strong>
                                         <small id="surat-tugas-trigger-sub">Sedang dinas luar? Catat di sini</small>
+                                    </span>
+                                    <i class="fas fa-chevron-right surat-tugas-trigger-arrow"></i>
+                                </button>
+                                <button type="button" class="surat-tugas-trigger" id="btn-sanggahan-absensi-trigger" onclick="sanggahanAbsensi.openModal()" style="margin:8px 16px 16px;width:calc(100% - 32px);">
+                                    <span class="surat-tugas-trigger-icon" style="background:rgba(245,158,11,0.12);color:var(--color-warning);"><i class="fas fa-flag"></i></span>
+                                    <span class="surat-tugas-trigger-text">
+                                        <strong>Sanggahan Absensi</strong>
+                                        <small id="sanggahan-absensi-trigger-sub">Ada kendala jaringan/listrik saat absen? Laporkan di sini</small>
                                     </span>
                                     <i class="fas fa-chevron-right surat-tugas-trigger-arrow"></i>
                                 </button>
@@ -941,6 +949,41 @@
                             <div style="display:flex;gap:8px;margin-top:1.25rem;">
                                 <button type="button" onclick="document.getElementById('modal-surat-tugas').style.display='none'" style="flex:1;background:none;border:1px solid var(--border-color);color:var(--text-muted);padding:10px;border-radius:8px;cursor:pointer;">Batal</button>
                                 <button type="button" id="st-btn-simpan" onclick="suratTugas.submit()" style="flex:1;background:var(--color-primary);color:#fff;border:none;padding:10px;border-radius:8px;cursor:pointer;font-weight:600;">Simpan</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Modal Sanggahan Absensi -->
+                <div class="modal-overlay" id="modal-sanggahan-absensi" style="display:none;">
+                    <div class="modal-container" style="max-width:480px;width:92%;max-height:90vh;overflow-y:auto;">
+                        <div class="modal-header">
+                            <h3><i class="fas fa-flag" style="color:var(--color-warning);"></i> Sanggahan Absensi</h3>
+                            <button class="btn-close-modal" onclick="document.getElementById('modal-sanggahan-absensi').style.display='none'">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                        <div style="padding:0 1.25rem 1.25rem;">
+                            <p style="font-size:0.85rem;color:var(--text-muted);margin-bottom:1rem;">
+                                Ajukan sanggahan kalau ada sesi absen yang tidak sempat tercatat karena kendala teknis (jaringan hilang, listrik padam, dsb). Sesi yang dipilih akan tercatat Hadir SETELAH disetujui Admin.
+                            </p>
+                            <div class="form-group">
+                                <label style="font-weight:600;font-size:0.85rem;">Tanggal Absensi</label>
+                                <input type="date" id="sa-tanggal" style="width:100%;padding:8px 10px;border:1px solid var(--border-color);border-radius:8px;">
+                            </div>
+                            <div class="form-group" style="margin-top:10px;">
+                                <label style="font-weight:600;font-size:0.85rem;">Sesi yang Bermasalah</label>
+                                <div id="sa-sessions-list" style="display:flex;flex-direction:column;gap:6px;margin-top:6px;padding:10px;border:1px solid var(--border-color);border-radius:8px;min-height:44px;">
+                                    <span style="font-size:0.8rem;color:var(--text-muted);">Pilih tanggal dulu untuk melihat sesi yang tersedia</span>
+                                </div>
+                            </div>
+                            <div class="form-group" style="margin-top:10px;">
+                                <label style="font-weight:600;font-size:0.85rem;">Keterangan</label>
+                                <textarea id="sa-keterangan" rows="3" placeholder="mis. Jaringan internet mati sejak jam 23:30, baru pulih pagi hari" style="width:100%;padding:8px 10px;border:1px solid var(--border-color);border-radius:8px;font-family:inherit;"></textarea>
+                            </div>
+                            <div style="display:flex;gap:8px;margin-top:1.25rem;">
+                                <button type="button" onclick="document.getElementById('modal-sanggahan-absensi').style.display='none'" style="flex:1;background:none;border:1px solid var(--border-color);color:var(--text-muted);padding:10px;border-radius:8px;cursor:pointer;">Batal</button>
+                                <button type="button" id="sa-btn-simpan" onclick="sanggahanAbsensi.submit()" style="flex:1;background:var(--color-primary);color:#fff;border:none;padding:10px;border-radius:8px;cursor:pointer;font-weight:600;">Kirim Sanggahan</button>
                             </div>
                         </div>
                     </div>
@@ -3177,12 +3220,16 @@
                     <div class="reports-container">
                         <div class="reports-header">
                             <div class="reports-title">
-                                <h2>Approval Surat Tugas (SPPD)</h2>
-                                <p>Tinjau &amp; setujui pengajuan Surat Tugas/Dinas Luar karyawan sebelum berlaku di absensi</p>
+                                <h2>Approval Surat Tugas &amp; Sanggahan Absensi</h2>
+                                <p>Tinjau &amp; setujui pengajuan Surat Tugas/Dinas Luar dan Sanggahan Absensi karyawan - pilih jenis dokumen di filter di bawah</p>
                             </div>
                         </div>
                         <div class="reports-filters-card">
                             <div class="reports-filters">
+                                <div class="filter-group"><label>Jenis Dokumen</label><select id="st-doctype-filter">
+                                        <option value="surat_tugas">Surat Tugas (SPPD)</option>
+                                        <option value="sanggahan_absensi">Sanggahan Absensi</option>
+                                    </select></div>
                                 <div class="filter-group"><label>Status</label><select id="st-status-filter">
                                         <option value="">Semua</option>
                                         <option value="pending">Menunggu</option>
@@ -3194,7 +3241,7 @@
                         <div class="reports-table-card">
                             <div class="table-responsive">
                                 <table class="reports-table" id="surat-tugas-approval-table">
-                                    <thead>
+                                    <thead id="surat-tugas-approval-thead">
                                         <tr>
                                             <th>Karyawan</th>
                                             <th>No. Surat</th>
@@ -3850,6 +3897,7 @@
     <script src="js/cuti.js"></script>
     <script src="js/outofradius.js"></script>
     <script src="js/surat-tugas.js"></script>
+    <script src="js/sanggahan-absensi.js"></script>
     <script src="js/print-letters.js?v=8"></script>
     <script src="js/admin-dashboard.js"></script>
     <script src="js/admin-employees.js"></script>
