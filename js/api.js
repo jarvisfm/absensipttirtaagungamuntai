@@ -280,6 +280,26 @@ const api = {
         return this.request('rejectSuratTugas', { id, approver, catatan });
     },
 
+    // ---- Sanggahan Absensi ----
+    async getAttendanceSessionsForDate(userId, date) {
+        return this.request('getAttendanceSessionsForDate', { userId, date });
+    },
+    async submitSanggahanAbsensi(data) {
+        return this.request('submitSanggahanAbsensi', data);
+    },
+    async getSanggahanAbsensi(userId) {
+        return this.request('getSanggahanAbsensi', { userId });
+    },
+    async getAllSanggahanAbsensi() {
+        return this.request('getAllSanggahanAbsensi');
+    },
+    async approveSanggahanAbsensi(id, approver, catatan) {
+        return this.request('approveSanggahanAbsensi', { id, approver, catatan });
+    },
+    async rejectSanggahanAbsensi(id, approver, catatan) {
+        return this.request('rejectSanggahanAbsensi', { id, approver, catatan });
+    },
+
     // ========== LEAVES (CUTI) ==========
 
     async getLeaves(userId) {
