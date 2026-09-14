@@ -322,14 +322,31 @@ const faceRecognition = {
         const bar = document.getElementById('face-verify-bar-fill');
         if (bar) bar.style.width = (step === 'verified' ? 100 : Math.round(((idx + 1) / order.length) * 100)) + '%';
 
-        const labels = {
+        // [PERBAIKAN 2026-09-14] Label tahap "match" & "verified" jujur
+        // mengikuti apakah pencocokan ke foto profil BENAR-BENAR dilakukan
+        // (toggle Face Recognition di Settings admin) - lihat catatan
+        // lengkap di blok pencocokan di capturePhoto(). Tahap "camera" &
+        // "detect" sama untuk kedua kondisi (dua-duanya memang selalu
+        // terjadi apa adanya).
+        const labels = this.faceRecognitionEnabled ? {
             camera: 'Menyiapkan kamera...',
             detect: 'Posisikan wajah Anda di dalam frame...',
             match: 'Mencocokkan wajah dengan foto profil...',
             verified: 'Wajah terverifikasi!'
+        } : {
+            camera: 'Menyiapkan kamera...',
+            detect: 'Posisikan wajah Anda di dalam frame...',
+            match: 'Memproses foto...',
+            verified: 'Foto berhasil diambil!'
         };
         const labelEl = document.getElementById('face-verify-label');
         if (labelEl) labelEl.textContent = labels[step] || '';
+
+        // [PERBAIKAN 2026-09-14] Label langkah ke-3 di indikator step
+        // ("Cocokkan") ikut disesuaikan jadi "Proses" saat toggle OFF -
+        // sama alasannya seperti di atas.
+        const matchStepLabelEl = document.querySelector('.face-verify-step[data-step="match"] span');
+        if (matchStepLabelEl) matchStepLabelEl.textContent = this.faceRecognitionEnabled ? 'Cocokkan' : 'Proses';
 
         order.forEach((key, i) => {
             const stepEl = document.querySelector(`.face-verify-step[data-step="${key}"]`);
@@ -1793,26 +1810,25 @@ const faceRecognition = {
 
             // Cocokkan wajah di foto ini dengan foto profil karyawan yang
             // sedang login - supaya tidak bisa "titip absen" pakai akun
-            // orang lain. Tetap dijalankan baik toggle Face Recognition di
-            // Settings admin ON maupun OFF (OFF cuma melewati liveness/kamera
-            // live-nya saja, lihat komentar di _loadFaceRecognitionSetting()).
+            // orang lain.
             //
-            // PERBAIKAN (2026-08-20): SEBELUMNYA kalau wajah tidak cocok
-            // (atau tidak sempat diverifikasi sama sekali), absen tetap
-            // diloloskan (fail-open) - cuma ditandai flag utk ditinjau
-            // admin belakangan, TIDAK benar-benar dicegah saat itu juga.
-            // Artinya siapa saja bisa "titip absen" pakai wajah orang
-            // lain dan tetap tercatat. Sekarang absen BENAR-BENAR ditolak
-            // & diulang otomatis (kamera tetap jalan, tidak perlu keluar
-            // masuk halaman) sampai wajah yang di kamera cocok dengan
-            // foto profil. Kasus "belum ada foto profil sama sekali"
-            // sudah dicegah lebih awal sebelum sampai ke halaman ini
-            // (lihat _blockIfNoProfilePhoto() di absensi.js, yang
-            // mengarahkan ke halaman Profil dulu) - jadi kalau di sini
-            // ternyata tetap `!identity.checked`, itu murni kegagalan
-            // teknis menghitung sidik wajah dari foto profil yang sudah
-            // ada (link putus/model gagal dimuat/dsb), bukan alasan buat
-            // meloloskan absen begitu saja.
+            // PERBAIKAN (2026-09-14, permintaan admin): pencocokan ini
+            // SEKARANG cuma dijalankan kalau toggle "Face Recognition" di
+            // Settings admin ON. Kalau OFF, itu memang keputusan sadar
+            // Admin untuk melonggarkan verifikasi demi kecepatan absen -
+            // jadi begitu wajah terdeteksi di foto, langsung dianggap
+            // lolos TANPA dicocokkan ke foto profil. Tampilan progress
+            // ("Mencocokkan..."/"Cocokkan") ikut disesuaikan jujur jadi
+            // "Memproses foto..."/"Proses" saat OFF (lihat
+            // _setVerifyProgress() & pengaturan label langkah di
+            // initCamera()) - TIDAK berpura-pura seolah pencocokan
+            // tetap terjadi, supaya karyawan tahu persis apa yang
+            // benar-benar sedang dikerjakan sistem.
+            //
+            // PERBAIKAN (2026-08-20, tetap berlaku saat toggle ON): kalau
+            // wajah tidak cocok (atau tidak sempat diverifikasi sama
+            // sekali), absen BENAR-BENAR ditolak & diulang otomatis
+            // (bukan fail-open seperti dulu) - mencegah "titip absen".
             //
             // Akun demo (lihat _isDemoAccount() di absensi.js) sengaja
             // TETAP dikecualikan dari pencocokan ini - akun demo memang
@@ -1822,12 +1838,7 @@ const faceRecognition = {
             this._lastFaceMatch = null;
             const _demoUser = auth.getCurrentUser();
             const _isDemo = !!(_demoUser && String(_demoUser.username || '').trim().toLowerCase() === 'demo');
-            // Dulu blok ini cuma jalan kalau toggle Face Recognition ON.
-            // Sekarang TETAP jalan walau OFF - bedanya cuma OFF tidak
-            // mewajibkan liveness (kedip mata) dulu sebelum sampai sini,
-            // jadi yang dibandingkan adalah foto statis yang baru saja
-            // diambil, bukan hasil verifikasi wajah live.
-            if (!_isDemo) {
+            if (!_isDemo && this.faceRecognitionEnabled) {
                 const identity = await this._verifyFaceIdentity();
 
                 if (!identity.checked || !identity.matched) {
@@ -1898,13 +1909,21 @@ const faceRecognition = {
             // Show captured photo
             const preview = document.getElementById('camera-preview');
             if (preview) {
+                // [PERBAIKAN 2026-09-14] Teks di sini disesuaikan jujur:
+                // "Wajah Terverifikasi" cuma dipakai kalau pencocokan ke
+                // foto profil BENAR-BENAR terjadi (toggle ON) - lihat
+                // catatan di blok pencocokan di atas. Saat toggle OFF,
+                // yang sungguh-sungguh terjadi cuma "wajah terdeteksi lalu
+                // foto diambil", jadi teksnya juga bilang begitu apa
+                // adanya, bukan mengklaim verifikasi yang tidak dilakukan.
+                const successLabel = this.faceRecognitionEnabled ? 'Wajah Terverifikasi' : 'Foto Berhasil Diambil';
                 preview.innerHTML = `
                     <img src="${this._capturedPhotoDataUrl}" class="captured-photo" alt="Captured">
                     <div class="verification-status show" id="verification-status">
                         <div class="status-icon">
                             <i class="fas fa-check-circle"></i>
                         </div>
-                        <p>Wajah Terverifikasi</p>
+                        <p>${successLabel}</p>
                     </div>
                 `;
             }
