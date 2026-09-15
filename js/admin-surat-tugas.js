@@ -357,46 +357,72 @@ const adminSuratTugas = {
     },
 
     async approveSanggahan(id) {
-        if (!confirm('Setujui Sanggahan Absensi ini? Sesi yang disanggah akan otomatis tercatat "Hadir (Kendala Teknis)".')) return;
-
-        const user = auth.getCurrentUser();
-        const approver = { name: user?.name || '', nik: user?.nik || '' };
-
-        try {
-            const result = await api.approveSanggahanAbsensi(id, approver);
-            if (result.success) {
-                toast.success('Sanggahan Absensi disetujui. Sesi terkait otomatis tercatat Hadir.');
-                await this.loadData();
-                this.render();
-            } else {
-                toast.error(result.error || 'Gagal menyetujui Sanggahan Absensi');
+        const row = this.sanggahanRawData.find(r => String(r.id) === String(id));
+        adminApprovalModal.open({
+            mode: 'approve',
+            title: 'Setujui Sanggahan Absensi',
+            details: [
+                { label: 'Karyawan', value: row?.userName || row?.nama },
+                { label: 'Tanggal Absensi', value: row?.date },
+                { label: 'Sesi Bermasalah', value: row?.sessionLabels },
+                { label: 'Keterangan', value: row?.keterangan }
+            ],
+            warning: 'Sesi yang disanggah akan otomatis tercatat "Hadir (Kendala Teknis)" di Attendance.',
+            confirmLabel: 'Setujui',
+            onConfirm: async () => {
+                const user = auth.getCurrentUser();
+                const approver = { name: user?.name || '', nik: user?.nik || '' };
+                try {
+                    const result = await api.approveSanggahanAbsensi(id, approver);
+                    if (result.success) {
+                        toast.success('Sanggahan Absensi disetujui. Sesi terkait otomatis tercatat Hadir.');
+                        await this.loadData();
+                        this.render();
+                        return true;
+                    }
+                    toast.error(result.error || 'Gagal menyetujui Sanggahan Absensi');
+                    return false;
+                } catch (e) {
+                    console.error('Error approve Sanggahan Absensi:', e);
+                    toast.error('Terjadi kesalahan');
+                    return false;
+                }
             }
-        } catch (e) {
-            console.error('Error approve Sanggahan Absensi:', e);
-            toast.error('Terjadi kesalahan');
-        }
+        });
     },
 
     async rejectSanggahan(id) {
-        const catatan = prompt('Catatan penolakan (opsional):') || '';
-        if (!confirm('Tolak Sanggahan Absensi ini?')) return;
-
-        const user = auth.getCurrentUser();
-        const approver = { name: user?.name || '', nik: user?.nik || '' };
-
-        try {
-            const result = await api.rejectSanggahanAbsensi(id, approver, catatan);
-            if (result.success) {
-                toast.success('Sanggahan Absensi ditolak.');
-                await this.loadData();
-                this.render();
-            } else {
-                toast.error(result.error || 'Gagal menolak Sanggahan Absensi');
+        const row = this.sanggahanRawData.find(r => String(r.id) === String(id));
+        adminApprovalModal.open({
+            mode: 'reject',
+            title: 'Tolak Sanggahan Absensi',
+            details: [
+                { label: 'Karyawan', value: row?.userName || row?.nama },
+                { label: 'Tanggal Absensi', value: row?.date },
+                { label: 'Sesi Bermasalah', value: row?.sessionLabels },
+                { label: 'Keterangan', value: row?.keterangan }
+            ],
+            confirmLabel: 'Tolak',
+            onConfirm: async (catatan) => {
+                const user = auth.getCurrentUser();
+                const approver = { name: user?.name || '', nik: user?.nik || '' };
+                try {
+                    const result = await api.rejectSanggahanAbsensi(id, approver, catatan);
+                    if (result.success) {
+                        toast.success('Sanggahan Absensi ditolak.');
+                        await this.loadData();
+                        this.render();
+                        return true;
+                    }
+                    toast.error(result.error || 'Gagal menolak Sanggahan Absensi');
+                    return false;
+                } catch (e) {
+                    console.error('Error reject Sanggahan Absensi:', e);
+                    toast.error('Terjadi kesalahan');
+                    return false;
+                }
             }
-        } catch (e) {
-            console.error('Error reject Sanggahan Absensi:', e);
-            toast.error('Terjadi kesalahan');
-        }
+        });
     },
 
     // ---- SPK (Surat Perintah Kerja) - PENAMBAHAN (2026-09-09), pola persis
@@ -480,46 +506,72 @@ const adminSuratTugas = {
     },
 
     async approveSpk(id) {
-        if (!confirm('Setujui SPK ini? Sesi yang dipilih akan otomatis tercatat "SPK" di absensi karyawan.')) return;
-
-        const user = auth.getCurrentUser();
-        const approver = { name: user?.name || '', nik: user?.nik || '' };
-
-        try {
-            const result = await api.approveSpk(id, approver);
-            if (result.success) {
-                toast.success('SPK disetujui. Sesi terkait otomatis tercatat SPK.');
-                await this.loadData();
-                this.render();
-            } else {
-                toast.error(result.error || 'Gagal menyetujui SPK');
+        const row = this.spkRawData.find(r => String(r.id) === String(id));
+        adminApprovalModal.open({
+            mode: 'approve',
+            title: 'Setujui SPK',
+            details: [
+                { label: 'Karyawan', value: row?.userName },
+                { label: 'Tanggal', value: row?.tanggal },
+                { label: 'Sesi Digantikan', value: row?.sesiLabel },
+                { label: 'Keterangan', value: row?.keterangan }
+            ],
+            warning: 'Sesi yang dipilih akan otomatis tercatat "SPK" di absensi karyawan.',
+            confirmLabel: 'Setujui',
+            onConfirm: async () => {
+                const user = auth.getCurrentUser();
+                const approver = { name: user?.name || '', nik: user?.nik || '' };
+                try {
+                    const result = await api.approveSpk(id, approver);
+                    if (result.success) {
+                        toast.success('SPK disetujui. Sesi terkait otomatis tercatat SPK.');
+                        await this.loadData();
+                        this.render();
+                        return true;
+                    }
+                    toast.error(result.error || 'Gagal menyetujui SPK');
+                    return false;
+                } catch (e) {
+                    console.error('Error approve SPK:', e);
+                    toast.error('Terjadi kesalahan');
+                    return false;
+                }
             }
-        } catch (e) {
-            console.error('Error approve SPK:', e);
-            toast.error('Terjadi kesalahan');
-        }
+        });
     },
 
     async rejectSpk(id) {
-        const catatan = prompt('Catatan penolakan (opsional):') || '';
-        if (!confirm('Tolak SPK ini?')) return;
-
-        const user = auth.getCurrentUser();
-        const approver = { name: user?.name || '', nik: user?.nik || '' };
-
-        try {
-            const result = await api.rejectSpk(id, approver, catatan);
-            if (result.success) {
-                toast.success('SPK ditolak.');
-                await this.loadData();
-                this.render();
-            } else {
-                toast.error(result.error || 'Gagal menolak SPK');
+        const row = this.spkRawData.find(r => String(r.id) === String(id));
+        adminApprovalModal.open({
+            mode: 'reject',
+            title: 'Tolak SPK',
+            details: [
+                { label: 'Karyawan', value: row?.userName },
+                { label: 'Tanggal', value: row?.tanggal },
+                { label: 'Sesi Digantikan', value: row?.sesiLabel },
+                { label: 'Keterangan', value: row?.keterangan }
+            ],
+            confirmLabel: 'Tolak',
+            onConfirm: async (catatan) => {
+                const user = auth.getCurrentUser();
+                const approver = { name: user?.name || '', nik: user?.nik || '' };
+                try {
+                    const result = await api.rejectSpk(id, approver, catatan);
+                    if (result.success) {
+                        toast.success('SPK ditolak.');
+                        await this.loadData();
+                        this.render();
+                        return true;
+                    }
+                    toast.error(result.error || 'Gagal menolak SPK');
+                    return false;
+                } catch (e) {
+                    console.error('Error reject SPK:', e);
+                    toast.error('Terjadi kesalahan');
+                    return false;
+                }
             }
-        } catch (e) {
-            console.error('Error reject SPK:', e);
-            toast.error('Terjadi kesalahan');
-        }
+        });
     }
 };
 
