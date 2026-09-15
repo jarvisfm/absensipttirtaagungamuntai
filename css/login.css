@@ -484,32 +484,43 @@
     }
 }
 
-/* Loading State */
+/* PERBAIKAN (2026-09-15): loading tombol Login diganti total - versi lama
+   pakai animasi CSS "content: '•••'" di ::after, yang ternyata TIDAK
+   dianimasikan dengan benar di banyak browser HP (properti "content" pada
+   dasarnya tidak reliable dianimasikan lewat @keyframes), jadi di mobile
+   loading-nya nyaris tidak kelihatan - cuma tombolnya sedikit buram
+   (opacity 0.9). Sekarang pakai spinner lingkaran berputar (transform:
+   rotate), yang didukung semua browser termasuk HP karena animasinya
+   berbasis transform, bukan mengubah teks konten. Teks "Login" & ikon
+   panahnya disembunyikan (visibility:hidden, bukan display:none) supaya
+   ukuran tombol tidak berubah/loncat, lalu spinner ditaruh di tengah
+   tombol menggantikan posisinya. */
 .btn-login.loading {
     pointer-events: none;
     opacity: 0.9;
 }
 
-.btn-login.loading::after {
-    content: '•••';
-    letter-spacing: 4px;
-    font-size: 20px;
-    animation: loading-dots 1.4s ease-in-out infinite;
+.btn-login.loading span,
+.btn-login.loading > i {
+    visibility: hidden;
 }
 
-@keyframes loading-dots {
-    0%, 20% {
-        content: '•';
-        opacity: 0.3;
-    }
-    40% {
-        content: '••';
-        opacity: 0.6;
-    }
-    60%, 100% {
-        content: '•••';
-        opacity: 1;
-    }
+.btn-login.loading::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 20px;
+    height: 20px;
+    margin: -10px 0 0 -10px;
+    border: 2.5px solid rgba(255, 255, 255, 0.35);
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: btn-login-spin 0.7s linear infinite;
+}
+
+@keyframes btn-login-spin {
+    to { transform: rotate(360deg); }
 }
 
 /* Error State */
@@ -554,9 +565,37 @@
     background: rgba(245, 158, 11, 0.08);
 }
 
+/* PERBAIKAN (2026-09-15): sebelumnya loading tombol sidik jari cuma
+   opacity:0.6 tanpa indikator visual apapun - gampang terlihat seperti
+   tombolnya nge-freeze/macet. Sekarang ikon sidik jari & teksnya
+   disembunyikan (visibility:hidden, ukuran tombol tetap sama) lalu diganti
+   spinner lingkaran berputar di tengah, warnanya mengikuti warna tombol ini
+   (var(--color-primary)) supaya kontras di atas latar transparan/putih.
+   Sama seperti .btn-login.loading di atas, animasinya pakai transform
+   (bukan mengubah teks/content) supaya reliable kelihatan di HP juga. */
 .btn-biometric.loading {
-    opacity: 0.6;
+    opacity: 0.85;
     pointer-events: none;
+    position: relative;
+}
+
+.btn-biometric.loading i,
+.btn-biometric.loading span {
+    visibility: hidden;
+}
+
+.btn-biometric.loading::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 18px;
+    height: 18px;
+    margin: -9px 0 0 -9px;
+    border: 2.5px solid rgba(245, 158, 11, 0.25);
+    border-top-color: var(--color-primary);
+    border-radius: 50%;
+    animation: btn-login-spin 0.7s linear infinite;
 }
 
 .btn-biometric i {
