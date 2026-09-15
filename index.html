@@ -1050,6 +1050,34 @@
                     </div>
                 </div>
 
+                <!-- TAMBAHAN: Modal konfirmasi approve/tolak (Sanggahan Absensi & SPK) -
+                     menggantikan window.confirm()/window.prompt() bawaan browser di
+                     admin-surat-tugas.js, supaya Admin bisa lihat ringkasan pengajuan
+                     dulu sebelum menekan Setujui/Tolak. Dikendalikan lewat
+                     js/admin-approval-modal.js (adminApprovalModal). -->
+                <div class="modal-overlay" id="modal-approval-confirm" style="display:none;">
+                    <div class="modal-container" style="max-width:440px;width:92%;max-height:90vh;overflow-y:auto;">
+                        <div class="modal-header">
+                            <h3><i class="fas fa-check-circle" id="ac-title-icon" style="color:var(--color-success);"></i> <span id="ac-title-text">Setujui</span></h3>
+                            <button class="btn-close-modal" onclick="adminApprovalModal.close()">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                        <div style="padding:0 1.25rem 1.25rem;">
+                            <div id="ac-details" style="background:var(--bg-secondary);border-radius:10px;padding:12px 14px;margin-bottom:14px;font-size:0.85rem;display:flex;flex-direction:column;gap:6px;"></div>
+                            <div class="form-group" id="ac-catatan-group" style="display:none;">
+                                <label style="font-weight:600;font-size:0.85rem;">Catatan Penolakan (opsional)</label>
+                                <textarea id="ac-catatan" rows="2" placeholder="mis. Data belum lengkap" style="width:100%;padding:8px 10px;border:1px solid var(--border-color);border-radius:8px;font-family:inherit;"></textarea>
+                            </div>
+                            <p id="ac-warning" style="font-size:0.8rem;color:var(--text-muted);margin:10px 0 0;display:none;"></p>
+                            <div style="display:flex;gap:8px;margin-top:1.25rem;">
+                                <button type="button" onclick="adminApprovalModal.close()" style="flex:1;background:none;border:1px solid var(--border-color);color:var(--text-muted);padding:10px;border-radius:8px;cursor:pointer;">Batal</button>
+                                <button type="button" id="ac-btn-confirm" onclick="adminApprovalModal.confirm()" style="flex:1;background:var(--color-success);color:#fff;border:none;padding:10px;border-radius:8px;cursor:pointer;font-weight:600;">Setujui</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Izin/Sakit Page -->
                 <div class="page" id="page-izin">
                     <div class="izin-container">
@@ -3968,6 +3996,7 @@
     <script src="js/profile.js"></script>
     <script src="js/admin-reports.js"></script>
     <script src="js/admin-surat-tugas.js"></script>
+    <script src="js/admin-approval-modal.js"></script>
     <script src="js/shift-schedule.js"></script>
     <script src="js/session-status.js"></script>
     <script src="js/jadwal-jaga-operator.js"></script>
