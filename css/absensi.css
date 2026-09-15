@@ -217,6 +217,20 @@
     color: var(--color-white);
 }
 
+/* PENAMBAHAN (2026-09-15): loading "Memuat..." di kartu Absensi - ikon jam
+   ikut berputar pelan selama data absensi diambil dari server, supaya
+   jelas kelihatan sedang memuat (bukan sekadar teks "Memuat..." dengan
+   ikon diam). Class "is-loading" ditambahkan lewat JS (lihat init() di
+   absensi.js) cuma saat BENAR-BENAR belum ada cache yang bisa ditampilkan
+   dulu - begitu data asli datang, class ini otomatis hilang sendiri. */
+.status-ring.is-loading .status-icon i {
+    animation: status-icon-spin 1s linear infinite;
+}
+
+@keyframes status-icon-spin {
+    to { transform: rotate(360deg); }
+}
+
 .status-text {
     font-size: var(--font-size-xl);
     font-weight: 600;
