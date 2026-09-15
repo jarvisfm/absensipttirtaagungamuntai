@@ -137,11 +137,24 @@ const absensi = {
     // sidebar tiap kali halaman ini dibuka - jaga-jaga kalau SPPD-nya baru
     // saja diputuskan Admin sejak terakhir login (fire-and-forget, tidak
     // perlu ditunggu, bukan bagian kritikal dari render halaman ini).
-    this.refreshSuratTugasBadge();
-    // [TAMBAHAN] Sama seperti di atas, tapi untuk sub-teks tombol
-    // "Sanggahan Absensi" - lihat sanggahanAbsensi.refreshBadge()
-    // (sanggahan-absensi.js).
-    if (window.sanggahanAbsensi) sanggahanAbsensi.refreshBadge();
+    //
+    // [TAMBAHAN - optimasi jam sibuk] Dikasih jeda acak 0-1.5 detik dulu
+    // sebelum dipanggil - HANYA untuk panggilan badge non-kritikal ini
+    // (bukan proses login/render utama absensi, yang tetap secepat
+    // sebelumnya). Karyawan biasanya buka halaman Absensi persis di jam
+    // yang sama (07:30-08:10), jadi tanpa jeda ini, badge SPPD & Sanggahan
+    // Absensi dari SEMUA karyawan menumpuk memanggil server di detik yang
+    // sama persis - padahal badge ini tidak kritikal, telat setengah detik
+    // pun tidak akan disadari user. Menyebar beban ini sedikit membantu
+    // meringankan antrean di jam sibuk tanpa mengorbankan pengalaman user.
+    const badgeJitterMs = Math.random() * 1500;
+    setTimeout(() => {
+        this.refreshSuratTugasBadge();
+        // [TAMBAHAN] Sama seperti di atas, tapi untuk sub-teks tombol
+        // "Sanggahan Absensi" - lihat sanggahanAbsensi.refreshBadge()
+        // (sanggahan-absensi.js).
+        if (window.sanggahanAbsensi) sanggahanAbsensi.refreshBadge();
+    }, badgeJitterMs);
 
     // [TAMBAHAN] Lihat catatan lengkap di _notifyUnsavedAttendanceIfAny()
     // di atas - fire-and-forget, tidak perlu ditunggu.
