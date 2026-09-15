@@ -9,6 +9,38 @@
 
 const API_BASE_URL = 'https://script.google.com/macros/s/AKfycbz3qeYiMdaJ1gvnpnv5j2cKp4JNQb0_QuW0XwTRkOETRQ4C2R8Med4I3VrSlCHyoLrO/exec'; // Kosongkan untuk mode localStorage, isi dengan URL Web App GAS
 
+// [TAMBAHAN - optimasi jam sibuk] Aksi yang AMAN di-retry otomatis kalau
+// gagal/timeout - HANYA aksi BACA (get*/check*/is*/validate*/verify*) plus
+// login/reverseGeocode/previewLeaveDuration (menimpa/melihat data, tidak
+// menduplikasi apa pun kalau diulang). Dicek lewat AWALAN NAMA aksi, bukan
+// daftar hardcode satu-satu, supaya aksi baca baru yang ditambah nanti
+// (asal masih ikut konvensi penamaan get*/check*/dst yang sudah konsisten
+// dipakai di seluruh api.js ini) otomatis ikut ter-cover tanpa perlu ingat
+// update daftar ini lagi.
+//
+// SENGAJA TIDAK dipakai untuk aksi yang MENULIS data (saveAttendance,
+// submitSanggahanAbsensi, approveSpk, dst) - retry otomatis di situ
+// berisiko bikin data DOBEL kalau permintaan PERTAMA sebenarnya sudah
+// berhasil disimpan di server, cuma jawabannya yang terlambat/hilang di
+// jalan sebelum sampai balik ke browser (bukan permintaannya yang gagal).
+function _isRetryableAction(action) {
+    return /^(get|check|is|validate|verify)/.test(action)
+        || action === 'login'
+        || action === 'reverseGeocode'
+        || action === 'previewLeaveDuration';
+}
+
+// [TAMBAHAN - optimasi jam sibuk] Jeda sebelum percobaan ulang - naik
+// bertahap (600ms, lalu ~1.2 detik) plus sedikit acak (jitter) supaya
+// banyak HP yang gagal bersamaan (mis. semua absen di jam 07:30-08:10)
+// tidak sama-sama mencoba lagi di detik yang PERSIS sama - itu justru bisa
+// memperparah antrean di server Apps Script, bukan membantu.
+function _retryDelay(attempt) {
+    const base = 600 * Math.pow(2, attempt - 1);
+    const jitter = Math.random() * 400;
+    return new Promise(resolve => setTimeout(resolve, base + jitter));
+}
+
 const api = {
 
     // ========== SERVER TIME (anti-akal jam HP) ==========
@@ -24,43 +56,61 @@ const api = {
             return this._localFallback(action, data);
         }
 
-        // [TAMBAHAN] Batas waktu tunggu (timeout) untuk koneksi yang LAMBAT
-        // (bukan cuma yang benar-benar putus) - sebelumnya kalau internet
-        // lelet, fetch() ini bisa menggantung TANPA BATAS, tombol Login
-        // (atau proses lain) jadi macet di posisi "loading" selamanya tanpa
-        // pesan apa pun ke user. Sekarang dibatasi 20 detik - kalau lewat,
-        // dianggap "koneksi lambat" (dibedakan dari "tidak ada koneksi sama
-        // sekali" lewat reason di bawah, supaya pesannya ke user bisa lebih
-        // tepat/tidak membingungkan).
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 20000);
+        // [TAMBAHAN - optimasi jam sibuk] Aksi baca dicoba maks 3x (1
+        // percobaan awal + 2 retry) sebelum benar-benar menyerah; aksi yang
+        // menulis data TETAP 1x percobaan saja seperti sebelumnya (lihat
+        // _isRetryableAction() di atas untuk alasannya).
+        const maxAttempts = _isRetryableAction(action) ? 3 : 1;
+        let lastReason = 'offline';
 
-        try {
-            const response = await fetch(API_BASE_URL, {
-                method: 'POST',
-                redirect: 'follow',
-                headers: { 'Content-Type': 'text/plain' },
-                body: JSON.stringify({ action, ...data }),
-                signal: controller.signal
-            });
+        for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+            // [TAMBAHAN] Batas waktu tunggu (timeout) untuk koneksi yang LAMBAT
+            // (bukan cuma yang benar-benar putus) - sebelumnya kalau internet
+            // lelet, fetch() ini bisa menggantung TANPA BATAS, tombol Login
+            // (atau proses lain) jadi macet di posisi "loading" selamanya tanpa
+            // pesan apa pun ke user. Sekarang dibatasi 20 detik - kalau lewat,
+            // dianggap "koneksi lambat" (dibedakan dari "tidak ada koneksi sama
+            // sekali" lewat reason di bawah, supaya pesannya ke user bisa lebih
+            // tepat/tidak membingungkan).
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 20000);
 
-            const text = await response.text();
             try {
-                return JSON.parse(text);
-            } catch (e) {
-                console.error('Failed to parse response:', text.substring(0, 200));
-                return { success: false, error: 'Invalid response from server' };
+                const response = await fetch(API_BASE_URL, {
+                    method: 'POST',
+                    redirect: 'follow',
+                    headers: { 'Content-Type': 'text/plain' },
+                    body: JSON.stringify({ action, ...data }),
+                    signal: controller.signal
+                });
+
+                const text = await response.text();
+                try {
+                    return JSON.parse(text);
+                } catch (e) {
+                    // [TAMBAHAN] Respons yang tidak bisa di-parse sebagai JSON
+                    // biasanya halaman error dari Apps Script sendiri (mis.
+                    // server lagi penuh/kuota eksekusi bersamaan kelampaui di
+                    // jam sibuk) - bukan salah data yang dikirim, jadi layak
+                    // dicoba ulang untuk aksi baca, sama seperti timeout.
+                    console.error('Failed to parse response:', text.substring(0, 200));
+                    if (attempt < maxAttempts) { await _retryDelay(attempt); continue; }
+                    return { success: false, error: 'Invalid response from server' };
+                }
+            } catch (error) {
+                console.error('API Error:', error);
+                // 'AbortError' = timeout 20 detik kelewat (koneksi lambat),
+                // selain itu = fetch gagal total (tidak ada koneksi/DNS/dst).
+                lastReason = error && error.name === 'AbortError' ? 'timeout' : 'offline';
+                if (attempt < maxAttempts) { await _retryDelay(attempt); continue; }
+            } finally {
+                clearTimeout(timeoutId);
             }
-        } catch (error) {
-            console.error('API Error:', error);
-            // 'AbortError' = timeout 20 detik kelewat (koneksi lambat),
-            // selain itu = fetch gagal total (tidak ada koneksi/DNS/dst).
-            const reason = error && error.name === 'AbortError' ? 'timeout' : 'offline';
-            // Fallback to localStorage on network error
-            return this._localFallback(action, data, reason);
-        } finally {
-            clearTimeout(timeoutId);
         }
+
+        // Semua percobaan gagal (atau memang aksi ini tidak di-retry sama
+        // sekali) - fallback ke localStorage seperti sebelumnya.
+        return this._localFallback(action, data, lastReason);
     },
 
     // ========== AUTH ==========
