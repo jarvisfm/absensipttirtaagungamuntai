@@ -1269,9 +1269,15 @@ const cuti = {
         }
 
         const user = auth.getCurrentUser();
+
+        // [TAMBAHAN] Sama seperti submitApproval() di izin.js - lihat catatan
+        // lengkap di sana. Tahap Direktur yang di-approve Admin (mewakili)
+        // namanya diganti literal "Admin", bukan nama pribadi admin yang login.
+        const isAdminActingForDirektur = role === 'direktur' && auth.isAdmin();
+
         const approver = {
             id: user?.employeeId || user?.id,
-            name: user?.name,
+            name: isAdminActingForDirektur ? 'Admin' : user?.name,
             nik: user?.nik,
             role: role,
             bagian: user?.bagian
