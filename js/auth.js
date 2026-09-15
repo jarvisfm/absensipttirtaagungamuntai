@@ -699,8 +699,17 @@ const auth = {
         const navApprovalManajer = document.getElementById('nav-approval-manajer');
         if (navApprovalManajer) navApprovalManajer.classList.toggle('hidden', !this.isManajer());
 
+        // [TAMBAHAN] Menu Approval Direktur SEKARANG juga muncul untuk Admin
+        // (isAdmin(), BUKAN cuma Direktur asli lewat isDirektur()) - Direktur
+        // jarang buka aplikasi, jadi Admin perlu bisa mewakili approve tahap
+        // ini. Backend (Izin.gs/Leave.gs) memang sudah menerima
+        // approver.role === 'admin' persis di tahap Direktur ini - lihat
+        // submitApproval() di izin.js/cuti.js, yang mengganti nama approver
+        // jadi literal "Admin" (bukan nama asli admin yang login) supaya
+        // jejaknya jelas ini pengajuan yang diwakilkan, bukan disetujui
+        // Direktur sendiri.
         const navApprovalDirektur = document.getElementById('nav-approval-direktur');
-        if (navApprovalDirektur) navApprovalDirektur.classList.toggle('hidden', !this.isDirektur());
+        if (navApprovalDirektur) navApprovalDirektur.classList.toggle('hidden', !(this.isDirektur() || this.isAdmin()));
 
         // Bottom nav (mobile) - item "Approval" khusus untuk Asmen, Manajer & Direktur
         const bottomNavApprovalAsmen = document.getElementById('bottom-nav-approval-asmen');
@@ -709,8 +718,9 @@ const auth = {
         const bottomNavApprovalManajer = document.getElementById('bottom-nav-approval-manajer');
         if (bottomNavApprovalManajer) bottomNavApprovalManajer.classList.toggle('hidden', !this.isManajer());
 
+        // [TAMBAHAN] Sama seperti nav-approval-direktur di atas.
         const bottomNavApprovalDirektur = document.getElementById('bottom-nav-approval-direktur');
-        if (bottomNavApprovalDirektur) bottomNavApprovalDirektur.classList.toggle('hidden', !this.isDirektur());
+        if (bottomNavApprovalDirektur) bottomNavApprovalDirektur.classList.toggle('hidden', !(this.isDirektur() || this.isAdmin()));
 
         // Menu "Jadwal Jaga Operator" versi Asmen - beda dari menu admin
         // (yang ada di sidebar Menu Admin & selalu bisa akses semua unit).
