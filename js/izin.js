@@ -1721,9 +1721,23 @@ const izin = {
     async submitApproval(id, role, decision) {
         const catatan = document.getElementById('approval-catatan')?.value || '';
         const user = auth.getCurrentUser();
+
+        // [TAMBAHAN] Tahap Direktur yang di-approve ADMIN (mewakili, lihat
+        // updateApprovalNav() di auth.js) - namanya diganti literal "Admin",
+        // BUKAN nama asli admin yang sedang login. Backend (Izin.gs) sudah
+        // menerima approver.role === 'admin' persis untuk tahap ini, cuma
+        // field `name`-nya yang dipakai apa adanya untuk ditampilkan sebagai
+        // "Disetujui/Ditinjau oleh <name>" - kalau tidak diganti di sini,
+        // yang tampil adalah nama pribadi admin, padahal keputusannya
+        // mewakili Direktur, bukan atas nama admin itu sendiri. TIDAK
+        // berlaku kalau yang login memang Direktur asli (lewat Mode
+        // Karyawan, auth.isAdmin() otomatis false saat itu - lihat isAdmin()
+        // di auth.js), supaya nama Direktur sungguhan tetap tampil normal.
+        const isAdminActingForDirektur = role === 'direktur' && auth.isAdmin();
+
         const approver = {
             id: user?.employeeId || user?.id,
-            name: user?.name,
+            name: isAdminActingForDirektur ? 'Admin' : user?.name,
             nik: user?.nik,
             role: role,
             bagian: user?.bagian
