@@ -228,6 +228,31 @@ const api = {
         return this.request('getTodayAttendance', { userId });
     },
 
+    // [TAMBAHAN - optimasi jam sibuk] Endpoint gabungan checkAttendanceAccess
+    // + getTodayAttendance + badge SPPD/Sanggahan Absensi/SPK - dipakai
+    // absensi.js init() sebagai PENGGANTI 4-5 request terpisah. Mode
+    // localStorage (API_BASE_URL kosong) tidak butuh optimasi ini sama
+    // sekali (semuanya lokal, tidak ada kuota server) - cukup gabungkan
+    // hasil checkAttendanceAccess()/getTodayAttendance() versi
+    // localStorage yang SUDAH ADA di atas, tanpa endpoint baru di backend.
+    async getAbsensiPageData(userId) {
+        if (!API_BASE_URL) {
+            const access = await this.checkAttendanceAccess(userId);
+            const today = await this.getTodayAttendance(userId);
+            return {
+                success: true,
+                data: {
+                    access: access.success ? access.data : null,
+                    accessError: access.success ? null : (access.error || null),
+                    today: today.success ? today.data : null,
+                    todayError: today.success ? null : (today.error || null),
+                    pending: { suratTugas: 0, sanggahanAbsensi: 0, spk: 0 }
+                }
+            };
+        }
+        return this.request('getAbsensiPageData', { userId });
+    },
+
     async reverseGeocode(lat, lng) {
         if (!API_BASE_URL) {
             return { success: false, error: 'Reverse geocode butuh koneksi backend' };
