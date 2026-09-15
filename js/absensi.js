@@ -15,15 +15,32 @@ const absensi = {
      * muncul kalau karyawan yang login punya Surat Tugas/SPPD yang masih
      * berstatus 'pending' (belum disetujui/ditolak), hilang otomatis
      * begitu semua SPPD-nya sudah diputuskan (approved/rejected). Dipanggil
-     * dari 2 tempat: (1) auth.js showApp() - sekali tiap kali login/buka
-     * aplikasi, sama seperti notifications.init(); (2) di sini sendiri,
-     * setelah submit SPPD baru berhasil (lihat handleSuratTugasSubmit())
-     * supaya badge-nya langsung muncul tanpa perlu reload halaman.
+     * dari 3 tempat: (1) auth.js showApp() - sekali tiap kali login/buka
+     * aplikasi, sama seperti notifications.init(); (2) absensi.js init(),
+     * dengan angka yang sudah didapat lewat getAbsensiPageData() (lihat
+     * poin [TAMBAHAN] di bawah); (3) surat-tugas.js setelah submit SPPD
+     * baru berhasil, supaya badge-nya langsung muncul tanpa reload halaman.
+     *
+     * [TAMBAHAN - optimasi jam sibuk, 15 September 2026] preFetchedHasPending
+     * (boolean, opsional): kalau diisi, fungsi ini TIDAK memanggil server
+     * sendiri lagi - tinggal pakai angka yang sudah didapat pemanggilnya
+     * (dipakai absensi.js init(), yang sudah dapat angka ini gratis dari 1
+     * permintaan gabungan getAbsensiPageData()). Dua pemanggil LAIN
+     * (auth.js, surat-tugas.js) TETAP memanggil TANPA argumen seperti
+     * sebelumnya - otomatis jatuh ke perilaku lama (fetch sendiri lewat
+     * api.getSuratTugas()), tidak ada yang berubah untuk keduanya.
      */
-    async refreshSuratTugasBadge() {
+    async refreshSuratTugasBadge(preFetchedHasPending) {
         const navBadge = document.getElementById('nav-badge-absensi');
         const shiftBadge = document.getElementById('shift-badge-surat-tugas');
         if (!navBadge && !shiftBadge) return;
+
+        if (typeof preFetchedHasPending === 'boolean') {
+            if (navBadge) navBadge.style.display = preFetchedHasPending ? '' : 'none';
+            if (shiftBadge) shiftBadge.style.display = preFetchedHasPending ? 'inline-flex' : 'none';
+            return;
+        }
+
         try {
             const user = auth.getCurrentUser ? auth.getCurrentUser() : null;
             if (!user) {
@@ -133,6 +150,32 @@ const absensi = {
     // dari kunjungan sebelumnya.
     this._izinDataPromise = null;
 
+    // [TAMBAHAN - optimasi jam sibuk, 15 September 2026] SATU permintaan
+    // GABUNGAN ke backend (getAbsensiPageData) - menggantikan yang
+    // SEBELUMNYA 4 request terpisah: checkAttendanceAccess (dulu di
+    // loadAccessInfo()), getTodayAttendance (dulu di loadTodayAttendance()),
+    // plus badge SPPD & Sanggahan Absensi (dulu masing-masing manggil
+    // api.getSuratTugas()/api.getSanggahanAbsensi() sendiri). Sekarang
+    // cukup 1 eksekusi script Apps Script per kunjungan halaman, bukan 4 -
+    // mengurangi beban ke kuota concurrent execution yang dipakai BERSAMA
+    // oleh semua karyawan (lihat pembahasan soal jam sibuk 07:30-08:10).
+    //
+    // PENTING: checkAttendanceAccess()/getTodayAttendance() SENDIRI (logic
+    // penentuan jadwal/sesi/status Hadir-Terlambat-Libur di dalamnya) SAMA
+    // SEKALI TIDAK DISENTUH - keduanya tetap dipanggil APA ADANYA, cuma
+    // dari DALAM 1 fungsi pembungkus di backend (getAbsensiPageData() di
+    // Attendance.gs). Endpoint checkAttendanceAccess/getTodayAttendance
+    // yang lama juga TETAP ADA, tetap dipakai tempat lain yang memang
+    // butuh memanggilnya sendiri-sendiri (mis. form Sanggahan Absensi yang
+    // mengecek jadwal untuk tanggal yang berbeda-beda).
+    //
+    // Promise-nya SENGAJA cuma "ditembak" di sini, BELUM di-`await` -
+    // supaya TIDAK menunda tampilan instan dari cache HP di bawah (blok
+    // "TAMBAHAN 2026-09-14"), yang memang harus tetap secepat sebelumnya.
+    // Promise yang SAMA dipakai ulang di 2 tempat di bawah (badge &
+    // Promise.all loadTodayAttendance) - TIDAK fetch dua kali.
+    const pageDataPromise = this._loadAbsensiPageDataOnce();
+
     // Sekalian refresh badge "menunggu approval" Surat Tugas/SPPD di menu
     // sidebar tiap kali halaman ini dibuka - jaga-jaga kalau SPPD-nya baru
     // saja diputuskan Admin sejak terakhir login (fire-and-forget, tidak
@@ -147,13 +190,23 @@ const absensi = {
     // sama persis - padahal badge ini tidak kritikal, telat setengah detik
     // pun tidak akan disadari user. Menyebar beban ini sedikit membantu
     // meringankan antrean di jam sibuk tanpa mengorbankan pengalaman user.
+    //
+    // [TAMBAHAN - optimasi jam sibuk, lanjutan] Angka pending SPPD/
+    // Sanggahan Absensi dipakai ULANG dari pageDataPromise di atas
+    // (sudah ikut terhitung di getAbsensiPageData()) - refreshSuratTugasBadge()/
+    // sanggahanAbsensi.refreshBadge() TIDAK lagi melakukan request sendiri
+    // di sini (2 request lagi yang hilang). Kalau pageDataPromise gagal
+    // (pageData null), kedua fungsi itu dipanggil TANPA argumen seperti
+    // semula - otomatis jatuh ke perilaku lama (fetch sendiri-sendiri),
+    // tidak ada badge yang salah tampil gara-gara ini.
     const badgeJitterMs = Math.random() * 1500;
-    setTimeout(() => {
-        this.refreshSuratTugasBadge();
+    setTimeout(async () => {
+        const pageData = await pageDataPromise;
+        this.refreshSuratTugasBadge(pageData ? pageData.pending.suratTugas > 0 : undefined);
         // [TAMBAHAN] Sama seperti di atas, tapi untuk sub-teks tombol
         // "Sanggahan Absensi" - lihat sanggahanAbsensi.refreshBadge()
         // (sanggahan-absensi.js).
-        if (window.sanggahanAbsensi) sanggahanAbsensi.refreshBadge();
+        if (window.sanggahanAbsensi) sanggahanAbsensi.refreshBadge(pageData ? pageData.pending.sanggahanAbsensi : undefined);
     }, badgeJitterMs);
 
     // [TAMBAHAN] Lihat catatan lengkap di _notifyUnsavedAttendanceIfAny()
@@ -243,20 +296,26 @@ const absensi = {
     }
 
     // PERBAIKAN PERFORMA: loadAttendanceHistory() (tabel Riwayat Absensi)
-    // TIDAK butuh data dari loadAccessInfo()/loadTodayAttendance() sama
-    // sekali (sudah dicek: _historyData cuma dipakai fungsi-fungsi terkait
-    // riwayat sendiri) - jadi dijalankan BERSAMAAN (Promise.all), bukan
-    // menunggu antre di belakang 2 request lain. loadAccessInfo() dan
-    // loadTodayAttendance() TETAP berurutan (tidak ikut diparalelkan)
-    // karena loadTodayAttendance() betulan baca this.accessInfo untuk
-    // menentukan state 'libur' - kalau ikut diparalelkan, sesekali bisa
-    // salah baca accessInfo yang belum sempat terisi (race condition).
-    // Jumlah request ke server SAMA PERSIS seperti sebelumnya (3 kali) -
-    // cuma waktu TUNGGU-nya yang lebih pendek karena tidak lagi antre satu
-    // per satu, jadi tidak menambah beban ke server sama sekali.
+    // TIDAK butuh data dari pageDataPromise (checkAttendanceAccess/
+    // getTodayAttendance) sama sekali (sudah dicek: _historyData cuma
+    // dipakai fungsi-fungsi terkait riwayat sendiri) - jadi dijalankan
+    // BERSAMAAN (Promise.all), bukan menunggu antre di belakangnya.
+    //
+    // [TAMBAHAN - optimasi jam sibuk] Dulu ada 2 request terpisah di sini
+    // (loadAccessInfo() lalu loadTodayAttendance(), masing-masing manggil
+    // server sendiri, DIBUAT BERURUTAN karena loadTodayAttendance() betul-
+    // betul baca this.accessInfo untuk menentukan state 'libur'). Sekarang
+    // KEDUANYA sudah didapat dari SATU pageDataPromise yang sama (ditembak
+    // di awal init(), lihat catatan lengkap di atas) - _applyAccessInfo()
+    // & loadTodayAttendance() di bawah TINGGAL MEMBACA hasilnya, tidak
+    // memanggil server lagi masing-masing. Urutan await di sini
+    // dipertahankan (bukan lagi soal antre request, tapi supaya
+    // this.accessInfo sudah pasti terisi SEBELUM loadTodayAttendance()
+    // membacanya - logic penentuan state-nya sendiri tidak berubah).
     await Promise.all([
         (async () => {
-            await this.loadAccessInfo();
+            const pageData = await pageDataPromise;
+            this._applyAccessInfo(pageData);
             // BUGFIX (2026-08-31, lanjutan): guard yang sama seperti
             // penjelasan lengkap di bawah (setelah Promise.all ini) -
             // updateShiftInfoCard() menulis DOM langsung ("Libur" dkk) di
@@ -266,7 +325,7 @@ const absensi = {
             // akhirnya tidak lanjut me-render sisanya.
             if (myRenderGen !== this._renderGen) return;
             this.updateShiftInfoCard();
-            await this.loadTodayAttendance();
+            await this.loadTodayAttendance(pageData);
         })(),
         this.loadAttendanceHistory()
     ]);
@@ -349,6 +408,26 @@ const absensi = {
         }
     },
 
+    // [TAMBAHAN - optimasi jam sibuk, 15 September 2026] Menggantikan
+    // loadAccessInfo() yang lama - dulu fungsi ini SENDIRI yang memanggil
+    // api.checkAttendanceAccess(). Sekarang tinggal fetch SATU KALI lewat
+    // getAbsensiPageData() (lihat pageDataPromise di init()), dipakai ulang
+    // untuk checkAttendanceAccess, getTodayAttendance, DAN badge sekaligus.
+    async _loadAbsensiPageDataOnce() {
+        const user = auth.getCurrentUser();
+        if (!user) return null;
+        const effectiveId = user.employeeId || user.id;
+        try {
+            const result = await api.getAbsensiPageData(effectiveId);
+            if (result && result.success) return result.data;
+            console.warn('getAbsensiPageData gagal:', result);
+            return null;
+        } catch (e) {
+            console.error('Error getAbsensiPageData:', e);
+            return null;
+        }
+    },
+
     // Cek jadwal & sesi absensi hari ini dari backend
     //
     // PERBAIKAN (2026-09-14): SEBELUMNYA kalau request checkAttendanceAccess
@@ -374,24 +453,24 @@ const absensi = {
     // false). Dipakai oleh updateShiftInfoCard() & loadTodayAttendance() di
     // bawah untuk menampilkan pesan yang jujur ("Gagal memuat jadwal, coba
     // muat ulang") alih-alih "Hari Libur" yang menyesatkan.
-    async loadAccessInfo() {
-    const user = auth.getCurrentUser();
-    if (!user) return;
-    try {
-        const effectiveId = user.employeeId || user.id;
-        const result = await api.checkAttendanceAccess(effectiveId);
-        if (result && result.success) {
-            this.accessInfo = result.data;
+    //
+    // [TAMBAHAN - optimasi jam sibuk] pageData dioper dari
+    // _loadAbsensiPageDataOnce() di atas (lewat pageDataPromise di init())
+    // - fungsi ini sendiri TIDAK LAGI memanggil api.checkAttendanceAccess()
+    // sendiri, cuma membaca hasil yang sudah didapat lewat 1 permintaan
+    // gabungan. Nama fungsi & isi this.accessInfo/this._accessInfoFailed
+    // yang dihasilkan PERSIS SAMA seperti sebelumnya - kode lain yang
+    // membaca kedua field ini (updateShiftInfoCard, loadTodayAttendance,
+    // dst) tidak perlu diubah sama sekali.
+    _applyAccessInfo(pageData) {
+        if (pageData && !pageData.accessError) {
+            this.accessInfo = pageData.access || null;
             this._accessInfoFailed = false;
         } else {
-            console.warn('checkAttendanceAccess gagal:', result);
+            this.accessInfo = null;
             this._accessInfoFailed = true;
         }
-    } catch (e) {
-        console.error('Error checkAttendanceAccess:', e);
-        this._accessInfoFailed = true;
-    }
-},
+    },
 
     // Isi kartu "Shift Anda" (nama shift + jam kerja) di bagian atas halaman
     // Absensi dari hasil checkAttendanceAccess() - supaya SELALU mengikuti
@@ -477,14 +556,21 @@ const absensi = {
         return `${baseName} ${lastPart}`;
     },
 
-    async loadTodayAttendance() {
+    // [TAMBAHAN - optimasi jam sibuk] Sekarang menerima pageData (hasil
+    // getAbsensiPageData() dari init(), lewat _loadAbsensiPageDataOnce()) -
+    // TIDAK LAGI memanggil api.getTodayAttendance() sendiri di sini.
+    // getTodayAttendance() di backend TETAP dipakai APA ADANYA (dipanggil
+    // dari DALAM getAbsensiPageData() di Attendance.gs) - logic penentuan
+    // baris/sesi mana yang aktif di dalamnya tidak disentuh sama sekali.
+    // Seluruh isi fungsi ini DI BAWAH baris `let today = ...` PERSIS SAMA
+    // seperti sebelumnya, tidak diubah.
+    async loadTodayAttendance(pageData) {
     const user = auth.getCurrentUser();
     if (!user) return;
 
     try {
-        const effectiveId = user.employeeId || user.id;        // ← TAMBAH INI
-        const result = await api.getTodayAttendance(effectiveId); // ← GANTI user.id
-            let today = result?.data || {};
+        const effectiveId = user.employeeId || user.id;
+            let today = (pageData && pageData.today) || {};
 
             today.clockIn     = today.clockIn     || null;
             today.clockOut    = today.clockOut    || null;
