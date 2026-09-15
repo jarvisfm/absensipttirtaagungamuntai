@@ -138,11 +138,28 @@ const sanggahanAbsensi = {
      * kasih tahu karyawan kalau masih ada sanggahan yang berstatus
      * 'pending' (belum diputuskan Admin). Pola ringan, mirror
      * absensi.refreshSuratTugasBadge() tapi cuma untuk teks tombol ini
-     * saja (tidak pakai badge titik oranye terpisah di sidebar).
+     * saja (tidak pakai badge titik oranye terpisah di sidebar). Dipanggil
+     * dari 2 tempat: (1) absensi.js init(), dengan angka yang sudah
+     * didapat lewat getAbsensiPageData() (lihat preFetchedPendingCount di
+     * bawah); (2) di sini sendiri, setelah submit sanggahan baru berhasil.
+     *
+     * [TAMBAHAN - optimasi jam sibuk, 15 September 2026] preFetchedPendingCount
+     * (number, opsional): kalau diisi, fungsi ini TIDAK memanggil server
+     * sendiri lagi - tinggal pakai angka yang sudah didapat pemanggilnya.
+     * Dipanggil TANPA argumen (mis. dari submit() di atas) tetap jatuh ke
+     * perilaku lama (fetch sendiri lewat api.getSanggahanAbsensi()).
      */
-    async refreshBadge() {
+    async refreshBadge(preFetchedPendingCount) {
         const subEl = document.getElementById('sanggahan-absensi-trigger-sub');
         if (!subEl) return;
+
+        if (typeof preFetchedPendingCount === 'number') {
+            subEl.textContent = preFetchedPendingCount > 0
+                ? `${preFetchedPendingCount} sanggahan menunggu persetujuan Admin`
+                : 'Ada kendala jaringan/listrik saat absen? Laporkan di sini';
+            return;
+        }
+
         try {
             const user = auth.getCurrentUser ? auth.getCurrentUser() : null;
             if (!user) return;
