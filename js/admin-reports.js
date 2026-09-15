@@ -755,7 +755,7 @@ const adminReports = {
             // pending izin BUKAN kehadiran, jangan sampai menggelembungkan
             // Total hari (sama seperti renderHistoryStats di absensi.js).
             const totalTerlambat = rows.filter(r => ['terlambat','late'].includes(String(r.status||'').toLowerCase())).length;
-            const totalHadir = rows.filter(r => ['hadir','ontime','terlambat','late','izin','cuti'].includes(String(r.status||'').toLowerCase())).length;
+            let totalHadir = rows.filter(r => ['hadir','ontime','terlambat','late','izin','cuti'].includes(String(r.status||'').toLowerCase())).length;
             const totalHari = rows.length;
 
             // "Hadir Terlambat" - beda dari "Terlambat" di atas (yang cuma
@@ -783,6 +783,23 @@ const adminReports = {
                 });
             }
 
+            // [TAMBAHAN] "Tidak Hadir" - sesi yang otomatis ditandai literal
+            // teks ini oleh backend saat masih kosong lewat batas waktu
+            // (lihat Attendance.gs) - dihitung per KEJADIAN sesi, sama pola
+            // dengan totalHadirTerlambat di atas. Sesi yang ditandai
+            // "Hadir (Kendala Teknis)" (sanggahan disetujui - lihat
+            // Sanggahanabsensi.gs) atau "SPK" (Surat Perintah Kerja
+            // disetujui - lihat Spk.gs) dihitung sebagai Hadir juga,
+            // ditambahkan ke totalHadir yang sudah dihitung di atas.
+            let totalTidakHadir = 0;
+            rows.forEach(r => {
+                ['clockIn','breakStart','breakEnd','clockOut'].forEach(field => {
+                    const val = r[field];
+                    if (val === 'Tidak Hadir') totalTidakHadir++;
+                    else if (val === 'Hadir (Kendala Teknis)' || val === 'SPK') totalHadir++;
+                });
+            });
+
             // Baris pending izin semu digabung SETELAH statistik di atas
             // dihitung, supaya cuma memengaruhi tampilan tabel per-hari, bukan
             // badge Hadir/Terlambat/Total.
@@ -805,6 +822,7 @@ const adminReports = {
                                 <span style="background:#d1fae5;color:#065f46;padding:3px 10px;border-radius:20px;font-weight:500;">Hadir: ${totalHadir}</span>
                                 <span style="background:#fef3c7;color:#92400e;padding:3px 10px;border-radius:20px;font-weight:500;">Terlambat: ${totalTerlambat}</span>
                                 <span style="background:#FFE4D6;color:#C2410C;padding:3px 10px;border-radius:20px;font-weight:500;">Hadir Terlambat: ${totalHadirTerlambat}</span>
+                                <span style="background:#FEE2E2;color:#B91C1C;padding:3px 10px;border-radius:20px;font-weight:500;">Tidak Hadir: ${totalTidakHadir}</span>
                                 <span style="background:#e0e7ff;color:#3730a3;padding:3px 10px;border-radius:20px;font-weight:500;">Total: ${totalHari} hari</span>
                             </div>
                         </div>
@@ -1039,7 +1057,7 @@ const adminReports = {
             // yang disetujui penuh bukan ketidakhadiran. DIHITUNG DARI rows
             // ASLI (sebelum baris pending izin semu digabung di bawah).
             const totalTerlambat = rows.filter(r => ['terlambat','late'].includes(String(r.status||'').toLowerCase())).length;
-            const totalHadir = rows.filter(r => ['hadir','ontime','terlambat','late','izin','cuti'].includes(String(r.status||'').toLowerCase())).length;
+            let totalHadir = rows.filter(r => ['hadir','ontime','terlambat','late','izin','cuti'].includes(String(r.status||'').toLowerCase())).length;
             const totalHari = rows.length;
 
             // "Hadir Terlambat" per-KEJADIAN - lihat komentar lengkap di
@@ -1056,6 +1074,18 @@ const adminReports = {
                     });
                 });
             }
+
+            // [TAMBAHAN] "Tidak Hadir" + tambahan Hadir dari "Hadir (Kendala
+            // Teknis)"/"SPK" - lihat komentar lengkap di versi desktop
+            // (renderAttendanceReports) di atas, logikanya sama persis.
+            let totalTidakHadir = 0;
+            rows.forEach(r => {
+                ['clockIn','breakStart','breakEnd','clockOut'].forEach(field => {
+                    const val = r[field];
+                    if (val === 'Tidak Hadir') totalTidakHadir++;
+                    else if (val === 'Hadir (Kendala Teknis)' || val === 'SPK') totalHadir++;
+                });
+            });
 
             const pendingIzinRowsM = this._buildPendingIzinRowsForEmployee(emp.id, month);
             rows = [...rows, ...pendingIzinRowsM];
@@ -1074,6 +1104,7 @@ const adminReports = {
                         <span style="background:#d1fae5;color:#065f46;padding:3px 10px;border-radius:20px;font-weight:500;">Hadir: ${totalHadir}</span>
                         <span style="background:#fef3c7;color:#92400e;padding:3px 10px;border-radius:20px;font-weight:500;">Terlambat: ${totalTerlambat}</span>
                         <span style="background:#FFE4D6;color:#C2410C;padding:3px 10px;border-radius:20px;font-weight:500;">Hadir Terlambat: ${totalHadirTerlambat}</span>
+                        <span style="background:#FEE2E2;color:#B91C1C;padding:3px 10px;border-radius:20px;font-weight:500;">Tidak Hadir: ${totalTidakHadir}</span>
                         <span style="background:#e0e7ff;color:#3730a3;padding:3px 10px;border-radius:20px;font-weight:500;">Total: ${totalHari} hari</span>
                     </div>
             `;
@@ -2186,7 +2217,17 @@ const adminReports = {
             attRows = this._applyAttendanceDateFilters(attRows, month, dateFrom, dateTo);
             const terlambat = attRows.filter(r => ['terlambat', 'late'].includes(String(r.status || '').toLowerCase())).length;
 
-            const hadir = attRows.filter(r => ['hadir', 'ontime', 'terlambat', 'late', 'izin', 'cuti'].includes(String(r.status || '').toLowerCase())).length;
+            const hadirDasar = attRows.filter(r => ['hadir', 'ontime', 'terlambat', 'late', 'izin', 'cuti'].includes(String(r.status || '').toLowerCase())).length;
+            // [TAMBAHAN] Sesi yang ditandai literal "Hadir (Kendala Teknis)"
+            // (sanggahan disetujui - lihat SANGGAHAN_ATTENDANCE_VALUE di
+            // Sanggahanabsensi.gs) atau "SPK" (Surat Perintah Kerja disetujui
+            // - lihat Spk.gs) dihitung sebagai Hadir juga, per KEJADIAN sesi
+            // - sama pola dengan tanpaKabar di bawah.
+            const hadirKendalaSpk = attRows.reduce((count, r) => {
+                return count + ['clockIn', 'breakStart', 'breakEnd', 'clockOut']
+                    .filter(field => r[field] === 'Hadir (Kendala Teknis)' || r[field] === 'SPK').length;
+            }, 0);
+            const hadir = hadirDasar + hadirKendalaSpk;
             let hadirTerlambat = 0;
             if (this.shiftTypesConfigFull) {
                 attRows.forEach(r => {
@@ -2405,14 +2446,14 @@ const adminReports = {
     },
 
     _buildAttendanceSummaryHtml() {
-        const { periodeLabel, terlambat, kendali, sakit, izinHarian, cuti, total } = this._buildAttendanceSummaryData();
+        const { periodeLabel, tanpaKabar, terlambat, kendali, sakit, izinHarian, cuti, total } = this._buildAttendanceSummaryData();
 
         return `
             <div style="margin-top:24px;">
                 <table style="width:340px;">
                     <tbody>
                         <tr><th colspan="2" style="text-align:center;">Absen Karyawan ${periodeLabel}</th></tr>
-                        <tr><td>Tanpa Kabar</td><td></td></tr>
+                        <tr><td>Tanpa Kabar</td><td>${tanpaKabar || ''}</td></tr>
                         <tr><td>Terlambat</td><td>${terlambat}</td></tr>
                         <tr><td>Kendali</td><td>${kendali}</td></tr>
                         <tr><td>Sakit</td><td>${sakit}</td></tr>
