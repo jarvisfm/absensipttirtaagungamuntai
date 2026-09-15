@@ -201,6 +201,16 @@ const absensi = {
         const statusSubtext = document.querySelector('.status-subtext');
         if (statusText) statusText.textContent = 'Memuat...';
         if (statusSubtext) statusSubtext.textContent = 'Mengecek data absensi Anda';
+        // PENAMBAHAN (2026-09-15): tambah class "is-loading" ke lingkaran
+        // status supaya ikon jam-nya ikut berputar pelan selama "Memuat..."
+        // (lihat .status-ring.is-loading di absensi.css) - sebelumnya cuma
+        // teksnya yang berubah, ikonnya diam saja jadi kurang kelihatan
+        // sedang memuat. Class ini tidak perlu dilepas manual - updateUI()
+        // di bawah sudah me-reset penuh className .status-ring begitu data
+        // asli datang (statusRing.className = 'status-ring'), jadi otomatis
+        // hilang sendiri.
+        const statusRingEl = document.querySelector('.status-ring');
+        if (statusRingEl) statusRingEl.classList.add('is-loading');
         ['btn-clock-in', 'btn-break', 'btn-after-break', 'btn-clock-out'].forEach(id => {
             const btn = document.getElementById(id);
             if (btn) btn.disabled = true;
