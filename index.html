@@ -757,6 +757,15 @@
                                             <div class="status-icon"><i class="fas fa-check-circle"></i></div>
                                             <p>Wajah Terverifikasi</p>
                                         </div>
+                                        <!-- [TAMBAHAN] Tombol restart kamera manual - beberapa HP kadang
+                                             kamera tidak muncul/macet (device sibuk dipakai app lain,
+                                             gagal minta izin, dsb). Lihat btn-refresh-camera di
+                                             bindButtons() (face-recognition.js) - klik ini mematikan
+                                             stream lama total (stopCamera()) lalu minta ulang dari nol
+                                             (initCamera()), bukan cuma reload halaman. -->
+                                        <button type="button" id="btn-refresh-camera" title="Muat Ulang Kamera" style="position:absolute;top:10px;right:10px;z-index:5;background:rgba(17,24,39,0.55);border:1px solid rgba(255,255,255,0.35);color:#fff;width:34px;height:34px;border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;">
+                                            <i class="fas fa-sync-alt"></i>
+                                        </button>
                                     </div>
                                     <div class="camera-controls">
                                         <div class="btn-camera" id="btn-capture" style="pointer-events:none;cursor:default;"><i
