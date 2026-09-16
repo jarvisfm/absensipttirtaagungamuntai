@@ -991,6 +991,15 @@ img {
     color: var(--text-muted);
 }
 
+/* [TAMBAHAN 2026-09-16] Label angka di atas tiap bar (dipakai Statistik
+   Golongan & Statistik Tingkat Pendidikan di dashboard) - .bar-chart/
+   .bar-item/.bar-fill/.bar-label di atas TIDAK diubah sama sekali. */
+.bar-value {
+    font-size: var(--font-size-xs);
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
 /* Activity List */
 .activity-list {
     padding: var(--spacing-md);
