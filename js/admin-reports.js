@@ -10,7 +10,7 @@ const adminReports = {
     leaveQuota: {},
     izinHarianQuota: {},
     filters: {
-        attendance: { month: '', name: '', bagian: '', dateFrom: '', dateTo: '' },
+        attendance: { month: '', name: '', bagian: '', jadwal: '', dateFrom: '', dateTo: '' },
         jurnal: { month: '', employee: '', status: '' },
         leave: { month: '', type: '', status: '', bagian: '' }
     },
@@ -502,6 +502,29 @@ const adminReports = {
             });
         }
 
+        const jadwalFilter = document.getElementById('attendance-jadwal-filter');
+        if (jadwalFilter) {
+            // Isi opsi "Jenis Jadwal" dari konfigurasi yang sama dipakai di
+            // form Tambah/Edit Karyawan (lihat jenis-jadwal-util.js), supaya
+            // daftarnya selalu sinkron tanpa hardcode di sini.
+            getJenisJadwalOptions().then(keys => {
+                const existingValues = Array.from(jadwalFilter.options).map(o => o.value);
+                keys.forEach(k => {
+                    if (!existingValues.includes(k)) {
+                        const opt = document.createElement('option');
+                        opt.value = k;
+                        opt.textContent = JENIS_JADWAL_LABELS[k] || k;
+                        jadwalFilter.appendChild(opt);
+                    }
+                });
+            }).catch(e => console.error('Gagal memuat daftar Jenis Jadwal untuk filter:', e));
+
+            jadwalFilter.addEventListener('change', (e) => {
+                this.filters.attendance.jadwal = e.target.value;
+                this.renderAttendanceReports();
+            });
+        }
+
         // Filter "Dari Tanggal" / "Sampai Tanggal" - dipakai BERBARENGAN
         // (AND) dengan filter Bulan yang sudah ada, bukan menggantikannya.
         // Kosong berarti tidak dibatasi ke arah itu (mis. cuma isi "Dari
@@ -611,11 +634,12 @@ const adminReports = {
     },
 
     getFilteredAttendance() {
-        const { month, name, bagian, dateFrom, dateTo } = this.filters.attendance;
+        const { month, name, bagian, jadwal, dateFrom, dateTo } = this.filters.attendance;
         return this.rawAttendance.filter(row => {
             const emp = this.rawEmployees.find(e => String(e.id) === String(row.userId));
             if (!emp) return false;
             const matchesBagian = !bagian || emp.bagian === bagian;
+            const matchesJadwal = !jadwal || emp.shift === jadwal;
             const matchesName = !name || String(emp.name || '').toLowerCase().includes(name.toLowerCase());
             const matchesMonth = !month || (row.date && row.date.startsWith(month));
             // Filter "Dari Tanggal"/"Sampai Tanggal" - format tanggal di
@@ -623,7 +647,7 @@ const adminReports = {
             // karena urutannya sama dengan urutan kronologisnya.
             const matchesDateFrom = !dateFrom || (row.date && row.date >= dateFrom);
             const matchesDateTo = !dateTo || (row.date && row.date <= dateTo);
-            return matchesBagian && matchesName && matchesMonth && matchesDateFrom && matchesDateTo;
+            return matchesBagian && matchesJadwal && matchesName && matchesMonth && matchesDateFrom && matchesDateTo;
         }).map(row => {
             const emp = this.rawEmployees.find(e => String(e.id) === String(row.userId));
             return { ...row, empName: emp?.name || '-', empDept: emp?.department || '-' };
@@ -720,11 +744,12 @@ const adminReports = {
         const container = document.getElementById('attendance-reports-body');
         if (!container) return;
 
-        const { month, name, bagian, dateFrom, dateTo } = this.filters.attendance;
+        const { month, name, bagian, jadwal, dateFrom, dateTo } = this.filters.attendance;
         const months = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Ags','Sep','Okt','Nov','Des'];
 
         let employees = [...(this.rawEmployees || [])];
         if (bagian) employees = employees.filter(e => e.bagian === bagian);
+        if (jadwal) employees = employees.filter(e => e.shift === jadwal);
         if (name) employees = employees.filter(e => String(e.name || '').toLowerCase().includes(name.toLowerCase()));
         employees.sort((a, b) => {
             const deptCompare = String(a.department || '').localeCompare(String(b.department || ''));
@@ -2197,10 +2222,11 @@ const adminReports = {
     // dan berisiko beda rumus. Tidak ada perubahan perilaku HTML sama
     // sekali - murni pemindahan logika hitungnya ke fungsi sendiri.
     _buildAttendanceRekapBulananData() {
-        const { month, name, bagian, dateFrom, dateTo } = this.filters.attendance;
+        const { month, name, bagian, jadwal, dateFrom, dateTo } = this.filters.attendance;
 
         let employees = [...(this.rawEmployees || [])];
         if (bagian) employees = employees.filter(e => e.bagian === bagian);
+        if (jadwal) employees = employees.filter(e => e.shift === jadwal);
         if (name) employees = employees.filter(e => String(e.name || '').toLowerCase().includes(name.toLowerCase()));
         employees.sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')));
 
@@ -2382,10 +2408,11 @@ const adminReports = {
     // di atas - data mentah box ringkasan dipisah dari HTML-nya supaya
     // export Excel bisa memakai angka yang SAMA PERSIS dengan versi cetak.
     _buildAttendanceSummaryData() {
-        const { month, name, bagian, dateFrom, dateTo } = this.filters.attendance;
+        const { month, name, bagian, jadwal, dateFrom, dateTo } = this.filters.attendance;
 
         let employees = [...(this.rawEmployees || [])];
         if (bagian) employees = employees.filter(e => e.bagian === bagian);
+        if (jadwal) employees = employees.filter(e => e.shift === jadwal);
         if (name) employees = employees.filter(e => String(e.name || '').toLowerCase().includes(name.toLowerCase()));
         const employeeIds = new Set(employees.map(e => String(e.id)));
 
