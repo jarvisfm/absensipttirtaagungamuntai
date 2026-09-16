@@ -173,4 +173,27 @@
     }
 }
 
+/* [FIX 2026-09-16] Lihat catatan lengkap di css/main.css (bagian "FIX
+   2026-09-16"). Aturan di sini hanya menjaga agar override span di media
+   query atas (.chart-card jadi span 3 / span 1) tidak mengecilkan lagi 3
+   kartu statistik dashboard yang sudah diperbaiki; kartu Pensiun tetap
+   full width dan Golongan/Pendidikan tetap dapat ruang cukup untuk
+   ditampilkan di layar sedang. Tidak mengubah rule lain di atas. */
+@media (max-width: 1200px) {
+    .dashboard-grid .chart-card:has(#dashboard-golongan-chart),
+    .dashboard-grid .chart-card:has(#dashboard-pendidikan-chart) {
+        grid-column: span 6;
+    }
 
+    .dashboard-grid .chart-card:has(#dashboard-pensiun-table) {
+        grid-column: span 6;
+    }
+}
+
+@media (max-width: 768px) {
+    .dashboard-grid .chart-card:has(#dashboard-golongan-chart),
+    .dashboard-grid .chart-card:has(#dashboard-pendidikan-chart),
+    .dashboard-grid .chart-card:has(#dashboard-pensiun-table) {
+        grid-column: span 1;
+    }
+}
