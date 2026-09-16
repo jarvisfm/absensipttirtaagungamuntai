@@ -403,6 +403,27 @@ const dashboard = {
      * ada (tidak bisa hitung "persis 12 bulan dari sekarang" tanpa
      * tanggal lengkap).
      */
+    /**
+     * Format tanggal pensiun: ambil tanggal & bulan dari tanggalLahir
+     * (format input date "YYYY-MM-DD"), lalu gabungkan dengan tahunPensiun.
+     * Contoh: tanggalLahir "1971-06-11" + tahunPensiun "2027" -> "11 Juni 2027".
+     * Kalau tanggalLahir tidak ada/tidak valid, fallback ke tahunPensiun saja.
+     */
+    formatTanggalPensiun(tanggalLahir, tahunPensiun) {
+        const bulanIndo = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+        if (tanggalLahir) {
+            const m = String(tanggalLahir).match(/-(\d{2})-(\d{2})$/);
+            if (m) {
+                const bulanIdx = parseInt(m[1], 10) - 1;
+                const tanggal = parseInt(m[2], 10);
+                if (bulanIdx >= 0 && bulanIdx < 12 && !isNaN(tanggal)) {
+                    return `${tanggal} ${bulanIndo[bulanIdx]} ${tahunPensiun}`;
+                }
+            }
+        }
+        return String(tahunPensiun || '-');
+    },
+
     renderPensiunTable() {
         const container = document.getElementById('dashboard-pensiun-table');
         if (!container) return;
@@ -441,7 +462,7 @@ const dashboard = {
                             <td style="padding:0.5rem 0.5rem 0.5rem 0;">${e.nik || '-'}</td>
                             <td style="padding:0.5rem;">${e.name || '-'}</td>
                             <td style="padding:0.5rem;">${ttl}</td>
-                            <td style="padding:0.5rem;">${e.tahunPensiun}</td>
+                            <td style="padding:0.5rem;">${this.formatTanggalPensiun(e.tanggalLahir, e.tahunPensiun)}</td>
                         </tr>`;
                     }).join('')}
                 </tbody>
