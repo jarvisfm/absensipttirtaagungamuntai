@@ -1687,6 +1687,47 @@ const faceRecognition = {
             });
         }
 
+        // [TAMBAHAN] Tombol restart kamera manual - dilaporkan beberapa
+        // user (HP) kadang kamera tidak muncul sama sekali/macet di menu
+        // Absensi. Tombol ini mematikan stream lama TOTAL (stopCamera() -
+        // stop semua track kamera + hentikan loop deteksi wajah) baru
+        // minta ulang dari nol (initCamera()), bukan cuma reload
+        // tampilan - initCamera() sendiri SUDAH aman dipanggil berkali-
+        // kali berkat token sesi kamera (_camSession, lihat initCamera())
+        // yang sudah ada sebelumnya, jadi tidak perlu logic tambahan di
+        // sini untuk mencegah race condition dengan proses lama yang
+        // mungkin masih berjalan.
+        const refreshCameraBtn = document.getElementById('btn-refresh-camera');
+        if (refreshCameraBtn) {
+            const newRefreshCameraBtn = refreshCameraBtn.cloneNode(true);
+            refreshCameraBtn.parentNode.replaceChild(newRefreshCameraBtn, refreshCameraBtn);
+            newRefreshCameraBtn.addEventListener('click', async (e) => {
+                e.preventDefault();
+                if (newRefreshCameraBtn.disabled) return; // cegah klik dobel selagi proses restart berjalan
+
+                const icon = newRefreshCameraBtn.querySelector('i');
+                newRefreshCameraBtn.disabled = true;
+                if (icon) icon.classList.add('fa-spin');
+
+                try {
+                    this.stopCamera();
+                    // Jeda sangat singkat supaya browser (terutama di HP)
+                    // benar-benar melepas device kamera dulu sebelum
+                    // diminta ulang - beberapa browser mobile gagal kalau
+                    // getUserMedia() baru dipanggil PERSIS di detik yang
+                    // sama dengan track.stop() sebelumnya.
+                    await new Promise(resolve => setTimeout(resolve, 300));
+                    await this.initCamera();
+                } catch (err) {
+                    console.error('Gagal memuat ulang kamera:', err);
+                    toast.error('Gagal memuat ulang kamera. Pastikan izin kamera untuk situs ini sudah diaktifkan di pengaturan browser.');
+                } finally {
+                    if (icon) icon.classList.remove('fa-spin');
+                    newRefreshCameraBtn.disabled = false;
+                }
+            });
+        }
+
         if (captureBtn) {
             const newCaptureBtn = captureBtn.cloneNode(true);
             captureBtn.parentNode.replaceChild(newCaptureBtn, captureBtn);
