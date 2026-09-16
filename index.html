@@ -457,59 +457,28 @@
 
                         <div class="dashboard-card chart-card">
                             <div class="card-header">
-                                <h3>Kehadiran Minggu Ini</h3>
+                                <h3>Statistik Golongan</h3>
                             </div>
-                            <div class="bar-chart">
-                                <div class="bar-item">
-                                    <div class="bar-fill" style="height: 0%"></div><span class="bar-label">Sen</span>
-                                </div>
-                                <div class="bar-item">
-                                    <div class="bar-fill" style="height: 0%"></div><span class="bar-label">Sel</span>
-                                </div>
-                                <div class="bar-item">
-                                    <div class="bar-fill" style="height: 0%"></div><span class="bar-label">Rab</span>
-                                </div>
-                                <div class="bar-item">
-                                    <div class="bar-fill" style="height: 0%"></div><span class="bar-label">Kam</span>
-                                </div>
-                                <div class="bar-item">
-                                    <div class="bar-fill" style="height: 0%"></div><span class="bar-label">Jum</span>
-                                </div>
-                                <div class="bar-item">
-                                    <div class="bar-fill weekend" style="height: 0%"></div><span
-                                        class="bar-label">Sab</span>
-                                </div>
-                                <div class="bar-item">
-                                    <div class="bar-fill weekend" style="height: 0%"></div><span
-                                        class="bar-label">Min</span>
-                                </div>
+                            <div class="bar-chart" id="dashboard-golongan-chart">
+                                <p style="text-align:center;color:var(--text-muted);padding:1rem;font-size:0.85rem;">Memuat statistik...</p>
                             </div>
                         </div>
 
-                        <div class="dashboard-card activity-card">
+                        <div class="dashboard-card chart-card">
                             <div class="card-header">
-                                <h3>Aktivitas Terbaru</h3>
-                                <a href="#" class="view-all" onclick="router.navigate('absensi');return false;">Lihat Semua</a>
+                                <h3>Statistik Tingkat Pendidikan</h3>
                             </div>
-                            <div class="activity-list" id="dashboard-recent-activity">
-                                <p style="text-align:center;color:var(--text-muted);padding:1rem;font-size:0.85rem;">Memuat aktivitas...</p>
+                            <div class="bar-chart" id="dashboard-pendidikan-chart">
+                                <p style="text-align:center;color:var(--text-muted);padding:1rem;font-size:0.85rem;">Memuat statistik...</p>
                             </div>
                         </div>
 
-                        <div class="dashboard-card team-card">
+                        <div class="dashboard-card chart-card">
                             <div class="card-header">
-                                <h3>Kehadiran Tim</h3>
-                                <span class="team-count" id="dashboard-team-count">0 orang</span>
+                                <h3>Pensiun 1 Tahun Yang Akan Datang</h3>
                             </div>
-                            <div class="team-avatars">
-                                <div class="avatar-stack" id="dashboard-team-avatars">
-                                </div>
-                                <div class="presence-stats">
-                                    <div class="presence-item"><span class="presence-dot online"></span><span><span id="dashboard-team-online">0</span>
-                                            Online</span></div>
-                                    <div class="presence-item"><span class="presence-dot offline"></span><span><span id="dashboard-team-offline">0</span>
-                                            Offline</span></div>
-                                </div>
+                            <div id="dashboard-pensiun-table">
+                                <p style="text-align:center;color:var(--text-muted);padding:1rem;font-size:0.85rem;">Memuat data...</p>
                             </div>
                         </div>
                     </div>
