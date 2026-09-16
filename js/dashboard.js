@@ -14,9 +14,9 @@ const dashboard = {
         this.updateStats();
         this.updateSessionInfo();
         this.updateProgressBar();
-        this.updateWeeklyChart();
-        this.renderRecentActivity();
-        this.renderTeamAttendance();
+        this.renderGolonganChart();
+        this.renderPendidikanChart();
+        this.renderPensiunTable();
     },
 
     async loadData() {
@@ -316,6 +316,138 @@ const dashboard = {
             fillEl.style.height = `${heightPercent}%`;
             fillEl.classList.toggle('weekend', isWeekend);
         });
+    },
+
+    /**
+     * [TAMBAHAN 2026-09-16, permintaan admin] 3 kartu di bawah ini
+     * ("Kehadiran Minggu Ini"/"Aktivitas Terbaru"/"Kehadiran Tim")
+     * digantikan oleh 3 fungsi baru di bawah - "Statistik Golongan",
+     * "Statistik Tingkat Pendidikan", "Pensiun 1 Tahun Yang Akan Datang".
+     * Fungsi lama (updateWeeklyChart/renderRecentActivity/
+     * renderTeamAttendance) SENGAJA dibiarkan tetap ada di bawah, cuma
+     * tidak dipanggil lagi dari init() - jaga-jaga kalau suatu saat mau
+     * dipakai lagi, dan supaya perubahan ini tidak perlu menghapus kode
+     * yang sudah ada.
+     */
+    renderGolonganChart() {
+        const container = document.getElementById('dashboard-golongan-chart');
+        if (!container) return;
+
+        const counts = {};
+        (this.allEmployees || []).forEach(e => {
+            const g = String(e.golongan || '').trim();
+            if (!g) return;
+            counts[g] = (counts[g] || 0) + 1;
+        });
+
+        const entries = Object.entries(counts).sort((a, b) => a[0].localeCompare(b[0], undefined, { numeric: true }));
+        if (entries.length === 0) {
+            container.innerHTML = '<p style="text-align:center;color:var(--text-muted);padding:1rem;font-size:0.85rem;">Belum ada data golongan</p>';
+            return;
+        }
+
+        const max = Math.max(...entries.map(e => e[1]));
+        container.innerHTML = entries.map(([label, count]) => `
+            <div class="bar-item">
+                <span class="bar-value">${count}</span>
+                <div class="bar-fill" style="height: ${Math.max(4, Math.round((count / max) * 100))}%"></div>
+                <span class="bar-label">${label}</span>
+            </div>
+        `).join('');
+    },
+
+    renderPendidikanChart() {
+        const container = document.getElementById('dashboard-pendidikan-chart');
+        if (!container) return;
+
+        const counts = {};
+        (this.allEmployees || []).forEach(e => {
+            const p = String(e.pendidikan || '').trim();
+            if (!p) return;
+            counts[p] = (counts[p] || 0) + 1;
+        });
+
+        // Urutan jenjang dari rendah ke tinggi (supaya bar-nya berurutan
+        // logis, bukan alfabetis) - nilai yang tidak ada di daftar ini
+        // (data lama/format lain) tetap ditampilkan, diletakkan di akhir.
+        const ORDER = ['SD', 'SLTP', 'SLTA', 'SMK', 'STM', 'D3', 'Strata 1', 'Strata 2'];
+        const entries = Object.entries(counts).sort((a, b) => {
+            const ia = ORDER.indexOf(a[0]), ib = ORDER.indexOf(b[0]);
+            if (ia === -1 && ib === -1) return a[0].localeCompare(b[0]);
+            if (ia === -1) return 1;
+            if (ib === -1) return -1;
+            return ia - ib;
+        });
+
+        if (entries.length === 0) {
+            container.innerHTML = '<p style="text-align:center;color:var(--text-muted);padding:1rem;font-size:0.85rem;">Belum ada data pendidikan</p>';
+            return;
+        }
+
+        const max = Math.max(...entries.map(e => e[1]));
+        container.innerHTML = entries.map(([label, count]) => `
+            <div class="bar-item">
+                <span class="bar-value">${count}</span>
+                <div class="bar-fill" style="height: ${Math.max(4, Math.round((count / max) * 100))}%"></div>
+                <span class="bar-label">${label}</span>
+            </div>
+        `).join('');
+    },
+
+    /**
+     * "1 Tahun Yang Akan Datang" diartikan: pensiun TAHUN INI atau TAHUN
+     * DEPAN (data "Tahun Pensiun" di profil karyawan cuma menyimpan
+     * ANGKA TAHUN, bukan tanggal lengkap - lihat field p-tahunPensiun di
+     * karyawan.js, otomatis Tahun Lahir + 56, bisa diubah manual admin) -
+     * ini pendekatan yang paling masuk akal dengan granularitas data yang
+     * ada (tidak bisa hitung "persis 12 bulan dari sekarang" tanpa
+     * tanggal lengkap).
+     */
+    renderPensiunTable() {
+        const container = document.getElementById('dashboard-pensiun-table');
+        if (!container) return;
+
+        const currentYear = new Date().getFullYear();
+        const list = (this.allEmployees || [])
+            .filter(e => {
+                const ty = parseInt(e.tahunPensiun, 10);
+                return !isNaN(ty) && (ty === currentYear || ty === currentYear + 1);
+            })
+            .sort((a, b) => (parseInt(a.tahunPensiun, 10) - parseInt(b.tahunPensiun, 10)) || String(a.name || '').localeCompare(String(b.name || '')));
+
+        if (list.length === 0) {
+            container.innerHTML = '<p style="text-align:center;color:var(--text-muted);padding:1rem;font-size:0.85rem;">Tidak ada karyawan yang pensiun dalam 1 tahun ke depan</p>';
+            return;
+        }
+
+        container.innerHTML = `
+            <div style="overflow-x:auto;padding:0 var(--spacing-md) var(--spacing-md);">
+            <table style="width:100%;border-collapse:collapse;font-size:0.82rem;white-space:nowrap;">
+                <thead>
+                    <tr style="text-align:left;color:var(--text-muted);">
+                        <th style="padding:0.5rem 0.5rem 0.5rem 0;">NIK</th>
+                        <th style="padding:0.5rem;">Nama</th>
+                        <th style="padding:0.5rem;">TTL</th>
+                        <th style="padding:0.5rem;">Tahun Pensiun</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${list.map(e => {
+                        const ttl = (e.tempatLahir || e.tanggalLahir)
+                            ? `${e.tempatLahir || ''}${e.tempatLahir && e.tanggalLahir ? ', ' : ''}${e.tanggalLahir || ''}`
+                            : '-';
+                        return `
+                        <tr style="border-top:1px solid var(--border-color);">
+                            <td style="padding:0.5rem 0.5rem 0.5rem 0;">${e.nik || '-'}</td>
+                            <td style="padding:0.5rem;">${e.name || '-'}</td>
+                            <td style="padding:0.5rem;">${ttl}</td>
+                            <td style="padding:0.5rem;">${e.tahunPensiun}</td>
+                        </tr>`;
+                    }).join('')}
+                </tbody>
+            </table>
+            </div>
+        `;
     },
 
     renderRecentActivity() {
