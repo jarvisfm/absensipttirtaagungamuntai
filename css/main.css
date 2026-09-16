@@ -1000,6 +1000,61 @@ img {
     color: var(--text-primary);
 }
 
+/* [FIX 2026-09-16] Perbaikan tampilan 3 kartu dashboard: "Statistik
+   Golongan", "Statistik Tingkat Pendidikan", "Pensiun 1 Tahun Yang Akan
+   Datang". Sengaja hanya menambah aturan baru yang menyasar 3 kartu ini
+   lewat :has() pada id anaknya (#dashboard-golongan-chart, dst) - TIDAK
+   mengubah .dashboard-card/.chart-card/.bar-chart/.bar-item/.bar-fill/
+   .bar-label/.bar-value yang sudah ada di atas, supaya bagian lain yang
+   memakai class-class tersebut tidak ikut berubah.
+
+   Akar masalahnya: .bar-chart punya align-items:flex-end, jadi .bar-item
+   tidak pernah ikut meregang mengisi tinggi 200px milik .bar-chart -
+   akibatnya .bar-fill yang tingginya diset dalam persen (style="height:
+   ..%") jadi tidak punya acuan tinggi yang jelas dan batangnya nyaris
+   tidak terlihat/terpotong. Untuk kartu Golongan (kategori bisa banyak,
+   A/1 s.d. D/2) lebar span-4 juga terlalu sempit sehingga label
+   berhimpitan/terpotong; dan tabel Pensiun kolomnya kepotong di span-4. */
+
+.dashboard-grid .chart-card:has(#dashboard-golongan-chart),
+.dashboard-grid .chart-card:has(#dashboard-pendidikan-chart) {
+    grid-column: span 6;
+}
+
+.dashboard-grid .chart-card:has(#dashboard-pensiun-table) {
+    grid-column: span 12;
+}
+
+.chart-card:has(#dashboard-golongan-chart) .bar-chart,
+.chart-card:has(#dashboard-pendidikan-chart) .bar-chart {
+    align-items: stretch;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding-bottom: calc(var(--spacing-md) + 6px);
+}
+
+.chart-card:has(#dashboard-golongan-chart) .bar-item,
+.chart-card:has(#dashboard-pendidikan-chart) .bar-item {
+    flex: 0 0 auto;
+    min-width: 36px;
+    justify-content: flex-end;
+}
+
+.chart-card:has(#dashboard-golongan-chart) .bar-fill,
+.chart-card:has(#dashboard-pendidikan-chart) .bar-fill {
+    max-width: 28px;
+    width: 28px;
+}
+
+.chart-card:has(#dashboard-golongan-chart) .bar-label,
+.chart-card:has(#dashboard-pendidikan-chart) .bar-label {
+    white-space: nowrap;
+}
+
+.chart-card:has(#dashboard-pensiun-table) #dashboard-pensiun-table table {
+    font-size: var(--font-size-sm);
+}
+
 /* Activity List */
 .activity-list {
     padding: var(--spacing-md);
