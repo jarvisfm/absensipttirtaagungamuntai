@@ -930,10 +930,89 @@ const karyawanManager = {
         });
     },
 
+    /**
+     * [PERBAIKAN PERFORMA] Kerangka (skeleton) modal Detail Karyawan yang
+     * ditampilkan SEKETIKA saat tombol mata diklik, SEBELUM data dari server
+     * selesai dimuat. Bagian kepala (foto, nama, jabatan, unit wilayah,
+     * badge status) diisi dari baris tabel yang SUDAH ada di memori
+     * (this.karyawanList - hasil getKaryawanList() saat halaman dibuka),
+     * jadi tidak perlu menunggu jaringan sama sekali. Sisanya berupa
+     * placeholder abu-abu berdenyut + tulisan "Memuat detail karyawan..."
+     * yang otomatis tergantikan isi sebenarnya begitu data tiba.
+     */
+    _renderDetailSkeleton(preview) {
+        const colors = ['#F59E0B','#3B82F6','#10B981','#EF4444','#8B5CF6'];
+        const nama = preview?.nama || '';
+        const color = colors[(nama || '').charCodeAt(0) % colors.length] || colors[0];
+        const initials = (nama || 'P').split(' ').map(w => w[0]).join('').substring(0,2).toUpperCase();
+
+        const fotoHtml = preview?.foto
+            ? `<img src="${preview.foto}" style="width:90px;height:90px;border-radius:50%;object-fit:cover;border:3px solid var(--color-primary);">`
+            : `<div style="width:90px;height:90px;border-radius:50%;background:${color};color:#fff;display:flex;align-items:center;justify-content:center;font-size:1.8rem;font-weight:700;">${initials}</div>`;
+
+        const statusColor = preview?.statusKaryawan === 'AKTIF' ? '#10B981' : '#F59E0B';
+        const bar = (w) => `<div style="height:12px;width:${w};border-radius:6px;background:var(--border-color);opacity:0.55;margin:14px 0;"></div>`;
+
+        return `
+            <div style="text-align:center;margin-bottom:1.5rem;">
+                ${fotoHtml}
+                <h3 style="margin-top:0.75rem;font-size:1.1rem;">${nama || 'Memuat...'}</h3>
+                <p style="color:var(--text-muted);font-size:0.85rem;">${preview?.jabatan || ''} ${preview?.unitWilayah ? '— ' + preview.unitWilayah : ''}</p>
+                ${preview?.statusKaryawan ? `<span style="background:${statusColor}20;color:${statusColor};padding:3px 12px;border-radius:20px;font-size:0.8rem;font-weight:600;">${preview.statusKaryawan}</span>` : ''}
+            </div>
+            <div style="text-align:center;color:var(--text-muted);font-size:0.85rem;margin-bottom:1rem;">
+                <i class="fas fa-spinner fa-spin"></i> Memuat detail karyawan...
+            </div>
+            ${bar('100%')}${bar('85%')}${bar('92%')}${bar('70%')}${bar('88%')}${bar('60%')}
+        `;
+    },
+
     async viewDetail(id) {
+        const modal = document.getElementById('modal-detail-karyawan');
+        const contentEl = document.getElementById('detail-karyawan-content');
+
+        // [PERBAIKAN PERFORMA] Modal dibuka DULUAN (dengan skeleton di atas),
+        // baru datanya diambil. SEBELUMNYA seluruh isi fungsi ini menunggu
+        // request selesai dulu sebelum menyentuh DOM sama sekali, sehingga
+        // setelah tombol mata diklik TIDAK ADA reaksi apa pun selama beberapa
+        // detik - terasa seperti aplikasi macet/tombolnya tidak berfungsi,
+        // sampai admin sering mengklik berulang kali.
+        if (contentEl) {
+            const preview = (this.karyawanList || []).find(k => String(k.id) === String(id));
+            contentEl.innerHTML = this._renderDetailSkeleton(preview);
+        }
+        if (modal) modal.style.display = 'flex';
+
+        // Penanda request TERAKHIR - kalau admin buru-buru mengklik ikon mata
+        // beberapa karyawan berurutan, hanya respons dari klik PALING AKHIR
+        // yang boleh menimpa isi modal (tanpa ini, respons lama yang datang
+        // belakangan bisa menampilkan karyawan yang salah).
+        this._detailReqToken = (this._detailReqToken || 0) + 1;
+        const reqToken = this._detailReqToken;
+
         try {
-            const result = await api.getKaryawanDetail(id);
-            if (!result.success) { toast.error('Data tidak ditemukan'); return; }
+            // [PERBAIKAN PERFORMA] Tiga request ini SEBELUMNYA dijalankan
+            // BERURUTAN: getKaryawanDetail() ditunggu sampai selesai dulu,
+            // BARU getLeaveBalance() & getIzinHarianBalance() dijalankan -
+            // jadi total 2 kali bolak-balik ke server Apps Script (yang
+            // memang lambat, ~1-3 detik sekali jalan). Padahal ketiganya
+            // sama sekali tidak saling bergantung (semuanya hanya butuh
+            // `id`), jadi sekarang dijalankan BERBARENGAN dalam satu
+            // Promise.all - waktu tunggunya jadi selama request TERLAMA
+            // saja, bukan jumlah ketiganya (kira-kira setengahnya).
+            const [result, leaveBalanceRes, izinHarianBalanceRes] = await Promise.all([
+                api.getKaryawanDetail(id),
+                api.getLeaveBalance(id).catch(() => null),
+                api.getIzinHarianBalance(id).catch(() => null)
+            ]);
+
+            if (reqToken !== this._detailReqToken) return; // sudah disalip klik yang lebih baru
+
+            if (!result.success) {
+                toast.error('Data tidak ditemukan');
+                if (modal) modal.style.display = 'none';
+                return;
+            }
             const p = result.data;
             const keluarga = p.keluarga || [];
 
@@ -954,6 +1033,14 @@ const karyawanManager = {
             // (tombol +/-, khusus di halaman Admin ini) - gagal muat
             // salah satu/keduanya TIDAK boleh menggagalkan detail karyawan
             // yang lain, cukup tampil '-'.
+            // [DIUBAH - PERBAIKAN PERFORMA] Kedua respons kuota di bawah
+            // SEKARANG sudah ikut diambil berbarengan di Promise.all paling
+            // atas (leaveBalanceRes & izinHarianBalanceRes), jadi di sini
+            // tinggal dibaca hasilnya - tidak ada lagi request tambahan yang
+            // baru mulai jalan setelah detail karyawan selesai dimuat.
+            // Gagal muat salah satu/keduanya TETAP tidak boleh menggagalkan
+            // detail karyawan yang lain (sudah ditangani .catch(() => null)
+            // di masing-masing request), cukup tampil '-'.
             let sisaCuti = '-';
             let sisaIzinHarian = '-';
             let kuotaCuti = 12;
@@ -961,10 +1048,6 @@ const karyawanManager = {
             let terpakaiCuti = 0;
             let terpakaiIzinHarian = 0;
             try {
-                const [leaveBalanceRes, izinHarianBalanceRes] = await Promise.all([
-                    api.getLeaveBalance(id).catch(() => null),
-                    api.getIzinHarianBalance(id).catch(() => null)
-                ]);
                 if (leaveBalanceRes && leaveBalanceRes.success && leaveBalanceRes.data) {
                     sisaCuti = leaveBalanceRes.data.sisa;
                     kuotaCuti = leaveBalanceRes.data.kuota;
@@ -1100,6 +1183,15 @@ const karyawanManager = {
             document.getElementById('modal-detail-karyawan').style.display = 'flex';
         } catch (e) {
             console.error('Error view detail:', e);
+            // [PERBAIKAN] Karena modal sekarang SUDAH dibuka lebih dulu
+            // (berisi skeleton), kalau requestnya gagal modal itu harus
+            // ditutup lagi & dikabarkan - kalau tidak, admin akan melihat
+            // placeholder berdenyut yang menggantung selamanya tanpa
+            // penjelasan apa pun.
+            if (reqToken === this._detailReqToken) {
+                if (modal) modal.style.display = 'none';
+                toast.error('Gagal memuat detail karyawan. Coba lagi.');
+            }
         }
     },
 
