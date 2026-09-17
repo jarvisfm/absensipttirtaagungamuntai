@@ -199,10 +199,37 @@ function getSessionAttendanceLabel(configAll, shiftRaw, dateStr, field, actualVa
         const batasLambatMinutes = _toMinutesSafe(group.batasLambat);
         if (batasLambatMinutes != null) {
             const toleransi = typeof group.toleransi === 'number' ? group.toleransi : 0;
-            if (actualMinutes <= batasLambatMinutes) {
+
+            // BUGFIX (17 September 2026): PERSIS logic yang sama dengan
+            // _determineStatus() di Attendance.gs (backend, sudah dibetulkan
+            // sejak 16 September 2026) - SEBELUMNYA untuk shift yang
+            // melewati tengah malam (mis. Jaga Malam: Masuk ~21:00, batas
+            // terlambat 21:xx, Pulang paginya ~04:xx/05:xx - jam Pulang
+            // target LEBIH KECIL dari batas terlambat Masuk), jam Masuk
+            // yang sebenarnya terjadi di DINI HARI (mis. 04:47 - bisa
+            // terjadi kalau percobaan absen tercatat ulang setelah tengah
+            // malam akibat sinkronisasi) dibandingkan MENTAH ke
+            // batasLambat tanpa memperhitungkan bahwa itu sudah
+            // "menyeberang" ke hari berikutnya: 04:47 (287 menit) vs batas
+            // 21:00 (1260 menit) salah dibaca "belum lewat batas" (287 <=
+            // 1260) -> tersimpul "Hadir Tepat Waktu", padahal seharusnya
+            // jelas "Terlambat". Backend sudah benar sejak perbaikan
+            // sebelumnya; sekarang label per-sesi di Riwayat/Rekap ini
+            // disamakan juga, supaya keduanya tidak pernah lagi berbeda
+            // kesimpulan untuk kasus yang identik.
+            let actualMinutesForLateCheck = actualMinutes;
+            const sesiPulangUntukLateCheck = sessions ? sessions.find(s => s.field === 'clockOut') : null;
+            if (sesiPulangUntukLateCheck && sesiPulangUntukLateCheck.time) {
+                const pulangMinutesUntukLateCheck = _toMinutesSafe(sesiPulangUntukLateCheck.time);
+                if (pulangMinutesUntukLateCheck != null && pulangMinutesUntukLateCheck < batasLambatMinutes && actualMinutes < pulangMinutesUntukLateCheck) {
+                    actualMinutesForLateCheck = actualMinutes + 1440;
+                }
+            }
+
+            if (actualMinutesForLateCheck <= batasLambatMinutes) {
                 return { late: false, text: 'Hadir Tepat Waktu' };
             }
-            if (actualMinutes <= batasLambatMinutes + toleransi) {
+            if (actualMinutesForLateCheck <= batasLambatMinutes + toleransi) {
                 return { late: true, text: 'Hadir Terlambat' };
             }
             return { late: true, veryLate: true, text: 'Terlambat' };
