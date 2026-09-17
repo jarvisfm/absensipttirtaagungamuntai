@@ -8,6 +8,22 @@ const cuti = {
     leaveBalance: 12,
     filterStatus: '',
 
+    // [TAMBAHAN] "Rincian Peraturan Cuti" - link PDF-nya ditaruh di satu
+    // tempat ini supaya gampang diganti nanti kalau isi peraturannya
+    // pernah direvisi (tinggal ganti ID file-nya di sini saja).
+    RINCIAN_PERATURAN_CUTI_FILE_ID: '1pKK7cu-2PgJna9EaRs50QBsLovWKO86H',
+
+    showRincianPeraturan() {
+        const iframe = document.getElementById('modal-rincian-cuti-iframe');
+        const modal = document.getElementById('modal-rincian-cuti');
+        if (!iframe || !modal) return;
+        // src baru diisi SAAT modal dibuka (bukan langsung di HTML) supaya
+        // PDF-nya tidak ikut dimuat diam-diam di background sebelum user
+        // benar-benar klik tombolnya.
+        iframe.src = `https://drive.google.com/file/d/${this.RINCIAN_PERATURAN_CUTI_FILE_ID}/preview`;
+        modal.style.display = 'flex';
+    },
+
     async init() {
         await this.loadLeaves();
         await this.loadLeaveBalance();
