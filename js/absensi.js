@@ -144,6 +144,21 @@ const absensi = {
     // bawah (setelah data selesai dimuat).
     const myRenderGen = ++this._renderGen;
 
+    // [TAMBAHAN - PERMINTAAN ADMIN] Penanda "data absen hari ini SUDAH
+    // dikonfirmasi ASLI dari server" - lihat lengkap di
+    // _blockIfPageStillLoading() (dipanggil paling awal di setiap
+    // handleClockIn/handleBreak/handleAfterBreak/handleClockOut di bawah).
+    // SENGAJA direset ke false di SETIAP kali halaman Absensi dibuka
+    // (termasuk dibuka ULANG) - supaya user tidak bisa menekan tombol
+    // Masuk/Istirahat/Pulang memakai tampilan cache HP (lihat
+    // cachedSnapshot di bawah, yang SENGAJA langsung menyalakan tombol
+    // secepatnya demi tampilan responsif) SEBELUM data itu benar-benar
+    // dikonfirmasi masih berlaku oleh server saat ini juga. Diset true
+    // lagi setelah Promise.all data asli di bawah selesai (tepat sebelum
+    // initButtons()/updateUI() dipanggil dengan data yang sudah pasti
+    // valid).
+    this._pageDataLoaded = false;
+
     // PERBAIKAN PERFORMA: reset cache pemanggilan getIzin() tiap kali
     // halaman Absensi dibuka ulang (lihat _getIzinDataOnce() di bawah) -
     // supaya SELALU fresh per kunjungan halaman, bukan memakai data lama
@@ -355,6 +370,12 @@ const absensi = {
     // JANGAN timpa balik pakai hasil bacaan basi ini.
     if (myRenderGen !== this._renderGen) return;
     this._renderGen++;
+
+    // [TAMBAHAN - PERMINTAAN ADMIN] Data absen hari ini sudah dikonfirmasi
+    // ASLI dari server sampai di titik ini (bukan lagi cache HP) - tombol
+    // Masuk/Istirahat/Pulang sekarang aman ditekan. Lihat penjelasan
+    // lengkap deklarasinya di awal init().
+    this._pageDataLoaded = true;
 
     this.initLiveClock();
     this.initButtons();
@@ -1469,6 +1490,27 @@ const absensi = {
         return !!(user && user.avatar);
     },
 
+    // [TAMBAHAN - PERMINTAAN ADMIN, 17 September 2026] "User yang tidak
+    // paham itu sering langsung pencet tombol Masuk padahal masih
+    // loading, dan Riwayat juga masih loading" - dipanggil PALING AWAL di
+    // setiap handleClockIn/handleBreak/handleAfterBreak/handleClockOut di
+    // bawah, SEBELUM pengecekan apa pun yang lain (termasuk sebelum baca
+    // this.attendanceData, yang saat halaman baru dibuka bisa saja masih
+    // berisi tampilan SEMENTARA dari cache HP - lihat cachedSnapshot &
+    // this._pageDataLoaded di init()). Kalau data ASLI dari server belum
+    // selesai dikonfirmasi, tombol memang SENGAJA masih dibiarkan
+    // kelihatan aktif (supaya halaman tetap terasa responsif begitu
+    // dibuka - lihat catatan performa 2026-09-14), tapi KLIK-nya
+    // dicegat di sini dengan pesan yang jelas, bukan diteruskan diam-diam
+    // memakai data yang belum tentu masih berlaku.
+    _blockIfPageStillLoading() {
+        if (!this._pageDataLoaded) {
+            toast.warning('Halaman masih memuat data absensi Anda, mohon tunggu sebentar sebelum menekan tombol absen.');
+            return true;
+        }
+        return false;
+    },
+
     // Balikin true (dan tampilkan notifikasi + arahkan ke halaman Profil)
     // kalau user belum punya foto profil, supaya pemanggil bisa langsung
     // "return" tanpa lanjut membuka kamera/face-recognition.
@@ -1485,6 +1527,7 @@ const absensi = {
     },
 
     handleClockIn() {
+        if (this._blockIfPageStillLoading()) return;
         if (this.attendanceData.clockIn) return;
 
         // BUGFIX (2026-08-31): sejak face-recognition.js confirmAttendance()
@@ -1521,6 +1564,7 @@ const absensi = {
     },
 
     handleBreak() {
+        if (this._blockIfPageStillLoading()) return;
         if (!this.attendanceData.clockIn || this.attendanceData.breakStart) return;
         // BUGFIX (2026-08-31): lihat catatan lengkap di handleClockIn() di atas.
         if (this._pendingAction) {
@@ -1541,6 +1585,7 @@ const absensi = {
     },
 
     handleAfterBreak() {
+        if (this._blockIfPageStillLoading()) return;
         if (!this.attendanceData.breakStart || this.attendanceData.breakEnd) return;
         // BUGFIX (2026-08-31): lihat catatan lengkap di handleClockIn() di atas.
         if (this._pendingAction) {
@@ -1561,6 +1606,7 @@ const absensi = {
     },
 
     handleClockOut() {
+        if (this._blockIfPageStillLoading()) return;
         if (!this.attendanceData.clockIn || this.attendanceData.clockOut) return;
         // BUGFIX (2026-08-31): lihat catatan lengkap di handleClockIn() di atas.
         if (this._pendingAction) {
