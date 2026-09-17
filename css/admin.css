@@ -130,6 +130,48 @@
     box-shadow: var(--shadow);
 }
 
+/* [FIX 2026-09-17] Perbaikan tampilan 3 kartu Dashboard Admin: "Statistik
+   Golongan", "Statistik Tingkat Pendidikan", "Pensiun 1 Tahun Yang Akan
+   Datang" (menggantikan kartu "Karyawan Online" - lihat admin-dashboard.js)
+   - di layar sempit/mobile kartunya kepotong di tepi (batang statistik &
+   kolom tabel Pensiun tidak bisa digeser) karena .bar-chart/.bar-item
+   bawaan tidak punya overflow-x:auto. Meniru PERSIS perbaikan yang sudah
+   ada untuk 3 kartu serupa di dashboard karyawan (lihat css/main.css,
+   bagian "FIX 2026-09-16"), cuma menyasar id versi admin
+   (#admin-golongan-chart dst) lewat :has() - TIDAK mengubah
+   .admin-info-card/.bar-chart/.bar-item/.bar-fill/.bar-label yang sudah
+   ada, supaya bagian lain yang memakai class-class tersebut tidak ikut
+   berubah. */
+.admin-info-card:has(#admin-golongan-chart) .bar-chart,
+.admin-info-card:has(#admin-pendidikan-chart) .bar-chart {
+    align-items: stretch;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding-bottom: calc(var(--spacing-md) + 6px);
+}
+
+.admin-info-card:has(#admin-golongan-chart) .bar-item,
+.admin-info-card:has(#admin-pendidikan-chart) .bar-item {
+    flex: 0 0 auto;
+    min-width: 36px;
+    justify-content: flex-end;
+}
+
+.admin-info-card:has(#admin-golongan-chart) .bar-fill,
+.admin-info-card:has(#admin-pendidikan-chart) .bar-fill {
+    max-width: 28px;
+    width: 28px;
+}
+
+.admin-info-card:has(#admin-golongan-chart) .bar-label,
+.admin-info-card:has(#admin-pendidikan-chart) .bar-label {
+    white-space: nowrap;
+}
+
+.admin-info-card:has(#admin-pensiun-table) #admin-pensiun-table table {
+    font-size: var(--font-size-sm);
+}
+
 .online-count {
     font-size: var(--font-size-sm);
     color: var(--text-muted);
