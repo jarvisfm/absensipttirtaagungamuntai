@@ -868,6 +868,19 @@ const absensi = {
         const el = document.getElementById('attendance-history-stats');
         if (!el) return;
 
+        // BUGFIX: variabel `rows` INI sebelumnya tidak pernah dideklarasikan
+        // di dalam fungsi ini (dipakai langsung di baris-baris di bawah:
+        // rows.filter(...), rows.length, rows.forEach(...)), padahal
+        // parameternya bernama `historyData`. Akibatnya setiap pemanggilan
+        // renderHistoryStats() langsung melempar ReferenceError ("rows is not
+        // defined") SEBELUM sempat mengisi el.innerHTML - sehingga deretan
+        // badge "Hadir / Terlambat / Hadir Terlambat / Tidak Hadir / Total"
+        // di atas tabel Riwayat Absensi selalu KOSONG (tidak muncul sama
+        // sekali). Error-nya tidak kelihatan karena satu pemanggilnya berada
+        // di dalam .then()...catch() (lihat akhir renderHistory()) yang
+        // menelan exception tersebut diam-diam.
+        const rows = Array.isArray(historyData) ? historyData : [];
+
         // BUGFIX (17 September 2026): SEBELUMNYA totalTerlambat dihitung dari
         // r.status - status yang TERSIMPAN di baris Attendance sejak baris
         // itu pertama kali disimpan (dihitung backend, _determineStatus()).
