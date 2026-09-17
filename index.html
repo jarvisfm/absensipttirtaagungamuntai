@@ -974,6 +974,18 @@
                                 <button type="button" onclick="document.getElementById('modal-sanggahan-absensi').style.display='none'" style="flex:1;background:none;border:1px solid var(--border-color);color:var(--text-muted);padding:10px;border-radius:8px;cursor:pointer;">Batal</button>
                                 <button type="button" id="sa-btn-simpan" onclick="sanggahanAbsensi.submit()" style="flex:1;background:var(--color-primary);color:#fff;border:none;padding:10px;border-radius:8px;cursor:pointer;font-weight:600;">Kirim Sanggahan</button>
                             </div>
+
+                            <!-- [TAMBAHAN] Riwayat Sanggahan Absensi milik karyawan sendiri -
+                                 supaya status & CATATAN PENOLAKAN Admin (kalau ditolak) bisa
+                                 dilihat langsung di sini, tidak cuma lewat notifikasi push yang
+                                 sekilas lewat. Diisi sanggahanAbsensi._renderHistory() (lihat
+                                 sanggahan-absensi.js). -->
+                            <div style="margin-top:1.5rem;padding-top:1rem;border-top:1px solid var(--border-color);">
+                                <label style="font-weight:600;font-size:0.85rem;">Riwayat Sanggahan Saya</label>
+                                <div id="sa-history-list" style="display:flex;flex-direction:column;gap:8px;margin-top:8px;">
+                                    <span style="font-size:0.8rem;color:var(--text-muted);"><i class="fas fa-spinner fa-spin"></i> Memuat riwayat...</span>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
