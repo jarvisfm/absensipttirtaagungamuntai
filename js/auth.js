@@ -22,7 +22,22 @@ const auth = {
     // sessionToken perangkat ini masih yang paling baru untuk akun ini.
     // Kalau akun ini ternyata sudah login lagi di perangkat lain, sesi di
     // perangkat ini otomatis di-logout dengan notifikasi.
-    SESSION_CHECK_INTERVAL_MS: 5 * 1000,
+    //
+    // PERBAIKAN PERFORMA (17 September 2026): SEBELUMNYA 5 detik - di jam
+    // sibuk (banyak karyawan absen bersamaan: pagi/istirahat/pulang),
+    // polling ini jalan TERUS-MENERUS oleh SETIAP karyawan yang sedang
+    // membuka aplikasi, terlepas dari apakah mereka sedang absen atau
+    // tidak, dan ikut berebut slot eksekusi server dengan request absen
+    // yang sungguhan penting. Diperlambat jadi 10 detik (separuh beban
+    // dibanding sebelumnya) - deteksi "akun dipakai di HP lain" tetap
+    // terjadi dalam hitungan detik, bedanya tidak terasa oleh karyawan,
+    // tapi beban ke server berkurang signifikan. Digabung dengan
+    // startSessionWatcher()/stopSessionWatcher() di bawah yang sekarang
+    // MENGHENTIKAN polling ini sepenuhnya selagi halaman sedang tidak
+    // dilihat (mis. app di-minimize/pindah ke app lain/layar dikunci),
+    // bebannya berkurang lebih jauh lagi karena karyawan yang HP-nya
+    // sedang tidak dipegang tidak lagi ikut memoling sama sekali.
+    SESSION_CHECK_INTERVAL_MS: 10 * 1000,
     _sessionWatcherId: null,
     _visibilityHandler: null,
 
@@ -309,18 +324,63 @@ const auth = {
         // atau mode localStorage tanpa backend) - tidak ada yang bisa dicek.
         if (!this.currentUser || !this.currentUser.sessionToken) return;
 
-        this._sessionWatcherId = setInterval(() => this._checkSessionNow(), this.SESSION_CHECK_INTERVAL_MS);
+        // PERBAIKAN PERFORMA (17 September 2026): SEBELUMNYA setInterval
+        // di bawah jalan TERUS tiap SESSION_CHECK_INTERVAL_MS tanpa henti,
+        // bahkan selagi halaman sedang di-background/tidak dilihat (mis.
+        // karyawan pindah ke WhatsApp atau mengunci layar HP-nya) -
+        // padahal saat itu tidak ada gunanya terus polling karena
+        // karyawannya toh sedang tidak berinteraksi. Sekarang interval
+        // ini DIHENTIKAN TOTAL (bukan cuma "dibekukan browser" seperti
+        // sebelumnya) begitu halaman tersembunyi, dan baru DIMULAI LAGI
+        // begitu halaman terlihat kembali - lewat _startPollingInterval()/
+        // _stopPollingInterval() di bawah. Ini murni pengurangan beban ke
+        // server (karyawan yang HP-nya sedang tidak dipegang tidak lagi
+        // ikut memoling sama sekali) - perilaku yang terlihat karyawan
+        // TIDAK berubah: deteksi "akun dipakai di HP lain" tetap jalan
+        // normal setiap kali halaman ini aktif/terlihat.
+        this._startPollingInterval();
 
-        // PENTING: browser HP sering "membekukan" setInterval saat tab di-
-        // background/layar dikunci untuk hemat baterai, jadi pengecekan
-        // berkala di atas bisa telat jalan kalau HP-nya tidak dibiarkan
-        // aktif. Untuk itu, tambahan: begitu tab ini aktif/terlihat lagi
-        // (mis. user membuka HP yang tadi dikunci), langsung cek ulang saat
-        // itu juga - tidak perlu menunggu interval berikutnya.
+        // Cek langsung saat ini juga kalau halaman KEBETULAN sudah
+        // terlihat dari awal (kasus paling umum: baru saja login) -
+        // supaya tidak perlu menunggu 1x interval pertama lewat dulu.
+        if (document.visibilityState === 'visible') this._checkSessionNow();
+
+        // PENTING: begitu tab ini aktif/terlihat lagi (mis. user membuka
+        // HP yang tadi dikunci, atau kembali dari app lain), langsung cek
+        // ulang saat itu juga (tidak perlu menunggu interval berikutnya),
+        // DAN nyalakan lagi polling berkalanya (yang tadi sengaja
+        // dihentikan total saat halaman tersembunyi - lihat di atas).
+        // Sebaliknya, begitu halaman disembunyikan, polling berkalanya
+        // langsung dihentikan juga.
         this._visibilityHandler = () => {
-            if (document.visibilityState === 'visible') this._checkSessionNow();
+            if (document.visibilityState === 'visible') {
+                this._checkSessionNow();
+                this._startPollingInterval();
+            } else {
+                this._stopPollingInterval();
+            }
         };
         document.addEventListener('visibilitychange', this._visibilityHandler);
+    },
+
+    // Dipakai startSessionWatcher() di atas - nyalakan setInterval polling
+    // sesi HANYA kalau belum jalan (aman dipanggil berkali-kali beruntun,
+    // mis. dari visibilitychange, tanpa risiko dobel interval jalan
+    // bersamaan).
+    _startPollingInterval() {
+        if (this._sessionWatcherId) return; // sudah jalan, tidak perlu dobel
+        this._sessionWatcherId = setInterval(() => this._checkSessionNow(), this.SESSION_CHECK_INTERVAL_MS);
+    },
+
+    // Dipakai startSessionWatcher() (lewat _visibilityHandler) di atas -
+    // hentikan setInterval polling sesi TANPA melepas _visibilityHandler-nya
+    // sendiri (beda dari stopSessionWatcher() di bawah, yang melepas
+    // semuanya sekaligus saat logout/ganti akun).
+    _stopPollingInterval() {
+        if (this._sessionWatcherId) {
+            clearInterval(this._sessionWatcherId);
+            this._sessionWatcherId = null;
+        }
     },
 
     async _checkSessionNow() {
