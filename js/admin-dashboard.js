@@ -18,7 +18,9 @@ const adminDashboard = {
         await this.loadData();
         this.updateStats();
         this.renderRecentActivity();
-        this.renderOnlineUsers();
+        this.renderGolonganChart();
+        this.renderPendidikanChart();
+        this.renderPensiunTable();
     },
 
     async loadData() {
@@ -268,6 +270,147 @@ const adminDashboard = {
                 </div>
             </div>
         `).join('');
+    },
+
+    /**
+     * [TAMBAHAN, permintaan admin] Kartu "Karyawan Online" digantikan oleh
+     * 3 kartu ini - "Statistik Golongan", "Statistik Tingkat Pendidikan",
+     * "Pensiun 1 Tahun Yang Akan Datang" - persis sama dengan yang sudah
+     * ada di dashboard karyawan (lihat renderGolonganChart/
+     * renderPendidikanChart/renderPensiunTable di dashboard.js), cuma versi
+     * admin ini pakai this.employees (sudah dimuat loadData() di atas)
+     * dan container ID sendiri supaya tidak bentrok dengan punya karyawan.
+     * renderOnlineUsers() di atas SENGAJA dibiarkan tetap ada (cuma tidak
+     * dipanggil lagi dari init()) - jaga-jaga kalau suatu saat mau dipakai
+     * lagi, sama seperti pola yang sudah dipakai di dashboard.js.
+     */
+    renderGolonganChart() {
+        const container = document.getElementById('admin-golongan-chart');
+        if (!container) return;
+
+        const counts = {};
+        (this.employees || []).forEach(e => {
+            const g = String(e.golongan || '').trim();
+            if (!g) return;
+            counts[g] = (counts[g] || 0) + 1;
+        });
+
+        const entries = Object.entries(counts).sort((a, b) => a[0].localeCompare(b[0], undefined, { numeric: true }));
+        if (entries.length === 0) {
+            container.innerHTML = '<p style="text-align:center;color:var(--text-muted);padding:1rem;font-size:0.85rem;">Belum ada data golongan</p>';
+            return;
+        }
+
+        const max = Math.max(...entries.map(e => e[1]));
+        container.innerHTML = entries.map(([label, count]) => `
+            <div class="bar-item">
+                <span class="bar-value">${count}</span>
+                <div class="bar-fill" style="height: ${Math.max(4, Math.round((count / max) * 100))}%"></div>
+                <span class="bar-label">${label}</span>
+            </div>
+        `).join('');
+    },
+
+    renderPendidikanChart() {
+        const container = document.getElementById('admin-pendidikan-chart');
+        if (!container) return;
+
+        const counts = {};
+        (this.employees || []).forEach(e => {
+            const p = String(e.pendidikan || '').trim();
+            if (!p) return;
+            counts[p] = (counts[p] || 0) + 1;
+        });
+
+        const ORDER = ['SD', 'SLTP', 'SLTA', 'SMK', 'STM', 'D3', 'Strata 1', 'Strata 2'];
+        const entries = Object.entries(counts).sort((a, b) => {
+            const ia = ORDER.indexOf(a[0]), ib = ORDER.indexOf(b[0]);
+            if (ia === -1 && ib === -1) return a[0].localeCompare(b[0]);
+            if (ia === -1) return 1;
+            if (ib === -1) return -1;
+            return ia - ib;
+        });
+
+        if (entries.length === 0) {
+            container.innerHTML = '<p style="text-align:center;color:var(--text-muted);padding:1rem;font-size:0.85rem;">Belum ada data pendidikan</p>';
+            return;
+        }
+
+        const max = Math.max(...entries.map(e => e[1]));
+        container.innerHTML = entries.map(([label, count]) => `
+            <div class="bar-item">
+                <span class="bar-value">${count}</span>
+                <div class="bar-fill" style="height: ${Math.max(4, Math.round((count / max) * 100))}%"></div>
+                <span class="bar-label">${label}</span>
+            </div>
+        `).join('');
+    },
+
+    /**
+     * Format tanggal pensiun: ambil tanggal & bulan dari tanggalLahir
+     * (format input date "YYYY-MM-DD"), lalu gabungkan dengan tahunPensiun.
+     * Sama persis dengan formatTanggalPensiun() di dashboard.js.
+     */
+    formatTanggalPensiun(tanggalLahir, tahunPensiun) {
+        const bulanIndo = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+        if (tanggalLahir) {
+            const m = String(tanggalLahir).match(/-(\d{2})-(\d{2})$/);
+            if (m) {
+                const bulanIdx = parseInt(m[1], 10) - 1;
+                const tanggal = parseInt(m[2], 10);
+                if (bulanIdx >= 0 && bulanIdx < 12 && !isNaN(tanggal)) {
+                    return `${tanggal} ${bulanIndo[bulanIdx]} ${tahunPensiun}`;
+                }
+            }
+        }
+        return String(tahunPensiun || '-');
+    },
+
+    renderPensiunTable() {
+        const container = document.getElementById('admin-pensiun-table');
+        if (!container) return;
+
+        const currentYear = new Date().getFullYear();
+        const list = (this.employees || [])
+            .filter(e => {
+                const ty = parseInt(e.tahunPensiun, 10);
+                return !isNaN(ty) && (ty === currentYear || ty === currentYear + 1);
+            })
+            .sort((a, b) => (parseInt(a.tahunPensiun, 10) - parseInt(b.tahunPensiun, 10)) || String(a.name || '').localeCompare(String(b.name || '')));
+
+        if (list.length === 0) {
+            container.innerHTML = '<p style="text-align:center;color:var(--text-muted);padding:1rem;font-size:0.85rem;">Tidak ada karyawan yang pensiun dalam 1 tahun ke depan</p>';
+            return;
+        }
+
+        container.innerHTML = `
+            <div style="overflow-x:auto;padding:0 var(--spacing-md) var(--spacing-md);">
+            <table style="width:100%;border-collapse:collapse;font-size:0.82rem;white-space:nowrap;">
+                <thead>
+                    <tr style="text-align:left;color:var(--text-muted);">
+                        <th style="padding:0.5rem 0.5rem 0.5rem 0;">NIK</th>
+                        <th style="padding:0.5rem;">Nama</th>
+                        <th style="padding:0.5rem;">TTL</th>
+                        <th style="padding:0.5rem;">Tahun Pensiun</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${list.map(e => {
+                        const ttl = (e.tempatLahir || e.tanggalLahir)
+                            ? `${e.tempatLahir || ''}${e.tempatLahir && e.tanggalLahir ? ', ' : ''}${e.tanggalLahir || ''}`
+                            : '-';
+                        return `
+                        <tr style="border-top:1px solid var(--border-color);">
+                            <td style="padding:0.5rem 0.5rem 0.5rem 0;">${e.nik || '-'}</td>
+                            <td style="padding:0.5rem;">${e.name || '-'}</td>
+                            <td style="padding:0.5rem;">${ttl}</td>
+                            <td style="padding:0.5rem;">${this.formatTanggalPensiun(e.tanggalLahir, e.tahunPensiun)}</td>
+                        </tr>`;
+                    }).join('')}
+                </tbody>
+            </table>
+            </div>
+        `;
     },
 
     // Charts initialization using Chart.js
