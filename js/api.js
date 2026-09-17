@@ -518,6 +518,16 @@ const api = {
         return this.request('getIzin', { userId });
     },
 
+    // Sisa kuota Izin Harian tahun berjalan (dihitung server-side, kuota
+    // per-karyawan bisa di-override Admin lewat updateKuotaKaryawan() -
+    // lihat getIzinHarianBalance() di Izin.gs)
+    async getIzinHarianBalance(userId) {
+        if (!API_BASE_URL) {
+            return { success: true, data: { tahun: new Date().getFullYear(), kuota: 2, terpakai: 0, sisa: 2 } };
+        }
+        return this.request('getIzinHarianBalance', { userId });
+    },
+
     async submitIzin(data) {
         if (!API_BASE_URL) {
             const all = storage.get('izin', []);
@@ -786,6 +796,13 @@ const api = {
     },
     async updateKaryawan(id, data) {
         return this.request('updateKaryawan', { id, ...data });
+    },
+    // [TAMBAHAN] Ubah kuota Cuti Tahunan/Izin Harian KHUSUS karyawan ini
+    // (Admin saja, lewat kartu "Sisa Cuti"/"Sisa Izin Harian" di modal
+    // Detail Karyawan - lihat karyawan.js adjustKuota()). data hanya berisi
+    // field yang mau diubah, mis. { kuotaCutiTahunan: 10 }.
+    async updateKuotaKaryawan(id, data) {
+        return this.request('updateKuotaKaryawan', { id, ...data });
     },
     async deleteKaryawan(id) {
         return this.request('deleteKaryawan', { id });
