@@ -99,6 +99,18 @@ const adminSuratTugas = {
         return source.filter(row => (row.status || 'pending') === this.filterStatus);
     },
 
+    // [TAMBAHAN] Tampilkan dokumen (fileUrl Surat Tugas/SPK, sudah dalam
+    // format .../preview) langsung lewat iframe di dalam modal - pola sama
+    // persis seperti cuti.showRincianPeraturan() di cuti.js - supaya tidak
+    // perlu buka tab baru & minta akses.
+    showDokumen(fileUrl) {
+        const iframe = document.getElementById('modal-view-dokumen-approval-iframe');
+        const modal = document.getElementById('modal-view-dokumen-approval');
+        if (!iframe || !modal || !fileUrl) return;
+        iframe.src = fileUrl;
+        modal.style.display = 'flex';
+    },
+
     _statusLabel(status) {
         const labels = { pending: 'Menunggu', approved: 'Disetujui', rejected: 'Ditolak' };
         return labels[status || 'pending'] || status;
@@ -189,7 +201,7 @@ const adminSuratTugas = {
                             <i class="fas fa-times"></i>
                         </button>
                     ` : `<span class="status-badge ${status}">${this._statusLabel(status)}</span>`}
-                    ${row.fileUrl ? `<button class="btn-action view" title="Lihat Dokumen" onclick="window.open('${row.fileUrl}', '_blank')"><i class="fas fa-file-lines"></i></button>` : ''}
+                    ${row.fileUrl ? `<button class="btn-action view" title="Lihat Dokumen" onclick="adminSuratTugas.showDokumen('${row.fileUrl}')"><i class="fas fa-file-lines"></i></button>` : ''}
                 </td>
             </tr>`;
         }).join('');
@@ -230,7 +242,7 @@ const adminSuratTugas = {
                             <i class="fas fa-times"></i> Tolak
                         </button>
                     ` : ''}
-                    ${row.fileUrl ? `<button class="btn-action" style="flex:1;background:var(--bg-secondary);border:1px solid var(--border-color);" onclick="window.open('${row.fileUrl}', '_blank')"><i class="fas fa-file-lines"></i> Dokumen</button>` : ''}
+                    ${row.fileUrl ? `<button class="btn-action" style="flex:1;background:var(--bg-secondary);border:1px solid var(--border-color);" onclick="adminSuratTugas.showDokumen('${row.fileUrl}')"><i class="fas fa-file-lines"></i> Dokumen</button>` : ''}
                 </div>
             </div>`;
         }).join('');
@@ -459,7 +471,7 @@ const adminSuratTugas = {
                             <i class="fas fa-times"></i>
                         </button>
                     ` : `<span class="status-badge ${status}">${this._statusLabel(status)}</span>`}
-                    ${row.fileUrl ? `<button class="btn-action view" title="Lihat Dokumen" onclick="window.open('${row.fileUrl}', '_blank')"><i class="fas fa-file-lines"></i></button>` : ''}
+                    ${row.fileUrl ? `<button class="btn-action view" title="Lihat Dokumen" onclick="adminSuratTugas.showDokumen('${row.fileUrl}')"><i class="fas fa-file-lines"></i></button>` : ''}
                 </td>
             </tr>`;
         }).join('');
@@ -499,7 +511,7 @@ const adminSuratTugas = {
                             <i class="fas fa-times"></i> Tolak
                         </button>
                     ` : ''}
-                    ${row.fileUrl ? `<button class="btn-action" style="flex:1;background:var(--bg-secondary);border:1px solid var(--border-color);" onclick="window.open('${row.fileUrl}', '_blank')"><i class="fas fa-file-lines"></i> Dokumen</button>` : ''}
+                    ${row.fileUrl ? `<button class="btn-action" style="flex:1;background:var(--bg-secondary);border:1px solid var(--border-color);" onclick="adminSuratTugas.showDokumen('${row.fileUrl}')"><i class="fas fa-file-lines"></i> Dokumen</button>` : ''}
                 </div>
             </div>`;
         }).join('');
