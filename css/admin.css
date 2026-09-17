@@ -141,7 +141,21 @@
    (#admin-golongan-chart dst) lewat :has() - TIDAK mengubah
    .admin-info-card/.bar-chart/.bar-item/.bar-fill/.bar-label yang sudah
    ada, supaya bagian lain yang memakai class-class tersebut tidak ikut
-   berubah. */
+   berubah.
+
+   [PERBAIKAN 2026-09-17, revisi] Percobaan pertama di atas (overflow-x:auto
+   + .bar-item min-width:36px tetap) masih kepotong tepat di tepi kartu pada
+   HP sempit karena batang & labelnya TIDAK ikut menyusut mengikuti lebar
+   kartu - jadi kelihatan seperti terpotong, bukan seperti "bisa digeser".
+   Direvisi supaya .bar-item ikut menyusut mengisi PERSIS lebar kartu
+   (flex:1 1 0 + min-width:0, bukan lagi lebar tetap 36px) - jadi Golongan/
+   Pendidikan selalu muat penuh tanpa perlu geser sama sekali. overflow-x:auto
+   sengaja tetap dipertahankan sebagai jaring pengaman kalau suatu saat
+   kategorinya jadi sangat banyak. Untuk tabel Pensiun (memang tabel asli,
+   wajar perlu digeser di HP sempit - #admin-pensiun-table sudah dibungkus
+   overflow-x:auto dari admin-dashboard.js), ditambahkan hint teks kecil di
+   bawah kartu (lewat ::after, tidak menyentuh admin-dashboard.js) supaya
+   jelas kartu itu bisa digeser, bukan kelihatan terpotong. */
 .admin-info-card:has(#admin-golongan-chart) .bar-chart,
 .admin-info-card:has(#admin-pendidikan-chart) .bar-chart {
     align-items: stretch;
@@ -152,24 +166,44 @@
 
 .admin-info-card:has(#admin-golongan-chart) .bar-item,
 .admin-info-card:has(#admin-pendidikan-chart) .bar-item {
-    flex: 0 0 auto;
-    min-width: 36px;
+    flex: 1 1 0;
+    min-width: 0;
     justify-content: flex-end;
 }
 
 .admin-info-card:has(#admin-golongan-chart) .bar-fill,
 .admin-info-card:has(#admin-pendidikan-chart) .bar-fill {
     max-width: 28px;
-    width: 28px;
+    width: 100%;
+    margin: 0 auto;
 }
 
 .admin-info-card:has(#admin-golongan-chart) .bar-label,
 .admin-info-card:has(#admin-pendidikan-chart) .bar-label {
-    white-space: nowrap;
+    white-space: normal;
+    word-break: break-word;
+    text-align: center;
+    font-size: 0.7rem;
 }
 
 .admin-info-card:has(#admin-pensiun-table) #admin-pensiun-table table {
     font-size: var(--font-size-sm);
+}
+
+@media (max-width: 768px) {
+    .admin-info-card:has(#admin-pensiun-table) {
+        position: relative;
+    }
+
+    .admin-info-card:has(#admin-pensiun-table)::after {
+        content: '\2190 Geser tabel untuk lihat kolom lainnya \2192';
+        display: block;
+        text-align: center;
+        font-size: 0.7rem;
+        color: var(--text-muted);
+        padding: 0 var(--spacing-md) var(--spacing-md);
+        margin-top: -0.5rem;
+    }
 }
 
 .online-count {
