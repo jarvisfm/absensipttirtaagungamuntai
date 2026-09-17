@@ -48,10 +48,10 @@ const izin = {
 
         // Info (BUKAN blokir - user tetap boleh mengajukan Izin Harian
         // berapa kali pun) kalau total Izin Harian (disetujui) tahun ini
-        // sudah lewat kuota 2 hari/tahun. Samakan angka kuota & cara hitung
-        // (status 'approved', dijumlah dari `duration`, per tahun berjalan)
-        // dengan izinHarianQuota di admin-reports.js supaya konsisten.
-        this._checkIzinHarianQuota();
+        // sudah lewat kuota. Kuotanya sekarang dihitung backend & bisa
+        // di-override per-karyawan oleh Admin (lihat getIzinHarianBalance()
+        // di Izin.gs) - lihat catatan di _checkIzinHarianQuota().
+        await this._checkIzinHarianQuota();
 
         // [TAMBAHAN] Prefetch status "sudah Absen Masuk hari ini?" SEKALI
         // saat halaman dibuka (disimpan di this._sudahAbsenMasukCache),
@@ -81,22 +81,52 @@ const izin = {
     // Lihat catatan di pemanggilnya (init()) - toast info saja, tidak
     // mengunci form sama sekali. Sekalian isi badge "Sisa Izin Harian"
     // di header halaman (id="izin-harian-quota-value", lihat index.html).
-    _checkIzinHarianQuota() {
-        const KUOTA_IZIN_HARIAN = 2;
-        const tahunIni = String(new Date().getFullYear());
-        const totalPakai = this.izinData
-            .filter(rec => rec.type === 'izin_harian' && rec.status === 'approved' && (rec.date || '').startsWith(tahunIni))
-            .reduce((sum, rec) => sum + (parseInt(rec.duration) || 0), 0);
+    //
+    // [DIUBAH] Kuota Izin Harian dulu di-hardcode 2 di sini (dan
+    // diduplikasi lagi di karyawan.js/admin-reports.js). Sekarang Admin
+    // bisa mengubah kuota ini KHUSUS untuk karyawan tertentu lewat kartu
+    // "Sisa Izin Harian (hari)" di modal Detail Karyawan (lihat
+    // karyawan.js viewDetail()/adjustKuota()) - supaya perubahan itu
+    // langsung kelihatan di sini juga, angkanya sekarang diambil dari
+    // getIzinHarianBalance() (Izin.gs) yang menghitung server-side dan
+    // otomatis memakai kuota override karyawan ini kalau ada, atau kuota
+    // default 2 kalau belum pernah diubah Admin.
+    async _checkIzinHarianQuota() {
+        const currentUser = auth.getCurrentUser();
+        const userId = currentUser?.employeeId || currentUser?.id;
 
-        const sisa = KUOTA_IZIN_HARIAN - totalPakai;
+        let kuota = 2;
+        let totalPakai = 0;
+        let sisa = 2;
+        try {
+            const result = await api.getIzinHarianBalance(userId);
+            if (result && result.success && result.data) {
+                kuota = result.data.kuota;
+                totalPakai = result.data.terpakai;
+                sisa = result.data.sisa;
+            } else {
+                throw new Error(result && result.error || 'getIzinHarianBalance gagal');
+            }
+        } catch (e) {
+            console.error('Gagal memuat kuota Izin Harian dari server, fallback ke data halaman ini:', e);
+            // Fallback: hitung dari data yang sudah dimuat di halaman ini
+            // dengan kuota default (perilaku lama) supaya badge tidak
+            // kosong kalau server tidak terjangkau.
+            const tahunIni = String(new Date().getFullYear());
+            totalPakai = this.izinData
+                .filter(rec => rec.type === 'izin_harian' && rec.status === 'approved' && (rec.date || '').startsWith(tahunIni))
+                .reduce((sum, rec) => sum + (parseInt(rec.duration) || 0), 0);
+            sisa = kuota - totalPakai;
+        }
+
         const badgeEl = document.getElementById('izin-harian-quota-value');
         // Tetap tampilkan sisa APA ADANYA (boleh negatif, mis. "-1") kalau
         // sudah kepakai lebih dari kuota - supaya kelihatan jelas sudah
         // lewat berapa, bukan cuma mentok di 0 seolah pas kuota.
         if (badgeEl) badgeEl.textContent = String(sisa);
 
-        if (totalPakai > KUOTA_IZIN_HARIAN) {
-            toast.warning(`Izin Harian Anda tahun ini sudah ${totalPakai} hari, melewati kuota ${KUOTA_IZIN_HARIAN} hari/tahun. Anda tetap bisa mengajukan, tapi ini akan tercatat.`);
+        if (totalPakai > kuota) {
+            toast.warning(`Izin Harian Anda tahun ini sudah ${totalPakai} hari, melewati kuota ${kuota} hari/tahun. Anda tetap bisa mengajukan, tapi ini akan tercatat.`);
         }
     },
 
