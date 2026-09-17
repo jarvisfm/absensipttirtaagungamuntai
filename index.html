@@ -981,7 +981,10 @@
                                  sekilas lewat. Diisi sanggahanAbsensi._renderHistory() (lihat
                                  sanggahan-absensi.js). -->
                             <div style="margin-top:1.5rem;padding-top:1rem;border-top:1px solid var(--border-color);">
-                                <label style="font-weight:600;font-size:0.85rem;">Riwayat Sanggahan Saya</label>
+                                <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;">
+                                    <label style="font-weight:600;font-size:0.85rem;">Riwayat Sanggahan Saya</label>
+                                    <select class="select-filter" id="sa-history-month" style="max-width:160px;font-size:0.8rem;"></select>
+                                </div>
                                 <div id="sa-history-list" style="display:flex;flex-direction:column;gap:8px;margin-top:8px;">
                                     <span style="font-size:0.8rem;color:var(--text-muted);"><i class="fas fa-spinner fa-spin"></i> Memuat riwayat...</span>
                                 </div>
