@@ -27,6 +27,68 @@ const sanggahanAbsensi = {
         document.getElementById('modal-sanggahan-absensi').style.display = 'flex';
         this._resetSimpanButton();
         this._loadSessionsForDate(todayStr);
+        this._renderHistory();
+    },
+
+    // Format tanggal "YYYY-MM-DD" jadi "11 Sep 2026" - dipakai riwayat di
+    // bawah, biar konsisten dengan format tanggal lain di aplikasi ini.
+    _formatTanggalSingkat(dateStr) {
+        if (!dateStr) return '-';
+        const d = new Date(String(dateStr) + 'T00:00:00');
+        if (isNaN(d.getTime())) return dateStr;
+        const months = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Ags','Sep','Okt','Nov','Des'];
+        return `${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}`;
+    },
+
+    /**
+     * [TAMBAHAN] Riwayat Sanggahan Absensi milik karyawan sendiri, di
+     * dalam modal - biar status & CATATAN PENOLAKAN Admin (kalau ditolak,
+     * lihat rejectSanggahanAbsensi() di Sanggahanabsensi.gs) langsung
+     * kelihatan di aplikasi, tidak cuma lewat notifikasi push yang sekilas
+     * lewat dan tidak bisa dibuka lagi. Dipanggil tiap modal dibuka
+     * (openModal()) supaya selalu terbaru - termasuk begitu karyawan buka
+     * lagi modal ini setelah pengajuan sebelumnya diproses Admin.
+     */
+    async _renderHistory() {
+        const list = document.getElementById('sa-history-list');
+        if (!list) return;
+        list.innerHTML = '<span style="font-size:0.8rem;color:var(--text-muted);"><i class="fas fa-spinner fa-spin"></i> Memuat riwayat...</span>';
+
+        const user = auth.getCurrentUser();
+        const effectiveId = user?.employeeId || user?.id;
+        if (!effectiveId) return;
+
+        try {
+            const result = await api.getSanggahanAbsensi(effectiveId);
+            const rows = result.success ? (result.data || []) : [];
+
+            if (!rows.length) {
+                list.innerHTML = '<span style="font-size:0.8rem;color:var(--text-muted);">Belum pernah mengajukan sanggahan absensi.</span>';
+                return;
+            }
+
+            const statusLabels = { pending: 'Menunggu', approved: 'Disetujui', rejected: 'Ditolak' };
+
+            list.innerHTML = rows.map(r => {
+                const status = r.status || 'pending';
+                const label = statusLabels[status] || status;
+                const rejectedNoteHtml = (status === 'rejected' && r.rejectedNote)
+                    ? `<div style="font-size:0.8rem;color:var(--color-danger);margin-top:6px;"><i class="fas fa-comment-dots"></i> Catatan Admin: &ldquo;${r.rejectedNote}&rdquo;</div>`
+                    : '';
+                return `
+                    <div style="border:1px solid var(--border-color);border-radius:8px;padding:10px 12px;">
+                        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
+                            <strong style="font-size:0.85rem;">${this._formatTanggalSingkat(r.date)}</strong>
+                            <span class="status-badge ${status}" style="font-size:0.7rem;">${label}</span>
+                        </div>
+                        <div style="font-size:0.8rem;color:var(--text-muted);margin-top:4px;">${r.sessionLabels || '-'}</div>
+                        ${rejectedNoteHtml}
+                    </div>`;
+            }).join('');
+        } catch (e) {
+            console.error('Gagal memuat riwayat Sanggahan Absensi:', e);
+            list.innerHTML = '<span style="font-size:0.8rem;color:var(--color-danger);">Gagal memuat riwayat.</span>';
+        }
     },
 
     async _loadSessionsForDate(dateStr) {
