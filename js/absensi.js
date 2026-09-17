@@ -868,8 +868,30 @@ const absensi = {
         const el = document.getElementById('attendance-history-stats');
         if (!el) return;
 
-        const rows = historyData || [];
-        const totalTerlambat = rows.filter(r => ['terlambat', 'late'].includes(String(r.status || '').toLowerCase())).length;
+        // BUGFIX (17 September 2026): SEBELUMNYA totalTerlambat dihitung dari
+        // r.status - status yang TERSIMPAN di baris Attendance sejak baris
+        // itu pertama kali disimpan (dihitung backend, _determineStatus()).
+        // Nilai ini BEKU (tidak pernah dihitung ulang) - kalau admin
+        // mengubah "Batas Terlambat"/Toleransi di halaman Jadwal Shift
+        // SETELAH baris itu tersimpan, atau ada bug historis di perhitungan
+        // status yang sudah diperbaiki belakangan, status lama yang beku
+        // itu bisa tidak lagi cocok dengan label sesi Masuk yang tampil di
+        // tabel (yang SELALU dihitung ULANG langsung dari pengaturan
+        // TERKINI lewat getSessionAttendanceLabel() - sama seperti
+        // totalHadirTerlambat di bawah). Akibatnya badge "Terlambat" bisa
+        // menunjukkan angka yang tidak ada padanannya di baris yang
+        // kelihatan di tabel - persis yang dilaporkan (badge "Terlambat: 1"
+        // padahal semua baris yang terlihat berlabel "Hadir Tepat Waktu").
+        //
+        // Sekarang totalTerlambat DIHITUNG ULANG dari sesi Masuk tiap baris
+        // lewat getSessionAttendanceLabel() yang SAMA PERSIS dipakai
+        // mewarnai tabel - PERSIS metode yang sudah dipakai totalHadirTerlambat
+        // di bawah, supaya keduanya konsisten dan badge selalu cocok dengan
+        // apa yang tampil di baris manapun. r.status (fallback lama) cuma
+        // dipakai kalau shiftCfgForLate belum sempat dimuat (jarang terjadi -
+        // lihat renderHistory() yang men-trigger render ulang begitu config
+        // ini selesai dimuat).
+        let totalTerlambat = rows.filter(r => ['terlambat', 'late'].includes(String(r.status || '').toLowerCase())).length;
         let totalHadir = rows.filter(r => ['hadir', 'ontime', 'terlambat', 'late', 'izin', 'cuti'].includes(String(r.status || '').toLowerCase())).length;
         const totalHari = rows.length;
 
@@ -891,9 +913,14 @@ const absensi = {
         const shiftCfgForLate = this._shiftTypesConfigFullCache;
         let totalHadirTerlambat = 0;
         if (shiftCfgForLate) {
+            totalTerlambat = 0; // dihitung ULANG di bawah - lihat BUGFIX di atas
             rows.forEach(r => {
                 const statusLower = String(r.status || '').toLowerCase();
                 if (!['hadir', 'ontime', 'terlambat', 'late'].includes(statusLower)) return;
+                if (r.clockIn) {
+                    const lblMasuk = getSessionAttendanceLabel(shiftCfgForLate, r.shift, r.date, 'clockIn', r.clockIn);
+                    if (lblMasuk && lblMasuk.text === 'Terlambat') totalTerlambat++;
+                }
                 ['clockIn', 'breakStart', 'breakEnd', 'clockOut'].forEach(field => {
                     if (!r[field]) return;
                     const lbl = getSessionAttendanceLabel(shiftCfgForLate, r.shift, r.date, field, r[field]);
