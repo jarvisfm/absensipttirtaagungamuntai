@@ -937,6 +937,39 @@ const karyawanManager = {
             const p = result.data;
             const keluarga = p.keluarga || [];
 
+            // [TAMBAHAN] Kuota Cuti & Izin Harian karyawan ini - 2 kartu kecil
+            // di bagian atas detail (lihat markup di bawah, tepat setelah
+            // badge status) - permintaan admin supaya bisa lihat sisa kuota
+            // tanpa buka halaman Rekap Cuti & Izin terpisah. Sisa Cuti dihitung backend (sama
+            // persis getLeaveBalance() yang dipakai halaman "Request Cuti"
+            // karyawan sendiri - lihat cuti.js/Leave.gs). Sisa Izin Harian
+            // BELUM ada endpoint backend-nya (cuma dihitung client-side di
+            // izin.js/_checkIzinHarianQuota()), jadi dihitung ulang di sini
+            // dengan rumus yang SAMA PERSIS dari data api.getIzin(id) -
+            // gagal muat salah satu/keduanya TIDAK boleh menggagalkan
+            // detail karyawan yang lain, cukup tampil '-'.
+            let sisaCuti = '-';
+            let sisaIzinHarian = '-';
+            try {
+                const [leaveBalanceRes, izinRes] = await Promise.all([
+                    api.getLeaveBalance(id).catch(() => null),
+                    api.getIzin(id).catch(() => null)
+                ]);
+                if (leaveBalanceRes && leaveBalanceRes.success && leaveBalanceRes.data) {
+                    sisaCuti = leaveBalanceRes.data.sisa;
+                }
+                if (izinRes && izinRes.success) {
+                    const KUOTA_IZIN_HARIAN = 2;
+                    const tahunIni = String(new Date().getFullYear());
+                    const totalPakai = (izinRes.data || [])
+                        .filter(rec => rec.type === 'izin_harian' && rec.status === 'approved' && (rec.date || '').startsWith(tahunIni))
+                        .reduce((sum, rec) => sum + (parseInt(rec.duration) || 0), 0);
+                    sisaIzinHarian = KUOTA_IZIN_HARIAN - totalPakai;
+                }
+            } catch (e) {
+                console.error('Gagal memuat kuota Cuti/Izin Harian karyawan:', e);
+            }
+
             const pasangan = keluarga.find(k => k.tipe === 'pasangan');
             const ayah     = keluarga.find(k => k.tipe === 'ayah');
             const ibu      = keluarga.find(k => k.tipe === 'ibu');
@@ -965,6 +998,17 @@ const karyawanManager = {
                     <h3 style="margin-top:0.75rem;font-size:1.1rem;">${p.nama || '-'}</h3>
                     <p style="color:var(--text-muted);font-size:0.85rem;">${p.jabatan || ''} — ${p.unitWilayah || ''}</p>
                     <span style="background:${statusColor}20;color:${statusColor};padding:3px 12px;border-radius:20px;font-size:0.8rem;font-weight:600;">${p.statusKaryawan || ''}</span>
+                </div>
+
+                <div style="display:flex;gap:8px;margin-bottom:1.5rem;">
+                    <div style="flex:1;background:rgba(245,158,11,0.08);border-radius:8px;padding:8px 6px;text-align:center;">
+                        <div style="font-size:1rem;font-weight:700;color:var(--color-primary);">${sisaCuti}</div>
+                        <div style="font-size:0.65rem;color:var(--text-muted);">Sisa Cuti (hari)</div>
+                    </div>
+                    <div style="flex:1;background:rgba(245,158,11,0.08);border-radius:8px;padding:8px 6px;text-align:center;">
+                        <div style="font-size:1rem;font-weight:700;color:var(--color-primary);">${sisaIzinHarian}</div>
+                        <div style="font-size:0.65rem;color:var(--text-muted);">Sisa Izin Harian (hari)</div>
+                    </div>
                 </div>
 
                 <div style="margin-bottom:1.5rem;">
