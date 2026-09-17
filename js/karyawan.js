@@ -940,35 +940,50 @@ const karyawanManager = {
             // [TAMBAHAN] Kuota Cuti & Izin Harian karyawan ini - 2 kartu kecil
             // di bagian atas detail (lihat markup di bawah, tepat setelah
             // badge status) - permintaan admin supaya bisa lihat sisa kuota
-            // tanpa buka halaman Rekap Cuti & Izin terpisah. Sisa Cuti dihitung backend (sama
-            // persis getLeaveBalance() yang dipakai halaman "Request Cuti"
-            // karyawan sendiri - lihat cuti.js/Leave.gs). Sisa Izin Harian
-            // BELUM ada endpoint backend-nya (cuma dihitung client-side di
-            // izin.js/_checkIzinHarianQuota()), jadi dihitung ulang di sini
-            // dengan rumus yang SAMA PERSIS dari data api.getIzin(id) -
-            // gagal muat salah satu/keduanya TIDAK boleh menggagalkan
-            // detail karyawan yang lain, cukup tampil '-'.
+            // tanpa buka halaman Rekap Cuti & Izin terpisah. Sisa Cuti dihitung
+            // backend (sama persis getLeaveBalance() yang dipakai halaman
+            // "Request Cuti" karyawan sendiri - lihat cuti.js/Leave.gs).
+            //
+            // [DIUBAH] Sisa Izin Harian dulu dihitung ulang di sini
+            // client-side dengan kuota hardcode 2 (belum ada endpoint
+            // backend-nya). Sekarang dihitung backend juga lewat
+            // getIzinHarianBalance() (Izin.gs) - PERSIS pola yang sama
+            // dengan getLeaveBalance() di atas - supaya konsisten & supaya
+            // kuotanya bisa di-override per-karyawan (lihat adjustKuota()
+            // di bawah). Kedua kartu ini sekarang BISA DIUBAH kuotanya
+            // (tombol +/-, khusus di halaman Admin ini) - gagal muat
+            // salah satu/keduanya TIDAK boleh menggagalkan detail karyawan
+            // yang lain, cukup tampil '-'.
             let sisaCuti = '-';
             let sisaIzinHarian = '-';
+            let kuotaCuti = 12;
+            let kuotaIzinHarian = 2;
+            let terpakaiCuti = 0;
+            let terpakaiIzinHarian = 0;
             try {
-                const [leaveBalanceRes, izinRes] = await Promise.all([
+                const [leaveBalanceRes, izinHarianBalanceRes] = await Promise.all([
                     api.getLeaveBalance(id).catch(() => null),
-                    api.getIzin(id).catch(() => null)
+                    api.getIzinHarianBalance(id).catch(() => null)
                 ]);
                 if (leaveBalanceRes && leaveBalanceRes.success && leaveBalanceRes.data) {
                     sisaCuti = leaveBalanceRes.data.sisa;
+                    kuotaCuti = leaveBalanceRes.data.kuota;
+                    terpakaiCuti = leaveBalanceRes.data.terpakai;
                 }
-                if (izinRes && izinRes.success) {
-                    const KUOTA_IZIN_HARIAN = 2;
-                    const tahunIni = String(new Date().getFullYear());
-                    const totalPakai = (izinRes.data || [])
-                        .filter(rec => rec.type === 'izin_harian' && rec.status === 'approved' && (rec.date || '').startsWith(tahunIni))
-                        .reduce((sum, rec) => sum + (parseInt(rec.duration) || 0), 0);
-                    sisaIzinHarian = KUOTA_IZIN_HARIAN - totalPakai;
+                if (izinHarianBalanceRes && izinHarianBalanceRes.success && izinHarianBalanceRes.data) {
+                    sisaIzinHarian = izinHarianBalanceRes.data.sisa;
+                    kuotaIzinHarian = izinHarianBalanceRes.data.kuota;
+                    terpakaiIzinHarian = izinHarianBalanceRes.data.terpakai;
                 }
             } catch (e) {
                 console.error('Gagal memuat kuota Cuti/Izin Harian karyawan:', e);
             }
+
+            // [TAMBAHAN] Simpan kuota & terpakai di cache per-id supaya
+            // tombol +/- (lihat adjustKuota()) bisa langsung update angka
+            // Kuota/Sisa di kartu tanpa perlu buka ulang modal ini.
+            this._kuotaCache = this._kuotaCache || {};
+            this._kuotaCache[id] = { kuotaCutiTahunan: kuotaCuti, terpakaiCuti, kuotaIzinHarianTahunan: kuotaIzinHarian, terpakaiIzinHarian };
 
             const pasangan = keluarga.find(k => k.tipe === 'pasangan');
             const ayah     = keluarga.find(k => k.tipe === 'ayah');
@@ -1002,12 +1017,20 @@ const karyawanManager = {
 
                 <div style="display:flex;gap:8px;margin-bottom:1.5rem;">
                     <div style="flex:1;background:rgba(245,158,11,0.08);border-radius:8px;padding:8px 6px;text-align:center;">
-                        <div style="font-size:1rem;font-weight:700;color:var(--color-primary);">${sisaCuti}</div>
-                        <div style="font-size:0.65rem;color:var(--text-muted);">Sisa Cuti (hari)</div>
+                        <div style="display:flex;align-items:center;justify-content:center;gap:8px;">
+                            <button type="button" title="Kurangi Kuota Cuti" onclick="karyawanManager.adjustKuota('${id}','cuti',-1)" style="width:22px;height:22px;flex-shrink:0;border:none;border-radius:50%;background:var(--color-danger);color:#fff;font-weight:700;font-size:0.9rem;line-height:1;cursor:pointer;">−</button>
+                            <div style="font-size:1rem;font-weight:700;color:var(--color-primary);" id="kartu-kuota-cuti-value">${kuotaCuti}</div>
+                            <button type="button" title="Tambah Kuota Cuti" onclick="karyawanManager.adjustKuota('${id}','cuti',1)" style="width:22px;height:22px;flex-shrink:0;border:none;border-radius:50%;background:var(--color-success);color:#fff;font-weight:700;font-size:0.9rem;line-height:1;cursor:pointer;">+</button>
+                        </div>
+                        <div style="font-size:0.65rem;color:var(--text-muted);margin-top:2px;">Kuota Cuti/Thn (Sisa: <span id="kartu-sisa-cuti-value">${sisaCuti}</span>)</div>
                     </div>
                     <div style="flex:1;background:rgba(245,158,11,0.08);border-radius:8px;padding:8px 6px;text-align:center;">
-                        <div style="font-size:1rem;font-weight:700;color:var(--color-primary);">${sisaIzinHarian}</div>
-                        <div style="font-size:0.65rem;color:var(--text-muted);">Sisa Izin Harian (hari)</div>
+                        <div style="display:flex;align-items:center;justify-content:center;gap:8px;">
+                            <button type="button" title="Kurangi Kuota Izin Harian" onclick="karyawanManager.adjustKuota('${id}','izin',-1)" style="width:22px;height:22px;flex-shrink:0;border:none;border-radius:50%;background:var(--color-danger);color:#fff;font-weight:700;font-size:0.9rem;line-height:1;cursor:pointer;">−</button>
+                            <div style="font-size:1rem;font-weight:700;color:var(--color-primary);" id="kartu-kuota-izin-value">${kuotaIzinHarian}</div>
+                            <button type="button" title="Tambah Kuota Izin Harian" onclick="karyawanManager.adjustKuota('${id}','izin',1)" style="width:22px;height:22px;flex-shrink:0;border:none;border-radius:50%;background:var(--color-success);color:#fff;font-weight:700;font-size:0.9rem;line-height:1;cursor:pointer;">+</button>
+                        </div>
+                        <div style="font-size:0.65rem;color:var(--text-muted);margin-top:2px;">Kuota Izin Harian/Thn (Sisa: <span id="kartu-sisa-izin-value">${sisaIzinHarian}</span>)</div>
                     </div>
                 </div>
 
@@ -1077,6 +1100,49 @@ const karyawanManager = {
             document.getElementById('modal-detail-karyawan').style.display = 'flex';
         } catch (e) {
             console.error('Error view detail:', e);
+        }
+    },
+
+    // [TAMBAHAN] Tombol +/- di kartu "Kuota Cuti/Thn" & "Kuota Izin
+    // Harian/Thn" pada modal Detail Karyawan (khusus halaman Admin "Data
+    // Karyawan" ini). Mengubah KUOTA (jatah tahunan) karyawan yang
+    // bersangkutan lewat updateKuotaKaryawan() (Karyawan.gs) - begitu
+    // kuota berkurang, "Sisa" ikut otomatis berkurang juga di sisi
+    // karyawan (badge "Sisa Izin Harian" di halaman Izin karyawan &
+    // "Sisa Cuti" di halaman Request Cuti karyawan sama-sama dihitung dari
+    // backend yang sama, lihat getLeaveBalance()/getIzinHarianBalance()).
+    // Tidak pernah boleh turun di bawah 0.
+    async adjustKuota(id, jenis, delta) {
+        const cache = this._kuotaCache && this._kuotaCache[id];
+        if (!cache) return;
+
+        const key = jenis === 'cuti' ? 'kuotaCutiTahunan' : 'kuotaIzinHarianTahunan';
+        const terpakaiKey = jenis === 'cuti' ? 'terpakaiCuti' : 'terpakaiIzinHarian';
+        const kuotaLabel = jenis === 'cuti' ? 'Cuti Tahunan' : 'Izin Harian';
+
+        const kuotaLama = cache[key] || 0;
+        const kuotaBaru = Math.max(0, kuotaLama + delta);
+        if (kuotaBaru === kuotaLama) return; // sudah 0, tombol "-" tidak ngapa-ngapain
+
+        try {
+            const result = await api.updateKuotaKaryawan(id, { [key]: kuotaBaru });
+            if (!result.success) {
+                toast.error(result.error || `Gagal mengubah Kuota ${kuotaLabel}`);
+                return;
+            }
+
+            cache[key] = kuotaBaru;
+            const sisaBaru = kuotaBaru - (cache[terpakaiKey] || 0);
+
+            const kuotaEl = document.getElementById(jenis === 'cuti' ? 'kartu-kuota-cuti-value' : 'kartu-kuota-izin-value');
+            const sisaEl  = document.getElementById(jenis === 'cuti' ? 'kartu-sisa-cuti-value' : 'kartu-sisa-izin-value');
+            if (kuotaEl) kuotaEl.textContent = kuotaBaru;
+            if (sisaEl) sisaEl.textContent = sisaBaru;
+
+            toast.success(`Kuota ${kuotaLabel} diubah menjadi ${kuotaBaru} hari.`);
+        } catch (e) {
+            console.error(`Gagal mengubah Kuota ${kuotaLabel}:`, e);
+            toast.error(`Terjadi kesalahan saat mengubah Kuota ${kuotaLabel}`);
         }
     },
 
