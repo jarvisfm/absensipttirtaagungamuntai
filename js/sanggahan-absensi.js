@@ -48,6 +48,11 @@ const sanggahanAbsensi = {
      * lewat dan tidak bisa dibuka lagi. Dipanggil tiap modal dibuka
      * (openModal()) supaya selalu terbaru - termasuk begitu karyawan buka
      * lagi modal ini setelah pengajuan sebelumnya diproses Admin.
+     *
+     * [TAMBAHAN filter bulan] Data mentahnya disimpan di this._historyRows,
+     * dropdown bulan diisi dari bulan-bulan yang BENAR-BENAR ada di data
+     * (pola sama persis dengan _populateHistoryMonthFilter() di
+     * absensi.js, "Riwayat Absensi") - bukan 12 bulan kalender statis.
      */
     async _renderHistory() {
         const list = document.getElementById('sa-history-list');
@@ -60,35 +65,87 @@ const sanggahanAbsensi = {
 
         try {
             const result = await api.getSanggahanAbsensi(effectiveId);
-            const rows = result.success ? (result.data || []) : [];
-
-            if (!rows.length) {
-                list.innerHTML = '<span style="font-size:0.8rem;color:var(--text-muted);">Belum pernah mengajukan sanggahan absensi.</span>';
-                return;
-            }
-
-            const statusLabels = { pending: 'Menunggu', approved: 'Disetujui', rejected: 'Ditolak' };
-
-            list.innerHTML = rows.map(r => {
-                const status = r.status || 'pending';
-                const label = statusLabels[status] || status;
-                const rejectedNoteHtml = (status === 'rejected' && r.rejectedNote)
-                    ? `<div style="font-size:0.8rem;color:var(--color-danger);margin-top:6px;"><i class="fas fa-comment-dots"></i> Catatan Admin: &ldquo;${r.rejectedNote}&rdquo;</div>`
-                    : '';
-                return `
-                    <div style="border:1px solid var(--border-color);border-radius:8px;padding:10px 12px;">
-                        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
-                            <strong style="font-size:0.85rem;">${this._formatTanggalSingkat(r.date)}</strong>
-                            <span class="status-badge ${status}" style="font-size:0.7rem;">${label}</span>
-                        </div>
-                        <div style="font-size:0.8rem;color:var(--text-muted);margin-top:4px;">${r.sessionLabels || '-'}</div>
-                        ${rejectedNoteHtml}
-                    </div>`;
-            }).join('');
+            this._historyRows = result.success ? (result.data || []) : [];
+            this._populateHistoryMonthFilter();
+            this._renderHistoryList();
         } catch (e) {
             console.error('Gagal memuat riwayat Sanggahan Absensi:', e);
             list.innerHTML = '<span style="font-size:0.8rem;color:var(--color-danger);">Gagal memuat riwayat.</span>';
         }
+    },
+
+    /**
+     * Isi dropdown filter bulan dari bulan-bulan yang ada di
+     * this._historyRows saja (biar tidak ada pilihan bulan kosong) -
+     * default ke bulan berjalan kalau ada datanya, kalau tidak ke bulan
+     * paling baru yang ada. Persis pola _populateHistoryMonthFilter() di
+     * absensi.js.
+     */
+    _populateHistoryMonthFilter() {
+        const select = document.getElementById('sa-history-month');
+        if (!select) return;
+
+        const monthNames = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+        const months = [...new Set((this._historyRows || []).map(r => (r.date || '').substring(0, 7)).filter(Boolean))];
+        months.sort().reverse();
+
+        const todayYM = (typeof dateTime !== 'undefined' && dateTime.getLocalDate) ? dateTime.getLocalDate().substring(0, 7) : '';
+
+        const previouslySelected = select.value;
+        const options = ['<option value="">Semua Bulan</option>'].concat(months.map(ym => {
+            const [y, m] = ym.split('-');
+            return `<option value="${ym}">${monthNames[parseInt(m) - 1]} ${y}</option>`;
+        }));
+        select.innerHTML = options.join('');
+
+        // Pertahankan pilihan bulan yang sedang aktif (mis. setelah kirim
+        // sanggahan baru & modal dibuka ulang) - kalau belum pernah pilih,
+        // default ke bulan berjalan (kalau ada datanya di bulan itu).
+        select.value = (previouslySelected && months.includes(previouslySelected))
+            ? previouslySelected
+            : (months.includes(todayYM) ? todayYM : '');
+
+        if (!select._historyFilterBound) {
+            select.addEventListener('change', () => this._renderHistoryList());
+            select._historyFilterBound = true;
+        }
+    },
+
+    _getHistoryForSelectedMonth() {
+        const select = document.getElementById('sa-history-month');
+        const selectedMonth = select ? select.value : '';
+        if (!selectedMonth) return this._historyRows || [];
+        return (this._historyRows || []).filter(r => (r.date || '').startsWith(selectedMonth));
+    },
+
+    _renderHistoryList() {
+        const list = document.getElementById('sa-history-list');
+        if (!list) return;
+
+        const rows = this._getHistoryForSelectedMonth();
+        if (!rows.length) {
+            list.innerHTML = `<span style="font-size:0.8rem;color:var(--text-muted);">${(this._historyRows || []).length ? 'Tidak ada sanggahan di bulan ini.' : 'Belum pernah mengajukan sanggahan absensi.'}</span>`;
+            return;
+        }
+
+        const statusLabels = { pending: 'Menunggu', approved: 'Disetujui', rejected: 'Ditolak' };
+
+        list.innerHTML = rows.map(r => {
+            const status = r.status || 'pending';
+            const label = statusLabels[status] || status;
+            const rejectedNoteHtml = (status === 'rejected' && r.rejectedNote)
+                ? `<div style="font-size:0.8rem;color:var(--color-danger);margin-top:6px;"><i class="fas fa-comment-dots"></i> Catatan Admin: &ldquo;${r.rejectedNote}&rdquo;</div>`
+                : '';
+            return `
+                <div style="border:1px solid var(--border-color);border-radius:8px;padding:10px 12px;">
+                    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
+                        <strong style="font-size:0.85rem;">${this._formatTanggalSingkat(r.date)}</strong>
+                        <span class="status-badge ${status}" style="font-size:0.7rem;">${label}</span>
+                    </div>
+                    <div style="font-size:0.8rem;color:var(--text-muted);margin-top:4px;">${r.sessionLabels || '-'}</div>
+                    ${rejectedNoteHtml}
+                </div>`;
+        }).join('');
     },
 
     async _loadSessionsForDate(dateStr) {
