@@ -776,8 +776,18 @@ const api = {
     // handleLogin() di auth.js) tinggal pakai result.userMessage kalau ada.
     _localFallback(action, data, reason) {
         console.warn(`API Fallback: ${action} - using localStorage`);
+        // PERBAIKAN (18 September 2026): pesan untuk reason 'timeout'
+        // SEBELUMNYA berbunyi "Koneksi internet lambat, coba lagi" -
+        // menyalahkan internet HP karyawan secara sepihak, padahal
+        // penyebab PALING SERING dari timeout 20 detik ini justru server
+        // (Apps Script) yang sedang antre panjang di jam sibuk (banyak
+        // karyawan absen bersamaan), BUKAN sinyal HP-nya. Diubah jadi
+        // netral - tetap benar untuk kedua kemungkinan (internet lambat
+        // ATAU server sedang padat), supaya karyawan/admin tidak salah
+        // kira masalahnya ada di HP/sinyal masing-masing saat sebenarnya
+        // server yang sedang sibuk.
         const userMessage = reason === 'timeout'
-            ? 'Koneksi internet lambat, coba lagi.'
+            ? 'Server sedang lambat merespons (bisa jadi sedang banyak yang mengakses bersamaan). Coba lagi dalam beberapa saat.'
             : (reason === 'offline'
                 ? 'Tidak ada koneksi internet. Periksa jaringan Anda, lalu coba lagi.'
                 : null);
