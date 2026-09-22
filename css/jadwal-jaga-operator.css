@@ -66,6 +66,55 @@
     margin-left: auto;
 }
 
+/* PENAMBAHAN: class "btn-outline-secondary" dipakai tombol "Upload
+   Jadwal" & "Export Excel" tapi belum ada definisinya di CSS manapun -
+   akibatnya tombolnya tampil polos tanpa latar/border (ikut reset
+   dasar elemen <button> di main.css). Discope di sini (bukan
+   ditambahkan ke main.css) karena cuma dipakai di halaman ini. */
+.jjo-filter-actions .btn-outline-secondary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--spacing-sm);
+    padding: var(--spacing) var(--spacing-md);
+    background: var(--bg-primary);
+    color: var(--text-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    font-weight: 500;
+    font-size: var(--font-size-sm);
+    transition: all var(--transition-fast);
+    white-space: nowrap;
+}
+
+.jjo-filter-actions .btn-outline-secondary:hover {
+    background: var(--color-gray-100);
+    color: var(--text-primary);
+    border-color: var(--color-gray-300, var(--border-color));
+}
+
+.jjo-filter-actions .btn-outline-secondary:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+/* Export Excel dikasih aksen hijau (identik warna Excel) supaya beda
+   dari Upload Jadwal & gampang dikenali sekilas. */
+#jjo-btn-export-excel {
+    color: var(--color-success);
+    border-color: var(--color-success);
+}
+
+#jjo-btn-export-excel:hover {
+    background: var(--color-success);
+    color: var(--color-white);
+}
+
+#jjo-btn-export-excel.btn-loading {
+    opacity: 0.65;
+    pointer-events: none;
+}
+
 .jjo-unit-info {
     margin-bottom: var(--spacing-md);
     font-size: var(--font-size-sm);
