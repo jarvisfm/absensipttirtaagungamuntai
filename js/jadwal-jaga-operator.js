@@ -634,6 +634,7 @@ const jadwalJagaOperator = {
         const btnSimpan = document.getElementById('jjo-btn-simpan');
         const btnCetak  = document.getElementById('jjo-btn-cetak');
         const btnUpload = document.getElementById('jjo-btn-upload');
+        const btnExportExcel = document.getElementById('jjo-btn-export-excel');
         const uploadInput = document.getElementById('jjo-upload-input');
 
         if (unitSel) unitSel.onchange = async () => {
@@ -666,6 +667,7 @@ const jadwalJagaOperator = {
 
         if (btnSimpan) btnSimpan.onclick = () => this.saveData();
         if (btnCetak)  btnCetak.onclick  = () => this.printSchedule();
+        if (btnExportExcel) btnExportExcel.onclick = () => this.exportAllToExcel();
 
         // "Upload Jadwal" - klik tombol cuma membuka dialog pilih file
         // (uploadInput disembunyikan lewat CSS, tombolnya cuma proxy
@@ -1051,6 +1053,149 @@ const jadwalJagaOperator = {
 
     _escAttr(str) {
         return String(str || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+    },
+
+    // ── Export Excel (semua unit sekaligus) ───────────────────────
+    // FITUR BARU: tombol "Export Excel" - export jadwal jaga SEMUA unit
+    // (bulan/tahun yang sedang dipilih di filter atas) jadi 1 file .xls,
+    // tiap unit di sheet terpisah (nama sheet = label unit) - supaya admin
+    // tidak perlu buka & cetak/unduh satu-satu per unit. Tidak mengubah
+    // data apa pun (read-only, hanya ambil data tersimpan tiap unit lewat
+    // api.getSettingByKey), dan TIDAK bergantung pada unit yang sedang
+    // aktif di layar (this.unitKey) - jalan independen mengambil data tiap
+    // unit satu per satu. Asmen yang dibatasi (_restrictedUnits) cuma
+    // dapat sheet untuk unit-unit yang jadi tanggung jawabnya saja, sama
+    // seperti pembatasan yang sudah ada di dropdown Unit.
+    async exportAllToExcel() {
+        const btn = document.getElementById('jjo-btn-export-excel');
+        try {
+            await this._ensureXlsxLib();
+        } catch (e) {
+            console.error(e);
+            toast.error('Gagal memuat pustaka pembuat Excel. Periksa koneksi internet Anda, lalu coba lagi.');
+            return;
+        }
+
+        const keys = this._restrictedUnits.length > 0
+            ? Object.keys(OPERATOR_UNITS).filter(k => this._restrictedUnits.includes(k))
+            : Object.keys(OPERATOR_UNITS);
+
+        if (keys.length === 0) {
+            toast.warning('Tidak ada unit yang bisa diekspor.');
+            return;
+        }
+
+        if (btn) { btn.disabled = true; btn.classList.add('btn-loading'); }
+        toast.info(`Menyiapkan Excel ${keys.length} unit, mohon tunggu...`);
+
+        try {
+            const wb = XLSX.utils.book_new();
+            const usedSheetNames = {};
+            let failedUnits = 0;
+
+            for (const key of keys) {
+                const unit = this._getEffectiveUnit(key);
+                if (!unit) continue;
+
+                let data;
+                try {
+                    const res = await api.getSettingByKey(this._settingKeyFor(key));
+                    data = (res.success && res.data) ? JSON.parse(res.data) : this._emptyData();
+                } catch (e) {
+                    console.error(`Gagal memuat jadwal unit ${key} untuk export:`, e);
+                    data = this._emptyData();
+                    failedUnits++;
+                }
+
+                const aoa = this._buildExportRows(unit, data);
+                const ws = XLSX.utils.aoa_to_sheet(aoa);
+                ws['!cols'] = [{ wch: 4 }, { wch: 22 }, { wch: 20 }, { wch: 40 }, { wch: 25 }];
+                XLSX.utils.book_append_sheet(wb, ws, this._safeSheetName(unit.label, usedSheetNames));
+            }
+
+            const mm = String(this.month + 1).padStart(2, '0');
+            const filename = `Jadwal_Jaga_Operator_${this.year}-${mm}.xls`;
+            XLSX.writeFile(wb, filename, { bookType: 'xls' });
+
+            toast[failedUnits ? 'warning' : 'success'](
+                failedUnits
+                    ? `Excel berhasil diunduh, tapi ${failedUnits} unit gagal dimuat (dianggap kosong).`
+                    : 'Export Excel berhasil diunduh.'
+            );
+        } catch (e) {
+            console.error('Gagal membuat file Excel:', e);
+            toast.error('Gagal membuat file Excel.');
+        } finally {
+            if (btn) { btn.disabled = false; btn.classList.remove('btn-loading'); }
+        }
+    },
+
+    // Sama seperti _settingKey(), tapi menerima unitKey secara eksplisit
+    // (bukan this.unitKey/this.cabangTrd) - dipakai exportAllToExcel()
+    // supaya bisa ambil data TIAP unit satu per satu tanpa mengubah unit
+    // yang sedang aktif di layar.
+    _settingKeyFor(unitKey) {
+        const mm = String(this.month + 1).padStart(2, '0');
+        return `jaga_operator_${unitKey}_${this.year}-${mm}`.replace(/\s+/g, '_');
+    },
+
+    // Baris data (array-of-array, siap dipakai XLSX.utils.aoa_to_sheet)
+    // untuk 1 sheet unit - strukturnya mengikuti _buildPrintTable() (versi
+    // HTML utk Cetak) supaya isinya konsisten, tapi teks polos (tanpa
+    // HTML) & 1 baris Excel per sesi/hari (tidak pakai rowspan, supaya
+    // aman dibuka di Excel/Sheets apa pun).
+    _buildExportRows(unit, data) {
+        const days = this._daysInMonth();
+        const rows = [];
+
+        if (unit.pattern === 'multi-grup' || unit.pattern === 'multi-solo') {
+            rows.push(['No', 'Hari', 'Tanggal', 'Jam', 'Nama Petugas', 'Keterangan']);
+            for (let d = 1; d <= days; d++) {
+                const info = this._dayInfo(d);
+                const dayData = (data.days && data.days[d]) || { sessions: {}, keterangan: '' };
+                (unit.sessions || []).forEach(sess => {
+                    const rawVal = dayData.sessions && dayData.sessions[sess.key];
+                    const ids = Array.isArray(rawVal) ? rawVal : (rawVal ? [rawVal] : []);
+                    const nama = ids.map(id => this._employeeName(id)).filter(Boolean).join(', ') || '-';
+                    rows.push([d, info.hariName, info.tanggalStr, sess.time, nama, dayData.keterangan || '']);
+                });
+            }
+            return rows;
+        }
+
+        if (unit.pattern === 'kontinu' || unit.pattern === 'kontinu-split') {
+            rows.push(['No', 'Hari', 'Tanggal', 'Jam Operasional', 'Nama Petugas', 'Keterangan']);
+            for (let d = 1; d <= days; d++) {
+                const info = this._dayInfo(d);
+                const dayData = (data.days && data.days[d]) || { petugas: '', keterangan: '' };
+                const petugasIds = Array.isArray(dayData.petugas) ? dayData.petugas : (dayData.petugas ? [dayData.petugas] : []);
+                const nama = petugasIds.map(id => this._employeeName(id)).filter(Boolean).join(', ') || '-';
+                rows.push([d, info.hariName, info.tanggalStr, unit.jamLabel, nama, dayData.keterangan || '']);
+            }
+            return rows;
+        }
+
+        return rows;
+    },
+
+    // Nama sheet Excel maksimal 31 karakter & tidak boleh berisi \ / ? * [ ]
+    // atau duplikat - bersihkan label unit supaya aman dipakai sebagai nama
+    // sheet, tambah " (2)", " (3)", dst kalau kebetulan ada 2 unit dengan
+    // label yang sama persis setelah dibersihkan.
+    _safeSheetName(label, usedSheetNames) {
+        let name = String(label || 'Unit').replace(/[\\/?*\[\]:]/g, ' ').replace(/\s+/g, ' ').trim();
+        if (name.length > 31) name = name.substring(0, 31).trim();
+        if (!name) name = 'Unit';
+
+        let finalName = name;
+        let i = 2;
+        while (usedSheetNames[finalName]) {
+            const suffix = ` (${i})`;
+            finalName = name.substring(0, 31 - suffix.length) + suffix;
+            i++;
+        }
+        usedSheetNames[finalName] = true;
+        return finalName;
     },
 
     // ── Cetak ──────────────────────────────────────────────────────
