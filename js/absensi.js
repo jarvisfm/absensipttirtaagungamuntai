@@ -654,7 +654,30 @@ const absensi = {
                 // sebenarnya), tapi pesannya jujur & tidak membuat karyawan
                 // mengira hari ini libur padahal cuma server sedang sibuk.
                 this.currentState = 'access-error';
-            } else if (!this.accessInfo || !this.accessInfo.canAccess) {
+            } else if ((!this.accessInfo || !this.accessInfo.canAccess) && !today.clockIn) {
+                // BUGFIX (23 September 2026): SEBELUMNYA blok ini cuma cek
+                // this.accessInfo.canAccess (jadwal HARI INI dari
+                // checkAttendanceAccess, TIDAK tahu-menahu soal baris absen
+                // yang masih berjalan/baru ditutup dari SEMALAM untuk shift
+                // yang melewati tengah malam - mis. Jaga Malam, Operator
+                // BNA Amuntai, Operator 24 Jam) - begitu "hari ini" (jadwal
+                // baru, bukan baris yang sedang berjalan) kebetulan bukan
+                // hari kerja / belum ketemu sesinya, SELURUH tampilan
+                // langsung dianggap "Hari Libur" dan tombol Pulang untuk
+                // sesi semalam yang masih berjalan jadi tidak pernah
+                // ditampilkan sama sekali - padahal `today` (dari
+                // getTodayAttendance(), yang SUDAH benar menangani kasus
+                // lintas tengah malam lewat mekanismenya sendiri, TIDAK
+                // disentuh di sini) jelas menunjukkan ada baris yang perlu
+                // dilanjutkan. Ini akar laporan "Pulang langsung Tidak
+                // Hadir/pindah ke hari berikutnya" & "sudah absen Masuk
+                // tapi diminta Masuk lagi" untuk shift Jaga Malam/BNA
+                // Amuntai/Operator 24 Jam. Sekarang ditambah syarat
+                // `!today.clockIn` - kalau ternyata SUDAH ada baris yang
+                // sedang berjalan (baris Masuk-nya sudah terisi), JANGAN
+                // dianggap libur - lanjut ke pengecekan today.clockOut/
+                // breakStart/clockIn di bawah seperti biasa, supaya tombol
+                // Pulang (atau status yang sesuai) tetap tampil benar.
                 this.currentState = 'libur';
             } else if (today.isDinasLuar) {
                 this.currentState = 'dinas';
