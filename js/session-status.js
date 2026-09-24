@@ -143,9 +143,22 @@ function _groupFromDayGroups(shiftConfig, dateStr) {
     return group || null;
 }
 
+// BUGFIX (24 September 2026): SEBELUMNYA regex di bawah cuma mengenali
+// titik dua ("14:28"), padahal jam yang benar-benar tersimpan/dikirim
+// selalu notasi titik ala Indonesia dari toLocaleTimeString('id-ID', ...)
+// (lihat dateTime.formatTime(), main.js) - yaitu "14.28", BUKAN "14:28".
+// Akibatnya fungsi ini SELALU balikin null untuk setiap jam sesi asli,
+// getSessionAttendanceLabel() di bawah ikut SELALU balikin null, dan
+// label "Hadir Tepat Waktu"/"Hadir Terlambat"/"Terlambat" tidak pernah
+// muncul di Riwayat Absensi (karyawan) maupun Rekap Absensi (admin) -
+// begitu juga badge Terlambat/Hadir Terlambat yang dihitung dari fungsi
+// yang sama. Sekarang titik ATAU titik dua sama-sama diterima - PERSIS
+// pola yang sudah dipakai _toMinutes() di absensi.js
+// (`.replace('.', ':')`) untuk keperluan lain di file yang sama, cuma
+// disamakan juga di sini.
 function _toMinutesSafe(timeStr) {
     if (!timeStr) return null;
-    const m = String(timeStr).trim().match(/^(\d{1,2}):(\d{2})/);
+    const m = String(timeStr).trim().match(/^(\d{1,2})[:.](\d{2})/);
     if (!m) return null;
     return parseInt(m[1], 10) * 60 + parseInt(m[2], 10);
 }
