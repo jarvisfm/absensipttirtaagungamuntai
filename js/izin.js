@@ -1752,6 +1752,35 @@ const izin = {
         const catatan = document.getElementById('approval-catatan')?.value || '';
         const user = auth.getCurrentUser();
 
+        // [TAMBAHAN] Loading state di tombol yang diklik, supaya user tahu
+        // prosesnya masih berjalan (bukan diam/macet) selagi menunggu respons
+        // server - pola SAMA PERSIS dengan adminApprovalModal.confirm()
+        // (admin-approval-modal.js) & submitApproval() versi cuti.js. Tombol
+        // LAIN di modal yang sama (mis. "Tolak" saat "Setuju" sedang
+        // diproses) ikut dinonaktifkan sementara, supaya tidak ada 2
+        // keputusan terkirim bersamaan. window.event dipakai (BUKAN
+        // mengubah atribut onclick di render()) - tombolnya sendiri dibuat
+        // lewat onclick="izin.submitApproval(...)" inline, jadi window.event
+        // masih menunjuk ke event klik yang memicu pemanggilan fungsi ini
+        // (valid karena diambil SEBELUM await pertama).
+        const clickedBtn = window.event?.target?.closest('button') || null;
+        const modalButtons = document.getElementById('approval-izin-content')?.querySelectorAll('button') || [];
+        const originalBtnHtml = clickedBtn ? clickedBtn.innerHTML : null;
+        modalButtons.forEach(b => { b.disabled = true; });
+        if (clickedBtn) {
+            clickedBtn.style.opacity = '0.7';
+            clickedBtn.style.cursor = 'not-allowed';
+            clickedBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Memproses...';
+        }
+        const restoreApprovalButtons = () => {
+            modalButtons.forEach(b => { b.disabled = false; });
+            if (clickedBtn) {
+                clickedBtn.style.opacity = '';
+                clickedBtn.style.cursor = 'pointer';
+                clickedBtn.innerHTML = originalBtnHtml;
+            }
+        };
+
         // [TAMBAHAN] Tahap Direktur yang di-approve ADMIN (mewakili, lihat
         // updateApprovalNav() di auth.js) - namanya diganti literal "Admin",
         // BUKAN nama asli admin yang sedang login. Backend (Izin.gs) sudah
@@ -1780,6 +1809,7 @@ const izin = {
 
             if (!result.success) {
                 toast.error(result.error || 'Gagal memproses pengajuan');
+                restoreApprovalButtons();
                 return;
             }
 
@@ -1814,6 +1844,7 @@ const izin = {
         } catch (error) {
             console.error('Error submitApproval:', error);
             toast.error('Terjadi kesalahan, silakan coba lagi.');
+            restoreApprovalButtons();
         }
     },
 
