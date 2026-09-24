@@ -27,7 +27,13 @@ const adminDashboard = {
         try {
             const [empResult, attResult, leaveResult, izinResult, jurnalResult] = await Promise.all([
                 api.getEmployees(),
-                api.getAllAttendance(),
+                // PERBAIKAN PERFORMA (24 September 2026): dashboard cuma
+                // pernah pakai attendance 30 hari terakhir (stats hari
+                // ini, recent activity, chart 30 hari) - lihat
+                // renderAttendanceChart() & updateStats() di bawah.
+                // getAllAttendance() (dump seluruh histori) diganti
+                // getDashboardAttendance() yang sudah dibatasi di server.
+                api.getDashboardAttendance(),
                 api.getAllLeaves(),
                 api.getAllIzin(),
                 api.getAllJournals()
