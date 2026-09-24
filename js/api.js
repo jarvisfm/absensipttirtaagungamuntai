@@ -41,6 +41,40 @@ function _retryDelay(attempt) {
     return new Promise(resolve => setTimeout(resolve, base + jitter));
 }
 
+// [TAMBAHAN - 24 September 2026 - optimasi jam sibuk] Beda dari
+// _retryDelay() di atas (yang cuma jalan SETELAH suatu percobaan gagal),
+// jeda acak ini sengaja dipasang SEBELUM percobaan PERTAMA, khusus untuk
+// 'saveAttendance' (Masuk/Istirahat Keluar/Istirahat Masuk/Pulang).
+//
+// Alasannya: aksi ini yang paling rawan "serentak", karena jadwal shift
+// yang sama membuat banyak karyawan menekan tombol yang sama di detik
+// yang HAMPIR PERSIS sama (mis. semua menekan Istirahat Masuk begitu jam
+// makan siang usai). Apps Script punya batas jumlah eksekusi yang boleh
+// berjalan BERSAMAAN untuk SELURUH proyek (bukan cuma untuk absen) -
+// kalau puluhan permintaan menghantam dalam waktu superpendek, slot itu
+// penuh sesak sekaligus, dan bahkan permintaan yang TIDAK ADA
+// hubungannya sama sekali (Login, buka menu lain) ikut kena antre.
+//
+// Jeda acak 0-2 detik di sini "menyebarkan" waktu pengiriman - HP yang
+// tombolnya ditekan di detik yang sama persis akan mengirim
+// permintaannya di waktu yang sedikit berbeda-beda, sehingga jumlah
+// permintaan yang benar-benar menghantam server DI DETIK YANG SAMA jadi
+// jauh lebih sedikit, walau totalnya tetap sama. Karyawan TIDAK akan
+// merasakan bedanya di layar - tombolnya tetap aktif/nonaktif di jam
+// yang PERSIS sama seperti sebelumnya (jeda ini terjadi SETELAH klik,
+// sebelum permintaan benar-benar dikirim), paling lama nambah 2 detik
+// sebelum muncul konfirmasi "berhasil".
+//
+// SENGAJA HANYA untuk 'saveAttendance' - aksi lain (Login, buka halaman,
+// dst) tidak diberi jeda ini sama sekali, supaya tidak membuat aplikasi
+// terasa lambat untuk hal-hal yang memang tidak rawan serentak seperti
+// ini.
+function _burstSpreadDelay(action) {
+    if (action !== 'saveAttendance') return Promise.resolve();
+    const delayMs = Math.random() * 2000;
+    return new Promise(resolve => setTimeout(resolve, delayMs));
+}
+
 const api = {
 
     // ========== SERVER TIME (anti-akal jam HP) ==========
@@ -55,6 +89,11 @@ const api = {
         if (!API_BASE_URL) {
             return this._localFallback(action, data);
         }
+
+        // [TAMBAHAN - 24 September 2026] Lihat penjelasan lengkap di
+        // _burstSpreadDelay() di atas - cuma berlaku untuk saveAttendance,
+        // aksi lain langsung lanjut seperti biasa (delay-nya 0).
+        await _burstSpreadDelay(action);
 
         // [TAMBAHAN - optimasi jam sibuk] Aksi baca dicoba maks 3x (1
         // percobaan awal + 2 retry) sebelum benar-benar menyerah; aksi yang
