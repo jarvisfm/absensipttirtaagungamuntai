@@ -12,7 +12,7 @@ const API_BASE_URL = 'https://script.google.com/macros/s/AKfycbz3qeYiMdaJ1gvnpnv
 // URL Cloudflare Worker untuk jalur cepat cek sesi (24 September 2026).
 // Kosong = fitur nonaktif, semua cek sesi tetap lewat Apps Script seperti biasa.
 // Isi setelah Worker di-deploy, contoh: 'https://absensi-sesi.xxxx.workers.dev'
-const SESSION_WORKER_URL = '';
+const SESSION_WORKER_URL = 'https://absensi-sesi.absensi-taa.workers.dev';
 
 // [TAMBAHAN - optimasi jam sibuk] Aksi yang AMAN di-retry otomatis kalau
 // gagal/timeout - HANYA aksi BACA (get*/check*/is*/validate*/verify*) plus
