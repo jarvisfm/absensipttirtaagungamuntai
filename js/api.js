@@ -9,6 +9,11 @@
 
 const API_BASE_URL = 'https://script.google.com/macros/s/AKfycbz3qeYiMdaJ1gvnpnv5j2cKp4JNQb0_QuW0XwTRkOETRQ4C2R8Med4I3VrSlCHyoLrO/exec'; // Kosongkan untuk mode localStorage, isi dengan URL Web App GAS
 
+// URL Cloudflare Worker untuk jalur cepat cek sesi (24 September 2026).
+// Kosong = fitur nonaktif, semua cek sesi tetap lewat Apps Script seperti biasa.
+// Isi setelah Worker di-deploy, contoh: 'https://absensi-sesi.xxxx.workers.dev'
+const SESSION_WORKER_URL = '';
+
 // [TAMBAHAN - optimasi jam sibuk] Aksi yang AMAN di-retry otomatis kalau
 // gagal/timeout - HANYA aksi BACA (get*/check*/is*/validate*/verify*) plus
 // login/reverseGeocode/previewLeaveDuration (menimpa/melihat data, tidak
@@ -168,6 +173,31 @@ const api = {
     async validateSession(userId, role, sessionToken) {
         if (!API_BASE_URL) {
             return { success: true, data: { valid: true } };
+        }
+        // Jalur cepat lewat Cloudflare Worker (tidak memakai slot eksekusi Apps
+        // Script). Worker cuma boleh menjawab "valid". Kalau jawabannya apa pun
+        // selain itu (beda token, belum terdaftar, Worker error/timeout), tetap
+        // konfirmasi ke Apps Script seperti sebelumnya - jadi keputusan logout
+        // paksa TIDAK PERNAH diambil dari Worker saja.
+        if (SESSION_WORKER_URL) {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 5000);
+            try {
+                const res = await fetch(SESSION_WORKER_URL.replace(/\/+$/, '') + '/validate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'text/plain' },
+                    body: JSON.stringify({ userId, role, sessionToken }),
+                    signal: controller.signal
+                });
+                const json = await res.json();
+                if (json && json.valid === true) {
+                    return { success: true, data: { valid: true } };
+                }
+            } catch (e) {
+                // Worker tidak terjangkau -> lanjut ke Apps Script di bawah
+            } finally {
+                clearTimeout(timeoutId);
+            }
         }
         return this.request('validateSession', { userId, role, sessionToken });
     },
