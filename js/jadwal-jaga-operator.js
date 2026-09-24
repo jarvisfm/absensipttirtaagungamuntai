@@ -729,12 +729,43 @@ const jadwalJagaOperator = {
         this.renderTable();
     },
 
+    // Cegah submit dobel + tampilkan loading di tombol Simpan - pola
+    // sama persis seperti SPK/Surat Tugas (spk.js, surat-tugas.js).
+    _isSavingJadwal: false,
+
+    _setSimpanJadwalLoading(loading) {
+        const btn = document.getElementById('jjo-btn-simpan');
+        if (!btn) return;
+        if (loading) {
+            if (!btn.dataset.originalText) {
+                btn.dataset.originalText = btn.innerHTML;
+            }
+            btn.disabled = true;
+            btn.style.opacity = '0.7';
+            btn.style.cursor = 'not-allowed';
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Menyimpan...';
+        } else {
+            btn.disabled = false;
+            btn.style.opacity = '';
+            btn.style.cursor = 'pointer';
+            if (btn.dataset.originalText) {
+                btn.innerHTML = btn.dataset.originalText;
+            }
+        }
+    },
+
     async saveData() {
         if (!this.unitKey) return;
         if (this.unitKey === 'TRD' && !this.cabangTrd) {
             toast.warning('Isi dulu nama cabang TRD-nya.');
             return;
         }
+        // Cegah klik Simpan berkali-kali cepat (mis. jaringan lambat)
+        // sampai request sebelumnya selesai, supaya tidak memicu beberapa
+        // request tersimpan bertumpuk.
+        if (this._isSavingJadwal) return;
+        this._isSavingJadwal = true;
+        this._setSimpanJadwalLoading(true);
         try {
             const result = await api.saveSetting(this._settingKey(), JSON.stringify(this.data));
             if (result && result.success) {
@@ -746,6 +777,9 @@ const jadwalJagaOperator = {
         } catch (e) {
             console.error('Gagal menyimpan jadwal jaga operator:', e);
             toast.error('Gagal menyimpan jadwal jaga. Periksa koneksi internet Anda.');
+        } finally {
+            this._isSavingJadwal = false;
+            this._setSimpanJadwalLoading(false);
         }
     },
 
