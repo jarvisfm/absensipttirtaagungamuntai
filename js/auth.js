@@ -37,7 +37,12 @@ const auth = {
     // dilihat (mis. app di-minimize/pindah ke app lain/layar dikunci),
     // bebannya berkurang lebih jauh lagi karena karyawan yang HP-nya
     // sedang tidak dipegang tidak lagi ikut memoling sama sekali.
-    SESSION_CHECK_INTERVAL_MS: 10 * 1000,
+    // PERBAIKAN BEBAN SERVER (24 September 2026): 10 detik -> 60 detik.
+    // Tiap cek = 1 eksekusi Apps Script (jatah 30 slot bersamaan per akun
+    // Google). 150 karyawan x 1 cek/10 detik = ~15 eksekusi/detik yang
+    // terus menempati slot walau tidak ada yang absen - ini yang membuat
+    // Login/Absensi ikut antre. Dengan 60 detik beban polling turun 6x.
+    SESSION_CHECK_INTERVAL_MS: 60 * 1000,
     _sessionWatcherId: null,
     _visibilityHandler: null,
 
