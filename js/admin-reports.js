@@ -50,6 +50,44 @@ const adminReports = {
         this.renderLeaveReports();
     },
 
+    // PERBAIKAN PERFORMA (24 September 2026): hitung rentang tanggal
+    // fetch attendance dari kombinasi filter Bulan + Dari/Sampai Tanggal
+    // (this.filters.attendance) - dipakai loadData() (fetch pertama) dan
+    // _reloadAttendanceReports() (saat filter diganti), supaya Rekap
+    // TIDAK lagi dump seluruh koleksi Firestore tiap dibuka/tiap ganti
+    // filter. Semantiknya SAMA dengan _applyAttendanceDateFilters() di
+    // bawah (Bulan & Dari-Sampai Tanggal digabung AND) - cuma di sini
+    // rentangnya dihitung SEBELUM fetch (bukan menyaring sesudahnya).
+    // Balik {from:'', to:''} kalau admin sengaja kosongkan SEMUA filter
+    // tanggal ("Semua Bulan") - pemanggil lalu jatuh ke getAllAttendance()
+    // (dump penuh, seperti sebelumnya).
+    _attendanceFetchRange() {
+        const { month, dateFrom, dateTo } = this.filters.attendance;
+        let from = dateFrom || '';
+        let to = dateTo || '';
+        if (month) {
+            const [y, m] = month.split('-');
+            const monthStart = `${y}-${m}-01`;
+            const lastDay = new Date(parseInt(y, 10), parseInt(m, 10), 0).getDate();
+            const monthEnd = `${y}-${m}-${String(lastDay).padStart(2, '0')}`;
+            from = from && from > monthStart ? from : monthStart;
+            to = to && to < monthEnd ? to : monthEnd;
+        }
+        return { from, to };
+    },
+
+    // PERBAIKAN PERFORMA (24 September 2026): bungkus pemilihan
+    // getAttendanceReports() (rentang terbatas) vs getAllAttendance()
+    // (dump penuh, "Semua Bulan") lewat _attendanceFetchRange() di atas -
+    // dipakai loadData() & _reloadAttendanceReports() supaya logikanya
+    // tidak dobel di 2 tempat.
+    async _fetchAttendanceForFilters() {
+        const range = this._attendanceFetchRange();
+        return (range.from || range.to)
+            ? api.getAttendanceReports(range.from, range.to)
+            : api.getAllAttendance();
+    },
+
     async loadData() {
         let employees = [];
         let jurnals = [];
@@ -57,12 +95,29 @@ const adminReports = {
         let izinList = [];
         let attendances = [];
 
+        // Default filter Bulan Rekap Absensi ke bulan berjalan DI SINI
+        // (sebelum fetch attendance mulai), BUKAN di bindAttendanceEvents()
+        // seperti sebelumnya - urutan lama membuat default itu baru
+        // terpasang SETELAH loadData() selesai fetch, jadi fetch pertama
+        // tetap dump semua histori walau tampilan akhirnya cuma
+        // menampilkan bulan berjalan (penyaringannya baru terjadi
+        // belakangan, di sisi render). Hanya sekali (guard
+        // _attendanceMonthDefaulted) supaya admin yang sengaja
+        // mengosongkan filter ke "Semua Bulan" tidak diisi ulang paksa
+        // tiap loadData() terpanggil lagi (mis. pindah ke tab Jurnal lalu
+        // balik lagi ke Rekap Absensi).
+        if (!this._attendanceMonthDefaulted) {
+            this._attendanceMonthDefaulted = true;
+            const now = new Date();
+            this.filters.attendance.month = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+        }
+
         const [empResult, jurnalResult, leaveResult, izinResult, attResult, oorResult, oowResult, settingsResult] = await Promise.allSettled([
             api.getEmployees(),
             api.getAllJournals(),
             api.getAllLeaves(),
             api.getAllIzin(),
-            api.getAllAttendance(),
+            this._fetchAttendanceForFilters(),
             api.getAllOutOfRadiusReports(),
             api.getAllOutOfWilayahReports(),
             api.getSettings()
@@ -466,16 +521,20 @@ const adminReports = {
 
         const monthFilter = document.getElementById('attendance-month-filter');
         if (monthFilter) {
-            // Default ke bulan berjalan, supaya data yang tampil pertama kali
-            // adalah rekap bulan ini (bukan seluruh histori sekaligus).
-            const now = new Date();
-            const currentYearMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-            monthFilter.value = currentYearMonth;
-            this.filters.attendance.month = currentYearMonth;
+            // Default ke bulan berjalan sudah dipasang di loadData() -
+            // lihat _attendanceMonthDefaulted - di sini tinggal
+            // mencerminkannya ke elemen <select>, supaya data yang tampil
+            // pertama kali adalah rekap bulan ini (bukan seluruh histori
+            // sekaligus).
+            monthFilter.value = this.filters.attendance.month;
 
             monthFilter.addEventListener('change', (e) => {
                 this.filters.attendance.month = e.target.value;
-                this.renderAttendanceReports();
+                // PERBAIKAN PERFORMA (24 September 2026): ganti filter
+                // Bulan berarti rentang tanggal yang dibutuhkan berubah -
+                // fetch ulang dari server (dibatasi rentang baru), bukan
+                // cuma render ulang dari data lama.
+                this._reloadAttendanceReports();
             });
         }
 
@@ -532,14 +591,35 @@ const adminReports = {
         const dateFromFilter = document.getElementById('attendance-date-from-filter');
         if (dateFromFilter) dateFromFilter.addEventListener('change', (e) => {
             this.filters.attendance.dateFrom = e.target.value;
-            this.renderAttendanceReports();
+            // PERBAIKAN PERFORMA (24 September 2026): lihat komentar di
+            // listener monthFilter di atas - rentang tanggal berubah,
+            // fetch ulang dari server.
+            this._reloadAttendanceReports();
         });
 
         const dateToFilter = document.getElementById('attendance-date-to-filter');
         if (dateToFilter) dateToFilter.addEventListener('change', (e) => {
             this.filters.attendance.dateTo = e.target.value;
-            this.renderAttendanceReports();
+            this._reloadAttendanceReports();
         });
+    },
+
+    // PERBAIKAN PERFORMA (24 September 2026): dipanggil listener filter
+    // Bulan/Dari-Sampai Tanggal di atas - fetch ulang attendance dari
+    // server sesuai rentang filter TERBARU (lewat _fetchAttendanceForFilters(),
+    // sama seperti loadData()), lalu render ulang. Filter Nama/Bagian/
+    // Jenis Jadwal TIDAK lewat sini (tetap renderAttendanceReports()
+    // langsung) karena tidak mengubah rentang tanggal yang perlu diambil
+    // dari server - cukup disaring ulang dari data yang sudah ada.
+    async _reloadAttendanceReports() {
+        try {
+            const attResult = await this._fetchAttendanceForFilters();
+            this.rawAttendance = (attResult && attResult.success !== false && attResult.data) || [];
+        } catch (e) {
+            console.error('Gagal memuat ulang data Rekap Absensi:', e);
+            toast.error('Gagal memuat ulang data Rekap Absensi');
+        }
+        this.renderAttendanceReports();
     },
 
     bindJurnalEvents() {
