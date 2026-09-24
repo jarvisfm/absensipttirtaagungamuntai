@@ -278,6 +278,40 @@ const api = {
         return this.request('getAllAttendance');
     },
 
+    // PERBAIKAN PERFORMA (24 September 2026): versi RINGAN dari
+    // getAllAttendance() khusus Admin Dashboard - cuma 30 hari terakhir
+    // (semua karyawan), bukan seluruh histori. Pakai ini, BUKAN
+    // getAllAttendance(), untuk widget yang memang cuma butuh beberapa
+    // hari/minggu terakhir (lihat admin-dashboard.js).
+    async getDashboardAttendance() {
+        if (!API_BASE_URL) {
+            const cutoff = new Date();
+            cutoff.setDate(cutoff.getDate() - 30);
+            const cutoffStr = cutoff.toISOString().split('T')[0];
+            return { success: true, data: storage.get('attendance', []).filter(a => a.date >= cutoffStr) };
+        }
+        return this.request('getDashboardAttendance');
+    },
+
+    // PERBAIKAN PERFORMA (24 September 2026): versi TERBATAS RENTANG dari
+    // getAllAttendance() khusus Rekap Absensi admin - `dateFrom`/`dateTo`
+    // boleh salah satu dikosongkan (lihat _attendanceFetchRange() di
+    // admin-reports.js untuk cara rentangnya dihitung dari filter
+    // Bulan/Dari-Sampai Tanggal). Kalau KEDUANYA kosong, panggil
+    // getAllAttendance() saja (kasus "Semua Bulan") - jangan panggil
+    // fungsi ini dengan dua-duanya kosong.
+    async getAttendanceReports(dateFrom, dateTo) {
+        if (!API_BASE_URL) {
+            return {
+                success: true,
+                data: storage.get('attendance', []).filter(a =>
+                    (!dateFrom || a.date >= dateFrom) && (!dateTo || a.date <= dateTo)
+                )
+            };
+        }
+        return this.request('getAttendanceReports', { dateFrom: dateFrom || '', dateTo: dateTo || '' });
+    },
+
     // Versi RINGAN dari getAllAttendance() - cuma baris HARI INI (semua
     // karyawan). Pakai ini, BUKAN getAllAttendance(), kalau yang dibutuhkan
     // memang cuma status hari ini (lihat dashboard.js renderTeamAttendance).
