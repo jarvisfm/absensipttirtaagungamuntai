@@ -94,6 +94,26 @@ const absensi = {
     // Admin untuk koreksi manual (kalau sudah beda hari - tidak bisa
     // diperbaiki lewat absen ulang biasa karena hari itu sudah lewat).
     _notifyUnsavedAttendanceIfAny() {
+        // BUGFIX (23 September 2026): SEBELUMNYA fungsi ini langsung
+        // mengecek localStorage begitu dipanggil - tapi confirmAttendance()
+        // (face-recognition.js) MEMANG menyimpan 'temp_attendance' LALU
+        // LANGSUNG router.navigate('absensi') SEBELUM proses simpan ke
+        // server (latar belakang) sempat selesai. Navigate itu sendiri
+        // memicu absensi.init() -> memanggil fungsi ini di awal - jadi
+        // key 'temp_attendance' HAMPIR SELALU masih ada di titik ini
+        // (proses simpan belum sempat menghapusnya), membuat warning "sesi
+        // gagal tersimpan" ini SALAH muncul di HAMPIR SETIAP absen
+        // berhasil, bukan cuma saat aplikasi benar-benar ditutup di tengah
+        // proses seperti niat awalnya.
+        // window.absensi._pendingAction (diisi PERSIS sebelum navigate itu
+        // di confirmAttendance(), baru dikosongkan setelah simpan
+        // benar-benar selesai) adalah penanda "proses simpan MASIH
+        // BERJALAN SEKARANG" - kalau ini masih terisi, 'temp_attendance'
+        // yang ditemukan PASTI milik proses yang sedang berjalan itu
+        // sendiri (bukan sisa sesi lama yang ditinggal), jadi jangan
+        // dianggap gagal dulu.
+        if (this._pendingAction) return;
+
         const leftover = storage.get('temp_attendance');
         if (!leftover || !leftover.action) return;
 
@@ -819,6 +839,30 @@ const absensi = {
             // difilter di browser (itu penyebab history user lain sempat
             // kebaca sebelum filter jalan).
             const result = await api.getAttendance(effectiveId);
+            // [DEBUG SEMENTARA - 23 September 2026] Aman dihapus/dibiarkan -
+            // cuma menampilkan isi respons apa adanya di Console, supaya
+            // tidak perlu bergantung pada log Apps Script (Executions) yang
+            // ternyata lambat/tidak reliable untuk debugging ini.
+            console.log('[DEBUG] effectiveId dikirim:', effectiveId, '| Respons getAttendance:', result);
+            // BUGFIX (23 September 2026): SEBELUMNYA baris ini langsung
+            // `result.data || []` tanpa mengecek result.success - kalau
+            // request ini gagal (timeout, error Firestore di backend, dst),
+            // backend/api.js tetap membalas objek JSON valid berisi
+            // `{success:false, error:...}` (BUKAN exception yang bisa
+            // ketangkap try/catch di bawah) - jadi kegagalan itu senyap
+            // sekali, cuma kelihatan sebagai "Riwayat kosong" tanpa pesan
+            // apa pun ke user maupun ke console. Sekarang kegagalan
+            // ditampilkan lewat toast supaya ketahuan itu benar GAGAL MUAT,
+            // bukan memang belum ada riwayat.
+            if (!result.success) {
+                console.error('Gagal memuat Riwayat Absensi:', result.error);
+                toast.error(result.userMessage || 'Gagal memuat Riwayat Absensi. Coba muat ulang halaman.');
+                this._historyData = [];
+                this._populateHistoryMonthFilter();
+                this.renderHistory(this._getHistoryForSelectedMonth());
+                this.renderHistoryStats(this._getHistoryForSelectedMonth());
+                return;
+            }
             this._historyData = result.data || [];
 
             // Laporan absen luar Unit Wilayah milik karyawan ini sendiri -
