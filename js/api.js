@@ -163,6 +163,32 @@ const api = {
     if (!API_BASE_URL) {
         return this._localLogin(username, password);
     }
+    // Jalur cepat lewat Cloudflare Worker (tidak memakai slot eksekusi Apps
+    // Script - lihat catatan di validateSession di bawah). Worker cuma
+    // boleh menjawab "ok: true" kalau akun+password-nya cocok di D1. Kalau
+    // jawabannya apa pun selain itu (akun belum ter-sync, password beda,
+    // Worker error/timeout), tetap login lewat Apps Script seperti biasa -
+    // jadi hasil login TIDAK PERNAH ditentukan Worker sendirian.
+    if (SESSION_WORKER_URL) {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000);
+        try {
+            const res = await fetch(SESSION_WORKER_URL.replace(/\/+$/, '') + '/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'text/plain' },
+                body: JSON.stringify({ username, password }),
+                signal: controller.signal
+            });
+            const json = await res.json();
+            if (json && json.ok === true && json.data) {
+                return { success: true, data: json.data };
+            }
+        } catch (e) {
+            // Worker tidak terjangkau -> lanjut ke Apps Script di bawah
+        } finally {
+            clearTimeout(timeoutId);
+        }
+    }
     return this.request('login', { username, password });
 },
 
