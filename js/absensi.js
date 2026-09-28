@@ -1026,6 +1026,11 @@ const absensi = {
                     if (!r[field]) return;
                     const lbl = getSessionAttendanceLabel(shiftCfgForLate, r.shift, r.date, field, r[field]);
                     if (lbl && lbl.text === 'Hadir Terlambat') totalHadirTerlambat++;
+                    // (26 September 2026) Istirahat/Kembali yang SANGAT telat
+                    // (label "Terlambat", lihat session-status.js) ikut dihitung
+                    // di badge "Terlambat" - sesi Masuk sudah dihitung di atas,
+                    // jadi di sini cuma breakStart/breakEnd (hindari dobel).
+                    if (lbl && lbl.text === 'Terlambat' && (field === 'breakStart' || field === 'breakEnd')) totalTerlambat++;
                 });
             });
         }
