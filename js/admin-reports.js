@@ -859,7 +859,10 @@ const adminReports = {
             // ASLI (sebelum baris pending izin semu digabung di bawah) -
             // pending izin BUKAN kehadiran, jangan sampai menggelembungkan
             // Total hari (sama seperti renderHistoryStats di absensi.js).
-            const totalTerlambat = rows.filter(r => ['terlambat','late'].includes(String(r.status||'').toLowerCase())).length;
+            // (26 September 2026) + jumlah kejadian Istirahat/Kembali berlabel
+            // "Terlambat" - lihat countBreakSessionsVeryLate() di session-status.js.
+            const totalTerlambat = rows.filter(r => ['terlambat','late'].includes(String(r.status||'').toLowerCase())).length
+                + (typeof countBreakSessionsVeryLate === 'function' ? countBreakSessionsVeryLate(this.shiftTypesConfigFull, rows) : 0);
             let totalHadir = rows.filter(r => ['hadir','ontime','terlambat','late','izin','cuti'].includes(String(r.status||'').toLowerCase())).length;
             const totalHari = rows.length;
 
@@ -1161,7 +1164,10 @@ const adminReports = {
             // (statusnya sudah 'hadir' langsung dari backend) - Izin/Cuti
             // yang disetujui penuh bukan ketidakhadiran. DIHITUNG DARI rows
             // ASLI (sebelum baris pending izin semu digabung di bawah).
-            const totalTerlambat = rows.filter(r => ['terlambat','late'].includes(String(r.status||'').toLowerCase())).length;
+            // (26 September 2026) + jumlah kejadian Istirahat/Kembali berlabel
+            // "Terlambat" - lihat countBreakSessionsVeryLate() di session-status.js.
+            const totalTerlambat = rows.filter(r => ['terlambat','late'].includes(String(r.status||'').toLowerCase())).length
+                + (typeof countBreakSessionsVeryLate === 'function' ? countBreakSessionsVeryLate(this.shiftTypesConfigFull, rows) : 0);
             let totalHadir = rows.filter(r => ['hadir','ontime','terlambat','late','izin','cuti'].includes(String(r.status||'').toLowerCase())).length;
             const totalHari = rows.length;
 
@@ -2321,7 +2327,10 @@ const adminReports = {
         const rows = employees.map((emp, idx) => {
             let attRows = (this.rawAttendance || []).filter(r => String(r.userId) === String(emp.id));
             attRows = this._applyAttendanceDateFilters(attRows, month, dateFrom, dateTo);
-            const terlambat = attRows.filter(r => ['terlambat', 'late'].includes(String(r.status || '').toLowerCase())).length;
+            // (26 September 2026) + Istirahat/Kembali berlabel "Terlambat" - lihat
+            // countBreakSessionsVeryLate() di session-status.js (sama dgn badge).
+            const terlambat = attRows.filter(r => ['terlambat', 'late'].includes(String(r.status || '').toLowerCase())).length
+                + (typeof countBreakSessionsVeryLate === 'function' ? countBreakSessionsVeryLate(this.shiftTypesConfigFull, attRows) : 0);
 
             const hadirDasar = attRows.filter(r => ['hadir', 'ontime', 'terlambat', 'late', 'izin', 'cuti'].includes(String(r.status || '').toLowerCase())).length;
             // [TAMBAHAN] Sesi yang ditandai literal "Hadir (Kendala Teknis)"
@@ -2508,7 +2517,10 @@ const adminReports = {
         employees.forEach(emp => {
             let rows = (this.rawAttendance || []).filter(r => String(r.userId) === String(emp.id));
             rows = this._applyAttendanceDateFilters(rows, month, dateFrom, dateTo);
-            terlambat += rows.filter(r => ['terlambat', 'late'].includes(String(r.status || '').toLowerCase())).length;
+            // (26 September 2026) + Istirahat/Kembali berlabel "Terlambat" - lihat
+            // countBreakSessionsVeryLate() di session-status.js (sama dgn badge).
+            terlambat += rows.filter(r => ['terlambat', 'late'].includes(String(r.status || '').toLowerCase())).length
+                + (typeof countBreakSessionsVeryLate === 'function' ? countBreakSessionsVeryLate(this.shiftTypesConfigFull, rows) : 0);
             tanpaKabar += rows.reduce((count, r) => {
                 return count + ['clockIn', 'breakStart', 'breakEnd', 'clockOut']
                     .filter(field => r[field] === 'Tidak Hadir').length;
