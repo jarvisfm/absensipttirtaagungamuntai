@@ -1151,11 +1151,29 @@ const auth = {
         try {
             const result = await api.login(saved.username, saved.password);
             if (!result.success || !result.data) {
-                toast.error(result.error || 'Login gagal, silakan login manual');
-                // Kredensial tersimpan sudah tidak valid - hapus supaya
-                // tidak terus gagal.
-                storage.remove(this.BIOMETRIC_KEY);
-                if (btn) btn.style.display = 'none';
+                // PERBAIKAN (28 September 2026): SEBELUMNYA kredensial sidik
+                // jari di HP ini DIHAPUS untuk kegagalan APA PUN dari
+                // api.login() - termasuk kegagalan sementara yang bukan
+                // salah akunnya (server Apps Script sedang penuh/timeout,
+                // koneksi putus, respons error non-JSON). Akibatnya satu
+                // kali server lambat saja sudah membuat sidik jari
+                // "hilang" dari HP (toggle di Edit Profil mati, tombol
+                // sidik jari tidak muncul lagi), padahal di server daftar
+                // perangkatnya masih ada. Sekarang kredensial HANYA dihapus
+                // kalau server benar-benar menjawab bahwa username/password
+                // tersimpan itu salah; untuk kegagalan sementara, kredensial
+                // dipertahankan dan user cukup mencoba lagi.
+                const errText = String(result.error || '');
+                const credentialRejected = /password salah|username tidak ditemukan|harus diisi/i.test(errText);
+                if (credentialRejected) {
+                    toast.error(errText || 'Login gagal, silakan login manual');
+                    // Kredensial tersimpan sudah tidak valid - hapus supaya
+                    // tidak terus gagal.
+                    storage.remove(this.BIOMETRIC_KEY);
+                    if (btn) btn.style.display = 'none';
+                } else {
+                    toast.error(result.userMessage || 'Server sedang sibuk atau tidak terjangkau. Sidik jari Anda tetap tersimpan, silakan coba lagi.');
+                }
                 return;
             }
 
