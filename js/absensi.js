@@ -838,6 +838,16 @@ const absensi = {
             // getAllAttendance() yang menarik data semua karyawan lalu
             // difilter di browser (itu penyebab history user lain sempat
             // kebaca sebelum filter jalan).
+            // OPTIMASI KECEPATAN (28 September 2026): laporan luar wilayah dulu
+            // baru diminta SETELAH riwayat selesai (berurutan, 2 round-trip
+            // Apps Script sebelum tabel tampil). Sekarang dimulai bersamaan
+            // dengan riwayat; hasilnya di-await di tempat yang sama seperti
+            // sebelumnya. _getIzinDataOnce() sudah memakai Promise bersama
+            // (lihat penjelasannya di bawah), jadi memulainya lebih awal aman.
+            // .catch(() => null) mencegah error tak tertangani kalau jalur
+            // return awal (result.success false) terpakai.
+            const oowPromise = api.getOutOfWilayahReportsForUser(effectiveId).catch(() => null);
+            const izinPromise = this._getIzinDataOnce(effectiveId).catch(() => null);
             const result = await api.getAttendance(effectiveId);
             // [DEBUG SEMENTARA - 23 September 2026] Aman dihapus/dibiarkan -
             // cuma menampilkan isi respons apa adanya di Console, supaya
@@ -870,7 +880,7 @@ const absensi = {
             // dengan badge "Luar Unit Wilayah", sama polanya dengan badge
             // "Luar Radius" punya adminReports (admin-reports.js).
             try {
-                const oowResult = await api.getOutOfWilayahReportsForUser(effectiveId);
+                const oowResult = await oowPromise;
                 const oowReports = (oowResult && oowResult.success) ? (oowResult.data || []) : [];
                 this._outOfWilayahMap = {};
                 oowReports.forEach(r => {
@@ -888,7 +898,7 @@ const absensi = {
             // Persetujuan". Gagal muat pun tidak boleh menggagalkan render
             // riwayat absensi yang asli - cukup anggap tidak ada izin pending.
             try {
-                const izinRes = await this._getIzinDataOnce(effectiveId);
+                const izinRes = await izinPromise;
                 this._izinDataForHistory = (izinRes && izinRes.success) ? (izinRes.data || []) : [];
             } catch (e) {
                 this._izinDataForHistory = [];
