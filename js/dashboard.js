@@ -24,7 +24,7 @@ const dashboard = {
             const currentUser = auth.getCurrentUser();
             if (currentUser && currentUser.id) {
                 // Fetch attendance and global settings concurrently
-                const [attResult, settingsRes, leaveRes, izinRes, jurnalRes, empRes, allAttRes] = await Promise.all([
+                const [attResult, settingsRes, leaveRes, izinRes, jurnalRes, empRes] = await Promise.all([
                     api.getAttendance(currentUser.id),
                     api.getSettings(),
                     api.getLeaves(currentUser.id).catch(() => ({ success: false })),
@@ -36,15 +36,15 @@ const dashboard = {
                     // getJournals(userId) yang sudah difilter di server (findRows),
                     // payload jauh lebih kecil & tidak perlu baca seluruh sheet.
                     api.getJournals(currentUser.id).catch(() => ({ success: false })),
-                    api.getEmployees().catch(() => ({ success: false })),
-                    // PERBAIKAN PERFORMA: dulu api.getAllAttendance() (SELURUH
-                    // riwayat attendance perusahaan) padahal renderTeamAttendance()
-                    // di bawah cuma pakai baris HARI INI (lihat filter
-                    // `a.date === todayStr` di sana) - baris lain dibuang percuma
-                    // sesudah di-download. Ganti ke versi ringan yang sudah
-                    // difilter di server, payload jauh lebih kecil terutama utk
-                    // koneksi HP.
-                    api.getTodayAttendanceAll().catch(() => ({ success: false }))
+                    api.getEmployees().catch(() => ({ success: false }))
+                    // OPTIMASI KUOTA FIRESTORE (28 September 2026): pemanggilan
+                    // api.getTodayAttendanceAll() DIHAPUS dari sini. Datanya
+                    // (semua karyawan, beberapa hari terakhir) hanya dipakai
+                    // renderTeamAttendance(), padahal fungsi itu sudah TIDAK
+                    // dipanggil dari init() - jadi hasilnya diambil tapi tidak
+                    // pernah tampil. Tiap karyawan yang membuka Dashboard (halaman
+                    // pertama setelah login, ramai di jam masuk) sebelumnya memicu
+                    // ratusan pembacaan Firestore percuma lewat panggilan ini.
                 ]);
 
                 this.attendanceData = (attResult && attResult.success) ? attResult.data : [];
@@ -54,7 +54,10 @@ const dashboard = {
                 // perlu difilter ulang lagi di sini seperti sebelumnya.
                 this.myJurnals = (jurnalRes && jurnalRes.success) ? jurnalRes.data : [];
                 this.allEmployees = (empRes && empRes.success) ? empRes.data : [];
-                this.allAttendance = (allAttRes && allAttRes.success) ? allAttRes.data : [];
+                // Sengaja dibiarkan kosong (lihat catatan di atas) - properti ini
+                // tetap ada supaya renderTeamAttendance() tidak error kalau
+                // suatu saat dipanggil lagi.
+                this.allAttendance = [];
 
                 // Sync global schedule shift mapping from Admin to this employee's local instance
                 if (settingsRes && settingsRes.success && settingsRes.data) {
