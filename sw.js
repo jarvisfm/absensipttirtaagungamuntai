@@ -27,7 +27,7 @@
 // PENTING: naikkan angka versi ini (mis. jadi 'v2') tiap kali index.html/
 // css/js diubah & di-deploy ulang - supaya HP karyawan otomatis ambil versi
 // baru, bukan kepakai cache lama terus-menerus.
-const CACHE_NAME = 'taa-portal-v16';
+const CACHE_NAME = 'taa-portal-v17';
 
 // [TAMBAHAN - Absensi Offline] importScripts() menjalankan kedua file ini
 // SATU KALI di scope Service Worker ini, di-load SEBELUM baris-baris di
@@ -128,6 +128,12 @@ self.addEventListener('fetch', (event) => {
     // Request ke domain lain (Apps Script, CDN, dll) dibiarkan apa adanya -
     // tidak di-intercept sama sekali, supaya selalu fresh dari network.
     if (url.origin !== self.location.origin) return;
+
+    // [TAMBAHAN - 28 September 2026] Pengecekan versi aplikasi (lihat
+    // js/app-update.js) memanggil URL ber-parameter "vcheck" dan HARUS
+    // selalu dari network, bukan dari cache stale-while-revalidate di
+    // bawah - kalau tidak, versi terbaru tidak akan pernah terdeteksi.
+    if (url.searchParams.has('vcheck')) return;
 
     // Strategi: stale-while-revalidate - langsung kasih versi cache (kalau
     // ada) biar cepat & tetap jalan saat offline, TAPI di background selalu
