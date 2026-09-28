@@ -304,7 +304,21 @@ const api = {
             const all = storage.get('attendance', []);
             return { success: true, data: all };
         }
-        return this.request('getAttendance', { userId });
+        // OPTIMASI KUOTA FIRESTORE (28 September 2026): Dashboard dan Riwayat
+        // Absensi sama-sama memanggil ini di sesi yang sama (2x baca penuh
+        // riwayat). Panggilan kedua dalam 45 detik ikut hasil yang pertama.
+        // Dikosongkan otomatis setelah saveAttendance().
+        this._attHistMemo = this._attHistMemo || {};
+        const memoKey = String(userId);
+        const memo = this._attHistMemo[memoKey];
+        if (memo && Date.now() - memo.t < 45000) {
+            return memo.p.then(r => (r && r.success && Array.isArray(r.data)) ? { ...r, data: r.data.slice() } : r);
+        }
+        const p = this.request('getAttendance', { userId });
+        this._attHistMemo[memoKey] = { t: Date.now(), p };
+        p.then(r => { if (!r || !r.success) delete this._attHistMemo[memoKey]; })
+         .catch(() => { delete this._attHistMemo[memoKey]; });
+        return p.then(r => (r && r.success && Array.isArray(r.data)) ? { ...r, data: r.data.slice() } : r);
     },
 
     async getTodayAttendance(userId) {
@@ -363,7 +377,9 @@ const api = {
             storage.set('attendance', all);
             return { success: true, data: data };
         }
-        return this.request('saveAttendance', data);
+        const saveResult = await this.request('saveAttendance', data);
+        this._attHistMemo = {}; // riwayat berubah -> buang memo getAttendance()
+        return saveResult;
     },
 
     async getAllAttendance() {
