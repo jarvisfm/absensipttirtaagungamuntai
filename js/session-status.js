@@ -313,5 +313,32 @@ function getSessionAttendanceLabel(configAll, shiftRaw, dateStr, field, actualVa
         : { late: false, text: 'Hadir Tepat Waktu' };
 }
 
+/**
+ * Hitung jumlah KEJADIAN sesi Istirahat/Kembali yang berlabel "Terlambat"
+ * (tingkat paling telat, lihat getSessionAttendanceLabel di atas) pada
+ * sekumpulan baris Attendance. Dipakai badge/rekap "Terlambat" supaya
+ * sesi Istirahat/Kembali ikut terhitung - sebelumnya badge itu cuma
+ * mencerminkan sesi Masuk. Satu-satunya sumber hitungan ini (dipanggil dari
+ * absensi.js dan admin-reports.js) supaya semua badge & rekap selalu sama.
+ * Aturan barisnya SAMA dengan penghitungan "Hadir Terlambat" per kejadian
+ * di tempat-tempat itu: hanya baris berstatus hadir/ontime/terlambat/late
+ * (baris Izin/Cuti dilewati). Config belum termuat -> 0.
+ */
+function countBreakSessionsVeryLate(configAll, rows) {
+    if (!configAll || !Array.isArray(rows)) return 0;
+    let total = 0;
+    rows.forEach(r => {
+        const statusLower = String(r.status || '').toLowerCase();
+        if (!['hadir', 'ontime', 'terlambat', 'late'].includes(statusLower)) return;
+        ['breakStart', 'breakEnd'].forEach(field => {
+            if (!r[field]) return;
+            const lbl = getSessionAttendanceLabel(configAll, r.shift, r.date, field, r[field]);
+            if (lbl && lbl.text === 'Terlambat') total++;
+        });
+    });
+    return total;
+}
+
 window.getShiftTypesConfigFull = getShiftTypesConfigFull;
 window.getSessionAttendanceLabel = getSessionAttendanceLabel;
+window.countBreakSessionsVeryLate = countBreakSessionsVeryLate;
