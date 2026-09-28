@@ -167,8 +167,13 @@ function _toMinutesSafe(timeStr) {
  * Status 1 SESI - dibandingkan ke "jam target" (bukan batas toleransi
  * terlambat) sesi itu di jadwal:
  * - Istirahat Keluar/Istirahat Masuk: "Hadir Tepat Waktu" kalau <= jam
- *   target, "Hadir Terlambat" kalau lewat (tidak ada batas terlambat &
- *   toleransi terpisah untuk sesi ini, cuma 1 jam target per sesi).
+ *   target. Kalau lewat: 3 TINGKAT (sejak 26 September 2026) memakai
+ *   "Toleransi (menit)" di level grup jadwal, dihitung dari jam target
+ *   sesi ini (BUKAN dari Batas Terlambat Masuk): lewat target s/d target
+ *   + toleransi -> "Hadir Terlambat"; lewat target + toleransi ->
+ *   "Terlambat". Kalau Toleransi grup itu 0/kosong, tetap 2 tingkat
+ *   seperti dulu (lewat target = "Hadir Terlambat") - lihat catatan di
+ *   bawah.
  * - Masuk (clockIn): PAKAI 3 TINGKAT sesuai "Batas Terlambat" & "Toleransi
  *   (menit)" di halaman Jadwal Shift (lihat PERBAIKAN di bawah) - BUKAN
  *   cuma dibanding jam target sesi seperti field lain.
@@ -271,6 +276,36 @@ function getSessionAttendanceLabel(configAll, shiftRaw, dateStr, field, actualVa
     const opensAtMinutes = sesi ? _toMinutesSafe(sesi.opensAt) : null;
     if (opensAtMinutes != null && opensAtMinutes > targetMinutes && actualMinutes >= opensAtMinutes) {
         return { late: false, text: 'Hadir Tepat Waktu' };
+    }
+
+    // PERUBAHAN (26 September 2026): sesi Istirahat & Kembali sekarang
+    // juga 3 tingkat, memakai "Toleransi (menit)" grup jadwal yang sama
+    // dengan sesi Masuk, tapi DIHITUNG dari jam target sesi ini sendiri
+    // (bukan dari Batas Terlambat Masuk): lewat target s/d target +
+    // toleransi -> Hadir Terlambat; lewat target + toleransi ->
+    // Terlambat (flag veryLate - warna merahnya otomatis dari pemanggil
+    // yang sudah membaca lbl.veryLate). SEBELUMNYA absen Istirahat/Kembali
+    // yang telat berjam-jam (mis. jam 07:46 untuk target 00:00) tetap
+    // berlabel "Hadir Terlambat" sama seperti telat semenit.
+    // SENGAJA hanya aktif kalau toleransi grup > 0: banyak grup jadwal
+    // (mis. Reguler Senin-Kamis) toleransinya 0 karena memang tidak ada
+    // masa tenggang untuk Masuk - kalau angka 0 itu ikut dipakai di sini,
+    // setiap Istirahat yang telat 1 menit langsung jadi "Terlambat"
+    // (merah), perubahan besar yang belum diminta. Untuk grup itu perilaku
+    // lama dipertahankan (2 tingkat).
+    // Urutannya sesudah pengecekan seberang-tengah-malam di atas, jadi
+    // absen 23:46 untuk target 00:00 sudah keluar sebagai Tepat Waktu
+    // sebelum sampai sini; yang sampai sini dari shift Malam adalah absen
+    // sesudah tengah malam (00:xx s/d pagi), dihitung terhadap target
+    // 00:00/00:05 secara normal.
+    if ((field === 'breakStart' || field === 'breakEnd') && group) {
+        const toleransiIstirahat = typeof group.toleransi === 'number' ? group.toleransi : 0;
+        if (toleransiIstirahat > 0 && actualMinutes > targetMinutes) {
+            if (actualMinutes <= targetMinutes + toleransiIstirahat) {
+                return { late: true, text: 'Hadir Terlambat' };
+            }
+            return { late: true, veryLate: true, text: 'Terlambat' };
+        }
     }
 
     return actualMinutes > targetMinutes
