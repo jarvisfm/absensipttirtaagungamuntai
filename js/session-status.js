@@ -252,6 +252,27 @@ function getSessionAttendanceLabel(configAll, shiftRaw, dateStr, field, actualVa
         // supaya tetap ada labelnya, bukan kosong sama sekali.
     }
 
+    // BUGFIX (25 September 2026): sesi yang jam target-nya menyeberang
+    // tengah malam (mis. shift Malam: Istirahat target 00:00, Istirahat
+    // Masuk target 00:05, tapi "Mulai bisa absen" 23:45/23:47). Sebagai
+    // "menit dalam sehari", 00:00 = 0 dan 00:05 = 5 - jauh lebih KECIL
+    // dari jam absen sungguhan di malam sebelum tengah malam (mis. 23:46
+    // = 1426), sehingga pembandingan mentah di bawah (1426 > 0) salah
+    // membaca "sudah lewat target" -> Hadir Terlambat, padahal absen
+    // 23:46 itu SEBELUM tengah malam yang dimaksud target 00:00.
+    // Deteksinya pakai "opensAt" sesi ini sendiri: kalau opensAt LEBIH
+    // BESAR dari jam target, berarti target-nya ada di hari berikutnya.
+    // Kalau jam absen sungguhan masih >= opensAt (masih di malam sebelum
+    // tengah malam), itu pasti belum lewat target -> Hadir Tepat Waktu.
+    // Kalau jam absen sudah di dini hari (< opensAt, mis. 00:10 untuk
+    // target 00:05), lanjut ke pembandingan biasa di bawah supaya yang
+    // memang telat sesudah tengah malam tetap benar kebaca Terlambat.
+    // Sesi siang/normal tidak terpengaruh (opensAt-nya selalu <= target).
+    const opensAtMinutes = sesi ? _toMinutesSafe(sesi.opensAt) : null;
+    if (opensAtMinutes != null && opensAtMinutes > targetMinutes && actualMinutes >= opensAtMinutes) {
+        return { late: false, text: 'Hadir Tepat Waktu' };
+    }
+
     return actualMinutes > targetMinutes
         ? { late: true, text: 'Hadir Terlambat' }
         : { late: false, text: 'Hadir Tepat Waktu' };
