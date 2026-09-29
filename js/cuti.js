@@ -233,6 +233,130 @@ const cuti = {
         // > tab Kekaryawanan (field asmenPenyetujuId), backend mengambilnya
         // otomatis di submitLeaveData (Leave.gs). Alur approval-nya sendiri
         // (asmen -> manajer -> direktur) TIDAK berubah.
+
+        // [TAMBAHAN] Lampiran pengajuan cuti (PDF/JPG/PNG, maks 1MB).
+        this._initLampiran();
+    },
+
+    // ========== [TAMBAHAN] LAMPIRAN PENGAJUAN CUTI ==========
+    // Wajib untuk semua jenis cuti KECUALI Cuti Tahunan (opsional). Pola UI
+    // sama dengan lampiran Surat Keterangan di menu Izin/Sakit (izin.js),
+    // bedanya batas ukuran 1MB dan berkas dikirim SEKALIGUS bersama
+    // pengajuan (submitLeave) supaya backend bisa menolak pengajuan yang
+    // lampirannya tidak lengkap - tidak ada pengajuan "menggantung" tanpa
+    // lampiran kalau upload gagal di tengah jalan.
+    LAMPIRAN_MAX_BYTES: 1 * 1024 * 1024, // 1MB
+    currentLampiran: null,
+
+    _initLampiran() {
+        if (this._lampiranListenerAttached) return;
+        const box = document.getElementById('cuti-file-upload');
+        const input = document.getElementById('cuti-document');
+        const removeBtn = document.getElementById('cuti-btn-remove-file');
+        const typeSelect = document.getElementById('leave-type');
+        if (!box || !input) return;
+
+        box.addEventListener('click', (e) => {
+            // Klik tombol hapus jangan ikut membuka dialog pilih berkas
+            if (e.target.closest('#cuti-btn-remove-file')) return;
+            if (this.currentLampiran) return;
+            input.click();
+        });
+        box.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            box.classList.add('dragover');
+        });
+        box.addEventListener('dragleave', () => box.classList.remove('dragover'));
+        box.addEventListener('drop', (e) => {
+            e.preventDefault();
+            box.classList.remove('dragover');
+            if (e.dataTransfer.files.length) this.handleLampiran(e.dataTransfer.files[0]);
+        });
+        input.addEventListener('change', (e) => {
+            if (e.target.files.length) this.handleLampiran(e.target.files[0]);
+        });
+        if (removeBtn) {
+            removeBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.removeLampiran();
+            });
+        }
+        if (typeSelect) {
+            typeSelect.addEventListener('change', () => this._updateLampiranLabel());
+        }
+        this._updateLampiranLabel();
+        this._lampiranListenerAttached = true;
+    },
+
+    // Label "(Opsional)" untuk Cuti Tahunan, "(Wajib)" untuk jenis lainnya
+    _updateLampiranLabel() {
+        const label = document.getElementById('cuti-file-req');
+        const typeSelect = document.getElementById('leave-type');
+        if (!label || !typeSelect) return;
+        if (typeSelect.value === 'annual') {
+            label.textContent = '(Opsional)';
+        } else if (typeSelect.value) {
+            label.textContent = '(Wajib)';
+        } else {
+            label.textContent = '(Wajib, kecuali Cuti Tahunan)';
+        }
+    },
+
+    _resolveLampiranMime(file) {
+        let mime = (file.type || '').toLowerCase();
+        if (mime === 'image/jpg') mime = 'image/jpeg';
+        if (!mime) {
+            const ext = (file.name.split('.').pop() || '').toLowerCase();
+            mime = { pdf: 'application/pdf', jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png' }[ext] || '';
+        }
+        return mime;
+    },
+
+    handleLampiran(file) {
+        const allowedTypes = ['application/pdf', 'image/jpeg', 'image/png'];
+
+        if (file.size > this.LAMPIRAN_MAX_BYTES) {
+            toast.error('File terlalu besar. Maksimum 1MB');
+            this._resetLampiranInput();
+            return;
+        }
+        if (!allowedTypes.includes(this._resolveLampiranMime(file))) {
+            toast.error('Format file tidak didukung. Gunakan PDF, JPG, atau PNG');
+            this._resetLampiranInput();
+            return;
+        }
+
+        this.currentLampiran = file;
+
+        const uploadArea = document.getElementById('cuti-upload-area');
+        const filePreview = document.getElementById('cuti-file-preview');
+        const filename = filePreview?.querySelector('.filename');
+        if (uploadArea) uploadArea.style.display = 'none';
+        if (filePreview) filePreview.style.display = 'flex';
+        if (filename) filename.textContent = file.name;
+    },
+
+    _resetLampiranInput() {
+        const input = document.getElementById('cuti-document');
+        if (input) input.value = '';
+    },
+
+    removeLampiran() {
+        this.currentLampiran = null;
+        const uploadArea = document.getElementById('cuti-upload-area');
+        const filePreview = document.getElementById('cuti-file-preview');
+        if (uploadArea) uploadArea.style.display = 'block';
+        if (filePreview) filePreview.style.display = 'none';
+        this._resetLampiranInput();
+    },
+
+    _readFileAsBase64(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = (e) => resolve(String(e.target.result).split(',')[1] || '');
+            reader.onerror = () => reject(new Error('Gagal membaca berkas lampiran'));
+            reader.readAsDataURL(file);
+        });
     },
 
     // Tampilkan & isi dropdown "Pilih Asmen" kalau user yang login role-nya
@@ -327,6 +451,14 @@ const cuti = {
             }
         }
 
+        // [TAMBAHAN] Lampiran WAJIB untuk semua jenis cuti kecuali Cuti
+        // Tahunan. Ini pre-check UX saja - validasi final ada di backend
+        // (submitLeaveData di Leave.gs).
+        if (type.value !== 'annual' && !this.currentLampiran) {
+            toast.error('Lampiran wajib disertakan untuk jenis cuti ini (PDF/JPG/PNG, maks 1MB)!');
+            return;
+        }
+
         const typeLabels = {
             annual: 'Cuti Tahunan',
             important: 'Cuti Alasan Penting',
@@ -356,6 +488,19 @@ const cuti = {
             phone: phone?.value || ''
         };
 
+        // [TAMBAHAN] Sertakan lampiran (base64) dalam pengajuan yang sama
+        if (this.currentLampiran) {
+            try {
+                leaveData.lampiranBase64 = await this._readFileAsBase64(this.currentLampiran);
+                leaveData.lampiranMime = this._resolveLampiranMime(this.currentLampiran);
+                leaveData.lampiranName = this.currentLampiran.name;
+            } catch (err) {
+                console.error('Gagal membaca lampiran cuti:', err);
+                toast.error('Gagal membaca berkas lampiran. Silakan pilih ulang file.');
+                return;
+            }
+        }
+
         try {
             const result = await api.submitLeave(leaveData);
             if (result.success) {
@@ -377,6 +522,8 @@ const cuti = {
         document.getElementById('leave-duration').value = '';
         const balanceHint = document.getElementById('leave-balance-hint');
         if (balanceHint) balanceHint.style.display = 'none';
+        this.removeLampiran();
+        this._updateLampiranLabel();
 
         this.renderLeaveList();
         this.updateStats();
