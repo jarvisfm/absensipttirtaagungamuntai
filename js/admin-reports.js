@@ -326,6 +326,7 @@ const adminReports = {
                     directorNik:       l.directorNik       || '',
                     directorApprovedAt: l.directorApprovedAt || '',
                     directorNote:      l.directorNote      || '',
+                    rejectedBy:        l.rejectedBy        || '',
                     rejectedByRole:    l.rejectedByRole    || '',
                     rejectedNote:      l.rejectedNote      || '',
                     tundaSampai:       l.tundaSampai       || '',
@@ -394,6 +395,7 @@ const adminReports = {
                     directorNik:       i.directorNik       || '',
                     directorApprovedAt: i.directorApprovedAt || '',
                     directorNote:      i.directorNote      || '',
+                    rejectedBy:        i.rejectedBy        || '',
                     rejectedByRole:    i.rejectedByRole    || '',
                     rejectedNote:      i.rejectedNote      || '',
                     cancelledNote:        i.cancelledNote        || '',
@@ -1775,6 +1777,15 @@ const adminReports = {
         });
     },
 
+    // [TAMBAHAN] Keputusan tahap Direktur yang diambil ADMIN (mewakili)
+    // tercatat dengan nama literal "Admin" (lihat submitApproval() di
+    // bawah) - helper ini mengenali penanda itu supaya teks statusnya
+    // jadi "Disetujui atau diwakilkan oleh Admin", bukan "Disetujui oleh
+    // Direktur"/"Disetujui oleh Admin" polos.
+    _isAdminProxy(name) {
+        return String(name || '').trim().toLowerCase() === 'admin';
+    },
+
     _formatStageDateTime(iso) {
         if (!iso) return '';
         const d = new Date(iso);
@@ -1798,7 +1809,7 @@ const adminReports = {
                     <div class="approval-step-label">${s.label}</div>
                     <div class="approval-step-status">
                         ${s.state === 'done'
-                            ? `Disetujui oleh <strong>${s.name}</strong>${s.at ? ' &middot; ' + this._formatStageDateTime(s.at) : ''}`
+                            ? `${(s.key === 'direktur' && this._isAdminProxy(s.name)) ? 'Disetujui atau diwakilkan oleh' : 'Disetujui oleh'} <strong>${s.name}</strong>${s.at ? ' &middot; ' + this._formatStageDateTime(s.at) : ''}`
                             : s.state === 'current' ? 'Menunggu persetujuan...'
                             : s.state === 'skipped' ? 'Tidak dilanjutkan'
                             : 'Menunggu tahap sebelumnya'}
@@ -1809,9 +1820,9 @@ const adminReports = {
 
         let footerHtml = '';
         if (row.status === 'rejected') {
-            footerHtml = `<div class="approval-step-final rejected"><i class="fas fa-ban"></i> Pengajuan ini ditolak${row.rejectedByRole ? ' oleh ' + row.rejectedByRole : ''}${row.rejectedNote ? ': "' + row.rejectedNote + '"' : ''}</div>`;
+            footerHtml = `<div class="approval-step-final rejected"><i class="fas fa-ban"></i> Pengajuan ini ditolak${this._isAdminProxy(row.rejectedBy) ? ' atau diwakilkan oleh Admin' : (row.rejectedByRole ? ' oleh ' + row.rejectedByRole : '')}${row.rejectedNote ? ': "' + row.rejectedNote + '"' : ''}</div>`;
         } else if (row.status === 'ditunda') {
-            footerHtml = `<div class="approval-step-final postponed"><i class="fas fa-pause-circle"></i> Ditunda oleh Direktur${row.tundaSampai ? ' sampai ' + row.tundaSampai : ''}${row.directorNote ? ': "' + row.directorNote + '"' : ''}</div>`;
+            footerHtml = `<div class="approval-step-final postponed"><i class="fas fa-pause-circle"></i> ${this._isAdminProxy(row.directorName) ? 'Ditunda atau diwakilkan oleh Admin' : 'Ditunda oleh Direktur'}${row.tundaSampai ? ' sampai ' + row.tundaSampai : ''}${row.directorNote ? ': "' + row.directorNote + '"' : ''}</div>`;
         } else if (row.status === 'cancelled') {
             footerHtml = `<div class="approval-step-final cancelled"><i class="fas fa-ban"></i> Dibatalkan oleh pemohon${row.cancelledNote ? ': "' + row.cancelledNote + '"' : ''}</div>`;
         }
