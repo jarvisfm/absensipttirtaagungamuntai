@@ -106,6 +106,50 @@
     color: var(--text-secondary);
 }
 
+/* PENAMBAHAN: status "memuat" untuk kartu Shift & jam di bagian atas halaman
+   Absensi. Dulu jam menampilkan teks bawaan "12:00:00" / "Senin, 7 Maret
+   2026" yang kelihatan seperti jam asli selama data belum selesai dimuat,
+   sehingga user tidak bisa membedakan "sedang loading" atau "memang
+   begitu". Sekarang selama loading: teks jadi abu-abu, berkedip pelan, dan
+   jam diberi ikon lingkaran berputar. Class "is-loading" dipasang lewat
+   HTML/JS (lihat init() di absensi.js) dan dilepas otomatis begitu data
+   asli datang (lihat _clearHeaderLoading()). */
+.absensi-header .live-clock.is-loading,
+.absensi-header .live-date.is-loading,
+.absensi-header .shift-name.is-loading,
+.absensi-header .shift-time.is-loading {
+    color: var(--text-muted);
+    animation: header-loading-pulse 1.2s ease-in-out infinite;
+}
+
+.absensi-header .live-clock.is-loading::before {
+    content: '';
+    display: inline-block;
+    width: 0.55em;
+    height: 0.55em;
+    margin-right: 0.4em;
+    border: 2px solid currentColor;
+    border-top-color: transparent;
+    border-radius: 50%;
+    vertical-align: middle;
+    animation: status-icon-spin 0.8s linear infinite;
+}
+
+@keyframes header-loading-pulse {
+    0%, 100% { opacity: 1; }
+    50%      { opacity: 0.45; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .absensi-header .live-clock.is-loading,
+    .absensi-header .live-date.is-loading,
+    .absensi-header .shift-name.is-loading,
+    .absensi-header .shift-time.is-loading,
+    .absensi-header .live-clock.is-loading::before {
+        animation: none !important;
+    }
+}
+
 /* Grid Layout */
 .absensi-grid {
     display: grid;
@@ -229,6 +273,50 @@
 
 @keyframes status-icon-spin {
     to { transform: rotate(360deg); }
+}
+
+/* PERUBAHAN (loading ikon jam): sebelumnya saat memuat, lingkaran status
+   masih berwarna & berdenyut oranye persis seperti kondisi "Siap Absen
+   Masuk" yang asli, dan ikon jam-nya cuma berputar di tempat (jam bulat
+   nyaris tidak kelihatan berputar) - jadi user tidak bisa membedakan
+   sedang loading atau sudah siap. Sekarang selama "is-loading": lingkaran
+   jadi abu-abu redup, denyut oranye dimatikan, ikon jam abu-abu & diam,
+   dan ada busur oranye yang berputar mengelilingi lingkaran (spinner
+   jelas). Class ini dipasang lewat init() di absensi.js & dilepas
+   otomatis oleh updateUI() begitu data asli dari server datang. Aturan
+   ini sengaja diletakkan SETELAH .status-ring.waiting/active/dst supaya
+   menimpanya. */
+.status-ring.is-loading {
+    background: rgba(148, 163, 184, 0.08);
+    border-color: rgba(148, 163, 184, 0.35);
+    animation: none;
+}
+
+.status-ring.is-loading::after {
+    content: '';
+    position: absolute;
+    inset: -3px;
+    border-radius: 50%;
+    border: 3px solid transparent;
+    border-top-color: var(--color-primary);
+    border-right-color: var(--color-primary);
+    animation: status-icon-spin 0.9s linear infinite;
+}
+
+.status-ring.is-loading .status-icon {
+    background: linear-gradient(135deg, #CBD5E1 0%, #E2E8F0 100%);
+    color: var(--color-white);
+}
+
+.status-ring.is-loading .status-icon i {
+    animation: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .status-ring.is-loading::after {
+        animation: none;
+        border-color: var(--color-primary);
+    }
 }
 
 .status-text {
