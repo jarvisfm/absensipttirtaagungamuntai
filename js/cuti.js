@@ -811,6 +811,7 @@ const cuti = {
             // otomatis mengambil field yang benar-benar terisi paling
             // akhir/senior untuk kedua kasus itu.
             const nama = item.directorName || item.hrManagerName || item.managerName || item.asmenName || '';
+            if (nama && this._isAdminProxy(nama)) return 'Disetujui atau diwakilkan oleh Admin';
             return nama ? `Disetujui oleh ${nama}` : this.getStatusLabel(item.status);
         }
         if (item.status !== 'pending' && item.status !== 'asmen_approved' && item.status !== 'manajer_bidang_approved') {
@@ -898,6 +899,15 @@ const cuti = {
         });
     },
 
+    // [TAMBAHAN] Keputusan tahap Direktur yang diambil ADMIN (mewakili)
+    // tercatat dengan nama literal "Admin" (lihat submitApproval() di
+    // bawah) - helper ini mengenali penanda itu supaya teks statusnya
+    // jadi "Disetujui atau diwakilkan oleh Admin", bukan "Disetujui oleh
+    // Direktur"/"Disetujui oleh Admin" polos.
+    _isAdminProxy(name) {
+        return String(name || '').trim().toLowerCase() === 'admin';
+    },
+
     // Format tanggal-jam ISO jadi "31 Agu 2026, 14.05" - dipakai stepper.
     _formatStageDateTime(iso) {
         if (!iso) return '';
@@ -921,7 +931,7 @@ const cuti = {
                     <div class="approval-step-label">${s.label}</div>
                     <div class="approval-step-status">
                         ${s.state === 'done'
-                            ? `Disetujui oleh <strong>${s.name}</strong>${s.at ? ' &middot; ' + this._formatStageDateTime(s.at) : ''}`
+                            ? `${(s.key === 'direktur' && this._isAdminProxy(s.name)) ? 'Disetujui atau diwakilkan oleh' : 'Disetujui oleh'} <strong>${s.name}</strong>${s.at ? ' &middot; ' + this._formatStageDateTime(s.at) : ''}`
                             : s.state === 'current' ? 'Menunggu persetujuan...'
                             : s.state === 'skipped' ? 'Tidak dilanjutkan'
                             : 'Menunggu tahap sebelumnya'}
@@ -932,9 +942,9 @@ const cuti = {
 
         let footerHtml = '';
         if (item.status === 'rejected') {
-            footerHtml = `<div class="approval-step-final rejected"><i class="fas fa-ban"></i> Pengajuan ini ditolak${item.rejectedByRole ? ' oleh ' + item.rejectedByRole : ''}${item.rejectedNote ? ': "' + item.rejectedNote + '"' : ''}</div>`;
+            footerHtml = `<div class="approval-step-final rejected"><i class="fas fa-ban"></i> Pengajuan ini ditolak${this._isAdminProxy(item.rejectedBy) ? ' atau diwakilkan oleh Admin' : (item.rejectedByRole ? ' oleh ' + item.rejectedByRole : '')}${item.rejectedNote ? ': "' + item.rejectedNote + '"' : ''}</div>`;
         } else if (item.status === 'ditunda') {
-            footerHtml = `<div class="approval-step-final postponed"><i class="fas fa-pause-circle"></i> Ditunda oleh Direktur${item.tundaSampai ? ' sampai ' + item.tundaSampai : ''}${item.directorNote ? ': "' + item.directorNote + '"' : ''}</div>`;
+            footerHtml = `<div class="approval-step-final postponed"><i class="fas fa-pause-circle"></i> ${this._isAdminProxy(item.directorName) ? 'Ditunda atau diwakilkan oleh Admin' : 'Ditunda oleh Direktur'}${item.tundaSampai ? ' sampai ' + item.tundaSampai : ''}${item.directorNote ? ': "' + item.directorNote + '"' : ''}</div>`;
         } else if (item.status === 'cancelled') {
             footerHtml = `<div class="approval-step-final cancelled"><i class="fas fa-ban"></i> Dibatalkan oleh pemohon${item.cancelledNote ? ': "' + item.cancelledNote + '"' : ''}</div>`;
         }
@@ -1415,6 +1425,12 @@ const cuti = {
             </div>
 
             ${this._renderLampiranCutiHtml(item)}
+
+            ${(role === 'direktur' && auth.isAdmin()) ? `
+            <div style="margin-top:14px;padding:10px 14px;border-radius:10px;background:rgba(245,158,11,0.10);border-left:3px solid var(--color-primary);font-size:0.82rem;color:var(--text-primary);line-height:1.5;">
+                <i class="fas fa-user-shield" style="margin-right:6px;color:var(--color-primary);"></i>
+                Anda memproses ini <strong>mewakili Direktur</strong>. Di riwayat, keputusan akan tercatat sebagai <strong>diwakilkan oleh Admin</strong>.
+            </div>` : ''}
 
             <div class="form-group" style="margin-top:14px;">
                 <label for="approval-catatan-cuti">Catatan${role === 'asmen' ? ' (opsional)' : ''}</label>
