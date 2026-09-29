@@ -874,7 +874,11 @@ const absensi = {
             // return awal (result.success false) terpakai.
             const oowPromise = api.getOutOfWilayahReportsForUser(effectiveId).catch(() => null);
             const izinPromise = this._getIzinDataOnce(effectiveId).catch(() => null);
-            const result = await api.getAttendance(effectiveId);
+            // RIWAYAT TERBATAS (29 September 2026): default 6 bulan terakhir;
+            // kalau karyawan ini sudah menekan "Muat riwayat lebih lama"
+            // (0 = seluruh histori), refresh berikutnya ikut memuat semuanya.
+            const loadedAll = this._historyLoadedAllFor === String(effectiveId);
+            const result = await api.getAttendance(effectiveId, loadedAll ? 0 : undefined);
             // [DEBUG SEMENTARA - 23 September 2026] Aman dihapus/dibiarkan -
             // cuma menampilkan isi respons apa adanya di Console, supaya
             // tidak perlu bergantung pada log Apps Script (Executions) yang
@@ -900,6 +904,7 @@ const absensi = {
                 return;
             }
             this._historyData = result.data || [];
+            this._historyHasMore = !loadedAll && !!result.hasMore;
 
             // Laporan absen luar Unit Wilayah milik karyawan ini sendiri -
             // dipakai renderHistory() untuk menandai jam yang bersangkutan
@@ -933,8 +938,63 @@ const absensi = {
             this._populateHistoryMonthFilter();
             this.renderHistory(this._getHistoryForSelectedMonth());
             this.renderHistoryStats(this._getHistoryForSelectedMonth());
+            this._renderHistoryMoreButton();
         } catch (e) {
             console.error('Error loading history:', e);
+        }
+    },
+
+    // Tombol "Muat riwayat lebih lama" - dibuat lewat JS (tidak mengubah
+    // index.html), dipasang tepat di bawah tabel Riwayat. Hanya tampil kalau
+    // server bilang masih ada riwayat yang lebih lama dari 6 bulan terakhir.
+    _renderHistoryMoreButton() {
+        const tbody = document.getElementById('attendance-history');
+        const wrapper = tbody ? tbody.closest('.history-table-wrapper') : null;
+        if (!wrapper) return;
+        let box = document.getElementById('attendance-history-more');
+        if (!this._historyHasMore) {
+            if (box) box.remove();
+            return;
+        }
+        if (box) return;
+        box = document.createElement('div');
+        box.id = 'attendance-history-more';
+        box.style.cssText = 'padding:12px var(--spacing-md);text-align:center;font-size:0.8rem;';
+        box.innerHTML =
+            '<div style="margin-bottom:8px;opacity:.75;">Menampilkan 6 bulan terakhir.</div>' +
+            '<button type="button" id="attendance-history-more-btn" ' +
+            'style="padding:8px 14px;border:1px solid var(--border-color);border-radius:8px;background:none;cursor:pointer;font-size:0.85rem;">' +
+            'Muat riwayat lebih lama</button>';
+        wrapper.insertAdjacentElement('afterend', box);
+        box.querySelector('#attendance-history-more-btn').addEventListener('click', (e) => {
+            this.loadOlderHistory(e.currentTarget);
+        });
+    },
+
+    // Ambil SELURUH histori karyawan ini (months = 0), dipanggil tombol di atas.
+    async loadOlderHistory(btn) {
+        const label = btn ? btn.textContent : '';
+        if (btn) { btn.disabled = true; btn.textContent = 'Memuat...'; }
+        try {
+            const user = auth.getCurrentUser();
+            if (!user) return;
+            const effectiveId = user.employeeId || user.id;
+            const result = await api.getAttendance(effectiveId, 0);
+            if (!result || !result.success) {
+                toast.error((result && result.userMessage) || 'Gagal memuat riwayat lebih lama. Coba lagi.');
+                if (btn) { btn.disabled = false; btn.textContent = label; }
+                return;
+            }
+            this._historyData = result.data || [];
+            this._historyLoadedAllFor = String(effectiveId);
+            this._historyHasMore = false;
+            this._populateHistoryMonthFilter();
+            this.renderHistory(this._getHistoryForSelectedMonth());
+            this.renderHistoryStats(this._getHistoryForSelectedMonth());
+            this._renderHistoryMoreButton();
+        } catch (e) {
+            console.error('Gagal memuat riwayat lebih lama:', e);
+            if (btn) { btn.disabled = false; btn.textContent = label; }
         }
     },
 
