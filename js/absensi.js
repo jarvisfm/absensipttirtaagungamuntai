@@ -1628,6 +1628,33 @@ const absensi = {
         return false;
     },
 
+    // PERBAIKAN (29 September 2026): pada shift yang MELEWATI TENGAH MALAM
+    // (Masuk malam, Pulang pagi - mis. Jaga Malam dengan sesi Masuk -> Malam
+    // -> Malam 2 -> Pulang), tombol Pulang ikut menyala begitu sesi Malam
+    // muncul/terbuka, sehingga karyawan bisa menekan Pulang padahal sesi
+    // Malam/Malam 2 belum diabsen. Sekarang Pulang baru bisa ditekan setelah
+    // SEMUA sesi antara (breakStart/breakEnd) terisi. Balikin label sesi
+    // antara pertama yang belum terisi (dipakai untuk pesan), atau null kalau
+    // Pulang boleh ditekan. Shift yang TIDAK melewati tengah malam (Reguler,
+    // Jumat, TRD, dst) atau tidak punya sesi antara TIDAK terpengaruh -
+    // fungsi ini selalu balikin null untuk mereka.
+    _getPulangBlockingSession() {
+        const sessions = this._getSessions();
+        const masuk  = sessions.find(s => s.field === 'clockIn');
+        const pulang = sessions.find(s => s.field === 'clockOut');
+        if (!masuk || !masuk.opensAt || !pulang || !pulang.time) return null;
+
+        const masukOpenMin = this._toMinutes(masuk.opensAt);
+        const pulangMin    = this._toMinutes(pulang.time);
+        if (!(pulangMin < masukOpenMin)) return null; // bukan shift lintas tengah malam
+
+        const d = this.attendanceData || {};
+        const pending = sessions.find(s =>
+            (s.field === 'breakStart' || s.field === 'breakEnd') && !d[s.field]
+        );
+        return pending ? (pending.label || 'sesi sebelumnya') : null;
+    },
+
     // Balikin true (dan tampilkan notifikasi + arahkan ke halaman Profil)
     // kalau user belum punya foto profil, supaya pemanggil bisa langsung
     // "return" tanpa lanjut membuka kamera/face-recognition.
@@ -1747,6 +1774,13 @@ const absensi = {
         const hasBreakEndSession = this._getSessions().some(s => s.field === 'breakEnd');
         if (hasBreakEndSession && this.attendanceData.breakStart && !this.attendanceData.breakEnd) {
             toast.warning('Selesaikan absen istirahat masuk terlebih dahulu');
+            return;
+        }
+
+        // PERBAIKAN (29 September 2026): lihat _getPulangBlockingSession().
+        const sesiPenghalangPulang = this._getPulangBlockingSession();
+        if (sesiPenghalangPulang) {
+            toast.warning(`Selesaikan absen ${sesiPenghalangPulang} terlebih dahulu sebelum Pulang`);
             return;
         }
 
@@ -2266,7 +2300,7 @@ const absensi = {
             // Jadwal Shift (mis. "Pulang"), bukan teks tetap.
             const outLabelEl = btnOut.querySelector('.btn-label');
             if (outLabelEl && sesiPulang && sesiPulang.label) outLabelEl.textContent = sesiPulang.label;
-            btnOut.disabled = !d.clockIn || !!d.clockOut || pulangBelumBuka;
+            btnOut.disabled = !d.clockIn || !!d.clockOut || pulangBelumBuka || !!this._getPulangBlockingSession();
             const el = document.getElementById('clock-out-time');
             if (d.clockOut) {
                 btnOut.classList.add('completed');
