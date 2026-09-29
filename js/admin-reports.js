@@ -298,6 +298,8 @@ const adminReports = {
                         : l.type === 'other' ? 'Keterangan Lain-lain'
                         : (l.typeLabel || l.type || 'Cuti'),
                     rawType: l.type || '',
+                    hasAttachment: l.hasAttachment === true || l.hasAttachment === 'true' || l.hasAttachment === 'TRUE',
+                    fileUrl: l.fileUrl || '',
                     dates: l.startDate && l.endDate
                         ? (l.startDate === l.endDate
                             ? dateTime.formatDate(l.startDate, 'dmy')
@@ -2647,7 +2649,7 @@ const adminReports = {
                 </div>
             </div>` : '';
 
-        const attachmentHtml = row.kind === 'izin'
+        const attachmentHtml = (row.kind === 'izin' || row.kind === 'leave')
             ? (row.fileUrl
                 ? `<a href="${row.fileUrl}" target="_blank" style="display:flex;align-items:center;gap:8px;background:rgba(16,185,129,0.1);color:#10B981;border-radius:8px;padding:10px 12px;font-size:0.85rem;font-weight:600;margin-top:12px;text-decoration:none;">
                         <i class="fas fa-file-import"></i> Lihat Surat Lampiran <i class="fas fa-external-link-alt" style="margin-left:auto;font-size:0.75rem;"></i>
