@@ -299,7 +299,8 @@ const api = {
         return this.request('checkAttendanceAccess', { userId });
     },
 
-    async getAttendance(userId) {
+    async getAttendance(userId, months = 6) {
+        // months = 6 (default): hanya 6 bulan terakhir. Kirim 0 untuk seluruh histori.
         if (!API_BASE_URL) {
             const all = storage.get('attendance', []);
             return { success: true, data: all };
@@ -309,12 +310,12 @@ const api = {
         // riwayat). Panggilan kedua dalam 45 detik ikut hasil yang pertama.
         // Dikosongkan otomatis setelah saveAttendance().
         this._attHistMemo = this._attHistMemo || {};
-        const memoKey = String(userId);
+        const memoKey = String(userId) + '|' + months;
         const memo = this._attHistMemo[memoKey];
         if (memo && Date.now() - memo.t < 45000) {
             return memo.p.then(r => (r && r.success && Array.isArray(r.data)) ? { ...r, data: r.data.slice() } : r);
         }
-        const p = this.request('getAttendance', { userId });
+        const p = this.request('getAttendance', { userId, months });
         this._attHistMemo[memoKey] = { t: Date.now(), p };
         p.then(r => { if (!r || !r.success) delete this._attHistMemo[memoKey]; })
          .catch(() => { delete this._attHistMemo[memoKey]; });
