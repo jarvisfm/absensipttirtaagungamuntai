@@ -516,8 +516,8 @@
                         <div class="absensi-header">
                             <div class="shift-info">
                                 <span class="shift-label">Shift Anda</span>
-                                <h2 class="shift-name" id="current-shift-name">Pagi</h2>
-                                <p class="shift-time" id="current-shift-time">08:00 - 17:00</p>
+                                <h2 class="shift-name is-loading" id="current-shift-name">Memuat jadwal...</h2>
+                                <p class="shift-time is-loading" id="current-shift-time">Mengecek jam kerja Anda</p>
                                 <!-- Badge kecil "Menunggu Approval" - muncul kalau ada Surat
                                      Tugas/SPPD yang masih pending, lihat
                                      absensi.refreshSuratTugasBadge() di js/absensi.js. -->
@@ -526,8 +526,8 @@
                                 </span>
                             </div>
                             <div class="current-datetime">
-                                <div class="live-clock" id="live-clock">12:00:00</div>
-                                <div class="live-date" id="live-date">Senin, 7 Maret 2026</div>
+                                <div class="live-clock is-loading" id="live-clock">--:--:--</div>
+                                <div class="live-date is-loading" id="live-date">Memuat tanggal...</div>
                             </div>
                         </div>
 
