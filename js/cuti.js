@@ -359,6 +359,31 @@ const cuti = {
         });
     },
 
+    // Blok tampilan lampiran cuti untuk modal approval (Asmen/Manajer/
+    // Direktur). Cuti Tahunan / data lama yang memang tanpa lampiran
+    // menampilkan keterangan "Tidak ada lampiran".
+    _renderLampiranCutiHtml(item) {
+        const label = '<div style="font-size:0.72rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.02em;margin-bottom:6px;">Lampiran</div>';
+        if (item.fileUrl) {
+            return `
+            <div style="margin-top:14px;">
+                ${label}
+                <a href="${item.fileUrl}" target="_blank" rel="noopener" style="display:flex;align-items:center;gap:10px;background:var(--color-gray-50);border-radius:10px;padding:12px 14px;text-decoration:none;color:var(--color-primary);font-size:0.88rem;font-weight:600;">
+                    <i class="fas fa-file-pdf" style="font-size:1.1rem;"></i>
+                    Lihat Lampiran yang Disertakan
+                    <i class="fas fa-external-link-alt" style="margin-left:auto;font-size:0.75rem;"></i>
+                </a>
+            </div>`;
+        }
+        return `
+            <div style="margin-top:14px;">
+                ${label}
+                <div style="display:flex;align-items:center;gap:8px;background:var(--color-gray-50);color:var(--text-muted);border-radius:10px;padding:12px 14px;font-size:0.85rem;">
+                    <i class="fas fa-paperclip"></i> Tidak ada lampiran
+                </div>
+            </div>`;
+    },
+
     // Tampilkan & isi dropdown "Pilih Asmen" kalau user yang login role-nya
     // staff — sama seperti alur Surat Permohonan Izin (izin.js).
     async _setupAsmenDropdown() {
@@ -660,6 +685,13 @@ const cuti = {
                             </span>
                         </div>
                         <p class="leave-reason">${leave.reason}</p>
+                        ${leave.fileUrl ? `
+                            <div style="margin-top:8px;">
+                                <a href="${leave.fileUrl}" target="_blank" rel="noopener" class="btn-small btn-outline" style="text-decoration:none;">
+                                    <i class="fas fa-paperclip"></i> Lihat Lampiran
+                                </a>
+                            </div>
+                        ` : ''}
                         ${leave.directorNote ? `
                             <div style="margin-top:8px;padding:8px 12px;border-radius:8px;background:rgba(59,130,246,0.08);border-left:3px solid var(--color-primary);font-size:var(--font-size-sm);color:var(--text-secondary);">
                                 <i class="fas fa-comment-dots" style="margin-right:6px;"></i>
@@ -1381,6 +1413,8 @@ const cuti = {
                 <div style="font-size:0.72rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.02em;margin-bottom:6px;">Untuk Keperluan</div>
                 <div style="background:var(--color-gray-50);border-radius:10px;padding:12px 14px;font-size:0.88rem;color:var(--text-primary);line-height:1.5;">${item.reason || '-'}</div>
             </div>
+
+            ${this._renderLampiranCutiHtml(item)}
 
             <div class="form-group" style="margin-top:14px;">
                 <label for="approval-catatan-cuti">Catatan${role === 'asmen' ? ' (opsional)' : ''}</label>
