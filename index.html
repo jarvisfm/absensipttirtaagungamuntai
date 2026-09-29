@@ -260,6 +260,28 @@
                                 <span>Approval Surat Tugas</span>
                             </a>
                         </li>
+                        <!-- TAMBAHAN: "Approval Direktur" versi Menu Admin.
+                             Item ASLI (id="nav-approval-direktur") ada di
+                             <nav id="employee-menu"> ("Menu Utama"), yang
+                             SELURUHNYA disembunyikan (class "hidden" di
+                             <nav>-nya sendiri) setiap admin TIDAK sedang di
+                             Mode Karyawan - jadi item aslinya tidak pernah
+                             kelihatan buat admin yang jabatan aslinya BUKAN
+                             Direktur (mis. M. Azemi, Asmen), padahal
+                             updateApprovalNav() di auth.js sudah bilang
+                             menu ini seharusnya muncul untuk isAdmin().
+                             Item ini data-page-nya SAMA ("approval-direktur")
+                             jadi diarahkan router.js ke halaman yang sama
+                             persis, tanpa mengubah kode approval yang sudah
+                             ada. Tidak perlu class "hidden" di sini - <ul>
+                             ini sendiri cuma pernah dirender saat role
+                             admin (lihat showApp() di auth.js). -->
+                        <li class="nav-item" data-page="approval-direktur">
+                            <a href="#" class="nav-link">
+                                <i class="fas fa-stamp"></i>
+                                <span>Approval Direktur</span>
+                            </a>
+                        </li>
                         <li class="nav-item" data-page="shift-schedule">
                             <a href="#" class="nav-link">
                                 <i class="fas fa-calendar-alt"></i>
