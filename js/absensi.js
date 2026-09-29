@@ -283,6 +283,12 @@ const absensi = {
         this.initButtons();
         this.renderTimeline();
         this.updateUI();
+        // PENAMBAHAN: tampilan cache HP juga diberi penanda "memuat" pada
+        // ikon jam, karena datanya belum dikonfirmasi server (tombol absen
+        // juga masih dicegat oleh _blockIfPageStillLoading()). Otomatis
+        // hilang saat updateUI() dipanggil dengan data asli.
+        const cachedRingEl = document.querySelector('.status-ring');
+        if (cachedRingEl) cachedRingEl.classList.add('is-loading');
     }
 
     // Reset state dulu sebelum load data baru
@@ -316,6 +322,25 @@ const absensi = {
             const btn = document.getElementById(id);
             if (btn) btn.disabled = true;
         });
+    }
+
+    // PENAMBAHAN: jam & tanggal di kartu Shift baru mulai berjalan SETELAH
+    // data absensi selesai dimuat (initLiveClock() di ujung init()), jadi
+    // selama menunggu, tampilkan status "memuat" yang jelas (bukan teks
+    // statis yang mirip jam asli). Kalau jam sudah berjalan dari kunjungan
+    // sebelumnya (this.liveClockInterval), jangan dikosongkan lagi karena
+    // jamnya sudah benar.
+    if (!this.liveClockInterval) {
+        const clockEl = document.getElementById('live-clock');
+        const dateEl  = document.getElementById('live-date');
+        if (clockEl) { clockEl.textContent = '--:--:--'; clockEl.classList.add('is-loading'); }
+        if (dateEl)  { dateEl.textContent  = 'Memuat tanggal...'; dateEl.classList.add('is-loading'); }
+    }
+    if (!cachedSnapshot) {
+        const shiftNameEl = document.getElementById('current-shift-name');
+        const shiftTimeEl = document.getElementById('current-shift-time');
+        if (shiftNameEl) { shiftNameEl.textContent = 'Memuat jadwal...'; shiftNameEl.classList.add('is-loading'); }
+        if (shiftTimeEl) { shiftTimeEl.textContent = 'Mengecek jam kerja Anda'; shiftTimeEl.classList.add('is-loading'); }
     }
 
     // PERBAIKAN: tabel "Riwayat Absensi" ikut direset ke status loading di
@@ -397,6 +422,7 @@ const absensi = {
     // lengkap deklarasinya di awal init().
     this._pageDataLoaded = true;
 
+    this._clearHeaderLoading();
     this.initLiveClock();
     this.initButtons();
     this.renderTimeline();
@@ -1514,6 +1540,15 @@ const absensi = {
     // Cek apakah shift hari ini punya sesi istirahat
     _hasBreak() {
         return this._getSessions().some(s => s.field === 'breakStart');
+    },
+
+    // Lepas status "memuat" (class is-loading) dari jam, tanggal, & kartu
+    // Shift - dipanggil di init() begitu data asli dari server datang.
+    _clearHeaderLoading() {
+        ['live-clock', 'live-date', 'current-shift-name', 'current-shift-time'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.classList.remove('is-loading');
+        });
     },
 
     initLiveClock() {
