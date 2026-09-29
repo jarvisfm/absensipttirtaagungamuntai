@@ -257,6 +257,44 @@ function getSessionAttendanceLabel(configAll, shiftRaw, dateStr, field, actualVa
         // supaya tetap ada labelnya, bukan kosong sama sekali.
     }
 
+    // BUGFIX (29 September 2026): sesi ANTARA (Malam/Malam 2 = breakStart/
+    // breakEnd) pada shift yang melewati tengah malam (Masuk malam, Pulang
+    // pagi - mis. Jaga Malam). SEBELUMNYA jam absen dan jam target sesi
+    // dibandingkan sebagai "menit dalam sehari" polos. Kalau jam target
+    // Malam ada SEBELUM tengah malam (mis. 23:45 = 1425) tapi karyawan
+    // absen Malam-nya di PAGI hari berikutnya (mis. 08:40 = 520), angka
+    // 520 dianggap lebih kecil dari 1425 -> salah kebaca "Hadir Tepat
+    // Waktu", padahal jelas sudah telat berjam-jam. Sekarang keduanya
+    // dihitung sebagai "menit sejak jendela Masuk dibuka" (pola SAMA
+    // dengan _isSessionOpen() di absensi.js & saveAttendanceData() di
+    // backend), sehingga urutannya benar secara kronologis. Aturan
+    // toleransinya SAMA seperti blok Istirahat/Kembali di bawah (toleransi
+    // > 0: 3 tingkat; toleransi 0: 2 tingkat). Hanya aktif untuk shift
+    // yang jam Pulang-nya lebih kecil dari jam buka Masuk (melewati tengah
+    // malam) - shift siang seperti Reguler TIDAK terpengaruh sama sekali.
+    if ((field === 'breakStart' || field === 'breakEnd') && sessions) {
+        const sesiMasukWrap  = sessions.find(s => s.field === 'clockIn');
+        const sesiPulangWrap = sessions.find(s => s.field === 'clockOut');
+        const masukOpenWrap  = sesiMasukWrap ? _toMinutesSafe(sesiMasukWrap.opensAt) : null;
+        const pulangWrap     = sesiPulangWrap ? _toMinutesSafe(sesiPulangWrap.time) : null;
+        if (masukOpenWrap != null && pulangWrap != null && pulangWrap < masukOpenWrap) {
+            const offsetFromMasuk = (m) => ((m - masukOpenWrap) % 1440 + 1440) % 1440;
+            const actualOffset = offsetFromMasuk(actualMinutes);
+            const targetOffset = offsetFromMasuk(targetMinutes);
+            if (actualOffset <= targetOffset) {
+                return { late: false, text: 'Hadir Tepat Waktu' };
+            }
+            const toleransiWrap = (group && typeof group.toleransi === 'number') ? group.toleransi : 0;
+            if (toleransiWrap > 0) {
+                if (actualOffset <= targetOffset + toleransiWrap) {
+                    return { late: true, text: 'Hadir Terlambat' };
+                }
+                return { late: true, veryLate: true, text: 'Terlambat' };
+            }
+            return { late: true, text: 'Hadir Terlambat' };
+        }
+    }
+
     // BUGFIX (25 September 2026): sesi yang jam target-nya menyeberang
     // tengah malam (mis. shift Malam: Istirahat target 00:00, Istirahat
     // Masuk target 00:05, tapi "Mulai bisa absen" 23:45/23:47). Sebagai
