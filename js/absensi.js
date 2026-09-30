@@ -452,7 +452,7 @@ const absensi = {
         try {
             const key = this._attendanceCacheKey();
             if (!key) return;
-            const todayStr = new Date().toISOString().slice(0, 10);
+            const todayStr = dateTime.getLocalDate();
             storage.set(key, {
                 dateStr: todayStr,
                 accessInfo: this.accessInfo,
@@ -467,7 +467,7 @@ const absensi = {
             if (!key) return null;
             const cached = storage.get(key);
             if (!cached || !cached.accessInfo) return null;
-            const todayStr = new Date().toISOString().slice(0, 10);
+            const todayStr = dateTime.getLocalDate();
             if (cached.dateStr !== todayStr) return null; // beda hari, jangan dipakai
             return cached;
         } catch (e) {
@@ -1617,7 +1617,8 @@ const absensi = {
         const update = () => {
             const clockEl = document.getElementById('live-clock');
             const dateEl  = document.getElementById('live-date');
-            if (clockEl) clockEl.textContent = dateTime.getCurrentTime();
+            if (clockEl) clockEl.innerHTML = dateTime.getCurrentTime() +
+                ' <span style="font-size:.38em;font-weight:700;letter-spacing:.05em;opacity:.7;vertical-align:middle">' + dateTime.TZ_LABEL + '</span>';
             if (dateEl)  dateEl.textContent  = dateTime.getCurrentDate();
         };
         update();
