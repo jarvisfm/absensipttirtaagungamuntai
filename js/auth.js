@@ -124,12 +124,13 @@ const auth = {
         const BULAN = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
 
         const tick = () => {
-            const now = new Date();
-            const hh = String(now.getHours()).padStart(2, '0');
-            const mm = String(now.getMinutes()).padStart(2, '0');
-            const ss = String(now.getSeconds()).padStart(2, '0');
-            timeEl.textContent = `${hh}:${mm}:${ss}`;
-            dateEl.textContent = `${HARI[now.getDay()]}, ${now.getDate()} ${BULAN[now.getMonth()]} ${now.getFullYear()}`;
+            // Selalu WITA, apa pun zona waktu HP (lihat dateTime.getWitaParts di main.js)
+            const w = dateTime.getWitaParts(dateTime.now());
+            const hh = String(w.hour).padStart(2, '0');
+            const mm = String(w.minute).padStart(2, '0');
+            const ss = String(w.second).padStart(2, '0');
+            timeEl.textContent = `${hh}:${mm}:${ss} ${dateTime.TZ_LABEL}`;
+            dateEl.textContent = `${HARI[w.weekday]}, ${w.day} ${BULAN[w.month - 1]} ${w.year}`;
         };
         tick();
         if (this._loginClockIntervalId) clearInterval(this._loginClockIntervalId);
