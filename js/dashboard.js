@@ -95,7 +95,7 @@ const dashboard = {
 
         if (!welcomeCard || !greetingEl) return;
 
-        const hour = new Date().getHours();
+        const hour = dateTime.getWitaParts().hour;
         let greeting = 'Selamat Pagi';
         let icon = 'fa-sun';
         let className = 'morning';
@@ -171,9 +171,9 @@ const dashboard = {
         const card = document.getElementById('birthday-card');
         if (!card) return;
 
-        const today = new Date();
-        const todayMonth = today.getMonth() + 1;
-        const todayDate = today.getDate();
+        const today = dateTime.getWitaParts();
+        const todayMonth = today.month;
+        const todayDate = today.day;
 
         const birthdayNames = (this.allEmployees || [])
             .filter(e => {
@@ -254,9 +254,9 @@ const dashboard = {
     },
 
     updateProgressBar() {
-        const now = new Date();
-        const currentHour = now.getHours();
-        const currentMinute = now.getMinutes();
+        const now = dateTime.getWitaParts();
+        const currentHour = now.hour;
+        const currentMinute = now.minute;
         const currentTime = currentHour + (currentMinute / 60);
 
         // Assuming 8-hour work day from 8 AM to 5 PM
