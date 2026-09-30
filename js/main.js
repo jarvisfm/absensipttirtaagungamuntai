@@ -211,9 +211,57 @@ const dateTime = {
      * begitu sync pertama selesai, otomatis pindah ke jam server.
      */
     now() {
-        if (this._serverTimeAtSync === null) return new Date();
-        const elapsed = performance.now() - this._perfAtSync;
-        return new Date(this._serverTimeAtSync + elapsed);
+        let d;
+        if (this._serverTimeAtSync === null) {
+            d = new Date();
+        } else {
+            const elapsed = performance.now() - this._perfAtSync;
+            d = new Date(this._serverTimeAtSync + elapsed);
+        }
+        // Penanda: Date ini berasal dari "jam sekarang" aplikasi, sehingga
+        // formatDate()/formatTime() WAJIB menampilkannya dalam WITA.
+        // Date lain (tanggal izin, cuti, dst) tetap diformat seperti semula.
+        d.__wita = true;
+        return d;
+    },
+
+    // ===== Zona waktu aplikasi: SELALU WITA (Asia/Makassar, UTC+8) =====
+    // Kantor pusat & seluruh jadwal shift memakai WITA. Sebelumnya jam,
+    // tanggal, sapaan & jam absen dibaca lewat getHours()/toLocaleTimeString()
+    // tanpa timeZone, sehingga ikut zona waktu HP. Karyawan yang HP-nya
+    // disetel WIB/WIT (mis. operator Paminggir) melihat jam beda 1 jam dari
+    // kantor, dan jam absennya ikut salah. Semua yang menyangkut "jam
+    // sekarang" sekarang dikunci ke WITA lewat konstanta & helper ini.
+    TZ: 'Asia/Makassar',
+    TZ_LABEL: 'WITA',
+
+    /**
+     * Pecah sebuah Date jadi komponen jam dinding WITA:
+     * { year, month (1-12), day, hour, minute, second, weekday (0=Minggu) }
+     * Tidak bergantung pada zona waktu HP. Default: jam sekarang.
+     */
+    getWitaParts(date) {
+        const d = date ? new Date(date) : this.now();
+        if (!this._witaFmt) {
+            this._witaFmt = new Intl.DateTimeFormat('en-GB', {
+                timeZone: this.TZ,
+                year: 'numeric', month: '2-digit', day: '2-digit',
+                hour: '2-digit', minute: '2-digit', second: '2-digit',
+                weekday: 'short', hourCycle: 'h23'
+            });
+        }
+        const map = {};
+        this._witaFmt.formatToParts(d).forEach(p => { map[p.type] = p.value; });
+        const WD = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
+        return {
+            year: parseInt(map.year, 10),
+            month: parseInt(map.month, 10),
+            day: parseInt(map.day, 10),
+            hour: parseInt(map.hour, 10) % 24,
+            minute: parseInt(map.minute, 10),
+            second: parseInt(map.second, 10),
+            weekday: WD[map.weekday]
+        };
     },
 
     formatDate(date, format = 'full') {
@@ -222,23 +270,35 @@ const dateTime = {
         const months = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
             'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
 
-        const dayName = days[d.getDay()];
-        const day = d.getDate();
-        const month = months[d.getMonth()];
-        const year = d.getFullYear();
+        // "Sekarang" (tanpa argumen / hasil dateTime.now()) -> komponen WITA.
+        // Tanggal lain (tanggal izin, cuti, dst) -> perilaku lama, tidak diubah.
+        let dow, day, monthIdx, year;
+        if (!date || (date instanceof Date && date.__wita)) {
+            const w = this.getWitaParts(d);
+            dow = w.weekday; day = w.day; monthIdx = w.month - 1; year = w.year;
+        } else {
+            dow = d.getDay(); day = d.getDate(); monthIdx = d.getMonth(); year = d.getFullYear();
+        }
+        const dayName = days[dow];
+        const month = months[monthIdx];
 
         if (format === 'full') {
             return `${dayName}, ${day} ${month} ${year}`;
         } else if (format === 'short') {
-            return `${day} ${months[d.getMonth()].substring(0, 3)} ${year}`;
+            return `${day} ${months[monthIdx].substring(0, 3)} ${year}`;
         } else if (format === 'day') {
             return dayName;
         }
-        return `${day}/${d.getMonth() + 1}/${year}`;
+        return `${day}/${monthIdx + 1}/${year}`;
     },
 
     formatTime(date) {
         const d = date ? new Date(date) : this.now();
+        // "Sekarang" -> paksa WITA (ini yang tersimpan sebagai jam absen).
+        // Date lain -> perilaku lama.
+        if (!date || (date instanceof Date && date.__wita)) {
+            return d.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', timeZone: this.TZ });
+        }
         return d.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
     },
 
@@ -250,7 +310,8 @@ const dateTime = {
         return this.now().toLocaleTimeString('id-ID', {
             hour: '2-digit',
             minute: '2-digit',
-            second: '2-digit'
+            second: '2-digit',
+            timeZone: this.TZ
         });
     },
 
@@ -259,13 +320,13 @@ const dateTime = {
     },
 
     getLocalDate() {
-        // Returns YYYY-MM-DD for the local timezone, not UTC
-        const today = this.now();
-        return new Date(today.getTime() - (today.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
+        // Returns YYYY-MM-DD tanggal WITA (bukan UTC, bukan zona waktu HP)
+        const w = this.getWitaParts(this.now());
+        return `${w.year}-${String(w.month).padStart(2, '0')}-${String(w.day).padStart(2, '0')}`;
     },
 
     getGreeting() {
-        const hour = this.now().getHours();
+        const hour = this.getWitaParts(this.now()).hour;
         if (hour < 11) return 'Selamat Pagi';
         if (hour < 15) return 'Selamat Siang';
         if (hour < 18) return 'Selamat Sore';
