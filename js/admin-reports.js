@@ -12,7 +12,7 @@ const adminReports = {
     filters: {
         attendance: { month: '', name: '', bagian: '', jadwal: '', unitWilayah: '', dateFrom: '', dateTo: '' },
         jurnal: { month: '', employee: '', status: '' },
-        leave: { month: '', type: '', status: '', bagian: '' }
+        leave: { month: '', name: '', type: '', status: '', bagian: '' }
     },
 
     async initAttendanceReports() {
@@ -704,6 +704,15 @@ const adminReports = {
             });
         }
 
+        // PENAMBAHAN: filter Nama Karyawan untuk Rekap Cuti & Izin (pola sama
+        // dengan filter nama di Rekap Absensi). Berlaku juga untuk Export
+        // Excel & Cetak karena keduanya memakai data yang sudah difilter.
+        const nameFilter = document.getElementById('leave-name-filter');
+        if (nameFilter) nameFilter.addEventListener('input', (e) => {
+            this.filters.leave.name = e.target.value.trim();
+            this.renderLeaveReports();
+        });
+
         const typeFilter = document.getElementById('leave-type-filter');
         if (typeFilter) typeFilter.addEventListener('change', (e) => {
             this.filters.leave.type = e.target.value;
@@ -772,8 +781,9 @@ const adminReports = {
     },
 
     getFilteredLeave() {
-        const { month, type, status, bagian } = this.filters.leave;
+        const { month, name, type, status, bagian } = this.filters.leave;
         return this.leaveData.filter(row => {
+            const matchesName = !name || String(row.name || '').toLowerCase().includes(name.toLowerCase());
             const matchesMonth = !month || (row.startDate && row.startDate.startsWith(month));
             const matchesType = !type ||
                 (type === 'cuti' && row.type.toLowerCase().includes('cuti')) ||
@@ -781,7 +791,7 @@ const adminReports = {
                 (type === 'sakit' && row.type.toLowerCase().includes('sakit'));
             const matchesStatus = !status || row.status === status;
             const matchesBagian = !bagian || row.bagian === bagian;
-            return matchesMonth && matchesType && matchesStatus && matchesBagian;
+            return matchesName && matchesMonth && matchesType && matchesStatus && matchesBagian;
         });
     },
 
