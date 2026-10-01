@@ -252,6 +252,31 @@ const api = {
     // login sidik jari lagi, bukan cuma hilang dari tampilan daftar).
     async isBiometricDeviceRegistered(userId, role, credentialId) {
         if (!API_BASE_URL) return { success: true, data: { registered: true } };
+        // Jalur cepat lewat Cloudflare Worker (D1). Worker cuma boleh menjawab
+        // "terdaftar". Kalau jawabannya apa pun selain itu (tidak ketemu,
+        // belum ter-sync, Worker error/timeout), tetap tanya Apps Script
+        // seperti sebelumnya - keputusan "perangkat tidak aktif" TIDAK PERNAH
+        // diambil dari Worker saja.
+        if (SESSION_WORKER_URL) {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 3000);
+            try {
+                const res = await fetch(SESSION_WORKER_URL.replace(/\/+$/, '') + '/biometric-check', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'text/plain' },
+                    body: JSON.stringify({ userId, role, credentialId }),
+                    signal: controller.signal
+                });
+                const json = await res.json();
+                if (json && json.registered === true) {
+                    return { success: true, data: { registered: true } };
+                }
+            } catch (e) {
+                // Worker tidak terjangkau -> lanjut ke Apps Script di bawah
+            } finally {
+                clearTimeout(timeoutId);
+            }
+        }
         return this.request('isBiometricDeviceRegistered', { userId, role, credentialId });
     },
 
