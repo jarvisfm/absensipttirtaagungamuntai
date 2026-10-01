@@ -3436,8 +3436,15 @@
                             <div class="reports-filters">
                                 <!-- TAMBAHAN (2 Oktober 2026): filter Nama - pola sama persis seperti
                                      pencarian nama di Data Karyawan (#employee-search), berlaku untuk
-                                     ketiga jenis dokumen, lihat getFiltered() di admin-surat-tugas.js. -->
-                                <div class="filter-group"><i class="fas fa-search"></i><input type="text"
+                                     ketiga jenis dokumen, lihat getFiltered() di admin-surat-tugas.js.
+                                     PERBAIKAN (2 Oktober 2026): .filter-group pakai flex-direction:column,
+                                     jadi kotak input yang TIDAK punya <label> (seperti pencarian ini) naik
+                                     ke atas dan tidak sejajar dengan kotak Jenis Dokumen/Status/Bulan di
+                                     sebelahnya yang punya label. Ditambahkan <label> kosong yang
+                                     disembunyikan (visibility:hidden, BUKAN display:none - supaya tetap
+                                     makan tempat) supaya tingginya ikut sama persis, tanpa perlu ubah
+                                     admin.css sama sekali. -->
+                                <div class="filter-group"><label style="visibility:hidden;">Nama</label><i class="fas fa-search"></i><input type="text"
                                         id="st-name-filter" placeholder="Cari nama karyawan..."></div>
                                 <div class="filter-group"><label>Jenis Dokumen</label><select id="st-doctype-filter">
                                         <option value="surat_tugas">Surat Tugas (SPPD)</option>
