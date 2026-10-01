@@ -159,19 +159,21 @@ const jadwalJagaOperator = {
         }
         this._restrictedUnits = assignedUnits;
 
-        await this._loadEmployees();
-        // PERBAIKAN PERFORMA (2026-09-01, keluhan: pindah Unit terasa
-        // lambat) - lihat catatan lengkap di getSettingByKey() (Setting.gs)
-        // & loadAndRender() di bawah. Settings LENGKAP (shift_types_config
-        // dkk, dibutuhkan _getEffectiveUnit()) cukup dimuat SEKALI saja di
-        // sini saat halaman pertama dibuka - bukan diulang tiap kali admin
-        // ganti Unit/Bulan/Tahun.
-        try {
-            const res = await api.getSettings();
-            if (res.success && res.data) this._allSettings = res.data;
-        } catch (e) {
-            console.error('Gagal memuat konfigurasi awal:', e);
-        }
+        // Cache jadwal per unit/bulan dikosongkan tiap halaman ini dibuka
+        // ulang (lihat loadAndRender()) supaya data selalu segar saat masuk.
+        this._rosterCache = {};
+
+        // PERBAIKAN PERFORMA (1 Oktober 2026): SEBELUMNYA dua panggilan di
+        // bawah ini dijalankan BERURUTAN (daftar karyawan dulu, baru
+        // konfigurasi), padahal keduanya tidak saling bergantung - sekarang
+        // dijalankan BERSAMAAN, jadi waktu tunggunya kira-kira cuma yang
+        // paling lama di antara keduanya, bukan dijumlahkan. Masing-masing
+        // sudah punya try/catch sendiri, jadi kegagalan satu tidak
+        // membatalkan yang lain.
+        await Promise.all([
+            this._loadEmployees(),
+            this._loadShiftTypesConfig()
+        ]);
         this._populateUnitSelect();
         this._populateMonthYearSelect();
         this.bindEvents();
@@ -200,6 +202,25 @@ const jadwalJagaOperator = {
         } else if (unitSelect && unitSelect.value) {
             this.unitKey = unitSelect.value;
             await this.loadAndRender();
+        }
+    },
+
+    // PERBAIKAN PERFORMA (1 Oktober 2026): halaman ini cuma memakai SATU
+    // entri Settings (shift_types_config, dibaca _getEffectiveUnit()) -
+    // SEBELUMNYA yang diambil api.getSettings(), yaitu SELURUH sheet
+    // Settings (termasuk jadwal jaga bulanan SEMUA unit, JSON-nya besar).
+    // Sekarang cukup ambil 1 key itu lewat api.getSettingByKey() (endpoint
+    // yang sama dengan yang dipakai loadAndRender()). _allSettings tetap
+    // berbentuk { shift_types_config: '...' } sehingga pembacanya tidak
+    // perlu diubah.
+    async _loadShiftTypesConfig() {
+        try {
+            const res = await api.getSettingByKey(JJO_SHIFT_TYPES_SETTING_KEY);
+            if (res && res.success && res.data) {
+                this._allSettings = { [JJO_SHIFT_TYPES_SETTING_KEY]: res.data };
+            }
+        } catch (e) {
+            console.error('Gagal memuat konfigurasi awal:', e);
         }
     },
 
@@ -730,8 +751,31 @@ const jadwalJagaOperator = {
             // Settings LENGKAP (dibutuhkan _getEffectiveUnit() untuk baca
             // shift_types_config) sudah dimuat SEKALI di init() ke
             // this._allSettings, tidak perlu diulang di sini.
-            const res = await api.getSettingByKey(this._settingKey());
-            const raw = res.success ? res.data : null;
+            //
+            // PERBAIKAN PERFORMA (1 Oktober 2026): hasil baca jadwal tiap
+            // unit/bulan diingat di memori (this._rosterCache, string JSON
+            // mentah - JSON.parse tiap kali supaya this.data selalu objek
+            // BARU, edit yang belum disimpan tidak ikut mengotori cache).
+            // Pindah unit lalu kembali ke unit sebelumnya jadi instan, tanpa
+            // panggilan ke server. Batas umur 60 detik supaya tidak terlalu
+            // basi kalau ada admin/Asmen lain yang mengubah jadwal yang sama;
+            // cache juga diperbarui setelah Simpan (saveData) & dikosongkan
+            // saat halaman dibuka ulang (init).
+            const cacheKey = this._settingKey();
+            this._rosterCache = this._rosterCache || {};
+            const hit = this._rosterCache[cacheKey];
+            let raw;
+            if (hit && (Date.now() - hit.t) < 60000) {
+                raw = hit.raw;
+            } else {
+                const res = await api.getSettingByKey(cacheKey);
+                if (res.success) {
+                    raw = res.data;
+                    this._rosterCache[cacheKey] = { raw: raw || null, t: Date.now() };
+                } else {
+                    raw = null;
+                }
+            }
             this.data = raw ? JSON.parse(raw) : this._emptyData();
         } catch (e) {
             console.error('Gagal memuat jadwal jaga operator:', e);
@@ -780,8 +824,15 @@ const jadwalJagaOperator = {
         this._isSavingJadwal = true;
         this._setSimpanJadwalLoading(true);
         try {
-            const result = await api.saveSetting(this._settingKey(), JSON.stringify(this.data));
+            const saveKey = this._settingKey();
+            const savePayload = JSON.stringify(this.data);
+            const result = await api.saveSetting(saveKey, savePayload);
             if (result && result.success) {
+                // Samakan cache jadwal (lihat loadAndRender()) dengan yang
+                // baru tersimpan, supaya pindah unit lalu kembali tidak
+                // menampilkan versi lama.
+                this._rosterCache = this._rosterCache || {};
+                this._rosterCache[saveKey] = { raw: savePayload, t: Date.now() };
                 this._dirty = false;
                 toast.success('Jadwal jaga berhasil disimpan.');
             } else {
