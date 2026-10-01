@@ -248,47 +248,81 @@ const adminSuratTugas = {
         }).join('');
     },
 
+    // DIPERBARUI (1 Oktober 2026): sebelumnya pakai confirm()/prompt() bawaan
+    // browser (modal polos, tidak bisa diberi style, judulnya cuma menampilkan
+    // nama domain). Sekarang pakai adminApprovalModal yang SAMA PERSIS dengan
+    // yang sudah dipakai Sanggahan Absensi & SPK di file ini juga - supaya
+    // tampilannya konsisten di seluruh halaman approval, dan detail Surat
+    // Tugasnya (karyawan, nomor surat, tujuan, tanggal) langsung terlihat di
+    // dalam modal, tidak cuma 1 baris teks generik seperti confirm() lama.
     async approve(id) {
-        if (!confirm('Setujui Surat Tugas ini? Absensi karyawan untuk rentang tanggal tsb akan otomatis tercatat Dinas Luar.')) return;
-
-        const user = auth.getCurrentUser();
-        const approver = { name: user?.name || '', nik: user?.nik || '' };
-
-        try {
-            const result = await api.approveSuratTugas(id, approver);
-            if (result.success) {
-                toast.success('Surat Tugas disetujui. Absensi karyawan otomatis tercatat Dinas Luar.');
-                await this.loadData();
-                this.render();
-            } else {
-                toast.error(result.error || 'Gagal menyetujui Surat Tugas');
+        const row = this.rawData.find(r => String(r.id) === String(id));
+        adminApprovalModal.open({
+            mode: 'approve',
+            title: 'Setujui Surat Tugas (SPPD)',
+            details: [
+                { label: 'Karyawan', value: row?.userName },
+                { label: 'No. Surat', value: row?.nomorSurat },
+                { label: 'Tujuan', value: row?.tujuan },
+                { label: 'Tanggal', value: row ? this._formatTanggal(row) : '' },
+                { label: 'Keterangan', value: row?.keterangan }
+            ],
+            warning: 'Absensi karyawan untuk seluruh rentang tanggal ini akan otomatis tercatat "Dinas Luar".',
+            confirmLabel: 'Setujui',
+            onConfirm: async () => {
+                const user = auth.getCurrentUser();
+                const approver = { name: user?.name || '', nik: user?.nik || '' };
+                try {
+                    const result = await api.approveSuratTugas(id, approver);
+                    if (result.success) {
+                        toast.success('Surat Tugas disetujui. Absensi karyawan otomatis tercatat Dinas Luar.');
+                        await this.loadData();
+                        this.render();
+                        return true;
+                    }
+                    toast.error(result.error || 'Gagal menyetujui Surat Tugas');
+                    return false;
+                } catch (e) {
+                    console.error('Error approve Surat Tugas:', e);
+                    toast.error('Terjadi kesalahan');
+                    return false;
+                }
             }
-        } catch (e) {
-            console.error('Error approve Surat Tugas:', e);
-            toast.error('Terjadi kesalahan');
-        }
+        });
     },
 
     async reject(id) {
-        const catatan = prompt('Catatan penolakan (opsional):') || '';
-        if (!confirm('Tolak Surat Tugas ini?')) return;
-
-        const user = auth.getCurrentUser();
-        const approver = { name: user?.name || '', nik: user?.nik || '' };
-
-        try {
-            const result = await api.rejectSuratTugas(id, approver, catatan);
-            if (result.success) {
-                toast.success('Surat Tugas ditolak.');
-                await this.loadData();
-                this.render();
-            } else {
-                toast.error(result.error || 'Gagal menolak Surat Tugas');
+        const row = this.rawData.find(r => String(r.id) === String(id));
+        adminApprovalModal.open({
+            mode: 'reject',
+            title: 'Tolak Surat Tugas (SPPD)',
+            details: [
+                { label: 'Karyawan', value: row?.userName },
+                { label: 'No. Surat', value: row?.nomorSurat },
+                { label: 'Tujuan', value: row?.tujuan },
+                { label: 'Tanggal', value: row ? this._formatTanggal(row) : '' }
+            ],
+            confirmLabel: 'Tolak',
+            onConfirm: async (catatan) => {
+                const user = auth.getCurrentUser();
+                const approver = { name: user?.name || '', nik: user?.nik || '' };
+                try {
+                    const result = await api.rejectSuratTugas(id, approver, catatan);
+                    if (result.success) {
+                        toast.success('Surat Tugas ditolak.');
+                        await this.loadData();
+                        this.render();
+                        return true;
+                    }
+                    toast.error(result.error || 'Gagal menolak Surat Tugas');
+                    return false;
+                } catch (e) {
+                    console.error('Error reject Surat Tugas:', e);
+                    toast.error('Terjadi kesalahan');
+                    return false;
+                }
             }
-        } catch (e) {
-            console.error('Error reject Surat Tugas:', e);
-            toast.error('Terjadi kesalahan');
-        }
+        });
     },
 
     // ---- Sanggahan Absensi - BARU ----
