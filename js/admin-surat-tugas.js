@@ -34,10 +34,24 @@ const adminSuratTugas = {
     spkRawData: [],
     filterStatus: '',
     filterMonth: '', // TAMBAHAN (2 Oktober 2026): format "YYYY-MM" dari <input type="month">, kosong = semua bulan
+    filterName: '', // TAMBAHAN (2 Oktober 2026): pencarian nama karyawan, kosong = semua nama
 
     async init() {
         this.filterStatus = '';
         this.docType = 'surat_tugas';
+
+        // TAMBAHAN (2 Oktober 2026): filter Nama - berlaku untuk ketiga jenis
+        // dokumen sekaligus (lihat getFiltered() di bawah). Pakai event 'input'
+        // (bukan 'onchange') supaya hasil langsung tersaring sambil mengetik,
+        // sama seperti pola #employee-search di karyawan.js.
+        const nameFilter = document.getElementById('st-name-filter');
+        if (nameFilter) {
+            nameFilter.value = '';
+            nameFilter.addEventListener('input', (e) => {
+                this.filterName = e.target.value.trim().toLowerCase();
+                this.render();
+            });
+        }
 
         const docTypeFilter = document.getElementById('st-doctype-filter');
         if (docTypeFilter) {
@@ -113,6 +127,18 @@ const adminSuratTugas = {
         let filtered = source;
         if (this.filterStatus) {
             filtered = filtered.filter(row => (row.status || 'pending') === this.filterStatus);
+        }
+
+        // TAMBAHAN (2 Oktober 2026): filter Nama. row.userName dipakai ketiga
+        // jenis dokumen (lihat kolom "Karyawan" di render*() masing-masing di
+        // bawah); Sanggahan Absensi kadang fallback ke row.nama kalau
+        // userName kosong (sama seperti yang sudah ditulis di
+        // renderSanggahan()/renderMobileCardsSanggahan() di atas).
+        if (this.filterName) {
+            filtered = filtered.filter(row => {
+                const nama = row.userName || row.nama || '';
+                return nama.toLowerCase().includes(this.filterName);
+            });
         }
 
         // TAMBAHAN (2 Oktober 2026): filter Bulan. Field tanggalnya beda nama
