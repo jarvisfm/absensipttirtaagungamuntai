@@ -10,7 +10,7 @@ const adminReports = {
     leaveQuota: {},
     izinHarianQuota: {},
     filters: {
-        attendance: { month: '', name: '', bagian: '', jadwal: '', dateFrom: '', dateTo: '' },
+        attendance: { month: '', name: '', bagian: '', jadwal: '', unitWilayah: '', dateFrom: '', dateTo: '' },
         jurnal: { month: '', employee: '', status: '' },
         leave: { month: '', type: '', status: '', bagian: '' }
     },
@@ -588,6 +588,30 @@ const adminReports = {
             });
         }
 
+        // [TAMBAHAN] Filter "Unit Wilayah" - sama persis pola-nya dengan
+        // filter "Bagian" di atas (opsi diisi dinamis dari data karyawan,
+        // bukan hardcode).
+        const unitFilter = document.getElementById('attendance-unit-filter');
+        if (unitFilter) {
+            const existingValues = Array.from(unitFilter.options).map(o => o.value);
+            const uniqueUnits = [...new Set((this.rawEmployees || [])
+                .map(e => e.unitWilayah)
+                .filter(u => u && u.trim()))].sort();
+            uniqueUnits.forEach(u => {
+                if (!existingValues.includes(u)) {
+                    const opt = document.createElement('option');
+                    opt.value = u;
+                    opt.textContent = u;
+                    unitFilter.appendChild(opt);
+                }
+            });
+
+            unitFilter.addEventListener('change', (e) => {
+                this.filters.attendance.unitWilayah = e.target.value;
+                this.renderAttendanceReports();
+            });
+        }
+
         // Filter "Dari Tanggal" / "Sampai Tanggal" - dipakai BERBARENGAN
         // (AND) dengan filter Bulan yang sudah ada, bukan menggantikannya.
         // Kosong berarti tidak dibatasi ke arah itu (mis. cuma isi "Dari
@@ -718,12 +742,13 @@ const adminReports = {
     },
 
     getFilteredAttendance() {
-        const { month, name, bagian, jadwal, dateFrom, dateTo } = this.filters.attendance;
+        const { month, name, bagian, jadwal, unitWilayah, dateFrom, dateTo } = this.filters.attendance;
         return this.rawAttendance.filter(row => {
             const emp = this.rawEmployees.find(e => String(e.id) === String(row.userId));
             if (!emp) return false;
             const matchesBagian = !bagian || emp.bagian === bagian;
             const matchesJadwal = !jadwal || emp.shift === jadwal;
+            const matchesUnit = !unitWilayah || emp.unitWilayah === unitWilayah;
             const matchesName = !name || String(emp.name || '').toLowerCase().includes(name.toLowerCase());
             const matchesMonth = !month || (row.date && row.date.startsWith(month));
             // Filter "Dari Tanggal"/"Sampai Tanggal" - format tanggal di
@@ -731,7 +756,7 @@ const adminReports = {
             // karena urutannya sama dengan urutan kronologisnya.
             const matchesDateFrom = !dateFrom || (row.date && row.date >= dateFrom);
             const matchesDateTo = !dateTo || (row.date && row.date <= dateTo);
-            return matchesBagian && matchesJadwal && matchesName && matchesMonth && matchesDateFrom && matchesDateTo;
+            return matchesBagian && matchesJadwal && matchesUnit && matchesName && matchesMonth && matchesDateFrom && matchesDateTo;
         }).map(row => {
             const emp = this.rawEmployees.find(e => String(e.id) === String(row.userId));
             return { ...row, empName: emp?.name || '-', empDept: emp?.department || '-' };
@@ -828,12 +853,13 @@ const adminReports = {
         const container = document.getElementById('attendance-reports-body');
         if (!container) return;
 
-        const { month, name, bagian, jadwal, dateFrom, dateTo } = this.filters.attendance;
+        const { month, name, bagian, jadwal, unitWilayah, dateFrom, dateTo } = this.filters.attendance;
         const months = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Ags','Sep','Okt','Nov','Des'];
 
         let employees = [...(this.rawEmployees || [])];
         if (bagian) employees = employees.filter(e => e.bagian === bagian);
         if (jadwal) employees = employees.filter(e => e.shift === jadwal);
+        if (unitWilayah) employees = employees.filter(e => e.unitWilayah === unitWilayah);
         if (name) employees = employees.filter(e => String(e.name || '').toLowerCase().includes(name.toLowerCase()));
         employees.sort((a, b) => {
             const deptCompare = String(a.department || '').localeCompare(String(b.department || ''));
@@ -2321,11 +2347,12 @@ const adminReports = {
     // dan berisiko beda rumus. Tidak ada perubahan perilaku HTML sama
     // sekali - murni pemindahan logika hitungnya ke fungsi sendiri.
     _buildAttendanceRekapBulananData() {
-        const { month, name, bagian, jadwal, dateFrom, dateTo } = this.filters.attendance;
+        const { month, name, bagian, jadwal, unitWilayah, dateFrom, dateTo } = this.filters.attendance;
 
         let employees = [...(this.rawEmployees || [])];
         if (bagian) employees = employees.filter(e => e.bagian === bagian);
         if (jadwal) employees = employees.filter(e => e.shift === jadwal);
+        if (unitWilayah) employees = employees.filter(e => e.unitWilayah === unitWilayah);
         if (name) employees = employees.filter(e => String(e.name || '').toLowerCase().includes(name.toLowerCase()));
         employees.sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')));
 
@@ -2510,11 +2537,12 @@ const adminReports = {
     // di atas - data mentah box ringkasan dipisah dari HTML-nya supaya
     // export Excel bisa memakai angka yang SAMA PERSIS dengan versi cetak.
     _buildAttendanceSummaryData() {
-        const { month, name, bagian, jadwal, dateFrom, dateTo } = this.filters.attendance;
+        const { month, name, bagian, jadwal, unitWilayah, dateFrom, dateTo } = this.filters.attendance;
 
         let employees = [...(this.rawEmployees || [])];
         if (bagian) employees = employees.filter(e => e.bagian === bagian);
         if (jadwal) employees = employees.filter(e => e.shift === jadwal);
+        if (unitWilayah) employees = employees.filter(e => e.unitWilayah === unitWilayah);
         if (name) employees = employees.filter(e => String(e.name || '').toLowerCase().includes(name.toLowerCase()));
         const employeeIds = new Set(employees.map(e => String(e.id)));
 
