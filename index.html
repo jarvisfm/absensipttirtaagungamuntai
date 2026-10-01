@@ -3434,6 +3434,11 @@
                         </div>
                         <div class="reports-filters-card">
                             <div class="reports-filters">
+                                <!-- TAMBAHAN (2 Oktober 2026): filter Nama - pola sama persis seperti
+                                     pencarian nama di Data Karyawan (#employee-search), berlaku untuk
+                                     ketiga jenis dokumen, lihat getFiltered() di admin-surat-tugas.js. -->
+                                <div class="filter-group"><i class="fas fa-search"></i><input type="text"
+                                        id="st-name-filter" placeholder="Cari nama karyawan..."></div>
                                 <div class="filter-group"><label>Jenis Dokumen</label><select id="st-doctype-filter">
                                         <option value="surat_tugas">Surat Tugas (SPPD)</option>
                                         <option value="sanggahan_absensi">Sanggahan Absensi</option>
