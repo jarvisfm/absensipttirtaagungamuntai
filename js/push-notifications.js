@@ -60,7 +60,7 @@ const pushNotif = {
             return false;
         }
         if (!this.messaging) {
-            toast.error('Push notification tidak didukung di perangkat/browser ini.');
+            toast.error('Push notification tidak didukung di perangkat/browser ini. ' + this._unsupportedReason());
             return false;
         }
 
@@ -97,9 +97,19 @@ const pushNotif = {
             }
         } catch (e) {
             console.error('Gagal aktifkan push notification:', e);
-            toast.error('Terjadi kesalahan saat mengaktifkan notifikasi.');
+            const detail = (e && (e.code || e.name)) ? ' [' + (e.code || e.name) + ']' : '';
+            toast.error('Terjadi kesalahan saat mengaktifkan notifikasi.' + detail);
             return false;
         }
+    },
+
+    // Penjelasan singkat KENAPA push tidak tersedia (dipakai di toast supaya
+    // penyebabnya langsung kelihatan di HP tanpa perlu buka console).
+    _unsupportedReason() {
+        if (!('Notification' in window)) return '(Browser ini tidak punya fitur notifikasi. Di iPhone, buka lewat Safari lalu "Tambah ke Layar Utama" dulu. Jangan buka dari dalam WhatsApp/Facebook.)';
+        if (!('serviceWorker' in navigator)) return '(Service worker tidak aktif. Buka lewat Chrome/Safari langsung, bukan dari dalam aplikasi lain.)';
+        if (typeof firebase === 'undefined') return '(Library Firebase gagal dimuat, cek koneksi internet.)';
+        return '(Firebase Messaging tidak bisa dimulai di browser ini.)';
     },
 
     /** Dipanggil saat logout - supaya device yang logout tidak terus dapat push. */
