@@ -26,11 +26,35 @@ const karyawanManager = {
         try {
             const result = await api.getKaryawanList();
             this.karyawanList = result.data || [];
+            this._populateUnitWilayahFilterOptions();
             this.renderTable();
         } catch (e) {
             console.error('Error loading karyawan:', e);
             toast.error('Gagal memuat data karyawan');
         }
+    },
+
+    // [TAMBAHAN] Isi opsi filter "Unit Wilayah" secara dinamis dari data
+    // karyawan yang ada (sama seperti pola pengisian filter "Bagian" di
+    // admin-reports.js) - supaya daftarnya otomatis sinkron dengan Unit
+    // Wilayah/Unit Jaga yang benar-benar dipakai, tanpa hardcode di sini.
+    _populateUnitWilayahFilterOptions() {
+        const select = document.getElementById('karyawan-unit-filter');
+        if (!select) return;
+        const currentValue = select.value;
+        const existingValues = Array.from(select.options).map(o => o.value);
+        const uniqueUnits = [...new Set(this.karyawanList
+            .map(p => p.unitWilayah)
+            .filter(u => u && u.trim()))].sort();
+        uniqueUnits.forEach(u => {
+            if (!existingValues.includes(u)) {
+                const opt = document.createElement('option');
+                opt.value = u;
+                opt.textContent = u;
+                select.appendChild(opt);
+            }
+        });
+        select.value = currentValue;
     },
 
     bindEvents() {
@@ -40,6 +64,7 @@ const karyawanManager = {
         document.getElementById('karyawan-status-filter')?.addEventListener('change', () => this.renderTable());
         document.getElementById('karyawan-jenis-filter')?.addEventListener('change', () => this.renderTable());
         document.getElementById('karyawan-role-filter')?.addEventListener('change', () => this.renderTable());
+        document.getElementById('karyawan-unit-filter')?.addEventListener('change', () => this.renderTable());
     },
 
     getFiltered() {
@@ -47,6 +72,7 @@ const karyawanManager = {
         const status = document.getElementById('karyawan-status-filter')?.value || '';
         const jenis  = document.getElementById('karyawan-jenis-filter')?.value || '';
         const role   = document.getElementById('karyawan-role-filter')?.value || '';
+        const unit   = document.getElementById('karyawan-unit-filter')?.value || '';
 
         return this.karyawanList.filter(p => {
             const matchSearch = !search ||
@@ -55,7 +81,8 @@ const karyawanManager = {
             const matchStatus = !status || String(p.statusKaryawan).toUpperCase() === status;
             const matchJenis  = !jenis  || p.statusPekerjaan === jenis;
             const matchRole   = !role   || String(p.role || 'staff').toLowerCase() === role;
-            return matchSearch && matchStatus && matchJenis && matchRole;
+            const matchUnit   = !unit   || p.unitWilayah === unit;
+            return matchSearch && matchStatus && matchJenis && matchRole && matchUnit;
         });
     },
 
