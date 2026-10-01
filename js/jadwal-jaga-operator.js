@@ -537,7 +537,20 @@ const jadwalJagaOperator = {
      */
     _getEffectiveUnit(unitKey) {
         const base = OPERATOR_UNITS[unitKey];
-        if (!base || base.pattern !== 'kontinu') return base;
+        // BUGFIX (1 Oktober 2026): SEBELUMNYA hanya pola 'kontinu' yang ikut
+        // sinkron ke Jadwal Shift; unit 'kontinu-split' (SPAM Paminggir)
+        // langsung return base di sini, sehingga jam operasionalnya TERKUNCI
+        // di label bawaan "13 Jam (04.30 - 13.00) (15.30 - 20.00)" walau
+        // karyawannya sudah diatur Jenis Jadwal "Operator - 24 Jam" (yang
+        // punya >1 Kelompok Hari: Pagi/Malam). Sekarang 'kontinu-split' ikut
+        // diperlakukan sama - TETAPI tetap aman untuk karyawan Operator - 13
+        // Jam: jadwal itu cuma 1 Kelompok Hari (jam terpisahnya untuk 1 orang
+        // yang sama), jadi syarat "lebih dari 1 dayGroups" di bawah tidak
+        // terpenuhi dan tampilannya TIDAK berubah sama sekali.
+        // PASANGAN: checkOperatorRosterForToday() di Operatorschdule.gs
+        // (backend) HARUS menerapkan aturan yang sama, kalau tidak jadwal yang
+        // disimpan di sini (per sesi grp0/grp1) tidak terbaca saat absen.
+        if (!base || (base.pattern !== 'kontinu' && base.pattern !== 'kontinu-split')) return base;
 
         try {
             const raw = this._allSettings && this._allSettings[JJO_SHIFT_TYPES_SETTING_KEY];
