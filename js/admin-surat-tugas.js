@@ -33,6 +33,7 @@ const adminSuratTugas = {
     sanggahanRawData: [],
     spkRawData: [],
     filterStatus: '',
+    filterMonth: '', // TAMBAHAN (2 Oktober 2026): format "YYYY-MM" dari <input type="month">, kosong = semua bulan
 
     async init() {
         this.filterStatus = '';
@@ -52,6 +53,19 @@ const adminSuratTugas = {
             statusFilter.value = '';
             statusFilter.onchange = (e) => {
                 this.filterStatus = e.target.value;
+                this.render();
+            };
+        }
+
+        // TAMBAHAN (2 Oktober 2026): filter Bulan - berlaku untuk ketiga jenis
+        // dokumen sekaligus (lihat getFiltered() di bawah), murni render ulang
+        // dari data yang sudah dimuat (sama seperti filterStatus di atas),
+        // tidak perlu fetch ulang ke server.
+        const monthFilter = document.getElementById('st-month-filter');
+        if (monthFilter) {
+            monthFilter.value = '';
+            monthFilter.onchange = (e) => {
+                this.filterMonth = e.target.value;
                 this.render();
             };
         }
@@ -95,8 +109,38 @@ const adminSuratTugas = {
         const source = this.docType === 'sanggahan_absensi' ? this.sanggahanRawData
             : this.docType === 'spk' ? this.spkRawData
             : this.rawData;
-        if (!this.filterStatus) return source;
-        return source.filter(row => (row.status || 'pending') === this.filterStatus);
+
+        let filtered = source;
+        if (this.filterStatus) {
+            filtered = filtered.filter(row => (row.status || 'pending') === this.filterStatus);
+        }
+
+        // TAMBAHAN (2 Oktober 2026): filter Bulan. Field tanggalnya beda nama
+        // per jenis dokumen (lihat render*() masing-masing di bawah untuk kolom
+        // Tanggal yang ditampilkan): Sanggahan Absensi pakai row.date, SPK pakai
+        // row.tanggal, Surat Tugas (SPPD) punya RENTANG tanggalMulai..tanggalSelesai
+        // (bisa lebih dari 1 hari, lihat _formatTanggal()) - jadi dicocokkan kalau
+        // bulan yang dipilih beririsan dengan rentangnya, bukan cuma tanggal mulai
+        // saja, supaya SPPD yang menyeberang akhir/awal bulan tetap muncul benar
+        // di kedua bulan tersebut.
+        if (this.filterMonth) {
+            filtered = filtered.filter(row => {
+                if (this.docType === 'sanggahan_absensi') {
+                    return (row.date || '').startsWith(this.filterMonth);
+                }
+                if (this.docType === 'spk') {
+                    return (row.tanggal || '').startsWith(this.filterMonth);
+                }
+                const mulai = row.tanggalMulai || '';
+                const selesai = row.tanggalSelesai || mulai;
+                if (!mulai) return false;
+                // "YYYY-MM" dibandingkan sebagai string vs "YYYY-MM-DD" tetap
+                // valid secara leksikografis untuk perbandingan rentang ini.
+                return this.filterMonth + '-01' <= selesai && this.filterMonth + '-31' >= mulai;
+            });
+        }
+
+        return filtered;
     },
 
     // [TAMBAHAN] Tampilkan dokumen (fileUrl Surat Tugas/SPK, sudah dalam
