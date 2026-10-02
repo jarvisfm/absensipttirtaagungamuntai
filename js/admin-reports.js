@@ -2356,25 +2356,13 @@ const adminReports = {
     // cetak, jadi sumber datanya harus satu, bukan dihitung ulang terpisah
     // dan berisiko beda rumus. Tidak ada perubahan perilaku HTML sama
     // sekali - murni pemindahan logika hitungnya ke fungsi sendiri.
-    _buildAttendanceRekapBulananData() {
-        const { month, name, bagian, jadwal, unitWilayah, dateFrom, dateTo } = this.filters.attendance;
-
-        let employees = [...(this.rawEmployees || [])];
-        if (bagian) employees = employees.filter(e => e.bagian === bagian);
-        if (jadwal) employees = employees.filter(e => e.shift === jadwal);
-        if (unitWilayah) employees = employees.filter(e => e.unitWilayah === unitWilayah);
-        if (name) employees = employees.filter(e => String(e.name || '').toLowerCase().includes(name.toLowerCase()));
-        employees.sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')));
-
-        const dateInRange = (dateStr) => {
-            if (!dateStr) return false;
-            if (month && !dateStr.startsWith(month)) return false;
-            if (dateFrom && dateStr < dateFrom) return false;
-            if (dateTo && dateStr > dateTo) return false;
-            return true;
-        };
-
-        const rows = employees.map((emp, idx) => {
+    // [REFACTOR] Dipisah dari _buildAttendanceRekapBulananData() supaya bisa
+    // dipanggil BERULANG per kelompok Unit Wilayah (lihat pemanggil di bawah)
+    // TANPA menduplikasi logika hitungnya - rumus di dalam PERSIS SAMA,
+    // cuma sekarang menerima daftar karyawan & tanggal dari pemanggil
+    // (bukan langsung pakai variabel di scope luar seperti sebelumnya).
+    _computeAttendanceRekapRows(employeesSubset, dateInRange, month, dateFrom, dateTo) {
+        return employeesSubset.map((emp, idx) => {
             let attRows = (this.rawAttendance || []).filter(r => String(r.userId) === String(emp.id));
             attRows = this._applyAttendanceDateFilters(attRows, month, dateFrom, dateTo);
             // (26 September 2026) + Istirahat/Kembali berlabel "Terlambat" - lihat
@@ -2453,6 +2441,27 @@ const adminReports = {
                 terlambat, kendali, sakit, izinHarian, cuti, keteranganCuti
             };
         });
+    },
+
+    _buildAttendanceRekapBulananData() {
+        const { month, name, bagian, jadwal, unitWilayah, dateFrom, dateTo } = this.filters.attendance;
+
+        let employees = [...(this.rawEmployees || [])];
+        if (bagian) employees = employees.filter(e => e.bagian === bagian);
+        if (jadwal) employees = employees.filter(e => e.shift === jadwal);
+        if (unitWilayah) employees = employees.filter(e => e.unitWilayah === unitWilayah);
+        if (name) employees = employees.filter(e => String(e.name || '').toLowerCase().includes(name.toLowerCase()));
+        employees.sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')));
+
+        const dateInRange = (dateStr) => {
+            if (!dateStr) return false;
+            if (month && !dateStr.startsWith(month)) return false;
+            if (dateFrom && dateStr < dateFrom) return false;
+            if (dateTo && dateStr > dateTo) return false;
+            return true;
+        };
+
+        const rows = this._computeAttendanceRekapRows(employees, dateInRange, month, dateFrom, dateTo);
 
         const BULAN_NAMA = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
         let periodeLabel;
@@ -2478,13 +2487,62 @@ const adminReports = {
         if (jadwal) judulParts.push(JENIS_JADWAL_LABELS[jadwal] || jadwal);
         const judulLaporan = 'LAPORAN DAFTAR REKAP ABSEN PEGAWAI' + (judulParts.length ? ' ' + judulParts.join(' - ').toUpperCase() : '');
 
-        return { periodeLabel, judulLaporan, rows };
+        // [TAMBAHAN] Kalau KETIGA filter pengelompokan (Bagian, Unit Wilayah,
+        // Jenis Jadwal) masih "Semua" sekaligus - permintaan spesifik: pecah
+        // jadi beberapa tabel terpisah per Unit Wilayah, masing-masing
+        // dengan judulnya sendiri ("...PEGAWAI BNA AMUNTAI", lalu di bawahnya
+        // "...PEGAWAI SATPAM", dst - lihat _buildAttendanceRekapBulananHtml()
+        // di bawah yang me-render `groups` ini satu tabel per elemen). Kalau
+        // SALAH SATU dari ketiga filter itu sudah dipilih spesifik, cukup 1
+        // tabel gabungan seperti biasa (perilaku lama, tidak berubah).
+        let groups;
+        if (!bagian && !unitWilayah && !jadwal) {
+            const unitNames = [...new Set(employees.map(e => e.unitWilayah).filter(u => u && u.trim()))].sort();
+            const hasNoUnit = employees.some(e => !e.unitWilayah || !e.unitWilayah.trim());
+            if (hasNoUnit) unitNames.push(''); // grup "Tanpa Unit Wilayah" ditaruh paling akhir
+            groups = unitNames.map(u => {
+                const groupEmployees = employees.filter(e => (e.unitWilayah || '') === u);
+                return {
+                    unitWilayah: u,
+                    judulLaporan: 'LAPORAN DAFTAR REKAP ABSEN PEGAWAI ' + (u || 'TANPA UNIT WILAYAH').toUpperCase(),
+                    rows: this._computeAttendanceRekapRows(groupEmployees, dateInRange, month, dateFrom, dateTo)
+                };
+            });
+        } else {
+            groups = [{ unitWilayah, judulLaporan, rows }];
+        }
+
+        return { periodeLabel, judulLaporan, rows, groups };
     },
 
     _buildAttendanceRekapBulananHtml() {
-        const { periodeLabel, judulLaporan, rows } = this._buildAttendanceRekapBulananData();
+        const { periodeLabel, groups } = this._buildAttendanceRekapBulananData();
 
-        const rowsHtml = rows.map(r => `
+        const tableHeaderRowHtml = `
+                    <tr>
+                        <th style="width:36px;">NO</th>
+                        <th>NAMA</th>
+                        <th>JABATAN</th>
+                        <th>HADIR</th>
+                        <th>HADIR<br>TERLAMBAT</th>
+                        <th>TANPA KABAR<br>(Kali)</th>
+                        <th>TERLAMBAT<br>(Kali)</th>
+                        <th>KELUAR KANTOR<br>(Kali)</th>
+                        <th>SAKIT<br>(Hari)</th>
+                        <th>IZIN<br>(Hari)</th>
+                        <th>Hari Cuti</th>
+                        <th>Keterangan Cuti</th>
+                    </tr>`;
+
+        // [TAMBAHAN] Satu <table> per grup (lihat `groups` di
+        // _buildAttendanceRekapBulananData()) - kalau Bagian/Unit Wilayah/
+        // Jenis Jadwal semua "Semua", ini menghasilkan BEBERAPA tabel
+        // tersusun ke bawah, 1 per Unit Wilayah, masing-masing judulnya
+        // sendiri. Kalau salah satu filter itu sudah dipilih spesifik,
+        // `groups` cuma berisi 1 elemen - hasilnya 1 tabel seperti
+        // sebelumnya, tidak berubah.
+        return groups.map((group, gi) => {
+            const rowsHtml = group.rows.map(r => `
                 <tr>
                     <td style="text-align:center;">${r.no}</td>
                     <td>${r.nama}</td>
@@ -2500,31 +2558,19 @@ const adminReports = {
                     <td>${r.keteranganCuti}</td>
                 </tr>`).join('');
 
-        return `
-            <table>
+            return `
+            <table${gi > 0 ? ' style="margin-top:28px;"' : ''}>
                 <thead>
-                    <tr><th colspan="12" style="text-align:center;color:#000;background:#fff;border-bottom:none;">${judulLaporan}</th></tr>
+                    <tr><th colspan="12" style="text-align:center;color:#000;background:#fff;border-bottom:none;">${group.judulLaporan}</th></tr>
                     <tr><th colspan="12" style="text-align:center;color:#000;background:#fff;border-top:none;">${periodeLabel}</th></tr>
-                    <tr>
-                        <th style="width:36px;">NO</th>
-                        <th>NAMA</th>
-                        <th>JABATAN</th>
-                        <th>HADIR</th>
-                        <th>HADIR<br>TERLAMBAT</th>
-                        <th>TANPA KABAR<br>(Kali)</th>
-                        <th>TERLAMBAT<br>(Kali)</th>
-                        <th>KELUAR KANTOR<br>(Kali)</th>
-                        <th>SAKIT<br>(Hari)</th>
-                        <th>IZIN<br>(Hari)</th>
-                        <th>Hari Cuti</th>
-                        <th>Keterangan Cuti</th>
-                    </tr>
+                    ${tableHeaderRowHtml}
                 </thead>
                 <tbody>
                     ${rowsHtml || '<tr><td colspan="12" style="text-align:center;">Tidak ada data karyawan</td></tr>'}
                 </tbody>
             </table>
         `;
+        }).join('');
     },
 
 
