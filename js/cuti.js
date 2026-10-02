@@ -191,7 +191,10 @@ const cuti = {
             // tanggal merah) supaya angka yang tampil di sini SAMA PERSIS
             // dengan yang nanti benar-benar tersimpan saat submit.
             try {
-                const result = await api.previewLeaveDuration(startDate.value, endDate.value);
+                // userId dikirim supaya server tahu shift karyawan (Jaga Malam:
+                // Sabtu ikut dihitung) - hasilnya sama dengan saat submit.
+                const cu = auth.getCurrentUser();
+                const result = await api.previewLeaveDuration(startDate.value, endDate.value, cu?.employeeId || cu?.id);
                 if (result.success) {
                     duration.value = `${result.data.duration} hari`;
                     return;
