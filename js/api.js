@@ -608,9 +608,9 @@ const api = {
     // sama persis dengan yang nanti benar-benar dipotong dari kuota. Tidak
     // ada mode localStorage fallback (tanpa backend, cuma dipakai fallback
     // hitung mentah di cuti.js langsung).
-    async previewLeaveDuration(startDate, endDate) {
+    async previewLeaveDuration(startDate, endDate, userId) {
         if (!API_BASE_URL) return { success: false, error: 'Backend tidak aktif' };
-        return this.request('previewLeaveDuration', { startDate, endDate });
+        return this.request('previewLeaveDuration', { startDate, endDate, userId });
     },
 
     async approveLeave(id, approver, catatan) {
