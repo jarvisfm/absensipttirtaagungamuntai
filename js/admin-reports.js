@@ -2467,11 +2467,22 @@ const adminReports = {
             periodeLabel = 'SELURUH DATA';
         }
 
-        return { periodeLabel, rows };
+        // [TAMBAHAN] Judul laporan cetak ikut menyebutkan filter pengelompokan
+        // yang sedang aktif (Bagian/Unit Wilayah/Jenis Jadwal) - mis. filter
+        // Unit Wilayah "SATPAM" aktif -> "LAPORAN DAFTAR REKAP ABSEN PEGAWAI
+        // SATPAM". Filter "Nama Karyawan" (teks bebas, bisa cocok banyak
+        // kemungkinan) SENGAJA tidak disertakan di judul.
+        const judulParts = [];
+        if (bagian) judulParts.push(bagian);
+        if (unitWilayah) judulParts.push(unitWilayah);
+        if (jadwal) judulParts.push(JENIS_JADWAL_LABELS[jadwal] || jadwal);
+        const judulLaporan = 'LAPORAN DAFTAR REKAP ABSEN PEGAWAI' + (judulParts.length ? ' ' + judulParts.join(' - ').toUpperCase() : '');
+
+        return { periodeLabel, judulLaporan, rows };
     },
 
     _buildAttendanceRekapBulananHtml() {
-        const { periodeLabel, rows } = this._buildAttendanceRekapBulananData();
+        const { periodeLabel, judulLaporan, rows } = this._buildAttendanceRekapBulananData();
 
         const rowsHtml = rows.map(r => `
                 <tr>
@@ -2492,7 +2503,7 @@ const adminReports = {
         return `
             <table>
                 <thead>
-                    <tr><th colspan="12" style="text-align:center;color:#000;background:#fff;border-bottom:none;">LAPORAN DAFTAR REKAP ABSEN PEGAWAI</th></tr>
+                    <tr><th colspan="12" style="text-align:center;color:#000;background:#fff;border-bottom:none;">${judulLaporan}</th></tr>
                     <tr><th colspan="12" style="text-align:center;color:#000;background:#fff;border-top:none;">${periodeLabel}</th></tr>
                     <tr>
                         <th style="width:36px;">NO</th>
