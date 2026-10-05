@@ -215,6 +215,39 @@
                                 <span>Jadwal Jaga Operator</span>
                             </a>
                         </li>
+                        <!-- Menu Admin yang DIBAGIKAN Admin ke karyawan ini (lewat Edit Karyawan >
+                             tab Kekaryawanan > "Bagikan Menu Admin"). Semua hidden by default;
+                             auth.updateSharedMenuNav() yang memunculkan sesuai hak akses. -->
+                        <li class="nav-item hidden" id="nav-shared-admin-dashboard" data-shared-menu="admin-dashboard" data-page="admin-dashboard">
+                            <a href="#" class="nav-link">
+                                <i class="fas fa-chart-pie"></i>
+                                <span>Dashboard Admin</span>
+                            </a>
+                        </li>
+                        <li class="nav-item hidden" id="nav-shared-attendance-reports" data-shared-menu="attendance-reports" data-page="attendance-reports">
+                            <a href="#" class="nav-link">
+                                <i class="fas fa-clipboard-list"></i>
+                                <span>Rekap Absensi</span>
+                            </a>
+                        </li>
+                        <li class="nav-item hidden" id="nav-shared-leave-reports" data-shared-menu="leave-reports" data-page="leave-reports">
+                            <a href="#" class="nav-link">
+                                <i class="fas fa-umbrella-beach"></i>
+                                <span>Rekap Cuti &amp; Izin</span>
+                            </a>
+                        </li>
+                        <li class="nav-item hidden" id="nav-shared-surat-tugas-approval" data-shared-menu="surat-tugas-approval" data-page="surat-tugas-approval">
+                            <a href="#" class="nav-link">
+                                <i class="fas fa-suitcase"></i>
+                                <span>Approval Surat Tugas</span>
+                            </a>
+                        </li>
+                        <li class="nav-item hidden" id="nav-shared-shift-schedule" data-shared-menu="shift-schedule" data-page="shift-schedule">
+                            <a href="#" class="nav-link">
+                                <i class="fas fa-calendar-alt"></i>
+                                <span>Jadwal Shift</span>
+                            </a>
+                        </li>
                         <li class="nav-item" data-page="profile">
                             <a href="#" class="nav-link">
                                 <i class="fas fa-user-edit"></i>
@@ -2521,6 +2554,17 @@
                         <option value="">-- Tidak Ada --</option>
                     </select>
                     <small style="color:var(--text-muted);">Khusus dipakai saat Cetak Jadwal Jaga Operator untuk unit yang dipegang karyawan ini (lihat centang di atas) - Manajer yang dipilih di sini otomatis muncul sebagai "Diketahui Oleh", dan nama karyawan ini sendiri otomatis muncul sebagai "Dibuat Oleh". Admin cukup atur SEKALI di sini, tidak perlu memilih apa pun lagi tiap kali mencetak.</small>
+                </div>
+                <div class="form-group">
+                    <label>Bagikan Menu Admin ke Karyawan Ini <small>(centang boleh lebih dari 1 menu)</small></label>
+                    <div id="p-sharedAdminMenus" class="op-schedule-unit-checklist" style="max-height:none;">
+                        <label class="op-schedule-unit-item"><input type="checkbox" class="shared-admin-menu-checkbox" value="admin-dashboard"> <i class="fas fa-chart-pie" style="width:18px;text-align:center;color:var(--text-muted);"></i> Dashboard Admin</label>
+                        <label class="op-schedule-unit-item"><input type="checkbox" class="shared-admin-menu-checkbox" value="attendance-reports"> <i class="fas fa-clipboard-list" style="width:18px;text-align:center;color:var(--text-muted);"></i> Rekap Absensi</label>
+                        <label class="op-schedule-unit-item"><input type="checkbox" class="shared-admin-menu-checkbox" value="leave-reports"> <i class="fas fa-umbrella-beach" style="width:18px;text-align:center;color:var(--text-muted);"></i> Rekap Cuti &amp; Izin</label>
+                        <label class="op-schedule-unit-item"><input type="checkbox" class="shared-admin-menu-checkbox" value="surat-tugas-approval"> <i class="fas fa-suitcase" style="width:18px;text-align:center;color:var(--text-muted);"></i> Approval Surat Tugas</label>
+                        <label class="op-schedule-unit-item"><input type="checkbox" class="shared-admin-menu-checkbox" value="shift-schedule"> <i class="fas fa-calendar-alt" style="width:18px;text-align:center;color:var(--text-muted);"></i> Jadwal Shift</label>
+                    </div>
+                    <small style="color:var(--text-muted);">Menu yang dicentang akan muncul di sidebar karyawan ini (di bawah menu miliknya sendiri) dan bisa dibuka seperti di akun Admin. Kosongkan semua centang kalau tidak perlu. Menu Data Karyawan, Settings, dan Approval Direktur sengaja tidak bisa dibagikan. Perubahan berlaku saat karyawan ini login ulang.</small>
                 </div>
                 <div class="form-row two-col">
                     <div class="form-group">
