@@ -1434,6 +1434,12 @@ const absensi = {
         // pakai jadwal shift hari itu (lihat session-status.js). null kalau
         // nilainya bukan jam (mis. hari Izin/Cuti) atau jam target-nya tidak
         // ketemu - fallback tidak nampilkan apa-apa (biar jamnya apa adanya).
+        // [TAMBAHAN] Sesi yang disanggah & belum diputuskan Admin tampil
+        // "Menunggu Approval" (kuning), bukan teks hijau biasa.
+        const sesiText = (v) => v === 'Menunggu Approval'
+            ? '<span style="color:#D97706;font-weight:600;"><i class="fas fa-hourglass-half"></i> Menunggu Approval</span>'
+            : (v || '–');
+
         const sessionLabel = (field, actualValue) => {
             if (!actualValue) return '';
             const lbl = getSessionAttendanceLabel(shiftTypesConfigFull, record.shift, record.date, field, actualValue);
@@ -1449,7 +1455,7 @@ const absensi = {
 
         const clockInCell = allSessionsEmpty
             ? '<span style="color:#EF4444;font-weight:600;">Tidak Hadir</span>'
-            : `${record.clockIn || '–'}${sessionLabel('clockIn', record.clockIn)}`;
+            : `${sesiText(record.clockIn)}${sessionLabel('clockIn', record.clockIn)}`;
 
         // Badge "Luar Unit Wilayah" - muncul kalau ada laporan tersimpan
         // untuk tanggal+sesi ini (lihat this._outOfWilayahMap di
@@ -1466,9 +1472,9 @@ const absensi = {
                 <td>${dateStr}${isToday ? '<span class="today-tag">Hari Ini</span>' : ''}</td>
                 <td style="font-size:0.82rem;">${this._formatShiftDisplay(record.shift)}</td>
                 <td style="font-weight:600;color:#10b981;">${clockInCell}${oowBadge('clockIn')}</td>
-                <td style="color:var(--text-muted);">${record.breakStart || '–'}${sessionLabel('breakStart', record.breakStart)}${oowBadge('breakStart')}</td>
-                <td style="color:var(--text-muted);">${record.breakEnd || '–'}${sessionLabel('breakEnd', record.breakEnd)}${oowBadge('breakEnd')}</td>
-                <td style="font-weight:600;color:#EF4444;">${record.clockOut || '–'}${sessionLabel('clockOut', record.clockOut)}${oowBadge('clockOut')}</td>
+                <td style="color:var(--text-muted);">${sesiText(record.breakStart)}${sessionLabel('breakStart', record.breakStart)}${oowBadge('breakStart')}</td>
+                <td style="color:var(--text-muted);">${sesiText(record.breakEnd)}${sessionLabel('breakEnd', record.breakEnd)}${oowBadge('breakEnd')}</td>
+                <td style="font-weight:600;color:#EF4444;">${sesiText(record.clockOut)}${sessionLabel('clockOut', record.clockOut)}${oowBadge('clockOut')}</td>
             </tr>
         `;
     }).join('');
@@ -2273,7 +2279,7 @@ const absensi = {
             const el = document.getElementById('clock-in-time');
             if (d.clockIn) {
                 btnIn.classList.add('completed');
-                if (el) el.textContent = d.clockIn;
+                if (el) { el.textContent = d.clockIn; el.style.color = (d.clockIn === 'Menunggu Approval') ? '#D97706' : ''; }
             } else {
                 btnIn.classList.remove('completed');
                 // PENTING: reset ke placeholder - kalau tidak, teks jam dari
@@ -2281,7 +2287,7 @@ const absensi = {
                 // perangkat/tab yang sama) akan tetap kelihatan seolah punya
                 // user yang sedang login sekarang, padahal attendanceData-nya
                 // sendiri sudah benar kosong.
-                if (el) el.textContent = '--:--';
+                if (el) { el.textContent = '--:--'; el.style.color = ''; }
             }
         }
 
@@ -2312,10 +2318,10 @@ const absensi = {
                 const el = document.getElementById('break-time');
                 if (d.breakStart) {
                     btnBreak.classList.add('completed');
-                    if (el) el.textContent = d.breakStart;
+                    if (el) { el.textContent = d.breakStart; el.style.color = (d.breakStart === 'Menunggu Approval') ? '#D97706' : ''; }
                 } else {
                     btnBreak.classList.remove('completed');
-                    if (el) el.textContent = '--:--';
+                    if (el) { el.textContent = '--:--'; el.style.color = ''; }
                 }
             }
             if (btnAfterBreak) {
@@ -2342,10 +2348,10 @@ const absensi = {
                     const elAfter = document.getElementById('after-break-time');
                     if (d.breakEnd) {
                         btnAfterBreak.classList.add('completed');
-                        if (elAfter) elAfter.textContent = d.breakEnd;
+                        if (elAfter) { elAfter.textContent = d.breakEnd; elAfter.style.color = (d.breakEnd === 'Menunggu Approval') ? '#D97706' : ''; }
                     } else {
                         btnAfterBreak.classList.remove('completed');
-                        if (elAfter) elAfter.textContent = '--:--';
+                        if (elAfter) { elAfter.textContent = '--:--'; elAfter.style.color = ''; }
                     }
                 }
             }
@@ -2365,10 +2371,10 @@ const absensi = {
             const el = document.getElementById('clock-out-time');
             if (d.clockOut) {
                 btnOut.classList.add('completed');
-                if (el) el.textContent = d.clockOut;
+                if (el) { el.textContent = d.clockOut; el.style.color = (d.clockOut === 'Menunggu Approval') ? '#D97706' : ''; }
             } else {
                 btnOut.classList.remove('completed');
-                if (el) el.textContent = '--:--';
+                if (el) { el.textContent = '--:--'; el.style.color = ''; }
             }
         }
 
@@ -2426,12 +2432,12 @@ const absensi = {
 
             if (map[type]) {
                 item.classList.add('completed');
-                if (timeEl) timeEl.textContent = map[type];
+                if (timeEl) { timeEl.textContent = map[type]; timeEl.style.color = (map[type] === 'Menunggu Approval') ? '#D97706' : ''; }
             } else {
                 // PENTING: reset ke placeholder, sama seperti di updateUI() -
                 // supaya jam dari sesi/user sebelumnya tidak "nyangkut" tampil
                 // di timeline user yang sedang login sekarang.
-                if (timeEl) timeEl.textContent = '--:--';
+                if (timeEl) { timeEl.textContent = '--:--'; timeEl.style.color = ''; }
             }
 
             // Sembunyikan item istirahat jika shift tidak punya istirahat -
