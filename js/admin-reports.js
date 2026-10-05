@@ -1856,15 +1856,15 @@ const adminReports = {
                             : s.state === 'skipped' ? 'Tidak dilanjutkan'
                             : 'Menunggu tahap sebelumnya'}
                     </div>
-                    ${s.note ? `<div class="approval-step-note">&ldquo;${s.note}&rdquo;</div>` : ''}
+                    ${s.note ? `<div class="approval-step-note rn-view">${richNote.view(s.note)}</div>` : ''}
                 </div>
             </div>`).join('');
 
         let footerHtml = '';
         if (row.status === 'rejected') {
-            footerHtml = `<div class="approval-step-final rejected"><i class="fas fa-ban"></i> Pengajuan ini ditolak${this._isAdminProxy(row.rejectedBy) ? ' atau diwakilkan oleh Admin' : (row.rejectedByRole ? ' oleh ' + row.rejectedByRole : '')}${row.rejectedNote ? ': "' + row.rejectedNote + '"' : ''}</div>`;
+            footerHtml = `<div class="approval-step-final rejected"><i class="fas fa-ban"></i> Pengajuan ini ditolak${this._isAdminProxy(row.rejectedBy) ? ' atau diwakilkan oleh Admin' : (row.rejectedByRole ? ' oleh ' + row.rejectedByRole : '')}${row.rejectedNote ? ': "' + richNote.plain(row.rejectedNote) + '"' : ''}</div>`;
         } else if (row.status === 'ditunda') {
-            footerHtml = `<div class="approval-step-final postponed"><i class="fas fa-pause-circle"></i> ${this._isAdminProxy(row.directorName) ? 'Ditunda atau diwakilkan oleh Admin' : 'Ditunda oleh Direktur'}${row.tundaSampai ? ' sampai ' + row.tundaSampai : ''}${row.directorNote ? ': "' + row.directorNote + '"' : ''}</div>`;
+            footerHtml = `<div class="approval-step-final postponed"><i class="fas fa-pause-circle"></i> ${this._isAdminProxy(row.directorName) ? 'Ditunda atau diwakilkan oleh Admin' : 'Ditunda oleh Direktur'}${row.tundaSampai ? ' sampai ' + row.tundaSampai : ''}${row.directorNote ? ': "' + richNote.plain(row.directorNote) + '"' : ''}</div>`;
         } else if (row.status === 'cancelled') {
             footerHtml = `<div class="approval-step-final cancelled"><i class="fas fa-ban"></i> Dibatalkan oleh pemohon${row.cancelledNote ? ': "' + row.cancelledNote + '"' : ''}</div>`;
         }
