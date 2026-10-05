@@ -27,7 +27,7 @@
 // PENTING: naikkan angka versi ini (mis. jadi 'v2') tiap kali index.html/
 // css/js diubah & di-deploy ulang - supaya HP karyawan otomatis ambil versi
 // baru, bukan kepakai cache lama terus-menerus.
-const CACHE_NAME = 'taa-portal-v19';
+const CACHE_NAME = 'taa-portal-v21';
 
 // [TAMBAHAN - Absensi Offline] importScripts() menjalankan kedua file ini
 // SATU KALI di scope Service Worker ini, di-load SEBELUM baris-baris di
