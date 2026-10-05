@@ -991,25 +991,25 @@ const izin = {
                         ${izin.asmenNote ? `
                             <div style="margin-top:8px;padding:8px 12px;border-radius:8px;background:rgba(59,130,246,0.08);border-left:3px solid var(--color-primary);font-size:var(--font-size-sm);color:var(--text-secondary);">
                                 <i class="fas fa-comment-dots" style="margin-right:6px;"></i>
-                                <strong>Catatan Asmen:</strong> ${izin.asmenNote}
+                                <strong>Catatan Asmen:</strong><div class="rn-view rn-card-note">${richNote.view(izin.asmenNote)}</div>
                             </div>
                         ` : ''}
                         ${izin.managerNote ? `
                             <div style="margin-top:8px;padding:8px 12px;border-radius:8px;background:rgba(59,130,246,0.08);border-left:3px solid var(--color-primary);font-size:var(--font-size-sm);color:var(--text-secondary);">
                                 <i class="fas fa-comment-dots" style="margin-right:6px;"></i>
-                                <strong>Catatan Manajer:</strong> ${izin.managerNote}
+                                <strong>Catatan Manajer:</strong><div class="rn-view rn-card-note">${richNote.view(izin.managerNote)}</div>
                             </div>
                         ` : ''}
                         ${izin.hrManagerNote ? `
                             <div style="margin-top:8px;padding:8px 12px;border-radius:8px;background:rgba(59,130,246,0.08);border-left:3px solid var(--color-primary);font-size:var(--font-size-sm);color:var(--text-secondary);">
                                 <i class="fas fa-comment-dots" style="margin-right:6px;"></i>
-                                <strong>Catatan HR Manajer:</strong> ${izin.hrManagerNote}
+                                <strong>Catatan HR Manajer:</strong><div class="rn-view rn-card-note">${richNote.view(izin.hrManagerNote)}</div>
                             </div>
                         ` : ''}
                         ${izin.directorNote ? `
                             <div style="margin-top:8px;padding:8px 12px;border-radius:8px;background:rgba(59,130,246,0.08);border-left:3px solid var(--color-primary);font-size:var(--font-size-sm);color:var(--text-secondary);">
                                 <i class="fas fa-comment-dots" style="margin-right:6px;"></i>
-                                <strong>Catatan Direktur:</strong> ${izin.directorNote}
+                                <strong>Catatan Direktur:</strong><div class="rn-view rn-card-note">${richNote.view(izin.directorNote)}</div>
                             </div>
                         ` : ''}
                         ${izin.status === 'cancelled' && izin.cancelledNote ? `
@@ -1286,15 +1286,15 @@ const izin = {
                             : s.state === 'skipped' ? 'Tidak dilanjutkan'
                             : 'Menunggu tahap sebelumnya'}
                     </div>
-                    ${s.note ? `<div class="approval-step-note">&ldquo;${s.note}&rdquo;</div>` : ''}
+                    ${s.note ? `<div class="approval-step-note rn-view">${richNote.view(s.note)}</div>` : ''}
                 </div>
             </div>`).join('');
 
         let footerHtml = '';
         if (item.status === 'rejected') {
-            footerHtml = `<div class="approval-step-final rejected"><i class="fas fa-ban"></i> Pengajuan ini ditolak${this._isAdminProxy(item.rejectedBy) ? ' atau diwakilkan oleh Admin' : (item.rejectedByRole ? ' oleh ' + item.rejectedByRole : '')}${item.rejectedNote ? ': "' + item.rejectedNote + '"' : ''}</div>`;
+            footerHtml = `<div class="approval-step-final rejected"><i class="fas fa-ban"></i> Pengajuan ini ditolak${this._isAdminProxy(item.rejectedBy) ? ' atau diwakilkan oleh Admin' : (item.rejectedByRole ? ' oleh ' + item.rejectedByRole : '')}${item.rejectedNote ? ': "' + richNote.plain(item.rejectedNote) + '"' : ''}</div>`;
         } else if (item.status === 'ditunda') {
-            footerHtml = `<div class="approval-step-final postponed"><i class="fas fa-pause-circle"></i> ${this._isAdminProxy(item.directorName) ? 'Ditunda atau diwakilkan oleh Admin' : 'Ditunda oleh Direktur'}${item.directorNote ? ': "' + item.directorNote + '"' : ''}</div>`;
+            footerHtml = `<div class="approval-step-final postponed"><i class="fas fa-pause-circle"></i> ${this._isAdminProxy(item.directorName) ? 'Ditunda atau diwakilkan oleh Admin' : 'Ditunda oleh Direktur'}${item.directorNote ? ': "' + richNote.plain(item.directorNote) + '"' : ''}</div>`;
         } else if (item.status === 'cancelled') {
             footerHtml = `<div class="approval-step-final cancelled"><i class="fas fa-ban"></i> Dibatalkan oleh pemohon${item.cancelledNote ? ': "' + item.cancelledNote + '"' : ''}</div>`;
         }
@@ -1734,8 +1734,8 @@ const izin = {
             </div>` : ''}
 
             <div class="form-group" style="margin-top:14px;">
-                <label for="approval-catatan">Catatan${role === 'asmen' ? ' (opsional)' : ''}</label>
-                <textarea id="approval-catatan" rows="3" placeholder="Tulis catatan/pertimbangan Anda di sini..."></textarea>
+                <label for="approval-catatan" onclick="document.getElementById('approval-catatan')?.focus()">Catatan${role === 'asmen' ? ' (opsional)' : ''}</label>
+                ${richNote.editorHtml('approval-catatan')}
             </div>
 
             ${(role === 'direktur' && item.status === 'approved') ? `
@@ -1765,7 +1765,7 @@ const izin = {
     },
 
     async submitApproval(id, role, decision) {
-        const catatan = document.getElementById('approval-catatan')?.value || '';
+        const catatan = richNote.getValue('approval-catatan');
         const user = auth.getCurrentUser();
 
         // [TAMBAHAN] Loading state di tombol yang diklik, supaya user tahu
