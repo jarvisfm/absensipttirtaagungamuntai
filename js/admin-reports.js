@@ -16,7 +16,7 @@ const adminReports = {
     },
 
     async initAttendanceReports() {
-        if (!auth.isAdmin()) {
+        if (!auth.isAdmin() && !auth.hasSharedMenu('attendance-reports')) {
             toast.error('Anda tidak memiliki akses!');
             router.navigate('dashboard');
             return;
@@ -40,7 +40,7 @@ const adminReports = {
     },
 
     async initLeaveReports() {
-        if (!auth.isApprover()) {
+        if (!auth.isApprover() && !auth.hasSharedMenu('leave-reports')) {
             toast.error('Anda tidak memiliki akses!');
             router.navigate('dashboard');
             return;
