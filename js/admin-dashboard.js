@@ -9,7 +9,7 @@ const adminDashboard = {
     leaves: [],
 
     async init() {
-        if (!auth.isAdmin()) {
+        if (!auth.isAdmin() && !auth.hasSharedMenu('admin-dashboard')) {
             toast.error('Anda tidak memiliki akses!');
             router.navigate('dashboard');
             return;
