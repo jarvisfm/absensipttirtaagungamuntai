@@ -106,6 +106,9 @@ const auth = {
             }
         }
         this._setupBiometricLogin(); // NEW
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible') this.refreshSharedMenus();
+        });
         this._startLoginClock(); // [TAMBAHAN] widget jam & tanggal live di halaman Login
     },
 
@@ -501,6 +504,10 @@ const auth = {
             // setiap kali Mode Karyawan diaktifkan/dinonaktifkan.
             this.updateApprovalNav();
 
+            // Ambil hak "Menu Admin yang dibagikan" TERBARU dari server (tanpa
+            // perlu login ulang) - lihat refreshSharedMenus().
+            this.refreshSharedMenus();
+
             // Initialize mobile
             if (window.mobile) {
                 window.mobile.handleResize();
@@ -813,6 +820,28 @@ const auth = {
         const u = this.currentUser;
         if (!u || u.role === 'admin') return false;
         return String(u.sharedAdminMenus || '').split(',').map(s => s.trim()).filter(Boolean).includes(page);
+    },
+
+    // Sinkronkan sharedAdminMenus dengan data terbaru di server, supaya Admin
+    // yang baru membagikan/mencabut menu langsung berlaku di akun karyawan
+    // itu begitu aplikasinya dibuka/di-refresh/tab kembali aktif - tanpa
+    // harus logout-login dulu. Gagal jaringan = diam saja, pakai data sesi.
+    async refreshSharedMenus() {
+        const u = this.currentUser;
+        if (!u || u.role === 'admin' || !u.id) return;
+        const now = Date.now();
+        if (this._lastSharedMenuSync && now - this._lastSharedMenuSync < 30000) return;
+        this._lastSharedMenuSync = now;
+        try {
+            const res = await api.getKaryawanDetail(u.id);
+            if (!res || !res.success || !res.data || !this.currentUser || this.currentUser.id !== u.id) return;
+            const latest = String(res.data.sharedAdminMenus || '');
+            if (latest !== String(u.sharedAdminMenus || '')) {
+                u.sharedAdminMenus = latest;
+                storage.set('session', u);
+            }
+            this.updateSharedMenuNav();
+        } catch (err) { /* abaikan - pakai data sesi yang ada */ }
     },
 
     updateSharedMenuNav() {
