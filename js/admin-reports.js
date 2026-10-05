@@ -2112,7 +2112,7 @@ const adminReports = {
 
         const cfg = this.shiftTypesConfigFull;
         const FIELDS = ['clockIn', 'breakStart', 'breakEnd', 'clockOut'];
-        const SPECIAL = ['Tidak Hadir', 'Hadir (Kendala Teknis)', 'SPK'];
+        const SPECIAL = ['Tidak Hadir', 'Hadir (Kendala Teknis)', 'Menunggu Approval', 'SPK'];
 
         // Status 1 sesi: label dari jadwal (Hadir Tepat Waktu/Hadir
         // Terlambat/Terlambat/Pulang) atau nilai khusus (Tidak Hadir, dst).
@@ -2130,6 +2130,7 @@ const adminReports = {
         const dayStatus = (row, statuses) => {
             if (statuses.clockIn === 'Tidak Hadir') return 'Tidak Hadir';
             if (statuses.clockIn === 'SPK') return 'SPK';
+            if (statuses.clockIn === 'Menunggu Approval') return 'Menunggu Approval';
             if (statuses.clockIn === 'Hadir (Kendala Teknis)') return 'Hadir (Kendala Teknis)';
             if (!row.clockIn) return '-';
             const all = FIELDS.map(f => statuses[f]);
