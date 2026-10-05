@@ -514,6 +514,12 @@ const adminReports = {
         const exportBtn = document.getElementById('btn-export-attendance');
         if (exportBtn) exportBtn.addEventListener('click', () => this.exportToExcel('attendance'));
 
+        // [TAMBAHAN] Tombol "Export Detail" - export per-hari per-sesi
+        // (Tanggal, Shift, Masuk, Istirahat, Kembali, Pulang + Status),
+        // sama seperti isi tabel Rekap Absensi di layar (tanpa Lokasi/Foto).
+        const exportDetailBtn = document.getElementById('btn-export-attendance-detail');
+        if (exportDetailBtn) exportDetailBtn.addEventListener('click', () => this._exportAttendanceDetailXlsx());
+
         const printBtn = document.getElementById('btn-print-attendance');
         if (printBtn) printBtn.addEventListener('click', () => this.printReport('attendance'));
 
@@ -2062,6 +2068,199 @@ const adminReports = {
         const BULAN_NAMA = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
         const now = new Date();
         const filename = `Rekap_Absensi_${BULAN_NAMA[now.getMonth()]}_${now.getFullYear()}.xlsx`;
+
+        XLSX.writeFile(wb, filename);
+        toast.success(`Data berhasil diexport ke ${filename}`);
+    },
+
+    // [TAMBAHAN] Export DETAIL Rekap Absensi ke .xlsx - isinya sama dengan
+    // tabel di layar (per karyawan, per hari): Tanggal, Shift, Masuk,
+    // Istirahat, Kembali, Pulang + Status per sesi dan Status keseluruhan
+    // hari. Kolom Lokasi & Foto sengaja tidak diikutkan. Mengikuti SEMUA
+    // filter yang sedang aktif (nama, bagian, unit wilayah, jenis jadwal,
+    // bulan, dari/sampai tanggal) dan memakai fungsi label yang SAMA dengan
+    // tampilan layar (getSessionAttendanceLabel), jadi statusnya pasti sama.
+    // Sheet 1 "Detail Absensi" = data per hari, Sheet 2 "Ringkasan" = total
+    // per karyawan (Hadir/Terlambat/Hadir Terlambat/Tidak Hadir/Total).
+    async _exportAttendanceDetailXlsx() {
+        try {
+            await this._ensureXlsxLib();
+        } catch (e) {
+            toast.error(e.message || 'Gagal memuat pustaka Excel.');
+            return;
+        }
+
+        const { month, name, bagian, jadwal, unitWilayah, dateFrom, dateTo } = this.filters.attendance;
+        const MONTHS_SHORT = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Ags','Sep','Okt','Nov','Des'];
+        const BULAN_NAMA = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+
+        let employees = [...(this.rawEmployees || [])];
+        if (bagian) employees = employees.filter(e => e.bagian === bagian);
+        if (jadwal) employees = employees.filter(e => e.shift === jadwal);
+        if (unitWilayah) employees = employees.filter(e => e.unitWilayah === unitWilayah);
+        if (name) employees = employees.filter(e => String(e.name || '').toLowerCase().includes(name.toLowerCase()));
+        employees.sort((a, b) => {
+            const deptCompare = String(a.department || '').localeCompare(String(b.department || ''));
+            if (deptCompare !== 0) return deptCompare;
+            return String(a.name || '').localeCompare(String(b.name || ''));
+        });
+
+        if (employees.length === 0) {
+            toast.error('Tidak ada data karyawan untuk diexport');
+            return;
+        }
+
+        const cfg = this.shiftTypesConfigFull;
+        const FIELDS = ['clockIn', 'breakStart', 'breakEnd', 'clockOut'];
+        const SPECIAL = ['Tidak Hadir', 'Hadir (Kendala Teknis)', 'SPK'];
+
+        // Status 1 sesi: label dari jadwal (Hadir Tepat Waktu/Hadir
+        // Terlambat/Terlambat/Pulang) atau nilai khusus (Tidak Hadir, dst).
+        const sessionStatus = (row, field) => {
+            const val = row[field];
+            if (!val) return '';
+            if (SPECIAL.includes(val)) return val;
+            const lbl = (cfg && typeof getSessionAttendanceLabel === 'function')
+                ? getSessionAttendanceLabel(cfg, row.shift, row.date, field, val)
+                : null;
+            return lbl ? lbl.text : '';
+        };
+
+        // Status keseluruhan hari: yang terburuk dari sesi-sesi yang ada.
+        const dayStatus = (row, statuses) => {
+            if (statuses.clockIn === 'Tidak Hadir') return 'Tidak Hadir';
+            if (statuses.clockIn === 'SPK') return 'SPK';
+            if (statuses.clockIn === 'Hadir (Kendala Teknis)') return 'Hadir (Kendala Teknis)';
+            if (!row.clockIn) return '-';
+            const all = FIELDS.map(f => statuses[f]);
+            if (all.includes('Terlambat')) return 'Terlambat';
+            if (all.includes('Hadir Terlambat')) return 'Hadir Terlambat';
+            if (all.includes('Tidak Hadir')) return 'Hadir (Ada Sesi Tidak Hadir)';
+            return 'Hadir Tepat Waktu';
+        };
+
+        const HEADERS = ['NO','NAMA KARYAWAN','BAGIAN','JABATAN','TANGGAL','SHIFT',
+            'MASUK','STATUS MASUK','ISTIRAHAT','STATUS ISTIRAHAT','KEMBALI','STATUS KEMBALI','PULANG','STATUS PULANG','STATUS'];
+
+        const detailAoa = [];
+        const ringkasAoa = [['NO','NAMA KARYAWAN','BAGIAN','JABATAN','JENIS JADWAL','HADIR','TERLAMBAT','HADIR TERLAMBAT','TIDAK HADIR','TOTAL HARI']];
+        let no = 0;
+
+        employees.forEach((emp, empIdx) => {
+            let rows = (this.rawAttendance || []).filter(r => String(r.userId) === String(emp.id));
+            rows = this._applyAttendanceDateFilters(rows, month, dateFrom, dateTo);
+
+            // Hitungan ringkasan - aturan SAMA dengan badge di layar.
+            const totalTerlambat = rows.filter(r => ['terlambat','late'].includes(String(r.status||'').toLowerCase())).length
+                + (typeof countBreakSessionsVeryLate === 'function' ? countBreakSessionsVeryLate(cfg, rows) : 0);
+            let totalHadir = rows.filter(r => ['hadir','ontime','terlambat','late','izin','cuti'].includes(String(r.status||'').toLowerCase())).length;
+            let totalHadirTerlambat = 0;
+            if (cfg) {
+                rows.forEach(r => {
+                    const st = String(r.status || '').toLowerCase();
+                    if (!['hadir','ontime','terlambat','late'].includes(st)) return;
+                    FIELDS.forEach(f => {
+                        if (!r[f]) return;
+                        const lbl = getSessionAttendanceLabel(cfg, r.shift, r.date, f, r[f]);
+                        if (lbl && lbl.text === 'Hadir Terlambat') totalHadirTerlambat++;
+                    });
+                });
+            }
+            let totalTidakHadir = 0;
+            rows.forEach(r => {
+                FIELDS.forEach(f => {
+                    const v = r[f];
+                    if (v === 'Tidak Hadir') totalTidakHadir++;
+                    else if (v === 'Hadir (Kendala Teknis)' || v === 'SPK') totalHadir++;
+                });
+            });
+            ringkasAoa.push([empIdx + 1, emp.name || '-', emp.bagian || '-', emp.position || '-', emp.shift || '-',
+                totalHadir, totalTerlambat, totalHadirTerlambat, totalTidakHadir, rows.length]);
+
+            // Baris detail (termasuk izin yang masih menunggu persetujuan,
+            // sama seperti di layar).
+            const pendingRows = this._buildPendingIzinRowsForEmployee(emp.id, month);
+            rows = [...rows, ...pendingRows];
+            rows.sort((a, b) => String(b.date).localeCompare(String(a.date)));
+
+            rows.forEach(row => {
+                const [y, m, d] = (row.date || '').split('-');
+                const dateStr = (y && m && d) ? `${d} ${MONTHS_SHORT[parseInt(m, 10) - 1]} ${y}` : '-';
+                no++;
+                const base = [no, emp.name || '-', emp.bagian || '-', emp.position || '-', dateStr];
+
+                if (row._syntheticPendingIzin) {
+                    detailAoa.push([...base, emp.shift || '-', '–','','–','','–','','–','', `${row._pendingIzinLabel} - Menunggu Persetujuan`]);
+                    return;
+                }
+
+                const stLower = String(row.status || '').toLowerCase();
+                if (stLower === 'izin' || stLower === 'cuti') {
+                    let pending = false;
+                    if (row.excusedRefType === 'izin' && row.excusedRefId) {
+                        const linked = (this.rawIzin || []).find(i => String(i.id) === String(row.excusedRefId));
+                        if (linked && linked.status && linked.status !== 'approved' && linked.status !== 'rejected') pending = true;
+                    }
+                    const label = row.clockIn || (stLower === 'cuti' ? 'Cuti' : 'Izin');
+                    detailAoa.push([...base, row.shift || '-', '–','','–','','–','','–','',
+                        pending ? `${label} - Menunggu Persetujuan` : label]);
+                    return;
+                }
+
+                const sts = {};
+                FIELDS.forEach(f => { sts[f] = sessionStatus(row, f); });
+                detailAoa.push([...base, row.shift || '-',
+                    row.clockIn || '–', sts.clockIn,
+                    row.breakStart || '–', sts.breakStart,
+                    row.breakEnd || '–', sts.breakEnd,
+                    row.clockOut || '–', sts.clockOut,
+                    dayStatus(row, sts)]);
+            });
+        });
+
+        let periodeLabel;
+        if (month) {
+            const [y, m] = month.split('-');
+            periodeLabel = `BULAN ${(BULAN_NAMA[parseInt(m, 10) - 1] || m).toUpperCase()} ${y}`;
+        } else if (dateFrom || dateTo) {
+            const fromLabel = dateFrom ? dateTime.formatDate(dateFrom, 'dmy') : '...';
+            const toLabel = dateTo ? dateTime.formatDate(dateTo, 'dmy') : '...';
+            periodeLabel = `PERIODE ${fromLabel} - ${toLabel}`;
+        } else {
+            periodeLabel = 'SELURUH DATA';
+        }
+
+        const aoa = [['REKAP ABSENSI DETAIL PEGAWAI'], [periodeLabel], HEADERS, ...detailAoa];
+        const ws = XLSX.utils.aoa_to_sheet(aoa);
+        ws['!merges'] = [
+            { s: { r: 0, c: 0 }, e: { r: 0, c: HEADERS.length - 1 } },
+            { s: { r: 1, c: 0 }, e: { r: 1, c: HEADERS.length - 1 } },
+        ];
+        ws['!cols'] = [
+            { wch: 5 }, { wch: 28 }, { wch: 24 }, { wch: 26 }, { wch: 13 }, { wch: 24 },
+            { wch: 9 }, { wch: 18 }, { wch: 11 }, { wch: 18 }, { wch: 9 }, { wch: 18 },
+            { wch: 9 }, { wch: 14 }, { wch: 28 }
+        ];
+        ws['!autofilter'] = { ref: XLSX.utils.encode_range({ s: { r: 2, c: 0 }, e: { r: Math.max(aoa.length - 1, 2), c: HEADERS.length - 1 } }) };
+
+        const ws2 = XLSX.utils.aoa_to_sheet(ringkasAoa);
+        ws2['!cols'] = [{ wch: 5 }, { wch: 28 }, { wch: 24 }, { wch: 26 }, { wch: 24 },
+            { wch: 8 }, { wch: 11 }, { wch: 17 }, { wch: 12 }, { wch: 11 }];
+
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'Detail Absensi');
+        XLSX.utils.book_append_sheet(wb, ws2, 'Ringkasan');
+
+        let suffix;
+        if (month) {
+            const [y, m] = month.split('-');
+            suffix = `${BULAN_NAMA[parseInt(m, 10) - 1] || m}_${y}`;
+        } else if (dateFrom || dateTo) {
+            suffix = `${dateFrom || 'awal'}_sd_${dateTo || 'akhir'}`;
+        } else {
+            suffix = 'Semua';
+        }
+        const filename = `Rekap_Absensi_Detail_${suffix}.xlsx`;
 
         XLSX.writeFile(wb, filename);
         toast.success(`Data berhasil diexport ke ${filename}`);
