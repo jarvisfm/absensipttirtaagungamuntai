@@ -241,6 +241,12 @@ const sanggahanAbsensi = {
                 toast.success('Sanggahan Absensi berhasil dikirim - menunggu persetujuan Admin.');
                 document.getElementById('modal-sanggahan-absensi').style.display = 'none';
                 this.refreshBadge();
+                // [TAMBAHAN] Muat ulang data halaman Absensi (kartu sesi,
+                // timeline, Riwayat Absensi) begitu sanggahan terkirim,
+                // supaya status "Menunggu Approval" langsung tampil tanpa
+                // perlu refresh browser. init() aman dipanggil ulang - sama
+                // seperti saat halaman Absensi dibuka lagi lewat menu.
+                if (window.absensi && typeof absensi.init === 'function') absensi.init();
             } else {
                 toast.error(result.error || 'Gagal mengirim Sanggahan Absensi');
             }
