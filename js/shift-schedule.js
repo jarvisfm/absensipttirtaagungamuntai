@@ -23,7 +23,7 @@ const shiftSchedule = {
     _dirty: false,
 
     async init() {
-        if (!auth.isAdmin()) {
+        if (!auth.isAdmin() && !auth.hasSharedMenu('shift-schedule')) {
             toast.error('Anda tidak memiliki akses ke halaman ini!');
             router.navigate('dashboard');
             return;
