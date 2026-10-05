@@ -184,6 +184,7 @@ const auth = {
                     golongan: result.data.golongan || '',
                     sessionToken: result.data.sessionToken || '',
                     operatorScheduleUnit: result.data.operatorScheduleUnit || '',
+                    sharedAdminMenus: result.data.sharedAdminMenus || '',
                     // TAMBAHAN: dipakai _maybeOfferPasswordChange() di bawah -
                     // lihat mustChangePassword di Auth.gs (handleLogin).
                     mustChangePassword: !!result.data.mustChangePassword,
@@ -798,6 +799,26 @@ const auth = {
             const showForAsmen = this.isAsmen() && !!(this.currentUser && this.currentUser.operatorScheduleUnit);
             navJadwalOperatorAsmen.classList.toggle('hidden', !showForAsmen);
         }
+
+        this.updateSharedMenuNav();
+    },
+
+    // Menu Admin yang DIBAGIKAN Admin ke karyawan ini (Data Karyawan > Edit >
+    // tab Kekaryawanan > "Bagikan Menu Admin"). Disimpan di kolom
+    // sharedAdminMenus (teks dipisah koma berisi nama halaman, mis.
+    // "attendance-reports,leave-reports"). Akun Admin sendiri tidak
+    // memakai ini (menunya sudah lengkap di Menu Admin), jadi selalu false
+    // untuk role 'admin' - termasuk saat admin masuk Mode Karyawan.
+    hasSharedMenu(page) {
+        const u = this.currentUser;
+        if (!u || u.role === 'admin') return false;
+        return String(u.sharedAdminMenus || '').split(',').map(s => s.trim()).filter(Boolean).includes(page);
+    },
+
+    updateSharedMenuNav() {
+        document.querySelectorAll('[data-shared-menu]').forEach(el => {
+            el.classList.toggle('hidden', !this.hasSharedMenu(el.dataset.sharedMenu));
+        });
     },
 
     isLoggedIn() {
@@ -1198,6 +1219,7 @@ const auth = {
                 golongan: result.data.golongan || '',
                 sessionToken: result.data.sessionToken || '',
                 operatorScheduleUnit: result.data.operatorScheduleUnit || '',
+                sharedAdminMenus: result.data.sharedAdminMenus || '',
                 // TAMBAHAN: sama seperti handleLogin() - lihat mustChangePassword
                 // di Auth.gs.
                 mustChangePassword: !!result.data.mustChangePassword,
