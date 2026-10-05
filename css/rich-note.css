@@ -1,0 +1,117 @@
+/* ============================================================
+   Editor Catatan (rich text) & tampilan catatan berformat
+   Dipakai: modal Approval Izin/Cuti (js/rich-note.js), kartu riwayat,
+   progress persetujuan, dan review "Cetak Surat".
+   ============================================================ */
+
+/* ── Tampilan catatan berformat (paragraf, daftar, margin/indent) ── */
+.rn-view {
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    white-space: normal;
+}
+.rn-view > :first-child { margin-top: 0; }
+.rn-view > :last-child  { margin-bottom: 0; }
+.rn-view p,
+.rn-view div { margin: 0 0 0.5em; }
+.rn-view ul,
+.rn-view ol { margin: 0.25em 0 0.5em; padding-left: 1.6em; }
+.rn-view ul { list-style: disc outside; }
+.rn-view ol { list-style: decimal outside; }
+.rn-view li { margin: 0 0 0.15em; }
+.rn-view li > ul,
+.rn-view li > ol { margin-bottom: 0; }
+.rn-view blockquote { margin: 0 0 0.5em; padding: 0; border: 0; }
+.rn-view b, .rn-view strong { font-weight: 700; }
+.rn-view i, .rn-view em { font-style: italic; }
+.rn-view u { text-decoration: underline; }
+
+/* Catatan di stepper "Progress Persetujuan": tanpa tanda kutip & miring,
+   supaya daftar/paragraf terbaca jelas */
+.approval-step-note.rn-view {
+    font-style: normal;
+    border-left: 3px solid var(--color-primary, #F59E0B);
+    border-radius: 0 6px 6px 0;
+}
+
+/* Catatan di kartu riwayat (Catatan Asmen / Manajer / Direktur) */
+.rn-card-note { margin-top: 4px; }
+
+/* ── Editor ── */
+.rn-editor-wrap {
+    border: 1px solid var(--border-color, #e5e7eb);
+    border-radius: 12px;
+    background: var(--color-white, #fff);
+    overflow: hidden;
+    transition: border-color .15s, box-shadow .15s;
+}
+.rn-editor-wrap:focus-within {
+    border-color: var(--color-primary, #F59E0B);
+    box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.12);
+}
+
+.rn-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px;
+    padding: 8px;
+    background: rgba(245, 158, 11, 0.06);
+    border-bottom: 1px solid var(--border-color, #e5e7eb);
+}
+.rn-btn {
+    min-width: 32px;
+    height: 32px;
+    padding: 0 8px;
+    border: 1px solid var(--border-color, #e5e7eb);
+    border-radius: 8px;
+    background: var(--color-white, #fff);
+    color: var(--text-primary, #1f2937);
+    font-size: 0.85rem;
+    font-family: inherit;
+    line-height: 1;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: background .12s, border-color .12s, color .12s;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+}
+.rn-btn:hover { background: #fff7e6; border-color: var(--color-primary, #F59E0B); }
+.rn-btn.active {
+    background: rgba(245, 158, 11, 0.18);
+    border-color: var(--color-primary, #F59E0B);
+    color: #b45309;
+}
+.rn-btn:disabled { opacity: .5; cursor: not-allowed; }
+.rn-sep { width: 1px; height: 20px; background: var(--border-color, #e5e7eb); margin: 0 2px; }
+
+.rn-editor {
+    min-height: 110px;
+    max-height: 320px;
+    overflow-y: auto;
+    padding: 10px 12px;
+    font-size: 0.88rem;
+    outline: none;
+    color: var(--text-primary, #1f2937);
+}
+.rn-editor:empty::before,
+.rn-editor:has(> br:only-child)::before {
+    content: attr(data-placeholder);
+    color: var(--text-muted, #9ca3af);
+    pointer-events: none;
+}
+
+/* ── Di dalam surat cetak ── */
+.print-letter-page .rn-view { line-height: 1.4; text-align: left; }
+.print-letter-page .rn-view p,
+.print-letter-page .rn-view div { margin: 0 0 0.35em; }
+.print-letter-page .rn-view.rn-justify { text-align: justify; }
+/* Catatan panjang di surat tidak boleh dipotong: biarkan tinggi mengikuti isi */
+.print-letter-page .letter-input.rn-view {
+    height: auto;
+    max-height: none;
+    overflow: visible;
+}
