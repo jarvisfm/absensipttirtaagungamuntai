@@ -462,6 +462,16 @@ const karyawanManager = {
                     cb.checked = selectedUnits.includes(cb.value);
                 });
             }
+            // Menu Admin yang dibagikan ke karyawan ini (disimpan sebagai teks
+            // dipisah koma, mis. "attendance-reports,leave-reports") - centang
+            // lagi checklist-nya sesuai data tersimpan.
+            const sharedMenusEl = document.getElementById('p-sharedAdminMenus');
+            if (sharedMenusEl) {
+                const sharedMenus = String(p.sharedAdminMenus || '').split(',').map(s => s.trim()).filter(Boolean);
+                sharedMenusEl.querySelectorAll('.shared-admin-menu-checkbox').forEach(cb => {
+                    cb.checked = sharedMenus.includes(cb.value);
+                });
+            }
             // PENAMBAHAN (2026-09-08): set ulang pilihan Manajer Mengetahui
             // Jadwal Jaga Operator yang sudah tersimpan (opsi-opsinya sudah
             // diisi lebih dulu di openModal() lewat _populateJjoManajerDropdown()).
@@ -527,6 +537,8 @@ const karyawanManager = {
         if (opScheduleResetEl) opScheduleResetEl.querySelectorAll('.op-schedule-unit-checkbox').forEach(cb => cb.checked = false);
         const jjoManajerResetEl = document.getElementById('p-jjoManajerId');
         if (jjoManajerResetEl) jjoManajerResetEl.value = '';
+        const sharedMenusResetEl = document.getElementById('p-sharedAdminMenus');
+        if (sharedMenusResetEl) sharedMenusResetEl.querySelectorAll('.shared-admin-menu-checkbox').forEach(cb => cb.checked = false);
 
         document.getElementById('foto-preview').src = '';
         document.getElementById('foto-preview').style.display = 'none';
@@ -801,6 +813,8 @@ const karyawanManager = {
             // "Diketahui Oleh" saat Cetak Jadwal Jaga Operator - lihat
             // _populateJjoManajerDropdown() di atas.
             jjoManajerId:     document.getElementById('p-jjoManajerId')?.value || '',
+            // Menu Admin yang dibagikan ke karyawan ini (teks dipisah koma)
+            sharedAdminMenus: Array.from(document.querySelectorAll('#p-sharedAdminMenus .shared-admin-menu-checkbox:checked')).map(cb => cb.value).join(','),
             username:         document.getElementById('p-username').value.trim(),
             keluarga
         };
