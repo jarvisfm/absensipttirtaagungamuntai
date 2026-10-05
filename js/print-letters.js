@@ -220,6 +220,59 @@ const printLetters = {
         }
     },
 
+    // ── Muat 1 halaman A4 walau catatan panjang ──────────────────────
+    // Saat dicetak, halaman surat dikunci setinggi A4 (297mm, overflow
+    // hidden) - jadi kalau catatan Asmen/Manajer/Direktur panjang, bagian
+    // bawahnya terpotong. Fungsi ini mengukur tinggi isi surat dan, kalau
+    // melebihi A4, memperkecil isinya (zoom) secukupnya supaya SELURUH
+    // catatan tetap muat & terbaca. Kalau muat, tidak ada yang diubah.
+    // Dipanggil otomatis sebelum cetak (tombol "Cetak / Simpan PDF" dan
+    // Ctrl+P lewat event 'beforeprint') dan dibersihkan lagi sesudahnya.
+    _fitPageToA4() {
+        const page = document.querySelector('#print-letter-overlay .print-letter-page');
+        if (!page) return;
+        const body = page.querySelector('.letter-body');
+        if (!body) return;
+
+        this._resetFit();
+
+        // Ukur dengan mm -> px (A4 = 297mm tinggi), pakai elemen probe
+        const probe = document.createElement('div');
+        probe.style.cssText = 'position:absolute; visibility:hidden; height:297mm; width:0;';
+        document.body.appendChild(probe);
+        const a4Height = probe.getBoundingClientRect().height;
+        probe.remove();
+        if (!a4Height) return;
+
+        // Tinggi alami isi surat (tanpa dipaksa melar oleh flex:1 / min-height)
+        const prevFlex = body.style.flex;
+        const prevMin = page.style.minHeight;
+        body.style.flex = 'none';
+        page.style.minHeight = '0';
+        const kop = page.querySelector('.letter-kop-img-wrap');
+        const footer = page.querySelector('.letter-footer-img-wrap');
+        const kopH = kop ? kop.getBoundingClientRect().height : 0;
+        const footerH = footer ? footer.getBoundingClientRect().height : 0;
+        const bodyH = body.getBoundingClientRect().height;
+        body.style.flex = prevFlex;
+        page.style.minHeight = prevMin;
+
+        // Margin keamanan 6px supaya garis bawah paling akhir tidak mepet tepi
+        const avail = a4Height - kopH - footerH - 6;
+        if (bodyH <= avail || bodyH <= 0) return;
+
+        const ratio = Math.max(0.5, avail / bodyH);
+        body.setAttribute('data-fit', '1');
+        body.style.zoom = String(ratio);
+    },
+
+    _resetFit() {
+        document.querySelectorAll('#print-letter-overlay .letter-body[data-fit]').forEach(b => {
+            b.style.zoom = '';
+            b.removeAttribute('data-fit');
+        });
+    },
+
     close() {
         const overlay = document.getElementById('print-letter-overlay');
         if (overlay) {
@@ -239,6 +292,7 @@ const printLetters = {
     printNow() {
         setTimeout(() => {
             try {
+                this._fitPageToA4();
                 window.print();
             } catch (e) {
                 alert('Gagal membuka dialog Cetak / Simpan PDF. Coba buka halaman ini di aplikasi browser (Chrome/Safari), lalu tekan tombol ini lagi.');
@@ -426,10 +480,14 @@ const printLetters = {
     //    dipakai format Staff/Asmen/Manajer. Isi catatan ditampilkan apa
     //    adanya (rata kiri/justify), tanpa garis titik-titik.
     _noteBoxStaff(text) {
-        const safeText = String(text || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-        const align = safeText.length > 40 ? 'justify' : 'left';
+        // Catatan boleh berformat (paragraf, daftar, tebal/miring, indent) dari
+        // editor di modal Approval - lewat richNote.view() supaya aman (sanitize)
+        // & catatan lama yang masih teks polos tetap tampil normal.
+        const safeHtml = window.richNote ? richNote.view(text) : String(text || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        const len = window.richNote ? richNote.textLength(text) : String(text || '').length;
+        const align = len > 40 ? 'justify' : 'left';
         return `
-            <div style="min-height:22px; margin-bottom:4px; text-align:${align};">${safeText || '&nbsp;'}</div>
+            <div class="rn-view" style="min-height:22px; margin-bottom:4px; text-align:${align};">${safeHtml || '&nbsp;'}</div>
         `;
     },
 
@@ -789,10 +847,10 @@ const printLetters = {
                         <!-- <div>, BUKAN <input> - supaya catatan yang panjang bisa
                              wrap turun ke baris di bawahnya (rowspan), bukan
                              terpotong seperti sebelumnya. -->
-                        <td rowspan="2"><div class="letter-input" style="white-space:normal; word-wrap:break-word; line-height:1.4; min-height:2.8em;">${leave.managerNote || ''}</div></td></tr>
+                        <td rowspan="2"><div class="letter-input rn-view" style="white-space:normal; word-wrap:break-word; line-height:1.4; min-height:2.8em;">${window.richNote ? richNote.view(leave.managerNote) : (leave.managerNote || '')}</div></td></tr>
                     <tr><td class="lbl"></td><td class="sep">:</td></tr>
                     <tr><td class="lbl" style="padding-top:10px;">MANAGER UMUM &amp; KEPEG</td><td class="sep" style="padding-top:10px;">:</td>
-                        <td rowspan="3" style="padding-top:10px;"><div class="letter-input" style="white-space:normal; word-wrap:break-word; line-height:1.4; min-height:4.2em;">${mgrUmumNote}</div></td></tr>
+                        <td rowspan="3" style="padding-top:10px;"><div class="letter-input rn-view" style="white-space:normal; word-wrap:break-word; line-height:1.4; min-height:4.2em;">${window.richNote ? richNote.view(mgrUmumNote) : mgrUmumNote}</div></td></tr>
                     <tr><td class="lbl"></td><td class="sep">:</td></tr>
                     <tr><td class="lbl"></td><td class="sep">:</td></tr>
                 </table>
@@ -958,3 +1016,7 @@ const printLetters = {
 };
 
 window.printLetters = printLetters;
+
+// Ctrl+P / menu Cetak browser juga ikut dimuatkan ke 1 halaman A4
+window.addEventListener('beforeprint', () => { try { printLetters._fitPageToA4(); } catch (e) { /* abaikan */ } });
+window.addEventListener('afterprint',  () => { try { printLetters._resetFit(); } catch (e) { /* abaikan */ } });
