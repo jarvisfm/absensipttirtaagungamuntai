@@ -1129,7 +1129,7 @@ const karyawanManager = {
                     <div style="flex:1;background:rgba(245,158,11,0.08);border-radius:8px;padding:8px 6px;text-align:center;">
                         <div style="display:flex;align-items:center;justify-content:center;gap:8px;">
                             <button type="button" title="Kurangi Kuota Cuti" onclick="karyawanManager.adjustKuota('${id}','cuti',-1)" style="width:22px;height:22px;flex-shrink:0;border:none;border-radius:50%;background:var(--color-danger);color:#fff;font-weight:700;font-size:0.9rem;line-height:1;cursor:pointer;">−</button>
-                            <div style="font-size:1rem;font-weight:700;color:var(--color-primary);" id="kartu-kuota-cuti-value">${kuotaCuti}</div>
+                            <input type="number" min="0" step="1" inputmode="numeric" id="kartu-kuota-cuti-value" value="${kuotaCuti}" title="Ketik angka kuota Cuti lalu tekan Enter" onfocus="this.select()" onkeydown="if(event.key==='Enter'){this.blur();}" onchange="karyawanManager.setKuota('${id}','cuti',this.value)" style="width:56px;text-align:center;font-size:1rem;font-weight:700;color:var(--color-primary);background:#fff;border:1px solid var(--border-color,#e5e7eb);border-radius:6px;padding:2px 4px;">
                             <button type="button" title="Tambah Kuota Cuti" onclick="karyawanManager.adjustKuota('${id}','cuti',1)" style="width:22px;height:22px;flex-shrink:0;border:none;border-radius:50%;background:var(--color-success);color:#fff;font-weight:700;font-size:0.9rem;line-height:1;cursor:pointer;">+</button>
                         </div>
                         <div style="font-size:0.65rem;color:var(--text-muted);margin-top:2px;">Kuota Cuti/Thn (Sisa: <span id="kartu-sisa-cuti-value">${sisaCuti}</span>)</div>
@@ -1137,7 +1137,7 @@ const karyawanManager = {
                     <div style="flex:1;background:rgba(245,158,11,0.08);border-radius:8px;padding:8px 6px;text-align:center;">
                         <div style="display:flex;align-items:center;justify-content:center;gap:8px;">
                             <button type="button" title="Kurangi Kuota Izin Harian" onclick="karyawanManager.adjustKuota('${id}','izin',-1)" style="width:22px;height:22px;flex-shrink:0;border:none;border-radius:50%;background:var(--color-danger);color:#fff;font-weight:700;font-size:0.9rem;line-height:1;cursor:pointer;">−</button>
-                            <div style="font-size:1rem;font-weight:700;color:var(--color-primary);" id="kartu-kuota-izin-value">${kuotaIzinHarian}</div>
+                            <input type="number" min="0" step="1" inputmode="numeric" id="kartu-kuota-izin-value" value="${kuotaIzinHarian}" title="Ketik angka kuota Izin Harian lalu tekan Enter" onfocus="this.select()" onkeydown="if(event.key==='Enter'){this.blur();}" onchange="karyawanManager.setKuota('${id}','izin',this.value)" style="width:56px;text-align:center;font-size:1rem;font-weight:700;color:var(--color-primary);background:#fff;border:1px solid var(--border-color,#e5e7eb);border-radius:6px;padding:2px 4px;">
                             <button type="button" title="Tambah Kuota Izin Harian" onclick="karyawanManager.adjustKuota('${id}','izin',1)" style="width:22px;height:22px;flex-shrink:0;border:none;border-radius:50%;background:var(--color-success);color:#fff;font-weight:700;font-size:0.9rem;line-height:1;cursor:pointer;">+</button>
                         </div>
                         <div style="font-size:0.65rem;color:var(--text-muted);margin-top:2px;">Kuota Izin Harian/Thn (Sisa: <span id="kartu-sisa-izin-value">${sisaIzinHarian}</span>)</div>
@@ -1255,13 +1255,64 @@ const karyawanManager = {
 
             const kuotaEl = document.getElementById(jenis === 'cuti' ? 'kartu-kuota-cuti-value' : 'kartu-kuota-izin-value');
             const sisaEl  = document.getElementById(jenis === 'cuti' ? 'kartu-sisa-cuti-value' : 'kartu-sisa-izin-value');
-            if (kuotaEl) kuotaEl.textContent = kuotaBaru;
+            if (kuotaEl) { if ('value' in kuotaEl) kuotaEl.value = kuotaBaru; else kuotaEl.textContent = kuotaBaru; }
             if (sisaEl) sisaEl.textContent = sisaBaru;
 
             toast.success(`Kuota ${kuotaLabel} diubah menjadi ${kuotaBaru} hari.`);
         } catch (e) {
             console.error(`Gagal mengubah Kuota ${kuotaLabel}:`, e);
             toast.error(`Terjadi kesalahan saat mengubah Kuota ${kuotaLabel}`);
+        }
+    },
+
+    // [TAMBAHAN] Isi kuota langsung dengan mengetik angkanya (mis. ganti 12
+    // jadi 5) di kartu "Kuota Cuti/Thn" & "Kuota Izin Harian/Thn" pada
+    // modal Detail Karyawan - alternatif dari tombol +/- (adjustKuota) dan
+    // memakai endpoint yang sama (updateKuotaKaryawan). Harus bilangan bulat
+    // >= 0; kalau tidak valid atau gagal disimpan, angka dikembalikan ke
+    // nilai sebelumnya.
+    async setKuota(id, jenis, rawValue) {
+        const cache = this._kuotaCache && this._kuotaCache[id];
+        if (!cache) return;
+
+        const key = jenis === 'cuti' ? 'kuotaCutiTahunan' : 'kuotaIzinHarianTahunan';
+        const terpakaiKey = jenis === 'cuti' ? 'terpakaiCuti' : 'terpakaiIzinHarian';
+        const kuotaLabel = jenis === 'cuti' ? 'Cuti Tahunan' : 'Izin Harian';
+        const kuotaEl = document.getElementById(jenis === 'cuti' ? 'kartu-kuota-cuti-value' : 'kartu-kuota-izin-value');
+        const sisaEl  = document.getElementById(jenis === 'cuti' ? 'kartu-sisa-cuti-value' : 'kartu-sisa-izin-value');
+
+        const kuotaLama = cache[key] || 0;
+        const teks = String(rawValue).trim();
+        const kuotaBaru = Number(teks);
+
+        if (teks === '' || !Number.isInteger(kuotaBaru) || kuotaBaru < 0) {
+            toast.error('Kuota harus berupa angka bulat 0 atau lebih.');
+            if (kuotaEl) kuotaEl.value = kuotaLama;
+            return;
+        }
+        if (kuotaBaru === kuotaLama) return;
+
+        if (kuotaEl) kuotaEl.disabled = true;
+        try {
+            const result = await api.updateKuotaKaryawan(id, { [key]: kuotaBaru });
+            if (!result.success) {
+                toast.error(result.error || `Gagal mengubah Kuota ${kuotaLabel}`);
+                if (kuotaEl) kuotaEl.value = kuotaLama;
+                return;
+            }
+
+            cache[key] = kuotaBaru;
+            const sisaBaru = kuotaBaru - (cache[terpakaiKey] || 0);
+            if (kuotaEl) kuotaEl.value = kuotaBaru;
+            if (sisaEl) sisaEl.textContent = sisaBaru;
+
+            toast.success(`Kuota ${kuotaLabel} diubah menjadi ${kuotaBaru} hari.`);
+        } catch (e) {
+            console.error(`Gagal mengubah Kuota ${kuotaLabel}:`, e);
+            toast.error(`Terjadi kesalahan saat mengubah Kuota ${kuotaLabel}`);
+            if (kuotaEl) kuotaEl.value = kuotaLama;
+        } finally {
+            if (kuotaEl) kuotaEl.disabled = false;
         }
     },
 
