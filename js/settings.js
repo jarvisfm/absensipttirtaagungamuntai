@@ -35,6 +35,17 @@ const settings = {
                 const el = document.getElementById('setting-face-recognition');
                 if (el) el.checked = String(allSettings.face_recognition).toLowerCase() === 'true' || allSettings.face_recognition === true;
             }
+            // Mode Face Recognition (cabang saat toggle ON): 'static' = cocokkan
+            // foto profil tanpa liveness, 'video' = cocokkan + liveness kedip.
+            // Belum pernah diatur = 'video' (perilaku lama saat toggle ON).
+            {
+                const modeStatic = document.getElementById('setting-face-mode-static');
+                const modeVideo  = document.getElementById('setting-face-mode-video');
+                const isStatic = String(allSettings.face_recognition_mode || '').toLowerCase() === 'static';
+                if (modeStatic) modeStatic.checked = isStatic;
+                if (modeVideo)  modeVideo.checked  = !isStatic;
+                this._updateFaceModeVisibility();
+            }
             if (allSettings.location_tracking !== undefined) {
                 const el = document.getElementById('setting-location-tracking');
                 if (el) el.checked = String(allSettings.location_tracking).toLowerCase() === 'true' || allSettings.location_tracking === true;
@@ -77,11 +88,22 @@ const settings = {
     },
 
     initForms() {
+        // Sub-opsi mode Face Recognition hanya tampil saat toggle ON
+        const faceToggle = document.getElementById('setting-face-recognition');
+        if (faceToggle) faceToggle.onchange = () => this._updateFaceModeVisibility();
+        this._updateFaceModeVisibility();
+
         // Save system settings
         const saveSystemBtn = document.getElementById('btn-save-system');
         if (saveSystemBtn) {
             saveSystemBtn.addEventListener('click', () => this.saveSystemSettings());
         }
+    },
+
+    _updateFaceModeVisibility() {
+        const toggle = document.getElementById('setting-face-recognition');
+        const wrap = document.getElementById('face-recognition-mode-wrap');
+        if (wrap) wrap.style.display = (toggle && toggle.checked) ? 'flex' : 'none';
     },
 
     async saveSystemSettings() {
@@ -115,6 +137,7 @@ const settings = {
         try {
             await api.saveSettingsBulk({
                 face_recognition:  faceRecognition  ? String(faceRecognition.checked)  : 'false',
+                face_recognition_mode: (document.getElementById('setting-face-mode-static') || {}).checked ? 'static' : 'video',
                 location_tracking: locationTracking ? String(locationTracking.checked) : 'true',
                 cuti_tahunan_aktif: cutiTahunan     ? String(cutiTahunan.checked)      : 'true',
                 location_radius:   locationRadius   ? locationRadius.value             : '100',
