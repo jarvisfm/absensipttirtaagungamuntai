@@ -39,6 +39,12 @@ const settings = {
                 const el = document.getElementById('setting-location-tracking');
                 if (el) el.checked = String(allSettings.location_tracking).toLowerCase() === 'true' || allSettings.location_tracking === true;
             }
+            // Cuti Tahunan ON/OFF (global) - belum pernah diatur = ON.
+            // Dicek tanpa peduli besar/kecil huruf (lihat catatan di atas).
+            if (allSettings.cuti_tahunan_aktif !== undefined) {
+                const el = document.getElementById('setting-cuti-tahunan');
+                if (el) el.checked = String(allSettings.cuti_tahunan_aktif).toLowerCase() !== 'false';
+            }
             if (allSettings.location_radius !== undefined) {
                 const el = document.getElementById('setting-location-radius');
                 if (el) el.value = allSettings.location_radius;
@@ -82,6 +88,7 @@ const settings = {
         const faceRecognition  = document.getElementById('setting-face-recognition');
         const locationTracking = document.getElementById('setting-location-tracking');
         const locationRadius   = document.getElementById('setting-location-radius');
+        const cutiTahunan      = document.getElementById('setting-cuti-tahunan');
 
         this._syncOfficeLocationsFromDOM();
 
@@ -109,6 +116,7 @@ const settings = {
             await api.saveSettingsBulk({
                 face_recognition:  faceRecognition  ? String(faceRecognition.checked)  : 'false',
                 location_tracking: locationTracking ? String(locationTracking.checked) : 'true',
+                cuti_tahunan_aktif: cutiTahunan     ? String(cutiTahunan.checked)      : 'true',
                 location_radius:   locationRadius   ? locationRadius.value             : '100',
                 office_locations:  JSON.stringify(validLocations),
             });
