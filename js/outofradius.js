@@ -84,38 +84,62 @@ const outOfRadius = {
         if (selectedMonth) filtered = filtered.filter(r => (r.date || '').startsWith(selectedMonth));
         filtered = filtered.slice().sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')));
 
+        container.classList.add('ap-list');
+
+        // [TAMBAHAN 2026-10-06] Jumlah laporan yang belum ditinjau (semua
+        // bulan) -> badge di tab "Absen Luar Radius" (lihat approvalUI di izin.js).
+        if (window.approvalUI) {
+            approvalUI.setCount(role, 'oor', this.reports.filter(r => r.status !== 'approved' && r.status !== 'rejected').length);
+        }
+
         if (filtered.length === 0) {
-            container.innerHTML = '<p style="color:var(--text-muted);font-size:0.85rem;padding:1rem 0;">Tidak ada laporan absen luar radius di bulan ini.</p>';
+            container.innerHTML = approvalUI.empty('fa-location-dot', 'Tidak ada laporan absen luar radius di bulan ini');
             return;
         }
 
-        container.innerHTML = filtered.map(r => `
-            <div style="border:1px solid var(--border-color);border-radius:8px;padding:1rem;margin-bottom:0.75rem;">
-                <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;">
-                    <div style="min-width:0;">
-                        <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;flex-wrap:wrap;">
-                            <span style="font-weight:600;">${this._esc(r.userName)}</span>
-                            <span style="background:#FEF3C7;color:#D97706;font-size:0.75rem;font-weight:700;padding:2px 10px;border-radius:20px;">${this._esc(r.typeLabel)}</span>
-                            ${r.status === 'approved'
-                                ? '<span style="background:rgba(16,185,129,0.12);color:#10B981;font-size:0.75rem;font-weight:700;padding:2px 10px;border-radius:20px;"><i class="fas fa-check"></i> Sudah Ditinjau</span>'
-                                : (r.status === 'rejected'
-                                    ? '<span style="background:rgba(239,68,68,0.12);color:#DC2626;font-size:0.75rem;font-weight:700;padding:2px 10px;border-radius:20px;"><i class="fas fa-times"></i> Ditolak</span>'
-                                    : '<span style="background:rgba(217,119,6,0.12);color:#D97706;font-size:0.75rem;font-weight:700;padding:2px 10px;border-radius:20px;">Menunggu Ditinjau</span>')}
-                        </div>
-                        <div style="font-size:0.85rem;color:var(--text-muted);margin-bottom:6px;">
-                            ${this._esc(r.date)} - ${this._esc(r.time)} &middot; ${r.distance ? this._esc(String(r.distance)) + 'm dari ' : ''}${this._esc(r.nearestOffice || 'kantor')}
-                        </div>
-                        <div style="background:var(--color-gray-100);border-radius:8px;padding:8px 10px;font-size:0.85rem;">
-                            <i class="fas fa-quote-left" style="color:var(--text-muted);font-size:0.7rem;"></i> ${this._esc(r.note)}
-                        </div>
-                        ${r.photo ? `<img src="${this._esc(r.photo)}" onclick="window.open(this.src,'_blank')" style="max-width:220px;max-height:140px;border-radius:8px;margin-top:8px;cursor:pointer;display:block;">` : ''}
-                        ${r.status === 'approved' ? `<div style="font-size:0.75rem;color:var(--text-muted);margin-top:6px;">Ditinjau oleh ${this._esc(r.approvedBy)}</div>` : ''}
-                        ${r.status === 'rejected' ? `<div style="font-size:0.75rem;color:#DC2626;margin-top:6px;">Ditolak oleh ${this._esc(r.rejectedBy)}${r.rejectedNote ? ' - ' + this._esc(r.rejectedNote) : ''}. Absen sudah dikosongkan, karyawan diminta absen ulang.</div>` : ''}
-                    </div>
-                    ${(r.status !== 'approved' && r.status !== 'rejected') ? `<div style="display:flex;gap:8px;flex-wrap:wrap;"><button type="button" onclick="outOfRadius.openRejectModal('${r.id}')" style="background:#fff;color:#DC2626;border:1px solid #DC2626;padding:8px 14px;border-radius:6px;cursor:pointer;font-size:0.85rem;font-weight:600;white-space:nowrap;"><i class="fas fa-times"></i> Tolak</button><button type="button" onclick="outOfRadius.approve('${r.id}')" style="background:var(--color-primary);color:#fff;border:none;padding:8px 14px;border-radius:6px;cursor:pointer;font-size:0.85rem;font-weight:600;white-space:nowrap;"><i class="fas fa-check"></i> Approve</button></div>` : ''}
-                </div>
-            </div>
-        `).join('');
+        const ui = approvalUI;
+        const rows = filtered.map(r => {
+            const isDone = r.status === 'approved';
+            const isRejected = r.status === 'rejected';
+            const accent = isDone ? '#10B981' : (isRejected ? '#EF4444' : '#F59E0B');
+
+            let stateHtml;
+            if (isDone) {
+                stateHtml = `<span class="ap-state ap-tone-ok"><i class="fas fa-check-circle"></i> Sudah Ditinjau</span>
+                    <div class="ap-note-extra">Oleh ${ui.esc(r.approvedBy)}</div>`;
+            } else if (isRejected) {
+                stateHtml = `<span class="ap-state ap-tone-bad"><i class="fas fa-times-circle"></i> Ditolak</span>
+                    <div class="ap-note-extra" title="${ui.esc((r.rejectedBy || '') + (r.rejectedNote ? ' - ' + r.rejectedNote : ''))}">Oleh ${ui.esc(r.rejectedBy)}${r.rejectedNote ? ' - ' + ui.esc(r.rejectedNote) : ''}. Absen dikosongkan, karyawan diminta absen ulang.</div>`;
+            } else {
+                stateHtml = `<span class="ap-state ap-tone-wait"><i class="fas fa-hourglass-half"></i> Menunggu Ditinjau</span>`;
+            }
+
+            const actionHtml = (!isDone && !isRejected)
+                ? `<button type="button" class="ap-btn ap-btn-danger" onclick="outOfRadius.openRejectModal('${r.id}')"><i class="fas fa-times"></i> Tolak</button>
+                   <button type="button" class="ap-btn ap-btn-success" onclick="outOfRadius.approve('${r.id}')"><i class="fas fa-check"></i> Approve</button>`
+                : '<span class="ap-muted">-</span>';
+
+            const locHtml = `<div class="ap-date-main">${ui.esc(r.date)} &middot; ${ui.esc(r.time)}</div>
+                <div class="ap-date-sub"><span>${r.distance ? ui.esc(String(r.distance)) + 'm dari ' : ''}${ui.esc(r.nearestOffice || 'kantor')}</span></div>`;
+
+            const noteHtml = `<div class="ap-note" title="${ui.esc(r.note || '')}">${r.note ? ui.esc(r.note) : '<span class="ap-muted">-</span>'}</div>
+                ${r.photo ? `<img class="ap-photo" src="${ui.esc(r.photo)}" alt="Foto laporan" onclick="window.open(this.src,'_blank')">` : ''}`;
+
+            return ui.row(accent, [
+                { cls: 'ap-c-who', html: ui.who(r.userName || 'Tidak diketahui', []) },
+                { label: 'Jenis Absen', html: ui.chip(r.typeLabel || 'Absen', 'fa-location-dot') },
+                { label: 'Waktu & Lokasi', html: locHtml },
+                { cls: 'ap-c-note', label: 'Alasan', html: noteHtml },
+                { cls: 'ap-c-prog', label: 'Status', html: stateHtml },
+                { cls: 'ap-c-act', html: actionHtml }
+            ]);
+        }).join('');
+
+        container.innerHTML = ui.board(
+            ['Pemohon', 'Jenis Absen', 'Waktu & Lokasi', 'Alasan', 'Status', 'Aksi'],
+            rows,
+            'ap-oor'
+        );
     },
 
     async approve(id) {
