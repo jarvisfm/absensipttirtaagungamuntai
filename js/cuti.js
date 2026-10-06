@@ -28,6 +28,8 @@ const cuti = {
         await this.loadLeaves();
         await this.loadLeaveBalance();
         this.initForm();
+        // [TAMBAHAN] Paraf pemohon (opsional) - tercetak di bawah "Yang Memohon".
+        if (window.paraf) paraf.mount('cuti-paraf-container', 'cuti-paraf', { title: 'Paraf Pemohon', hint: '(opsional)' });
         this.initFilters();
         this.renderLeaveList();
         this.updateStats();
@@ -544,6 +546,13 @@ const cuti = {
             phone: phone?.value || ''
         };
 
+        // [TAMBAHAN] Paraf + tanggal paraf pemohon (opsional)
+        const parafPemohon = window.paraf ? paraf.getValue('cuti-paraf') : null;
+        if (parafPemohon) {
+            leaveData.applicantParaf = parafPemohon.path;
+            leaveData.applicantParafDate = parafPemohon.date;
+        }
+
         // [TAMBAHAN] Sertakan lampiran (base64) dalam pengajuan yang sama
         if (this.currentLampiran) {
             try {
@@ -575,6 +584,7 @@ const cuti = {
 
         // Reset form
         e.target.reset();
+        if (window.paraf) paraf.reset('cuti-paraf');
         document.getElementById('leave-duration').value = '';
         const balanceHint = document.getElementById('leave-balance-hint');
         if (balanceHint) balanceHint.style.display = 'none';
