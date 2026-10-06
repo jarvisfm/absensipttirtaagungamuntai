@@ -98,7 +98,9 @@ const outOfRadius = {
                             <span style="background:#FEF3C7;color:#D97706;font-size:0.75rem;font-weight:700;padding:2px 10px;border-radius:20px;">${this._esc(r.typeLabel)}</span>
                             ${r.status === 'approved'
                                 ? '<span style="background:rgba(16,185,129,0.12);color:#10B981;font-size:0.75rem;font-weight:700;padding:2px 10px;border-radius:20px;"><i class="fas fa-check"></i> Sudah Ditinjau</span>'
-                                : '<span style="background:rgba(217,119,6,0.12);color:#D97706;font-size:0.75rem;font-weight:700;padding:2px 10px;border-radius:20px;">Menunggu Ditinjau</span>'}
+                                : (r.status === 'rejected'
+                                    ? '<span style="background:rgba(239,68,68,0.12);color:#DC2626;font-size:0.75rem;font-weight:700;padding:2px 10px;border-radius:20px;"><i class="fas fa-times"></i> Ditolak</span>'
+                                    : '<span style="background:rgba(217,119,6,0.12);color:#D97706;font-size:0.75rem;font-weight:700;padding:2px 10px;border-radius:20px;">Menunggu Ditinjau</span>')}
                         </div>
                         <div style="font-size:0.85rem;color:var(--text-muted);margin-bottom:6px;">
                             ${this._esc(r.date)} - ${this._esc(r.time)} &middot; ${r.distance ? this._esc(String(r.distance)) + 'm dari ' : ''}${this._esc(r.nearestOffice || 'kantor')}
@@ -108,8 +110,9 @@ const outOfRadius = {
                         </div>
                         ${r.photo ? `<img src="${this._esc(r.photo)}" onclick="window.open(this.src,'_blank')" style="max-width:220px;max-height:140px;border-radius:8px;margin-top:8px;cursor:pointer;display:block;">` : ''}
                         ${r.status === 'approved' ? `<div style="font-size:0.75rem;color:var(--text-muted);margin-top:6px;">Ditinjau oleh ${this._esc(r.approvedBy)}</div>` : ''}
+                        ${r.status === 'rejected' ? `<div style="font-size:0.75rem;color:#DC2626;margin-top:6px;">Ditolak oleh ${this._esc(r.rejectedBy)}${r.rejectedNote ? ' - ' + this._esc(r.rejectedNote) : ''}. Absen sudah dikosongkan, karyawan diminta absen ulang.</div>` : ''}
                     </div>
-                    ${r.status !== 'approved' ? `<button type="button" onclick="outOfRadius.approve('${r.id}')" style="background:var(--color-primary);color:#fff;border:none;padding:8px 14px;border-radius:6px;cursor:pointer;font-size:0.85rem;font-weight:600;white-space:nowrap;"><i class="fas fa-check"></i> Approve</button>` : ''}
+                    ${(r.status !== 'approved' && r.status !== 'rejected') ? `<div style="display:flex;gap:8px;flex-wrap:wrap;"><button type="button" onclick="outOfRadius.openRejectModal('${r.id}')" style="background:#fff;color:#DC2626;border:1px solid #DC2626;padding:8px 14px;border-radius:6px;cursor:pointer;font-size:0.85rem;font-weight:600;white-space:nowrap;"><i class="fas fa-times"></i> Tolak</button><button type="button" onclick="outOfRadius.approve('${r.id}')" style="background:var(--color-primary);color:#fff;border:none;padding:8px 14px;border-radius:6px;cursor:pointer;font-size:0.85rem;font-weight:600;white-space:nowrap;"><i class="fas fa-check"></i> Approve</button></div>` : ''}
                 </div>
             </div>
         `).join('');
@@ -139,6 +142,75 @@ const outOfRadius = {
             console.error('Error approve laporan luar radius:', e);
             toast.error('Terjadi kesalahan');
         }
+    },
+
+    // [TAMBAHAN] Tolak laporan: absen sesi itu dikosongkan & karyawan diminta
+    // absen ulang. Modal konfirmasi (dengan catatan opsional) dibuat lewat
+    // JS supaya tidak perlu mengubah index.html.
+    openRejectModal(id) {
+        const report = this.reports.find(r => String(r.id) === String(id));
+        if (!report) return;
+
+        const old = document.getElementById('oor-reject-modal');
+        if (old) old.remove();
+
+        const overlay = document.createElement('div');
+        overlay.id = 'oor-reject-modal';
+        overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.45);display:flex;align-items:center;justify-content:center;z-index:10000;padding:16px;';
+        overlay.innerHTML = `
+            <div style="background:#fff;border-radius:12px;max-width:420px;width:100%;padding:20px;box-shadow:0 10px 30px rgba(0,0,0,0.2);">
+                <h3 style="margin:0 0 8px;font-size:1.05rem;">Tolak Absen Luar Radius?</h3>
+                <p style="margin:0 0 12px;font-size:0.85rem;color:var(--text-muted);">
+                    Absen <b>${this._esc(report.typeLabel)}</b> milik <b>${this._esc(report.userName)}</b> (${this._esc(report.date)} ${this._esc(report.time)})
+                    akan <b>dikosongkan</b> dan karyawan diminta absen kembali.
+                </p>
+                <textarea id="oor-reject-note" rows="3" placeholder="Alasan penolakan (opsional)" style="width:100%;box-sizing:border-box;border:1px solid var(--border-color);border-radius:8px;padding:8px 10px;font-size:0.85rem;resize:vertical;"></textarea>
+                <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px;">
+                    <button type="button" id="oor-reject-cancel" style="background:#fff;border:1px solid var(--border-color);padding:8px 14px;border-radius:6px;cursor:pointer;font-size:0.85rem;">Batal</button>
+                    <button type="button" id="oor-reject-confirm" style="background:#DC2626;color:#fff;border:none;padding:8px 14px;border-radius:6px;cursor:pointer;font-size:0.85rem;font-weight:600;">Tolak</button>
+                </div>
+            </div>`;
+        document.body.appendChild(overlay);
+
+        const close = () => overlay.remove();
+        document.getElementById('oor-reject-cancel').onclick = close;
+        overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
+        document.getElementById('oor-reject-confirm').onclick = async () => {
+            const btn = document.getElementById('oor-reject-confirm');
+            const note = document.getElementById('oor-reject-note').value.trim();
+            btn.disabled = true;
+            btn.textContent = 'Memproses...';
+            const ok = await this.reject(id, note);
+            if (ok) close(); else { btn.disabled = false; btn.textContent = 'Tolak'; }
+        };
+    },
+
+    async reject(id, catatan) {
+        const currentUser = auth.getCurrentUser();
+        try {
+            const result = await api.rejectOutOfRadiusReport(id, {
+                name: currentUser?.name || '',
+                role: currentUser?.role || ''
+            }, catatan);
+            if (result.success) {
+                toast.success('Laporan ditolak, absen dikosongkan. Karyawan diminta absen ulang.');
+                const report = this.reports.find(r => String(r.id) === String(id));
+                if (report) {
+                    report.status = 'rejected';
+                    report.rejectedBy = currentUser?.name || '';
+                    report.rejectedNote = catatan || '';
+                }
+                Object.keys(this._containerMap).forEach(role => {
+                    if (document.getElementById(this._containerMap[role])) this._render(role);
+                });
+                return true;
+            }
+            toast.error(result.error || 'Gagal menolak laporan');
+        } catch (e) {
+            console.error('Error menolak laporan luar radius:', e);
+            toast.error('Terjadi kesalahan');
+        }
+        return false;
     },
 
     _esc(str) {
