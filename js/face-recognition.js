@@ -32,6 +32,11 @@ const faceRecognition = {
     // boleh diambil - bukan lagi versi lama yang cuma cek "ada wajah
     // atau tidak" (itu yang bisa ditembus foto/kertas dicetak).
     faceRecognitionEnabled: false,
+    // Cabang saat Face Recognition ON (Settings admin > "Mode Deteksi Wajah"):
+    //  'video'  = cocokkan ke foto profil + liveness kedip mata (default,
+    //             sama dengan perilaku ON sebelumnya)
+    //  'static' = cocokkan ke foto profil TANPA liveness kedip mata
+    faceRecognitionMode: 'video',
     // Model tambahan untuk RECOGNITION (mengenali identitas, bukan cuma
     // mendeteksi ada-tidaknya wajah) - dipakai untuk mencocokkan wajah yang
     // difoto saat absen dengan foto profil karyawan yang bersangkutan, supaya
@@ -279,12 +284,16 @@ const faceRecognition = {
                 // & Attendance.gs yang punya catatan sama).
                 this.faceRecognitionEnabled = String(result.data.face_recognition).toLowerCase() === 'true'
                     || result.data.face_recognition === true;
+                this.faceRecognitionMode = String(result.data.face_recognition_mode || '').toLowerCase() === 'static'
+                    ? 'static' : 'video';
             } else {
                 this.faceRecognitionEnabled = false;
+                this.faceRecognitionMode = 'video';
             }
         } catch (e) {
             console.error('Gagal memuat setting Face Recognition, dianggap nonaktif (default):', e);
             this.faceRecognitionEnabled = false;
+            this.faceRecognitionMode = 'video';
         }
     },
 
@@ -434,7 +443,10 @@ const faceRecognition = {
                 // di kamera benar-benar sama dengan foto profil (lihat
                 // _faceMismatchRetrying & cooldown _autoCaptureNextAllowedAt
                 // di bawah).
-                if (!this.faceRecognitionEnabled) {
+                // Mode 'static' (Face Recognition ON tanpa video recognition):
+                // pencocokan ke foto profil tetap jalan, tapi liveness kedip
+                // mata dilewati - sama seperti OFF untuk urusan liveness.
+                if (!this.faceRecognitionEnabled || this.faceRecognitionMode === 'static') {
                     this.livenessDetected = true;
                 }
 
