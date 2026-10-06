@@ -154,11 +154,35 @@ const cuti = {
         try {
             const result = await api.getLeaveBalance(userId);
             this.leaveBalance = result.data ? result.data.sisa : 12;
+            // Admin bisa menonaktifkan Cuti Tahunan per karyawan (toggle di
+            // Edit Karyawan > Kekaryawanan). Tidak ada field = aktif.
+            this.cutiTahunanAktif = !(result.data && result.data.cutiTahunanAktif === false);
         } catch (error) {
             console.error('Error loading leave balance:', error);
             this.leaveBalance = 12;
         }
         this.updateBalanceDisplay();
+        this._applyCutiTahunanState();
+    },
+
+    // Jenis "Cuti Tahunan" di dropdown dinonaktifkan (abu-abu, tidak bisa
+    // dipilih) kalau Admin mematikan Cuti Tahunan untuk karyawan ini.
+    cutiTahunanAktif: true,
+    _applyCutiTahunanState() {
+        const typeSelect = document.getElementById('leave-type');
+        if (!typeSelect) return;
+        const opt = typeSelect.querySelector('option[value="annual"]');
+        if (!opt) return;
+        const aktif = this.cutiTahunanAktif !== false;
+        opt.disabled = !aktif;
+        opt.textContent = aktif ? 'Cuti Tahunan' : 'Cuti Tahunan (tidak bisa dipilih)';
+        opt.style.color = aktif ? '' : '#9ca3af';
+        // Kalau sebelumnya sempat terpilih, kosongkan & jalankan ulang
+        // listener change (hint sisa cuti, label lampiran).
+        if (!aktif && typeSelect.value === 'annual') {
+            typeSelect.value = '';
+            typeSelect.dispatchEvent(new Event('change'));
+        }
     },
 
     initForm() {
@@ -469,6 +493,10 @@ const cuti = {
         // frontend untuk UX cepat - validasi final & anti-akal-akalan tetap
         // di backend (submitLeaveData di Leave.gs).
         if (type.value === 'annual') {
+            if (this.cutiTahunanAktif === false) {
+                toast.error('Cuti Tahunan Anda sedang dinonaktifkan oleh Admin.');
+                return;
+            }
             if (this.leaveBalance <= 0) {
                 toast.error('Kuota Cuti Tahunan Anda tahun ini sudah habis!');
                 return;
