@@ -3663,6 +3663,20 @@
                                                     id="setting-face-recognition" checked><span
                                                     class="toggle-slider"></span></label></div>
                                     </div>
+                                    <!-- Sub-opsi Face Recognition (hanya tampil saat toggle ON).
+                                         Keduanya sama-sama mencocokkan wajah dengan FOTO PROFIL;
+                                         bedanya hanya ada/tidaknya liveness (kedip mata) saat absen. -->
+                                    <div class="setting-item" id="face-recognition-mode-wrap" style="flex-direction:column;align-items:flex-start;gap:10px;">
+                                        <div class="setting-info"><span class="setting-name">Mode Deteksi Wajah</span><span class="setting-desc">Pilih cara verifikasi wajah dengan foto profil saat absensi</span></div>
+                                        <label style="display:flex;gap:10px;align-items:flex-start;cursor:pointer;width:100%;border:1px solid var(--border-color);border-radius:8px;padding:10px;">
+                                            <input type="radio" name="face-recognition-mode" id="setting-face-mode-static" value="static" style="margin-top:3px;">
+                                            <span><span class="setting-name" style="margin-bottom:0;">Deteksi Profil dengan Wajah Statis</span><span class="setting-desc">Wajah di kamera dicocokkan dengan foto profil tanpa perlu berkedip (lebih cepat, tanpa liveness).</span></span>
+                                        </label>
+                                        <label style="display:flex;gap:10px;align-items:flex-start;cursor:pointer;width:100%;border:1px solid var(--border-color);border-radius:8px;padding:10px;">
+                                            <input type="radio" name="face-recognition-mode" id="setting-face-mode-video" value="video" checked style="margin-top:3px;">
+                                            <span><span class="setting-name" style="margin-bottom:0;">Deteksi Profil dengan Video Recognition</span><span class="setting-desc">Wajah dicocokkan dengan foto profil dan wajib berkedip (liveness) agar foto/layar tidak bisa dipakai menipu.</span></span>
+                                        </label>
+                                    </div>
                                     <div class="setting-item">
                                         <div class="setting-info"><span class="setting-name">Location
                                                 Tracking</span><span class="setting-desc">Wajib deteksi lokasi saat
