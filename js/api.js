@@ -500,6 +500,9 @@ const api = {
     async approveOutOfRadiusReport(id, approver) {
         return this.request('approveOutOfRadiusReport', { id, approver });
     },
+    async rejectOutOfRadiusReport(id, approver, catatan) {
+        return this.request('rejectOutOfRadiusReport', { id, approver, catatan });
+    },
     async submitOutOfWilayahReport(data) {
         return this.request('submitOutOfWilayahReport', data);
     },
