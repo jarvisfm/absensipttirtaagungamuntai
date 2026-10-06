@@ -407,6 +407,8 @@ const adminReports = {
                     hrManagerParafDate: i.hrManagerParafDate || '',
                     directorParaf:     i.directorParaf     || '',
                     directorParafDate: i.directorParafDate || '',
+                    applicantParaf:    i.applicantParaf    || '',
+                    applicantParafDate: i.applicantParafDate || '',
                     rejectedBy:        i.rejectedBy        || '',
                     rejectedByRole:    i.rejectedByRole    || '',
                     rejectedNote:      i.rejectedNote      || '',
@@ -3078,7 +3080,8 @@ const adminReports = {
             asmenParaf: row.asmenParaf || '', asmenParafDate: row.asmenParafDate || '',
             managerParaf: row.managerParaf || '', managerParafDate: row.managerParafDate || '',
             hrManagerParaf: row.hrManagerParaf || '', hrManagerParafDate: row.hrManagerParafDate || '',
-            directorParaf: row.directorParaf || '', directorParafDate: row.directorParafDate || ''
+            directorParaf: row.directorParaf || '', directorParafDate: row.directorParafDate || '',
+            applicantParaf: row.applicantParaf || '', applicantParafDate: row.applicantParafDate || ''
         };
 
         if (row.rawType === 'keluar_kantor') {
@@ -3136,6 +3139,7 @@ const adminReports = {
             managerParaf:    leaveRaw.managerParaf || '', managerParafDate:  leaveRaw.managerParafDate  || '',
             hrManagerParaf:  leaveRaw.hrManagerParaf || '', hrManagerParafDate: leaveRaw.hrManagerParafDate || '',
             directorParaf:   leaveRaw.directorParaf || '', directorParafDate: leaveRaw.directorParafDate || '',
+            applicantParaf:  leaveRaw.applicantParaf || '', applicantParafDate: leaveRaw.applicantParafDate || '',
             tundaSampai:     leaveRaw.tundaSampai  || ''
         };
 
