@@ -596,6 +596,9 @@ const izin = {
             });
         }
 
+        // [TAMBAHAN] Paraf pemohon (opsional) - tercetak di bawah "Yang Memohon".
+        if (window.paraf) paraf.mount('izin-paraf-container', 'izin-paraf', { title: 'Paraf Pemohon', hint: '(opsional)' });
+
         this.initFilters();
     },
 
@@ -847,6 +850,13 @@ const izin = {
             hasAttachment: !!this.currentFile
         };
 
+        // [TAMBAHAN] Paraf + tanggal paraf pemohon (opsional)
+        const parafPemohon = window.paraf ? paraf.getValue('izin-paraf') : null;
+        if (parafPemohon) {
+            izinEntry.applicantParaf = parafPemohon.path;
+            izinEntry.applicantParafDate = parafPemohon.date;
+        }
+
         try {
             const result = await api.submitIzin(izinEntry);
             if (result.success) {
@@ -866,6 +876,7 @@ const izin = {
 
         const form = document.getElementById('izin-form');
         if (form) form.reset();
+        if (window.paraf) paraf.reset('izin-paraf');
         this.toggleKeluarKantorFields('');
         this.removeFile();
 
