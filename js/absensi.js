@@ -1562,6 +1562,13 @@ const absensi = {
             if (pulang && pulang.time) {
                 const pulangMin = this._toMinutes(pulang.time);
                 if (pulangMin < openMin && nowMin < pulangMin) {
+                    // BUGFIX (6 Oktober 2026): kalau backend bilang jendela
+                    // dini hari ini bukan untuk Masuk (sesi yang sama
+                    // terjadwal HARI INI & tidak ada baris yang sedang
+                    // berjalan - lihat blockMorningClockIn di
+                    // checkAttendanceAccess()), Masuk baru buka pada
+                    // opensAt-nya (mis. malam ini), bukan pagi ini.
+                    if (this.accessInfo && this.accessInfo.blockMorningClockIn) return false;
                     return true;
                 }
             }
