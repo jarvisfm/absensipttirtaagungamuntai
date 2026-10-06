@@ -1440,10 +1440,14 @@ const cuti = {
                 ${richNote.editorHtml('approval-catatan-cuti')}
             </div>
 
+            ${window.paraf ? paraf.editorHtml('approval-paraf-cuti') : ''}
+
             ${actionButtons}
         `;
 
         modal.style.display = 'flex';
+        // [TAMBAHAN] Aktifkan kanvas paraf (opsional) di modal approval.
+        if (window.paraf) paraf.init('approval-paraf-cuti');
     },
 
     // Toggle tampilan input tanggal "Sampai dengan Tanggal ..." saat Direktur
@@ -1477,6 +1481,8 @@ const cuti = {
     async submitApproval(id, role, decision) {
         this._openModalId = id;
         const catatan = richNote.getValue('approval-catatan-cuti');
+        // [TAMBAHAN] Paraf + tanggal paraf (OPSIONAL) - hanya saat menyetujui.
+        const parafData = (decision === 'approve' && window.paraf) ? paraf.getValue('approval-paraf-cuti') : null;
         const tundaSampai = document.getElementById('cuti-tunda-sampai')?.value || '';
 
         if (decision === 'postpone' && !tundaSampai) {
@@ -1530,7 +1536,7 @@ const cuti = {
         try {
             let result;
             if (decision === 'approve') {
-                result = await api.approveLeave(id, approver, catatan);
+                result = await api.approveLeave(id, approver, catatan, parafData);
             } else if (decision === 'postpone') {
                 result = await api.postponeLeave(id, approver, catatan, tundaSampai);
             } else {
