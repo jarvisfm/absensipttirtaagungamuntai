@@ -493,9 +493,12 @@ const printLetters = {
         const safeHtml = window.richNote ? richNote.view(text) : String(text || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
         const len = window.richNote ? richNote.textLength(text) : String(text || '').length;
         const align = len > 40 ? 'justify' : 'left';
+        // Paraf + tanggal ditaruh PERSIS di bawah catatan (rata kiri, tanpa
+        // jarak ekstra) - bukan di pojok kanan bawah kotak.
+        const parafHtml = this._parafHtml(parafPath, parafDate, 40, 'left');
         return `
-            <div class="rn-view" style="min-height:22px; margin-bottom:4px; text-align:${align};">${safeHtml || '&nbsp;'}</div>
-            ${this._parafHtml(parafPath, parafDate, 40, 'right')}
+            <div class="rn-view" style="min-height:22px; margin-bottom:${parafHtml ? '0' : '4px'}; text-align:${align};">${safeHtml || '&nbsp;'}</div>
+            ${parafHtml}
         `;
     },
 
@@ -871,10 +874,10 @@ const printLetters = {
                         <!-- <div>, BUKAN <input> - supaya catatan yang panjang bisa
                              wrap turun ke baris di bawahnya (rowspan), bukan
                              terpotong seperti sebelumnya. -->
-                        <td rowspan="2"><div class="letter-input rn-view" style="white-space:normal; word-wrap:break-word; line-height:1.4; min-height:2.8em;">${window.richNote ? richNote.view(leave.managerNote) : (leave.managerNote || '')}</div>${this._parafHtml(leave.managerParaf, leave.managerParafDate, 38, 'right')}</td></tr>
+                        <td rowspan="2"><div class="letter-input rn-view" style="white-space:normal; word-wrap:break-word; line-height:1.4; min-height:2.8em;">${window.richNote ? richNote.view(leave.managerNote) : (leave.managerNote || '')}</div>${this._parafHtml(leave.managerParaf, leave.managerParafDate, 38, 'left')}</td></tr>
                     <tr><td class="lbl"></td><td class="sep">:</td></tr>
                     <tr><td class="lbl" style="padding-top:10px;">MANAGER UMUM &amp; KEPEG</td><td class="sep" style="padding-top:10px;">:</td>
-                        <td rowspan="3" style="padding-top:10px;"><div class="letter-input rn-view" style="white-space:normal; word-wrap:break-word; line-height:1.4; min-height:4.2em;">${window.richNote ? richNote.view(mgrUmumNote) : mgrUmumNote}</div>${this._parafHtml(mgrUmumParaf, mgrUmumParafDate, 38, 'right')}</td></tr>
+                        <td rowspan="3" style="padding-top:10px;"><div class="letter-input rn-view" style="white-space:normal; word-wrap:break-word; line-height:1.4; min-height:4.2em;">${window.richNote ? richNote.view(mgrUmumNote) : mgrUmumNote}</div>${this._parafHtml(mgrUmumParaf, mgrUmumParafDate, 38, 'left')}</td></tr>
                     <tr><td class="lbl"></td><td class="sep">:</td></tr>
                     <tr><td class="lbl"></td><td class="sep">:</td></tr>
                 </table>
