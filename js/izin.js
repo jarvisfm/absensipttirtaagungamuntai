@@ -1738,6 +1738,8 @@ const izin = {
                 ${richNote.editorHtml('approval-catatan')}
             </div>
 
+            ${window.paraf ? paraf.editorHtml('approval-paraf-izin') : ''}
+
             ${(role === 'direktur' && item.status === 'approved') ? `
             <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px;">
                 <button class="btn-primary" onclick="izin.submitApproval(${item.id}, '${role}', 'approve')">
@@ -1757,6 +1759,8 @@ const izin = {
         `;
 
         modal.style.display = 'flex';
+        // [TAMBAHAN] Aktifkan kanvas paraf (opsional) di modal approval.
+        if (window.paraf) paraf.init('approval-paraf-izin');
     },
 
     closeApprovalModal() {
@@ -1766,6 +1770,9 @@ const izin = {
 
     async submitApproval(id, role, decision) {
         const catatan = richNote.getValue('approval-catatan');
+        // [TAMBAHAN] Paraf + tanggal paraf (OPSIONAL) - hanya dikirim saat
+        // menyetujui; null kalau approver tidak menggambar paraf.
+        const parafData = (decision === 'approve' && window.paraf) ? paraf.getValue('approval-paraf-izin') : null;
         const user = auth.getCurrentUser();
 
         // [TAMBAHAN] Loading state di tombol yang diklik, supaya user tahu
@@ -1820,7 +1827,7 @@ const izin = {
 
         try {
             const result = decision === 'approve'
-                ? await api.approveIzin(id, approver, catatan)
+                ? await api.approveIzin(id, approver, catatan, parafData)
                 : await api.rejectIzin(id, approver, catatan);
 
             if (!result.success) {
