@@ -454,6 +454,13 @@ const printLetters = {
         `;
     },
 
+    // ── [TAMBAHAN] Paraf + tanggal paraf approver (opsional) ─────
+    //    Kosong ('') kalau approver tidak memberi paraf, jadi surat lama
+    //    tampil persis seperti sebelumnya.
+    _parafHtml(path, date, height, align) {
+        return window.paraf ? paraf.render(path, date, { height: height || 44, align: align || 'center' }) : '';
+    },
+
     // ── Baris dotted lines ───────────────────────────────────────
     _dottedLines(n) {
         return Array(n).fill('<div class="letter-dotted-line"></div>').join('');
@@ -461,12 +468,12 @@ const printLetters = {
 
     // ── Baris garis tanda tangan — dipakai format Staff/Asmen/Manajer Surat
     //    Permohonan Izin.
-    _ttdRowStaff(label, subLabel, name, nik) {
+    _ttdRowStaff(label, subLabel, name, nik, parafPath, parafDate) {
         return `
             <td>
                 <p style="margin:0 0 2px;">${label}</p>
                 <p style="margin:0 0 2px; min-height:1.4em;">${subLabel || '&nbsp;'}</p>
-                <div class="signature-space"></div>
+                <div class="signature-space" style="text-align:center;">${this._parafHtml(parafPath, parafDate, 44)}</div>
                 <p style="text-align:center; margin:4px 0 2px;">
                     <input type="text" readonly class="letter-input-plain letter-input-center"
                         value="${name || ''}" placeholder="......................">
@@ -479,7 +486,7 @@ const printLetters = {
     // ── Kotak catatan read-only (Pertimbangan Manajer & Keputusan Direktur) —
     //    dipakai format Staff/Asmen/Manajer. Isi catatan ditampilkan apa
     //    adanya (rata kiri/justify), tanpa garis titik-titik.
-    _noteBoxStaff(text) {
+    _noteBoxStaff(text, parafPath, parafDate) {
         // Catatan boleh berformat (paragraf, daftar, tebal/miring, indent) dari
         // editor di modal Approval - lewat richNote.view() supaya aman (sanitize)
         // & catatan lama yang masih teks polos tetap tampil normal.
@@ -488,6 +495,7 @@ const printLetters = {
         const align = len > 40 ? 'justify' : 'left';
         return `
             <div class="rn-view" style="min-height:22px; margin-bottom:4px; text-align:${align};">${safeHtml || '&nbsp;'}</div>
+            ${this._parafHtml(parafPath, parafDate, 40, 'right')}
         `;
     },
 
@@ -561,10 +569,17 @@ const printLetters = {
                         value="${this._formatJam(masuk)}"></td></tr>
             </table>
 
+            ${(izin.managerParaf || izin.managerParafDate) ? `
+            <div class="letter-signoff-block" style="float:left;">
+                <p>&nbsp;</p>
+                <p>Paraf ${this._managerLabelForBagian(emp.bagian)}</p>
+                <div class="signature-space" style="text-align:center;">${this._parafHtml(izin.managerParaf, izin.managerParafDate, 44)}</div>
+            </div>` : ''}
+
             <div class="letter-signoff-block">
                 <p>Amuntai, ${this._formatTanggalIndo(izin.appliedAt || new Date().toISOString())}</p>
                 <p>Direktur</p>
-                <div class="signature-space"></div>
+                <div class="signature-space" style="text-align:center;">${this._parafHtml(izin.directorParaf, izin.directorParafDate, 44)}</div>
                 <p class="signature-name-underline">Muhammad Nasrullah, S. AB</p>
             </div>
         `;
@@ -579,6 +594,7 @@ const printLetters = {
     // =============================================================
     _openIzinPermohonanStaff(emp, izin) {
         const pertimbangan = izin.managerNote    || '';
+        const pertimbanganParaf = izin.managerParaf, pertimbanganParafDate = izin.managerParafDate;
         const keputusan    = izin.directorNote   || '';
         const asmenName    = izin.asmenName      || '';
         const asmenNik     = izin.asmenNik       || '';
@@ -588,7 +604,7 @@ const printLetters = {
 
             <table class="letter-signoff-table">
                 <tr>
-                    ${this._ttdRowStaff('Diketahui Oleh :', 'Asmen', asmenName, asmenNik)}
+                    ${this._ttdRowStaff('Diketahui Oleh :', 'Asmen', asmenName, asmenNik, izin.asmenParaf, izin.asmenParafDate)}
                     ${this._ttdRowStaff('Yang Memohon Izin,', '', emp.name, emp.nik)}
                 </tr>
             </table>
@@ -598,12 +614,12 @@ const printLetters = {
                     <td style="vertical-align:top;">
                         <p><strong>Pertimbangan :</strong></p>
                         <p><strong>${this._managerLabelForBagian(emp.bagian)}</strong></p>
-                        ${this._noteBoxStaff(pertimbangan)}
+                        ${this._noteBoxStaff(pertimbangan, pertimbanganParaf, pertimbanganParafDate)}
                     </td>
                     <td style="vertical-align:top;">
                         <p><strong>Keputusan Direktur :</strong></p>
                         <p>&nbsp;</p>
-                        ${this._noteBoxStaff(keputusan)}
+                        ${this._noteBoxStaff(keputusan, izin.directorParaf, izin.directorParafDate)}
                     </td>
                 </tr>
             </table>
@@ -625,6 +641,11 @@ const printLetters = {
         // yang cuma 1 tahap approval (disimpan di managerNote, hrManagerNote
         // kosong karena tidak dipakai - lihat approveIzinData di Izin.gs).
         const pertimbangan = izin.hrManagerNote || izin.managerNote || '';
+        // Paraf kotak Pertimbangan mengikuti catatannya: Manajer Umum &
+        // Kepegawaian (tahap 2) kalau sudah approve, selain itu paraf Manajer.
+        const hrDone = !!(izin.hrManagerApprovedAt || izin.hrManagerName);
+        const pertimbanganParaf = hrDone ? izin.hrManagerParaf : izin.managerParaf;
+        const pertimbanganParafDate = hrDone ? izin.hrManagerParafDate : izin.managerParafDate;
         const keputusan    = izin.directorNote   || '';
         const mgrName      = izin.managerName    || '';
         const mgrNik       = izin.managerNik     || '';
@@ -634,7 +655,7 @@ const printLetters = {
 
             <table class="letter-signoff-table">
                 <tr>
-                    ${this._ttdRowStaff('Diketahui Oleh :', 'Manager', mgrName, mgrNik)}
+                    ${this._ttdRowStaff('Diketahui Oleh :', 'Manager', mgrName, mgrNik, izin.managerParaf, izin.managerParafDate)}
                     ${this._ttdRowStaff('Yang Memohon Izin,', '', emp.name, emp.nik)}
                 </tr>
             </table>
@@ -644,12 +665,12 @@ const printLetters = {
                     <td style="vertical-align:top;">
                         <p><strong>Pertimbangan :</strong></p>
                         <p><strong>Manager Umum &amp; Kepegawaian</strong></p>
-                        ${this._noteBoxStaff(pertimbangan)}
+                        ${this._noteBoxStaff(pertimbangan, pertimbanganParaf, pertimbanganParafDate)}
                     </td>
                     <td style="vertical-align:top;">
                         <p><strong>Keputusan Direktur :</strong></p>
                         <p>&nbsp;</p>
-                        ${this._noteBoxStaff(keputusan)}
+                        ${this._noteBoxStaff(keputusan, izin.directorParaf, izin.directorParafDate)}
                     </td>
                 </tr>
             </table>
@@ -678,7 +699,7 @@ const printLetters = {
 
             <div style="margin-top:24px; text-align:left;">
                 <p><strong>Keputusan Direktur :</strong></p>
-                ${this._noteBoxStaff(keputusan)}
+                ${this._noteBoxStaff(keputusan, izin.directorParaf, izin.directorParafDate)}
             </div>
         `;
         this._show(html);
@@ -726,6 +747,9 @@ const printLetters = {
         // catatan Manajer Umum & Kepegawaian yang tersimpan di leave.hrManagerNote.
         const isBagianUmumKepeg = String(leave.bagian || '').toUpperCase().trim() === 'UMUM DAN KEPEGAWAIAN';
         const mgrUmumNote = isBagianUmumKepeg ? (leave.managerNote || '') : (leave.hrManagerNote || '');
+        // [TAMBAHAN] Paraf approver (opsional) - mengikuti catatan yang sama.
+        const mgrUmumParaf = isBagianUmumKepeg ? leave.managerParaf : leave.hrManagerParaf;
+        const mgrUmumParafDate = isBagianUmumKepeg ? leave.managerParafDate : leave.hrManagerParafDate;
 
         // Keputusan Direktur: centang otomatis sesuai status surat.
         const isDisetujui = leave.status === 'approved';
@@ -741,7 +765,7 @@ const printLetters = {
         const mengetahuiCell = letterFormat === 'staff'
             ? `<td>
                     <p>MENGETAHUI :</p>
-                    <div class="signature-space"></div>
+                    <div class="signature-space" style="text-align:center;">${this._parafHtml(leave.asmenParaf, leave.asmenParafDate, 44)}</div>
                     <p style="text-align:center; margin:4px 0 2px;">
                         <input type="text" readonly class="letter-input-plain letter-input-center"
                             value="${leave.asmenName || ''}" placeholder="......................">
@@ -847,10 +871,10 @@ const printLetters = {
                         <!-- <div>, BUKAN <input> - supaya catatan yang panjang bisa
                              wrap turun ke baris di bawahnya (rowspan), bukan
                              terpotong seperti sebelumnya. -->
-                        <td rowspan="2"><div class="letter-input rn-view" style="white-space:normal; word-wrap:break-word; line-height:1.4; min-height:2.8em;">${window.richNote ? richNote.view(leave.managerNote) : (leave.managerNote || '')}</div></td></tr>
+                        <td rowspan="2"><div class="letter-input rn-view" style="white-space:normal; word-wrap:break-word; line-height:1.4; min-height:2.8em;">${window.richNote ? richNote.view(leave.managerNote) : (leave.managerNote || '')}</div>${this._parafHtml(leave.managerParaf, leave.managerParafDate, 38, 'right')}</td></tr>
                     <tr><td class="lbl"></td><td class="sep">:</td></tr>
                     <tr><td class="lbl" style="padding-top:10px;">MANAGER UMUM &amp; KEPEG</td><td class="sep" style="padding-top:10px;">:</td>
-                        <td rowspan="3" style="padding-top:10px;"><div class="letter-input rn-view" style="white-space:normal; word-wrap:break-word; line-height:1.4; min-height:4.2em;">${window.richNote ? richNote.view(mgrUmumNote) : mgrUmumNote}</div></td></tr>
+                        <td rowspan="3" style="padding-top:10px;"><div class="letter-input rn-view" style="white-space:normal; word-wrap:break-word; line-height:1.4; min-height:4.2em;">${window.richNote ? richNote.view(mgrUmumNote) : mgrUmumNote}</div>${this._parafHtml(mgrUmumParaf, mgrUmumParafDate, 38, 'right')}</td></tr>
                     <tr><td class="lbl"></td><td class="sep">:</td></tr>
                     <tr><td class="lbl"></td><td class="sep">:</td></tr>
                 </table>
@@ -864,7 +888,7 @@ const printLetters = {
                      </tr>
                      <tr>
                          <td><span class="keputusan-lbl">DIREKTUR PT.TAA :</span> ${chk(isDisetujui)} DISETUJUI</td>
-                         <td></td>
+                         <td>${this._parafHtml(leave.directorParaf, leave.directorParafDate, 44, 'left')}</td>
                      </tr>
                      <tr>
                          <td><span class="keputusan-lbl">&nbsp;</span> ${chk(isDitunda)} DITUNDA</td>
