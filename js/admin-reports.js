@@ -398,6 +398,15 @@ const adminReports = {
                     directorNik:       i.directorNik       || '',
                     directorApprovedAt: i.directorApprovedAt || '',
                     directorNote:      i.directorNote      || '',
+                    // [TAMBAHAN] Paraf approver (opsional) - dipakai cetak surat.
+                    asmenParaf:        i.asmenParaf        || '',
+                    asmenParafDate:    i.asmenParafDate    || '',
+                    managerParaf:      i.managerParaf      || '',
+                    managerParafDate:  i.managerParafDate  || '',
+                    hrManagerParaf:    i.hrManagerParaf    || '',
+                    hrManagerParafDate: i.hrManagerParafDate || '',
+                    directorParaf:     i.directorParaf     || '',
+                    directorParafDate: i.directorParafDate || '',
                     rejectedBy:        i.rejectedBy        || '',
                     rejectedByRole:    i.rejectedByRole    || '',
                     rejectedNote:      i.rejectedNote      || '',
@@ -3063,7 +3072,13 @@ const adminReports = {
             hrManagerName: row.hrManagerName || '',
             hrManagerNik:  row.hrManagerNik  || '',
             hrManagerNote: row.hrManagerNote || '',
-            directorNote: row.directorNote || ''
+            hrManagerApprovedAt: row.hrManagerApprovedAt || '',
+            directorNote: row.directorNote || '',
+            // [TAMBAHAN] Paraf approver (opsional) untuk cetak surat.
+            asmenParaf: row.asmenParaf || '', asmenParafDate: row.asmenParafDate || '',
+            managerParaf: row.managerParaf || '', managerParafDate: row.managerParafDate || '',
+            hrManagerParaf: row.hrManagerParaf || '', hrManagerParafDate: row.hrManagerParafDate || '',
+            directorParaf: row.directorParaf || '', directorParafDate: row.directorParafDate || ''
         };
 
         if (row.rawType === 'keluar_kantor') {
@@ -3116,6 +3131,11 @@ const adminReports = {
             directorName:    leaveRaw.directorName || '',
             directorNik:     leaveRaw.directorNik  || '',
             directorNote:    leaveRaw.directorNote || '',
+            // [TAMBAHAN] Paraf approver (opsional) untuk cetak surat.
+            asmenParaf:      leaveRaw.asmenParaf   || '', asmenParafDate:    leaveRaw.asmenParafDate    || '',
+            managerParaf:    leaveRaw.managerParaf || '', managerParafDate:  leaveRaw.managerParafDate  || '',
+            hrManagerParaf:  leaveRaw.hrManagerParaf || '', hrManagerParafDate: leaveRaw.hrManagerParafDate || '',
+            directorParaf:   leaveRaw.directorParaf || '', directorParafDate: leaveRaw.directorParafDate || '',
             tundaSampai:     leaveRaw.tundaSampai  || ''
         };
 
