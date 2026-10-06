@@ -605,7 +605,7 @@ const printLetters = {
             <table class="letter-signoff-table">
                 <tr>
                     ${this._ttdRowStaff('Diketahui Oleh :', 'Asmen', asmenName, asmenNik, izin.asmenParaf, izin.asmenParafDate)}
-                    ${this._ttdRowStaff('Yang Memohon Izin,', '', emp.name, emp.nik)}
+                    ${this._ttdRowStaff('Yang Memohon Izin,', '', emp.name, emp.nik, izin.applicantParaf, izin.applicantParafDate)}
                 </tr>
             </table>
 
@@ -656,7 +656,7 @@ const printLetters = {
             <table class="letter-signoff-table">
                 <tr>
                     ${this._ttdRowStaff('Diketahui Oleh :', 'Manager', mgrName, mgrNik, izin.managerParaf, izin.managerParafDate)}
-                    ${this._ttdRowStaff('Yang Memohon Izin,', '', emp.name, emp.nik)}
+                    ${this._ttdRowStaff('Yang Memohon Izin,', '', emp.name, emp.nik, izin.applicantParaf, izin.applicantParafDate)}
                 </tr>
             </table>
 
@@ -693,7 +693,7 @@ const printLetters = {
             <table class="letter-signoff-table">
                 <tr>
                     <td></td>
-                    ${this._ttdRowStaff('Yang Memohon Izin,', '', emp.name, emp.nik)}
+                    ${this._ttdRowStaff('Yang Memohon Izin,', '', emp.name, emp.nik, izin.applicantParaf, izin.applicantParafDate)}
                 </tr>
             </table>
 
@@ -857,7 +857,7 @@ const printLetters = {
                         ${mengetahuiCell}
                         <td>
                             <p>YANG MEMOHON,</p>
-                            <div class="signature-space"></div>
+                            <div class="signature-space" style="text-align:center;">${this._parafHtml(leave.applicantParaf, leave.applicantParafDate, 44)}</div>
                             <p style="text-align:center; margin:4px 0 2px;">${emp.name || ''}</p>
                             <p style="text-align:center;">NIK. ${emp.nik || ''}</p>
                         </td>
