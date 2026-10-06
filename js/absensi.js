@@ -1141,11 +1141,22 @@ const absensi = {
         // di atas.
         let totalTidakHadir = 0;
         rows.forEach(r => {
+            // BUGFIX (6 Oktober 2026): badge "Hadir" dihitung per HARI.
+            // SEBELUMNYA tiap sesi "Hadir (Kendala Teknis)"/"SPK" ditambahkan
+            // +1 sendiri-sendiri ke totalHadir, padahal harinya sudah ikut
+            // terhitung lewat r.status di atas - 1 hari dengan 2 sesi
+            // Kendala Teknis jadi terhitung 3x (Total 2 hari tapi Hadir 4).
+            // Sekarang hari yang BELUM terhitung lewat status cuma
+            // ditambah +1 (paling banyak sekali per hari), dan hari yang
+            // sudah terhitung tidak ditambah lagi.
+            const sudahTerhitungHadir = ['hadir', 'ontime', 'terlambat', 'late', 'izin', 'cuti'].includes(String(r.status || '').toLowerCase());
+            let adaSesiHadirKhusus = false;
             ['clockIn', 'breakStart', 'breakEnd', 'clockOut'].forEach(field => {
                 const val = r[field];
                 if (val === 'Tidak Hadir') totalTidakHadir++;
-                else if (val === 'Hadir (Kendala Teknis)' || val === 'SPK') totalHadir++;
+                else if (val === 'Hadir (Kendala Teknis)' || val === 'SPK') adaSesiHadirKhusus = true;
             });
+            if (adaSesiHadirKhusus && !sudahTerhitungHadir) totalHadir++;
         });
 
         el.innerHTML = `
