@@ -616,7 +616,7 @@ const api = {
         return this.request('previewLeaveDuration', { startDate, endDate, userId });
     },
 
-    async approveLeave(id, approver, catatan) {
+    async approveLeave(id, approver, catatan, paraf) {
         if (!API_BASE_URL) {
             const all = storage.get('leaves', []);
             const leave = all.find(l => l.id === id);
@@ -632,7 +632,7 @@ const api = {
             }
             return { success: true, data: leave };
         }
-        return this.request('approveLeave', { id, approver, catatan });
+        return this.request('approveLeave', { id, approver, catatan, paraf: paraf || null });
     },
 
     async rejectLeave(id, approver, catatan) {
@@ -733,7 +733,7 @@ const api = {
         return this.request('cancelIzin', { id, userId, catatan });
     },
 
-    async approveIzin(id, approver, catatan) {
+    async approveIzin(id, approver, catatan, paraf) {
         if (!API_BASE_URL) {
             const all = storage.get('izin', []);
             const item = all.find(i => i.id === id);
@@ -749,7 +749,7 @@ const api = {
             }
             return { success: true, data: item };
         }
-        return this.request('approveIzin', { id, approver, catatan });
+        return this.request('approveIzin', { id, approver, catatan, paraf: paraf || null });
     },
 
     async rejectIzin(id, approver, catatan) {
