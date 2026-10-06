@@ -143,6 +143,9 @@ const adminReports = {
         const oorReports = pick(oorResult, 'laporan luar radius');
         this.outOfRadiusMap = {};
         oorReports.forEach(r => {
+            // Laporan yang DITOLAK: sesinya sudah dikosongkan, jangan ikut
+            // menandai jam (mis. absen ulang) dengan badge Luar Radius.
+            if (r.status === 'rejected') return;
             const key = `${r.userId}|${r.date}|${r.type}`;
             this.outOfRadiusMap[key] = r;
         });
