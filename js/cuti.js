@@ -1159,55 +1159,17 @@ const cuti = {
         if (selectedMonth) scoped = scoped.filter(l => (l.startDate || '').startsWith(selectedMonth));
         scoped = scoped.slice().sort((a, b) => (b.startDate || '').localeCompare(a.startDate || ''));
 
+        list.classList.add('ap-list');
+
         if (scoped.length === 0) {
-            list.innerHTML = `
-                <div class="empty-state" style="text-align:center;padding:var(--spacing-xl);color:var(--text-muted);">
-                    <i class="fas fa-clock-rotate-left" style="font-size:3rem;margin-bottom:var(--spacing);"></i>
-                    <p>Tidak ada riwayat pengajuan cuti di bulan ini</p>
-                </div>
-            `;
+            list.innerHTML = approvalUI.empty('fa-clock-rotate-left', 'Tidak ada riwayat pengajuan cuti di bulan ini');
             return;
         }
 
-        const typeLabels = {
-            annual: 'Cuti Tahunan',
-            important: 'Cuti Alasan Penting',
-            sick: 'Cuti Sakit',
-            besar: 'Cuti Besar',
-            maternity: 'Cuti Bersalin',
-            other: 'Keterangan Lain-lain'
-        };
-
-        list.innerHTML = scoped.map(item => {
-            const emp = this._findEmployee(item.userId);
-            this._leaveCache = this._leaveCache || {};
-            this._leaveCache[item.id] = item; // cache utk modal progress (showApprovalProgress)
-            const typeLabel = item.typeLabel || typeLabels[item.type] || 'Cuti';
-            const startFormatted = dateTime.formatDate(new Date(item.startDate), 'short');
-            const endFormatted = dateTime.formatDate(new Date(item.endDate), 'short');
-            const dateDisplay = item.startDate !== item.endDate
-                ? `${startFormatted} - ${endFormatted}` : startFormatted;
-
-            return `
-                <div class="izin-item">
-                    <div class="izin-icon"><i class="fas fa-umbrella-beach"></i></div>
-                    <div class="izin-content">
-                        <div class="izin-header-row">
-                            <h4 class="izin-type">${typeLabel}</h4>
-                            <span class="izin-status ${item.status}" style="cursor:pointer;" onclick="cuti.showApprovalProgress(${item.id})" title="Lihat progress persetujuan">
-                                ${this._getDetailedStatusLabel(item, emp)} <i class="fas fa-chevron-right" style="font-size:0.7em;margin-left:4px;"></i>
-                            </span>
-                        </div>
-                        <div class="izin-details">
-                            <span class="izin-date"><i class="fas fa-user"></i> ${emp.nama || 'Tidak diketahui'}</span>
-                        </div>
-                        <div class="izin-details">
-                            <span class="izin-date"><i class="fas fa-calendar"></i> ${dateDisplay} (${item.duration} hari)</span>
-                        </div>
-                    </div>
-                </div>
-            `;
-        }).join('');
+        list.innerHTML = approvalUI.board(
+            ['Pemohon', 'Jenis Cuti', 'Tanggal', 'Keterangan', 'Status Persetujuan', 'Aksi'],
+            scoped.map(item => this._apCutiRow(item, role, false)).join('')
+        );
     },
 
     renderApprovalList(role) {
@@ -1269,17 +1231,42 @@ const cuti = {
             });
         }
 
+        list.classList.add('ap-list');
+        if (window.approvalUI) approvalUI.setCount(role, 'cuti', filtered.length);
+
         if (filtered.length === 0) {
-            list.innerHTML = `
-                <div class="empty-state" style="text-align:center;padding:var(--spacing-xl);color:var(--text-muted);">
-                    <i class="fas fa-inbox" style="font-size:3rem;margin-bottom:var(--spacing);"></i>
-                    <p>Tidak ada pengajuan cuti yang menunggu persetujuan Anda saat ini</p>
-                </div>
-            `;
+            list.innerHTML = approvalUI.empty('fa-inbox', 'Tidak ada pengajuan cuti yang menunggu persetujuan Anda saat ini');
             return;
         }
 
         const sorted = filtered.sort((a, b) => new Date(b.appliedAt) - new Date(a.appliedAt));
+
+        list.innerHTML = approvalUI.board(
+            ['Pemohon', 'Jenis Cuti', 'Tanggal', 'Keterangan', 'Status Persetujuan', 'Aksi'],
+            sorted.map(item => this._apCutiRow(item, role, true)).join('')
+        );
+    },
+
+    // [TAMBAHAN 2026-10-06] Satu baris tabel approval cuti (dipakai kartu
+    // "Menunggu Persetujuan" dan kartu "Riwayat"). Helper tampilannya ada di
+    // window.approvalUI (akhir izin.js), style di css/izin.css.
+    _apCutiMeta(type) {
+        const meta = {
+            annual:    ['#10B981', 'fa-umbrella-beach'],
+            important: ['#3B82F6', 'fa-file-signature'],
+            sick:      ['#EF4444', 'fa-briefcase-medical'],
+            besar:     ['#8B5CF6', 'fa-plane-departure'],
+            maternity: ['#EC4899', 'fa-baby'],
+            other:     ['#6B7280', 'fa-ellipsis']
+        };
+        return meta[type] || ['#10B981', 'fa-umbrella-beach'];
+    },
+
+    _apCutiRow(item, role, withAction) {
+        const ui = approvalUI;
+        const emp = this._findEmployee(item.userId);
+        this._leaveCache = this._leaveCache || {};
+        this._leaveCache[item.id] = item; // cache utk modal progress (showApprovalProgress)
 
         const typeLabels = {
             annual: 'Cuti Tahunan',
@@ -1289,43 +1276,35 @@ const cuti = {
             maternity: 'Cuti Bersalin',
             other: 'Keterangan Lain-lain'
         };
+        const typeLabel = item.typeLabel || typeLabels[item.type] || 'Cuti';
+        const [accent, icon] = this._apCutiMeta(item.type);
 
-        list.innerHTML = sorted.map(item => {
-            const emp = this._findEmployee(item.userId);
-            this._leaveCache = this._leaveCache || {};
-            this._leaveCache[item.id] = item; // cache utk modal progress (showApprovalProgress)
-            const typeLabel = item.typeLabel || typeLabels[item.type] || 'Cuti';
-            const startFormatted = dateTime.formatDate(new Date(item.startDate), 'short');
-            const endFormatted = dateTime.formatDate(new Date(item.endDate), 'short');
-            const dateDisplay = item.startDate !== item.endDate
-                ? `${startFormatted} - ${endFormatted}` : startFormatted;
+        const startFmt = dateTime.formatDate(new Date(item.startDate), 'short');
+        const endFmt = dateTime.formatDate(new Date(item.endDate), 'short');
+        const dateMain = item.startDate !== item.endDate ? `${startFmt} - ${endFmt}` : startFmt;
 
-            return `
-                <div class="izin-item">
-                    <div class="izin-icon"><i class="fas fa-umbrella-beach"></i></div>
-                    <div class="izin-content">
-                        <div class="izin-header-row">
-                            <h4 class="izin-type">${typeLabel}</h4>
-                            <span class="izin-status ${item.status}" style="cursor:pointer;" onclick="cuti.showApprovalProgress(${item.id})" title="Lihat progress persetujuan">
-                                ${this._getDetailedStatusLabel(item, emp)} <i class="fas fa-chevron-right" style="font-size:0.7em;margin-left:4px;"></i>
-                            </span>
-                        </div>
-                        <div class="izin-details">
-                            <span class="izin-date"><i class="fas fa-user"></i> ${emp.nama || 'Tidak diketahui'}</span>
-                        </div>
-                        <div class="izin-details">
-                            <span class="izin-date"><i class="fas fa-calendar"></i> ${dateDisplay} (${item.duration} hari)</span>
-                        </div>
-                        <p class="izin-reason">${item.reason || ''}</p>
-                        <div style="margin-top:8px;">
-                            <button class="btn-small btn-primary" onclick="cuti.openApprovalModal(${item.id}, '${role}')">
-                                <i class="fas fa-eye"></i> Lihat &amp; Proses
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            `;
-        }).join('');
+        let dateSub = `<span class="ap-pill">${ui.esc(item.duration)} hari</span>`;
+        const applied = item.appliedAt ? new Date(item.appliedAt) : null;
+        if (applied && !isNaN(applied.getTime())) {
+            dateSub += `<span>Diajukan ${ui.esc(dateTime.formatDate(applied, 'short'))}</span>`;
+        }
+
+        let stages = [];
+        try { stages = this._buildApprovalStages(item, emp); } catch (e) { stages = []; }
+        const statusLabel = this._getDetailedStatusLabel(item, emp);
+
+        const actionHtml = withAction
+            ? `<button type="button" class="ap-btn ap-btn-primary" onclick="cuti.openApprovalModal(${item.id}, '${role}')"><i class="fas fa-eye"></i> Lihat &amp; Proses</button>`
+            : `<button type="button" class="ap-btn ap-btn-ghost" onclick="cuti.showApprovalProgress(${item.id})"><i class="fas fa-list-check"></i> Detail</button>`;
+
+        return ui.row(accent, [
+            { cls: 'ap-c-who', html: ui.who(emp.nama || 'Tidak diketahui', [emp.jabatan, emp.bagian]) },
+            { label: 'Jenis Cuti', html: ui.chip(typeLabel, icon) },
+            { label: 'Tanggal', html: `<div class="ap-date-main">${ui.esc(dateMain)}</div><div class="ap-date-sub">${dateSub}</div>` },
+            { cls: 'ap-c-note', label: 'Keterangan', html: `<div class="ap-note" title="${ui.esc(item.reason || '')}">${item.reason ? ui.esc(item.reason) : '<span class="ap-muted">-</span>'}</div>` },
+            { cls: 'ap-c-prog', label: 'Status Persetujuan', html: ui.progress(stages, item.status, statusLabel, `cuti.showApprovalProgress(${item.id})`) },
+            { cls: 'ap-c-act', html: actionHtml }
+        ]);
     },
 
     openApprovalModal(id, role) {
