@@ -1336,6 +1336,10 @@ const izin = {
     // Dipanggil dari router saat halaman approval-asmen/manajer/direktur dibuka.
     // =========================================================
     async initApprovalPage(role) {
+        // [TAMBAHAN 2026-10-06] Pasang tab (Perlu Diproses / Riwayat / Luar
+        // Radius) & mode lebar landscape - lihat window.approvalUI di bawah.
+        if (window.approvalUI) approvalUI.initTabs(role);
+
         // Approver butuh data SEMUA izin (bukan cuma miliknya sendiri) supaya bisa
         // melihat pengajuan staff lain - pakai allIzinData, TERPISAH dari izinData
         // (riwayat pribadi approver itu sendiri di halaman Izin/Sakit).
@@ -1444,60 +1448,17 @@ const izin = {
         if (selectedMonth) scoped = scoped.filter(i => (i.date || '').startsWith(selectedMonth));
         scoped = scoped.slice().sort((a, b) => (b.date || '').localeCompare(a.date || ''));
 
+        list.classList.add('ap-list');
+
         if (scoped.length === 0) {
-            list.innerHTML = `
-                <div class="empty-state" style="text-align:center;padding:var(--spacing-xl);color:var(--text-muted);">
-                    <i class="fas fa-clock-rotate-left" style="font-size:3rem;margin-bottom:var(--spacing);"></i>
-                    <p>Tidak ada riwayat pengajuan izin di bulan ini</p>
-                </div>
-            `;
+            list.innerHTML = approvalUI.empty('fa-clock-rotate-left', 'Tidak ada riwayat pengajuan izin di bulan ini');
             return;
         }
 
-        const typeLabelFallback = {
-            'sick': 'Sakit',
-            'permission': 'Izin Penting',
-            'emergency': 'Keadaan Darurat',
-            'izin_harian': 'Permohonan Izin Harian',
-            'keluar_kantor': 'Izin Keluar Kantor'
-        };
-
-        list.innerHTML = scoped.map(item => {
-            const emp = this._findEmployee(item.userId);
-            this._izinCache = this._izinCache || {};
-            this._izinCache[item.id] = item; // cache utk modal progress (showApprovalProgress)
-            const typeLabel = item.typeLabel || typeLabelFallback[item.type] || 'Izin';
-            const dateFormatted = dateTime.formatDate(new Date(item.date), 'short');
-            const dateDisplay = item.dateEnd
-                ? `${dateFormatted} - ${dateTime.formatDate(new Date(item.dateEnd), 'short')}`
-                : dateFormatted;
-
-            return `
-                <div class="izin-item">
-                    <div class="izin-icon ${item.type}"><i class="fas fa-file-alt"></i></div>
-                    <div class="izin-content">
-                        <div class="izin-header-row">
-                            <h4 class="izin-type">${typeLabel}</h4>
-                            <span class="izin-status ${item.status}" style="cursor:pointer;" onclick="izin.showApprovalProgress(${item.id})" title="Lihat progress persetujuan">
-                                ${this._getDetailedStatusLabel(item, emp)} <i class="fas fa-chevron-right" style="font-size:0.7em;margin-left:4px;"></i>
-                            </span>
-                        </div>
-                        <div class="izin-details">
-                            <span class="izin-date"><i class="fas fa-user"></i> ${emp.nama || 'Tidak diketahui'}</span>
-                        </div>
-                        <div class="izin-details">
-                            <span class="izin-date"><i class="fas fa-calendar"></i> ${dateDisplay}</span>
-                        </div>
-                        ${item.status === 'cancelled' && item.cancelledNote ? `
-                            <div style="margin-top:8px;padding:8px 12px;border-radius:8px;background:rgba(107,114,128,0.1);border-left:3px solid var(--text-muted,#6B7280);font-size:var(--font-size-sm);color:var(--text-secondary);">
-                                <i class="fas fa-ban" style="margin-right:6px;"></i>
-                                <strong>Alasan Pembatalan:</strong> ${item.cancelledNote}
-                            </div>
-                        ` : ''}
-                    </div>
-                </div>
-            `;
-        }).join('');
+        list.innerHTML = approvalUI.board(
+            ['Pemohon', 'Jenis Izin', 'Tanggal', 'Keterangan', 'Status Persetujuan', 'Aksi'],
+            scoped.map(item => this._apIzinRow(item, role, false)).join('')
+        );
     },
 
     renderApprovalList(role) {
@@ -1604,17 +1565,41 @@ const izin = {
             });
         }
 
+        list.classList.add('ap-list');
+        if (window.approvalUI) approvalUI.setCount(role, 'izin', filtered.length);
+
         if (filtered.length === 0) {
-            list.innerHTML = `
-                <div class="empty-state" style="text-align:center;padding:var(--spacing-xl);color:var(--text-muted);">
-                    <i class="fas fa-inbox" style="font-size:3rem;margin-bottom:var(--spacing);"></i>
-                    <p>Tidak ada pengajuan yang menunggu persetujuan Anda saat ini</p>
-                </div>
-            `;
+            list.innerHTML = approvalUI.empty('fa-inbox', 'Tidak ada pengajuan yang menunggu persetujuan Anda saat ini');
             return;
         }
 
         const sorted = filtered.sort((a, b) => new Date(b.appliedAt) - new Date(a.appliedAt));
+
+        list.innerHTML = approvalUI.board(
+            ['Pemohon', 'Jenis Izin', 'Tanggal', 'Keterangan', 'Status Persetujuan', 'Aksi'],
+            sorted.map(item => this._apIzinRow(item, role, true)).join('')
+        );
+    },
+
+    // [TAMBAHAN 2026-10-06] Satu baris tabel approval izin (dipakai kartu
+    // "Menunggu Persetujuan" dan kartu "Riwayat"). withAction=true -> tombol
+    // "Lihat & Proses", false -> tombol "Detail" (buka modal progress).
+    _apIzinMeta(type) {
+        const meta = {
+            sick:          ['#EF4444', 'fa-briefcase-medical'],
+            permission:    ['#3B82F6', 'fa-file-signature'],
+            emergency:     ['#F97316', 'fa-triangle-exclamation'],
+            izin_harian:   ['#F59E0B', 'fa-calendar-day'],
+            keluar_kantor: ['#6366F1', 'fa-right-from-bracket']
+        };
+        return meta[type] || ['#F59E0B', 'fa-file-lines'];
+    },
+
+    _apIzinRow(item, role, withAction) {
+        const ui = approvalUI;
+        const emp = this._findEmployee(item.userId);
+        this._izinCache = this._izinCache || {};
+        this._izinCache[item.id] = item; // cache utk modal progress (showApprovalProgress)
 
         const typeLabelFallback = {
             'sick': 'Sakit',
@@ -1623,43 +1608,46 @@ const izin = {
             'izin_harian': 'Permohonan Izin Harian',
             'keluar_kantor': 'Izin Keluar Kantor'
         };
+        const typeLabel = item.typeLabel || typeLabelFallback[item.type] || 'Izin';
+        const [accent, icon] = this._apIzinMeta(item.type);
 
-        list.innerHTML = sorted.map(item => {
-            const emp = this._findEmployee(item.userId);
-            this._izinCache = this._izinCache || {};
-            this._izinCache[item.id] = item; // cache utk modal progress (showApprovalProgress)
-            const typeLabel = item.typeLabel || typeLabelFallback[item.type] || 'Izin';
-            const dateFormatted = dateTime.formatDate(new Date(item.date), 'short');
-            const dateDisplay = item.dateEnd
-                ? `${dateFormatted} - ${dateTime.formatDate(new Date(item.dateEnd), 'short')}`
-                : dateFormatted;
+        const startFmt = dateTime.formatDate(new Date(item.date), 'short');
+        const hasRange = item.dateEnd && item.dateEnd !== item.date;
+        const dateMain = hasRange
+            ? `${startFmt} - ${dateTime.formatDate(new Date(item.dateEnd), 'short')}`
+            : startFmt;
 
-            return `
-                <div class="izin-item">
-                    <div class="izin-icon ${item.type}"><i class="fas fa-file-alt"></i></div>
-                    <div class="izin-content">
-                        <div class="izin-header-row">
-                            <h4 class="izin-type">${typeLabel}</h4>
-                            <span class="izin-status ${item.status}" style="cursor:pointer;" onclick="izin.showApprovalProgress(${item.id})" title="Lihat progress persetujuan">
-                                ${this._getDetailedStatusLabel(item, emp)} <i class="fas fa-chevron-right" style="font-size:0.7em;margin-left:4px;"></i>
-                            </span>
-                        </div>
-                        <div class="izin-details">
-                            <span class="izin-date"><i class="fas fa-user"></i> ${emp.nama || 'Tidak diketahui'}</span>
-                        </div>
-                        <div class="izin-details">
-                            <span class="izin-date"><i class="fas fa-calendar"></i> ${dateDisplay}</span>
-                        </div>
-                        <p class="izin-reason">${item.reason || ''}</p>
-                        <div style="margin-top:8px;">
-                            <button class="btn-small btn-primary" onclick="izin.openApprovalModal(${item.id}, '${role}')">
-                                <i class="fas fa-eye"></i> Lihat &amp; Proses
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            `;
-        }).join('');
+        let dateSub = '';
+        if (hasRange) {
+            dateSub = `<span class="ap-pill">${ui.days(item.date, item.dateEnd)} hari</span>`;
+        } else if (item.type === 'keluar_kantor' && item.jamKeluar) {
+            dateSub = `<span class="ap-pill">${ui.esc(item.jamKeluar)} - ${ui.esc(item.jamMasuk || '?')}</span>`;
+        }
+        const applied = item.appliedAt ? new Date(item.appliedAt) : null;
+        if (applied && !isNaN(applied.getTime())) {
+            dateSub += `<span>Diajukan ${ui.esc(dateTime.formatDate(applied, 'short'))}</span>`;
+        }
+
+        let stages = [];
+        try { stages = this._buildApprovalStages(item, emp); } catch (e) { stages = []; }
+        const statusLabel = this._getDetailedStatusLabel(item, emp);
+
+        const noteExtra = (item.status === 'cancelled' && item.cancelledNote)
+            ? `<div class="ap-note-extra"><i class="fas fa-ban"></i> Dibatalkan: ${ui.esc(item.cancelledNote)}</div>`
+            : '';
+
+        const actionHtml = withAction
+            ? `<button type="button" class="ap-btn ap-btn-primary" onclick="izin.openApprovalModal(${item.id}, '${role}')"><i class="fas fa-eye"></i> Lihat &amp; Proses</button>`
+            : `<button type="button" class="ap-btn ap-btn-ghost" onclick="izin.showApprovalProgress(${item.id})"><i class="fas fa-list-check"></i> Detail</button>`;
+
+        return ui.row(accent, [
+            { cls: 'ap-c-who', html: ui.who(emp.nama || 'Tidak diketahui', [emp.jabatan, emp.bagian]) },
+            { label: 'Jenis Izin', html: ui.chip(typeLabel, icon) },
+            { label: 'Tanggal', html: `<div class="ap-date-main">${ui.esc(dateMain)}</div><div class="ap-date-sub">${dateSub}</div>` },
+            { cls: 'ap-c-note', label: 'Keterangan', html: `<div class="ap-note" title="${ui.esc(item.reason || '')}">${item.reason ? ui.esc(item.reason) : '<span class="ap-muted">-</span>'}</div>${noteExtra}` },
+            { cls: 'ap-c-prog', label: 'Status Persetujuan', html: ui.progress(stages, item.status, statusLabel, `izin.showApprovalProgress(${item.id})`) },
+            { cls: 'ap-c-act', html: actionHtml }
+        ]);
     },
 
     openApprovalModal(id, role) {
@@ -1896,3 +1884,187 @@ window.initIzin = () => {
 
 // Expose
 window.izin = izin;
+
+/**
+ * [TAMBAHAN 2026-10-06] Helper tampilan bersama untuk halaman Approval
+ * Asmen / Manajer / Direktur (tabel landscape + tab). Dipakai oleh izin.js,
+ * cuti.js, dan outofradius.js - style-nya ada di css/izin.css (class "ap-").
+ */
+const approvalUI = {
+    _groups: {},   // role -> { pending:[card], history:[card], radius:[card] }
+    _tab: {},      // role -> tab aktif ('pending' | 'history' | 'radius')
+    _counts: {},   // role -> { izin, cuti, oor }
+
+    esc(v) {
+        return String(v == null ? '' : v)
+            .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    },
+
+    // Jumlah hari inklusif antara dua tanggal (YYYY-MM-DD)
+    days(start, end) {
+        const a = new Date(start), b = new Date(end);
+        if (isNaN(a.getTime()) || isNaN(b.getTime())) return 1;
+        return Math.max(1, Math.round((b - a) / 86400000) + 1);
+    },
+
+    _initials(name) {
+        const parts = String(name || '').trim().split(/\s+/).filter(Boolean);
+        if (!parts.length) return '?';
+        return (parts[0][0] + (parts.length > 1 ? parts[parts.length - 1][0] : '')).toUpperCase();
+    },
+
+    _avatarColor(name) {
+        const palette = ['#F59E0B', '#3B82F6', '#10B981', '#8B5CF6', '#EC4899', '#14B8A6', '#EF4444', '#6366F1'];
+        const s = String(name || '');
+        let h = 0;
+        for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
+        return palette[h % palette.length];
+    },
+
+    // Sel "Pemohon": avatar inisial + nama + jabatan/bagian
+    who(name, subParts) {
+        const sub = (subParts || []).filter(Boolean).join(' \u2022 ');
+        return `
+            <div class="ap-who">
+                <div class="ap-avatar" style="background:${this._avatarColor(name)};">${this.esc(this._initials(name))}</div>
+                <div class="ap-who-text">
+                    <div class="ap-name" title="${this.esc(name)}">${this.esc(name)}</div>
+                    ${sub ? `<div class="ap-sub" title="${this.esc(sub)}">${this.esc(sub)}</div>` : ''}
+                </div>
+            </div>`;
+    },
+
+    chip(label, icon) {
+        return `<span class="ap-chip"><i class="fas ${icon || 'fa-file-lines'}"></i><span>${this.esc(label)}</span></span>`;
+    },
+
+    // Bar progres bertahap + label status (klik -> modal progress)
+    progress(stages, status, label, onclick) {
+        const tone = (status === 'approved') ? 'ok'
+            : (status === 'rejected' || status === 'ditolak') ? 'bad'
+            : (status === 'cancelled') ? 'muted'
+            : (status === 'ditunda') ? 'info'
+            : 'wait';
+        const stateText = { done: 'Selesai', current: 'Menunggu', upcoming: 'Belum giliran', skipped: 'Tidak dilanjutkan' };
+        const segs = (stages || []).map(s =>
+            `<span class="ap-seg ${s.state}" title="${this.esc(s.label)}: ${stateText[s.state] || ''}"></span>`
+        ).join('');
+        return `
+            <button type="button" class="ap-prog" onclick="${onclick}" title="Lihat progress persetujuan">
+                ${segs ? `<div class="ap-segs">${segs}</div>` : ''}
+                <span class="ap-prog-label ap-tone-${tone}">${this.esc(label)} <i class="fas fa-chevron-right"></i></span>
+            </button>`;
+    },
+
+    // cells: [{ html, cls?, label? }]
+    row(accent, cells) {
+        return `
+            <div class="ap-row" style="--ap-accent:${accent};">
+                ${cells.map(c => `
+                    <div class="ap-cell ${c.cls || ''}">
+                        ${c.label ? `<div class="ap-lbl">${this.esc(c.label)}</div>` : ''}
+                        ${c.html}
+                    </div>`).join('')}
+            </div>`;
+    },
+
+    board(headers, rowsHtml, extraCls) {
+        return `
+            <div class="ap-board ${extraCls || ''}">
+                <div class="ap-head">${headers.map(h => `<span>${this.esc(h)}</span>`).join('')}</div>
+                ${rowsHtml}
+            </div>`;
+    },
+
+    empty(icon, text) {
+        return `
+            <div class="ap-empty">
+                <div class="ap-empty-ico"><i class="fas ${icon}"></i></div>
+                <p>${this.esc(text)}</p>
+            </div>`;
+    },
+
+    // ---- Tab ----
+    // Dipanggil di awal initApprovalPage(role) (idempotent: aman dipanggil
+    // berulang tiap halaman dibuka). Tab disisipkan lewat JS supaya
+    // index.html tidak perlu diubah.
+    initTabs(role) {
+        const page = document.getElementById(`page-approval-${role}`);
+        const container = page && page.querySelector('.izin-container');
+        if (!container) return;
+        container.classList.add('ap-wide');
+
+        const card = (id) => { const el = document.getElementById(id); return el ? el.closest('.izin-history-card') : null; };
+        this._groups[role] = {
+            pending: [card(`approval-${role}-list`), card(`approval-${role}-list-cuti`)],
+            history: [card(`approval-${role}-history-list`), card(`approval-${role}-history-list-cuti`)],
+            radius:  [card(`out-of-radius-approval-list-${role}`)]
+        };
+
+        let bar = container.querySelector('.ap-tabs');
+        if (!bar) {
+            bar = document.createElement('div');
+            bar.className = 'ap-tabs';
+            bar.innerHTML = `
+                <button type="button" class="ap-tab" data-tab="pending"><i class="fas fa-inbox"></i> Perlu Diproses <span class="ap-tab-count" data-count="pending">0</span></button>
+                <button type="button" class="ap-tab" data-tab="history"><i class="fas fa-clock-rotate-left"></i> Riwayat</button>
+                <button type="button" class="ap-tab" data-tab="radius"><i class="fas fa-location-crosshairs"></i> Absen Luar Radius <span class="ap-tab-count" data-count="radius">0</span></button>`;
+            const header = container.querySelector('.izin-header');
+            if (header) header.insertAdjacentElement('afterend', bar);
+            else container.insertBefore(bar, container.firstChild);
+            bar.addEventListener('click', (e) => {
+                const btn = e.target.closest('.ap-tab');
+                if (btn) this.showTab(role, btn.dataset.tab);
+            });
+        }
+
+        this.showTab(role, this._tab[role] || 'pending');
+        this._paintCounts(role);
+    },
+
+    showTab(role, key) {
+        const groups = this._groups[role];
+        if (!groups) return;
+        this._tab[role] = key;
+
+        const bar = document.querySelector(`#page-approval-${role} .ap-tabs`);
+        if (bar) bar.querySelectorAll('.ap-tab').forEach(b => b.classList.toggle('active', b.dataset.tab === key));
+
+        let shown = 0;
+        Object.keys(groups).forEach(k => {
+            groups[k].forEach(card => {
+                if (!card) return;
+                if (k === key) {
+                    card.style.display = '';
+                    card.style.marginTop = shown++ ? '1.5rem' : '0';
+                } else {
+                    card.style.display = 'none';
+                }
+            });
+        });
+    },
+
+    // source: 'izin' | 'cuti' | 'oor' - jumlah pengajuan yang menunggu
+    setCount(role, source, n) {
+        this._counts[role] = this._counts[role] || {};
+        this._counts[role][source] = n;
+        this._paintCounts(role);
+    },
+
+    _paintCounts(role) {
+        const bar = document.querySelector(`#page-approval-${role} .ap-tabs`);
+        if (!bar) return;
+        const c = this._counts[role] || {};
+        const set = (key, n) => {
+            const el = bar.querySelector(`.ap-tab-count[data-count="${key}"]`);
+            if (!el) return;
+            el.textContent = n;
+            el.classList.toggle('has', n > 0);
+        };
+        set('pending', (c.izin || 0) + (c.cuti || 0));
+        set('radius', c.oor || 0);
+    }
+};
+
+window.approvalUI = approvalUI;
