@@ -483,9 +483,67 @@ const notifications = {
         this._render();
     },
 
+    // [PERUBAHAN] Hapus semua kini memakai modal konfirmasi (bergaya sama
+    // dengan modal hapus lain di aplikasi), bukan confirm() bawaan browser.
     deleteAll() {
         if (this.items.length === 0) return;
-        if (!window.confirm('Hapus semua notifikasi?')) return;
+        this._showConfirmModal({
+            title: 'Hapus Semua Notifikasi?',
+            message: `${this.items.length} notifikasi akan dihapus dari daftar Anda. Notifikasi baru tetap akan muncul seperti biasa.`,
+            confirmText: 'Hapus Semua',
+            onConfirm: () => this._deleteAllNow()
+        });
+    },
+
+    // Modal konfirmasi dibuat lewat JS (tanpa mengubah index.html) dan
+    // dibersihkan setiap ditutup. Bisa ditutup dengan tombol Batal, klik di
+    // luar kotak, atau tombol Esc.
+    _showConfirmModal({ title, message, confirmText, onConfirm }) {
+        const old = document.getElementById('notif-confirm-modal');
+        if (old) old.remove();
+
+        const overlay = document.createElement('div');
+        overlay.id = 'notif-confirm-modal';
+        overlay.className = 'modal-overlay';
+        overlay.style.cssText = 'display:flex;z-index:10000;';
+        overlay.innerHTML = `
+            <div class="modal-container" style="max-width:400px;width:92%;">
+                <div style="padding:1.75rem 1.5rem 1.5rem;text-align:center;">
+                    <div style="width:56px;height:56px;border-radius:50%;background:#FEE2E2;color:#DC2626;display:flex;align-items:center;justify-content:center;margin:0 auto 1rem;font-size:1.4rem;">
+                        <i class="fas fa-trash-alt"></i>
+                    </div>
+                    <h3 style="margin-bottom:0.5rem;font-size:1.05rem;"></h3>
+                    <p style="color:var(--text-muted);font-size:0.85rem;margin-bottom:1.5rem;line-height:1.5;"></p>
+                    <div style="display:flex;gap:8px;">
+                        <button type="button" data-act="cancel" style="flex:1;background:none;border:1px solid var(--border-color);color:var(--text-muted);padding:10px;border-radius:8px;cursor:pointer;font-weight:600;">Batal</button>
+                        <button type="button" data-act="ok" style="flex:1;background:#DC2626;color:#fff;border:none;padding:10px;border-radius:8px;cursor:pointer;font-weight:600;">
+                            <i class="fas fa-trash-alt"></i> <span></span>
+                        </button>
+                    </div>
+                </div>
+            </div>`;
+        // Teks diisi lewat textContent supaya aman dari karakter HTML.
+        overlay.querySelector('h3').textContent = title;
+        overlay.querySelector('p').textContent = message;
+        overlay.querySelector('[data-act="ok"] span').textContent = confirmText || 'Hapus';
+        document.body.appendChild(overlay);
+
+        const onKey = (e) => { if (e.key === 'Escape') close(); };
+        const close = () => {
+            document.removeEventListener('keydown', onKey);
+            overlay.remove();
+        };
+        document.addEventListener('keydown', onKey);
+        overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
+        overlay.querySelector('[data-act="cancel"]').addEventListener('click', close);
+        overlay.querySelector('[data-act="ok"]').addEventListener('click', () => {
+            close();
+            onConfirm();
+        });
+    },
+
+    _deleteAllNow() {
+        if (this.items.length === 0) return;
         const state = this._loadState();
         const deleted = new Set(state.deleted);
         this.items.forEach(i => deleted.add(i._key));
