@@ -81,7 +81,13 @@ const notifications = {
             <div style="position:relative; background:#fff; border-radius:12px;
                 box-shadow:0 8px 24px rgba(0,0,0,0.15); max-height:420px;
                 overflow-y:auto;">
-                <div style="padding:14px 16px;border-bottom:1px solid #eee;font-weight:600;">Notifikasi</div>
+                <div style="position:sticky;top:0;z-index:1;background:#fff;padding:14px 16px 10px;border-bottom:1px solid #eee;">
+                    <div style="font-weight:600;">Notifikasi</div>
+                    <div id="notif-actions" style="display:none;gap:8px;margin-top:8px;">
+                        <button type="button" onclick="notifications.markAllRead()" style="flex:1;background:#FFF7ED;color:#D97706;border:1px solid #FDE68A;border-radius:6px;padding:6px 8px;font-size:0.75rem;font-weight:500;cursor:pointer;"><i class="fas fa-check-double"></i> Tandai semua dibaca</button>
+                        <button type="button" onclick="notifications.deleteAll()" style="flex:1;background:#FEF2F2;color:#DC2626;border:1px solid #FECACA;border-radius:6px;padding:6px 8px;font-size:0.75rem;font-weight:500;cursor:pointer;"><i class="fas fa-trash"></i> Hapus semua</button>
+                    </div>
+                </div>
                 <div id="notif-list" style="padding:8px;"></div>
             </div>
         `;
@@ -168,6 +174,7 @@ const notifications = {
             console.error('Gagal memuat notifikasi:', e);
         }
 
+        this._applyState();
         this._render();
     },
 
@@ -422,6 +429,85 @@ const notifications = {
         this._sortByTime();
     },
 
+    // ---- Status baca/hapus notifikasi (disimpan per-user di browser) ----
+    // Notifikasi dihitung ulang dari data tiap kali dimuat, jadi tidak ada
+    // ID tetap - tiap item diberi kunci dari isinya. Reminder absen
+    // (waktu = "sekarang") dikunci TANPA waktu supaya tidak dianggap baru
+    // setiap kali dimuat ulang.
+    _stateKey() {
+        const user = auth.getCurrentUser ? auth.getCurrentUser() : null;
+        return 'notif_state_' + (user ? (user.employeeId || user.id) : 'anon');
+    },
+
+    _keyOf(item) {
+        const isReminder = item.icon === 'fa-clock' || item.icon === 'fa-exclamation-triangle';
+        return [item.link, item.title, item.desc || '', isReminder ? '' : (item.time || '')].join('|');
+    },
+
+    _loadState() {
+        try {
+            const raw = JSON.parse(localStorage.getItem(this._stateKey()) || '{}');
+            return {
+                read: Array.isArray(raw.read) ? raw.read : [],
+                deleted: Array.isArray(raw.deleted) ? raw.deleted : []
+            };
+        } catch (e) {
+            return { read: [], deleted: [] };
+        }
+    },
+
+    _saveState(state) {
+        try {
+            // Batasi ukuran supaya localStorage tidak membengkak
+            state.read = state.read.slice(-300);
+            state.deleted = state.deleted.slice(-300);
+            localStorage.setItem(this._stateKey(), JSON.stringify(state));
+        } catch (e) { /* localStorage tidak tersedia, abaikan */ }
+    },
+
+    _applyState() {
+        const state = this._loadState();
+        const deleted = new Set(state.deleted);
+        const read = new Set(state.read);
+        this.items.forEach(i => { i._key = this._keyOf(i); });
+        this.items = this.items.filter(i => !deleted.has(i._key));
+        this.items.forEach(i => { i._read = read.has(i._key); });
+    },
+
+    markAllRead() {
+        const state = this._loadState();
+        const read = new Set(state.read);
+        this.items.forEach(i => { read.add(i._key); i._read = true; });
+        state.read = Array.from(read);
+        this._saveState(state);
+        this._render();
+    },
+
+    deleteAll() {
+        if (this.items.length === 0) return;
+        if (!window.confirm('Hapus semua notifikasi?')) return;
+        const state = this._loadState();
+        const deleted = new Set(state.deleted);
+        this.items.forEach(i => deleted.add(i._key));
+        state.deleted = Array.from(deleted);
+        this._saveState(state);
+        this.items = [];
+        this._render();
+    },
+
+    _openItem(idx) {
+        const item = this.items[idx];
+        if (!item) return;
+        if (!item._read) {
+            const state = this._loadState();
+            if (!state.read.includes(item._key)) state.read.push(item._key);
+            this._saveState(state);
+            item._read = true;
+            this._render();
+        }
+        this._goTo(item.link);
+    },
+
     _sortByTime() {
         this.items.sort((a, b) => new Date(b.time || 0) - new Date(a.time || 0));
     },
@@ -430,9 +516,13 @@ const notifications = {
         const badge = document.querySelector('#btn-notifications .badge');
         const list = document.getElementById('notif-list');
 
+        const unreadCount = this.items.filter(i => !i._read).length;
+        const actions = document.getElementById('notif-actions');
+        if (actions) actions.style.display = this.items.length > 0 ? 'flex' : 'none';
+
         if (badge) {
-            if (this.items.length > 0) {
-                badge.textContent = this.items.length > 9 ? '9+' : this.items.length;
+            if (unreadCount > 0) {
+                badge.textContent = unreadCount > 9 ? '9+' : unreadCount;
                 badge.style.display = 'inline-block';
             } else {
                 badge.style.display = 'none';
@@ -446,8 +536,8 @@ const notifications = {
             return;
         }
 
-        list.innerHTML = this.items.map(item => `
-            <div onclick="notifications._goTo('${item.link}')" style="display:flex;gap:10px;padding:10px 8px;border-radius:8px;cursor:pointer;" onmouseover="this.style.background='#F9FAFB'" onmouseout="this.style.background='transparent'">
+        list.innerHTML = this.items.map((item, idx) => `
+            <div onclick="notifications._openItem(${idx})" style="display:flex;gap:10px;padding:10px 8px;border-radius:8px;cursor:pointer;${item._read ? 'opacity:0.55;' : ''}" onmouseover="this.style.background='#F9FAFB'" onmouseout="this.style.background='transparent'">
                 <div style="width:32px;height:32px;border-radius:50%;background:${item.color}20;color:${item.color};display:flex;align-items:center;justify-content:center;flex-shrink:0;">
                     <i class="fas ${item.icon}"></i>
                 </div>
