@@ -34,11 +34,14 @@ const paraf = {
         return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
     },
 
-    editorHtml(id) {
+    editorHtml(id, opts) {
+        opts = opts || {};
+        const title = opts.title || 'Paraf';
+        const hint = opts.hint === undefined ? '(opsional, untuk Setuju)' : opts.hint;
         return `
             <div id="${id}-wrap" style="margin-top:14px;border:1px dashed var(--border-color,#d1d5db);border-radius:10px;padding:10px 12px;background:#fff;">
                 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;gap:8px;">
-                    <span style="font-size:0.85rem;font-weight:600;">&#9997;&#65039; Paraf <span style="font-weight:400;color:var(--text-muted,#6b7280);">(opsional, untuk Setuju)</span></span>
+                    <span style="font-size:0.85rem;font-weight:600;">&#9997;&#65039; ${title}${hint ? ` <span style="font-weight:400;color:var(--text-muted,#6b7280);">${hint}</span>` : ''}</span>
                     <a href="javascript:void(0)" onclick="paraf.clear('${id}')" style="font-size:0.82rem;">Hapus</a>
                 </div>
                 <canvas id="${id}-canvas" width="${this.W * 2}" height="${this.H * 2}"
@@ -54,6 +57,8 @@ const paraf = {
     init(id) {
         const canvas = document.getElementById(`${id}-canvas`);
         if (!canvas) return;
+        if (canvas._parafBound) return; // sudah aktif - jangan dobel pasang listener
+        canvas._parafBound = true;
 
         const st = { strokes: [], cur: null, canvas };
         this._state[id] = st;
@@ -117,6 +122,22 @@ const paraf = {
         ctx.setTransform(1, 0, 0, 1, 0, 0);
         ctx.clearRect(0, 0, st.canvas.width, st.canvas.height);
         ctx.restore();
+    },
+
+    // Pasang kotak paraf ke dalam elemen statis (mis. form pengajuan) - aman
+    // dipanggil berkali-kali, hanya terpasang sekali.
+    mount(containerId, id, opts) {
+        const box = document.getElementById(containerId);
+        if (!box) return;
+        if (!document.getElementById(`${id}-canvas`)) box.innerHTML = this.editorHtml(id, opts);
+        this.init(id);
+    },
+
+    // Kosongkan paraf dan kembalikan tanggal ke hari ini (setelah form terkirim).
+    reset(id) {
+        this.clear(id);
+        const dateEl = document.getElementById(`${id}-date`);
+        if (dateEl) dateEl.value = this._today();
     },
 
     // Kembalikan { path, date } kalau approver menggambar paraf, null kalau
