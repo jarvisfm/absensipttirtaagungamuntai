@@ -208,8 +208,7 @@ const dp3 = {
                         <i class="fas fa-pen"></i> ${r ? 'Ubah Nilai' : 'Beri Nilai'}
                     </button>
                     ${r ? `
-                    <button class="dp3-btn" onclick="dp3.printNilai('${this._e(e.id)}')"><i class="fas fa-print"></i> Daftar Nilai</button>
-                    <button class="dp3-btn" onclick="dp3.printDp3('${this._e(e.id)}')"><i class="fas fa-print"></i> DP3</button>` : ''}
+                    <button class="dp3-btn" onclick="dp3.print('${this._e(e.id)}')"><i class="fas fa-print"></i> Cetak</button>` : ''}
                 </div>
             </div>`;
         }).join('');
@@ -254,8 +253,7 @@ const dp3 = {
                     </tbody>
                 </table>
                 <div class="dp3-actions" style="margin-top:14px;">
-                    <button class="dp3-btn primary" onclick="dp3.printNilai('me')"><i class="fas fa-print"></i> Cetak Daftar Nilai</button>
-                    <button class="dp3-btn primary" onclick="dp3.printDp3('me')"><i class="fas fa-print"></i> Cetak DP3</button>
+                    <button class="dp3-btn primary" onclick="dp3.print('me')"><i class="fas fa-print"></i> Cetak</button>
                 </div>
             </div>`;
     },
@@ -480,7 +478,7 @@ const dp3 = {
 
         const tglBox = (label) => `<div class="dp3p-sec-tgl">${label}</div>`;
 
-        // ── Halaman 1: Penilaian (4,5) | Tanggapan & Keputusan (6,7) ──
+        // ── Lembar penilaian (4,5) | Tanggapan & Keputusan (6,7) ──
         const page1 = `
         <div class="dp3p-paper dp3p-dp3"><div class="dp3p-cols">
             <div class="dp3p-col">${rah}
@@ -520,7 +518,7 @@ const dp3 = {
             </div>
         </div></div>`;
 
-        // ── Halaman 2: Lain-lain & tanda tangan (8-11) | Sampul identitas ──
+        // ── Lembar sampul: Lain-lain & tanda tangan (8-11) | Sampul identitas ──
         const idRows = (no, judul, o) => `
             <tr><td class="no">${no}</td><td class="hd" colspan="2">${judul}</td></tr>
             <tr><td class="no"></td><td class="lb">a. Nama</td><td>${this._dash(o.nama)}</td></tr>
@@ -573,11 +571,12 @@ const dp3 = {
             </div>
         </div></div>`;
 
-        return page1 + page2;
+        // Urutan cetak: sampul (+ 8-11) -> 4 PENILAIAN (+ 5-7)
+        return page2 + page1;
     },
 
     // Satu-satunya cara membuka lembar cetak - "who" = id bawahan atau 'me'
-    _openPrint(who, kind) {
+    _openPrint(who) {
         const r = this._recordFor(who);
         if (!r) { toast.error('Data penilaian tidak ditemukan'); return; }
 
@@ -589,26 +588,28 @@ const dp3 = {
             document.body.appendChild(overlay);
         }
 
-        // Ukuran & orientasi kertas beda per jenis lembar
+        // Ukuran kertas per lembar diatur lewat @page bernama di dp3.css
+        // (Folio landscape untuk hal. 1-2, A4 portrait untuk hal. 3).
+        // Aturan umum landscape di bawah jadi cadangan untuk browser tanpa @page bernama.
         let pageStyle = document.getElementById('dp3-page-style');
         if (!pageStyle) {
             pageStyle = document.createElement('style');
             pageStyle.id = 'dp3-page-style';
             document.head.appendChild(pageStyle);
         }
-        const isNilai = kind === 'nilai';
-        pageStyle.textContent = isNilai
-            ? '@page { size: 210mm 297mm; margin: 0; }'
-            : '@page { size: 330.2mm 215.9mm; margin: 0; }';
+        // Urutan penting: aturan umum dulu, aturan bernama sesudahnya (yang menang)
+        pageStyle.textContent = '@page { size: 330.2mm 215.9mm; margin: 0; } '
+            + '@page dp3land { size: 330.2mm 215.9mm; margin: 0; } '
+            + '@page dp3port { size: 210mm 297mm; margin: 0; }';
 
-        const title = isNilai ? 'Daftar Nilai' : 'DP3';
+        const title = 'DP3';
         overlay.innerHTML = `
             <div class="print-letter-toolbar no-print">
                 <button class="btn-small" onclick="dp3.closePrint()"><i class="fas fa-times"></i> Tutup</button>
                 <button class="btn-small btn-primary" onclick="dp3.printNow()"><i class="fas fa-print"></i> Cetak / Simpan PDF</button>
             </div>
-            <div class="dp3-papers"><div class="dp3-scale" data-w="${isNilai ? 210 : 330.2}">
-                ${isNilai ? this._nilaiPage(r) : this._dp3Pages(r)}
+            <div class="dp3-papers"><div class="dp3-scale" data-w="330.2">
+                ${this._dp3Pages(r)}${this._nilaiPage(r)}
             </div></div>`;
         overlay.classList.add('active');
         document.body.style.overflow = 'hidden';
@@ -632,8 +633,7 @@ const dp3 = {
         scale.style.zoom = z < 1 ? String(z) : '';
     },
 
-    printNilai(who) { this._openPrint(who, 'nilai'); },
-    printDp3(who) { this._openPrint(who, 'dp3'); },
+    print(who) { this._openPrint(who); },
 
     printNow() {
         setTimeout(() => {
