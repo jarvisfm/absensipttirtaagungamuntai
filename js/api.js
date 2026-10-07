@@ -324,6 +324,31 @@ const api = {
         return this.request('checkAttendanceAccess', { userId });
     },
 
+    // [TAMBAHAN 7 Okt 2026] Return objek hasil kalau Worker menjawab sukses,
+    // selain itu null (pemanggil jatuh balik ke Apps Script).
+    async _getAttendanceViaWorker(userId, months) {
+        if (!SESSION_WORKER_URL) return null;
+        const u = (typeof auth !== 'undefined' && auth.getCurrentUser) ? auth.getCurrentUser() : null;
+        if (!u || !u.sessionToken) return null;
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 8000);
+        try {
+            const res = await fetch(SESSION_WORKER_URL.replace(/\/+$/, '') + '/attendance-history', {
+                method: 'POST',
+                headers: { 'Content-Type': 'text/plain' },
+                body: JSON.stringify({ userId, months, authUserId: u.id, authRole: u.role, sessionToken: u.sessionToken }),
+                signal: controller.signal
+            });
+            const json = await res.json();
+            if (json && json.success === true && Array.isArray(json.data)) return json;
+        } catch (e) {
+            // Worker tidak terjangkau -> Apps Script
+        } finally {
+            clearTimeout(timeoutId);
+        }
+        return null;
+    },
+
     async getAttendance(userId, months = 6) {
         // months = 6 (default): hanya 6 bulan terakhir. Kirim 0 untuk seluruh histori.
         if (!API_BASE_URL) {
@@ -340,7 +365,11 @@ const api = {
         if (memo && Date.now() - memo.t < 45000) {
             return memo.p.then(r => (r && r.success && Array.isArray(r.data)) ? { ...r, data: r.data.slice() } : r);
         }
-        const p = this.request('getAttendance', { userId, months });
+        // [TAMBAHAN 7 Okt 2026] Coba Cloudflare Worker dulu (baca langsung dari
+        // Supabase, tanpa slot Apps Script). Gagal/ditolak/timeout -> otomatis
+        // jatuh balik ke Apps Script persis seperti sebelumnya.
+        const p = this._getAttendanceViaWorker(userId, months)
+            .then(r => r || this.request('getAttendance', { userId, months }));
         this._attHistMemo[memoKey] = { t: Date.now(), p };
         p.then(r => { if (!r || !r.success) delete this._attHistMemo[memoKey]; })
          .catch(() => { delete this._attHistMemo[memoKey]; });
