@@ -8,7 +8,7 @@ const router = {
     routes: ['dashboard', 'absensi', 'face-recognition', 'izin', 'jurnal', 'cuti', 
          'approval-asmen', 'approval-manajer', 'approval-direktur', 'profile',
          'admin-dashboard', 'employees', 'karyawan', 'attendance-reports', 'jurnal-reports', 
-         'leave-reports', 'surat-tugas-approval', 'shift-schedule', 'jadwal-jaga-operator', 'settings'],
+         'leave-reports', 'surat-tugas-approval', 'shift-schedule', 'jadwal-jaga-operator', 'settings', 'dp3'],
     
     init() {
         // Handle navigation clicks
@@ -87,6 +87,7 @@ const router = {
             'shift-schedule': 'Jadwal Shift',
             'jadwal-jaga-operator': 'Jadwal Jaga Operator',
             settings: 'Settings',
+            dp3: 'DP3',
             profile: 'Edit Profil'
         };
         
@@ -222,6 +223,9 @@ const router = {
                 break;
             case 'settings':
                 if (window.initSettings) window.initSettings();
+                break;
+            case 'dp3':
+                if (window.initDp3) window.initDp3();
                 break;
         }
         
