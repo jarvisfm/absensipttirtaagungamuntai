@@ -212,7 +212,20 @@ table.dp3p-id td.no { width: 8mm; text-align: right; border: none; padding-right
 table.dp3p-id td.hd { border: 1px solid #000; }
 table.dp3p-id td.lb { width: 45%; }
 
+/* Ukuran kertas per lembar (cetak gabungan): hal. 1-2 Folio landscape, hal. 3 A4 portrait */
+@page dp3land { size: 330.2mm 215.9mm; margin: 0; }
+@page dp3port { size: 210mm 297mm; margin: 0; }
+.dp3p-dp3 { page: dp3land; }
+.dp3p-nilai { page: dp3port; }
+
+@media screen {
+    #dp3-print-overlay .dp3-scale > .dp3p-paper + .dp3p-paper { margin-top: 18px; }
+    #dp3-print-overlay .dp3-scale > .dp3p-nilai { margin-left: auto; margin-right: auto; }
+}
+
 @media print {
+    /* in-flow (bukan absolute) agar @page bernama per lembar berlaku */
+    #dp3-print-overlay { position: relative !important; height: auto !important; overflow: visible !important; }
     #dp3-print-overlay .dp3-papers { padding: 0; gap: 0; display: block; }
     #dp3-print-overlay .dp3-scale { zoom: 1 !important; transform: none !important; }
     .dp3p-paper { box-shadow: none; margin: 0; break-after: page; page-break-after: always; }
