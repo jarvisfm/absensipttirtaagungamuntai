@@ -349,6 +349,34 @@ const api = {
         return null;
     },
 
+    // [TAMBAHAN 7 Okt 2026] Baca daftar Izin / Laporan Luar Wilayah milik 1
+    // karyawan dari cermin D1 lewat Cloudflare Worker (tanpa slot Apps Script).
+    // path: '/izin-list' atau '/oow-list'. Return objek {success:true, data:[...]}
+    // kalau Worker menjawab sukses, selain itu null (pemanggil jatuh balik ke
+    // Apps Script seperti sebelumnya) - sama polanya dengan _getAttendanceViaWorker().
+    async _listViaWorker(path, userId) {
+        if (!SESSION_WORKER_URL) return null;
+        const u = (typeof auth !== 'undefined' && auth.getCurrentUser) ? auth.getCurrentUser() : null;
+        if (!u || !u.sessionToken) return null;
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 6000);
+        try {
+            const res = await fetch(SESSION_WORKER_URL.replace(/\/+$/, '') + path, {
+                method: 'POST',
+                headers: { 'Content-Type': 'text/plain' },
+                body: JSON.stringify({ userId, authUserId: u.id, authRole: u.role, sessionToken: u.sessionToken }),
+                signal: controller.signal
+            });
+            const json = await res.json();
+            if (json && json.success === true && Array.isArray(json.data)) return json;
+        } catch (e) {
+            // Worker tidak terjangkau -> Apps Script
+        } finally {
+            clearTimeout(timeoutId);
+        }
+        return null;
+    },
+
     async getAttendance(userId, months = 6) {
         // months = 6 (default): hanya 6 bulan terakhir. Kirim 0 untuk seluruh histori.
         if (!API_BASE_URL) {
@@ -539,7 +567,9 @@ const api = {
         return this.request('getAllOutOfWilayahReports');
     },
     async getOutOfWilayahReportsForUser(userId) {
-        return this.request('getOutOfWilayahReportsForUser', { userId });
+        // [TAMBAHAN 7 Okt 2026] Worker/D1 dulu, gagal -> Apps Script seperti semula.
+        const fast = await this._listViaWorker('/oow-list', userId);
+        return fast || this.request('getOutOfWilayahReportsForUser', { userId });
     },
 
     async submitSuratTugas(data) {
@@ -725,7 +755,9 @@ const api = {
         if (!API_BASE_URL) {
             return { success: true, data: storage.get('izin', []) };
         }
-        return this.request('getIzin', { userId });
+        // [TAMBAHAN 7 Okt 2026] Worker/D1 dulu, gagal -> Apps Script seperti semula.
+        const fast = await this._listViaWorker('/izin-list', userId);
+        return fast || this.request('getIzin', { userId });
     },
 
     // Sisa kuota Izin Harian tahun berjalan (dihitung server-side, kuota
