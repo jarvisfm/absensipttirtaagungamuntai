@@ -550,6 +550,13 @@ const api = {
     async getAttendanceSessionsForDate(userId, date) {
         return this.request('getAttendanceSessionsForDate', { userId, date });
     },
+    // DP3 - Daftar Penilaian Pelaksanaan Pekerjaan (lihat Dp3.gs & js/dp3.js)
+    async getDp3Data(userId, tahun) {
+        return this.request('getDp3Data', { userId, tahun });
+    },
+    async saveDp3(data) {
+        return this.request('saveDp3', data);
+    },
     async submitSanggahanAbsensi(data) {
         return this.request('submitSanggahanAbsensi', data);
     },
