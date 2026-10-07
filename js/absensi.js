@@ -906,6 +906,16 @@ const absensi = {
             this._historyData = result.data || [];
             this._historyHasMore = !loadedAll && !!result.hasMore;
 
+            // [TAMBAHAN 7 Okt 2026] Tampilkan tabel SEGERA begitu riwayat siap -
+            // jangan menunggu getIzin & getOutOfWilayahReportsForUser (masih lewat
+            // Apps Script, bisa antre di jam sibuk). Setelah keduanya datang,
+            // blok di bawah merender ulang seperti biasa (badge izin/luar wilayah
+            // muncul menyusul). Kedua data itu sudah punya nilai awal aman
+            // (`|| {}` / `|| []`) di tempat pemakaiannya.
+            this._populateHistoryMonthFilter();
+            this.renderHistory(this._getHistoryForSelectedMonth());
+            this.renderHistoryStats(this._getHistoryForSelectedMonth());
+
             // Laporan absen luar Unit Wilayah milik karyawan ini sendiri -
             // dipakai renderHistory() untuk menandai jam yang bersangkutan
             // dengan badge "Luar Unit Wilayah", sama polanya dengan badge
