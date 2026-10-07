@@ -31,6 +31,7 @@
     <link rel="stylesheet" href="css/izin.css">
     <link rel="stylesheet" href="css/modal.css">
     <link rel="stylesheet" href="css/rich-note.css">
+    <link rel="stylesheet" href="css/dp3.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap"
@@ -246,6 +247,14 @@
                             <a href="#" class="nav-link">
                                 <i class="fas fa-calendar-alt"></i>
                                 <span>Jadwal Shift</span>
+                            </a>
+                        </li>
+                        <!-- DP3: semua karyawan. Direktur/Manajer/Asmen menilai bawahan,
+                             Staff hanya melihat hasil penilaiannya (diatur di js/dp3.js). -->
+                        <li class="nav-item" id="nav-dp3" data-page="dp3">
+                            <a href="#" class="nav-link">
+                                <i class="fas fa-award"></i>
+                                <span>DP3</span>
                             </a>
                         </li>
                         <li class="nav-item" data-page="profile">
@@ -3644,6 +3653,11 @@
                     </div>
                 </div>
 
+                <!-- DP3 - Daftar Penilaian Pelaksanaan Pekerjaan (js/dp3.js) -->
+                <div class="page" id="page-dp3">
+                    <div id="dp3-root"></div>
+                </div>
+
                 <!-- Settings Page -->
                 <div class="page" id="page-settings">
                     <div class="settings-container">
@@ -4190,6 +4204,7 @@
     <script src="js/absensi.js"></script>
     <script src="js/face-recognition.js"></script>
     <script src="js/rich-note.js"></script>
+    <script src="js/dp3.js"></script>
     <script src="js/paraf.js"></script>
     <script src="js/izin.js"></script>
     <script src="js/cuti.js"></script>
