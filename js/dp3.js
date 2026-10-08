@@ -533,13 +533,17 @@ const dp3 = {
         </div></div>`;
 
         // ── Lembar sampul: Lain-lain & tanda tangan (8-11) | Sampul identitas ──
-        const idRows = (no, judul, o) => `
+        // Direktur menilai Manajer: poin 2 (Pejabat Penilai) dikosongkan,
+        // Direktur muncul sebagai Atasan Pejabat Penilai (poin 3).
+        const penKosong = dn.role === 'manajer';
+        const penTampil = penKosong ? {} : pen;
+        const idRows = (no, judul, o, kosong) => `
             <tr><td class="no">${no}</td><td class="hd" colspan="2">${judul}</td></tr>
-            <tr><td class="no"></td><td class="lb">a. Nama</td><td>${this._dash(o.nama)}</td></tr>
-            <tr><td class="no"></td><td class="lb">b. NIK</td><td>${this._dash(o.nik)}</td></tr>
-            <tr><td class="no"></td><td class="lb">c. Pangkat / Golongan Ruang</td><td>${this._dash(o.golongan || o.pangkat)}</td></tr>
-            <tr><td class="no"></td><td class="lb">d. Jabatan / Pekerjaan</td><td>${this._dash(o.jabatan)}</td></tr>
-            <tr><td class="no"></td><td class="lb">e. Unit Organisasi</td><td>${this._dash(o.unit)}</td></tr>`;
+            <tr><td class="no"></td><td class="lb">a. Nama</td><td>${kosong ? '' : this._dash(o.nama)}</td></tr>
+            <tr><td class="no"></td><td class="lb">b. NIK</td><td>${kosong ? '' : this._dash(o.nik)}</td></tr>
+            <tr><td class="no"></td><td class="lb">c. Pangkat / Golongan Ruang</td><td>${kosong ? '' : this._dash(o.golongan || o.pangkat)}</td></tr>
+            <tr><td class="no"></td><td class="lb">d. Jabatan / Pekerjaan</td><td>${kosong ? '' : this._dash(o.jabatan)}</td></tr>
+            <tr><td class="no"></td><td class="lb">e. Unit Organisasi</td><td>${kosong ? '' : this._dash(o.unit)}</td></tr>`;
 
         const page2 = `
         <div class="dp3p-paper dp3p-dp3"><div class="dp3p-cols">
@@ -552,7 +556,7 @@ const dp3 = {
                         <div class="dp3p-sign r">
                             <div>9. DIBUAT TANGGAL, ${tgl}</div>
                             <div class="c">PEJABAT PENILAI,</div>
-                            <div class="nm">${this._dash(pen.nama)}</div>
+                            <div class="nm">${penKosong ? '' : this._dash(pen.nama)}</div>
                         </div>
                         <div class="dp3p-sign l" style="margin-top:2mm;">
                             <div>10. DITERIMA TANGGAL, ${tgl}</div>
@@ -577,7 +581,7 @@ const dp3 = {
                 </div>
                 <table class="dp3p-id">
                     ${idRows(1, 'YANG DINILAI', dn)}
-                    ${idRows(2, 'PEJABAT PENILAI', pen)}
+                    ${idRows(2, 'PEJABAT PENILAI', penTampil, penKosong)}
                     ${idRows(3, 'ATASAN PEJABAT PENILAI', ats)}
                 </table>
                 <div style="flex:1 1 auto;"></div>
