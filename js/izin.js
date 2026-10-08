@@ -1041,24 +1041,24 @@ const izin = {
                                 Lampiran tersedia
                             </span>
                         ` : ''}
-                        ${izin.status === 'approved' && izin.type === 'keluar_kantor' ? `
+                        ${this.CANCELABLE_IZIN_STATUSES.includes(izin.status) ? `
+                            <div style="margin-top:8px;display:flex;gap:6px;">
+                                <button class="btn-small btn-outline" style="color:var(--color-danger,#EF4444);border-color:var(--color-danger,#EF4444);" onclick="izin.cancelIzinRequest(${izin.id})">
+                                    <i class="fas fa-trash-alt"></i> Batalkan Pengajuan
+                                </button>
+                            </div>
+                        ` : ''}
+                        ${izin.type === 'keluar_kantor' && izin.status !== 'cancelled' && izin.status !== 'rejected' ? `
                             <div style="margin-top:8px;display:flex;gap:6px;">
                                 <button class="btn-small btn-outline" onclick="printLetters.openIzinKeluarKantor(${izin.id})">
                                     <i class="fas fa-print"></i> Cetak Surat Izin Keluar Kantor
                                 </button>
                             </div>
                         ` : ''}
-                        ${izin.status === 'approved' && izin.type === 'izin_harian' ? `
+                        ${izin.type === 'izin_harian' && izin.status !== 'cancelled' && izin.status !== 'rejected' ? `
                             <div style="margin-top:8px;display:flex;gap:6px;">
                                 <button class="btn-small btn-outline" onclick="printLetters.openIzinPermohonan(${izin.id})">
                                     <i class="fas fa-print"></i> Cetak Surat Permohonan Izin
-                                </button>
-                            </div>
-                        ` : ''}
-                        ${this.CANCELABLE_IZIN_STATUSES.includes(izin.status) ? `
-                            <div style="margin-top:8px;display:flex;gap:6px;">
-                                <button class="btn-small btn-outline" style="color:var(--color-danger,#EF4444);border-color:var(--color-danger,#EF4444);" onclick="izin.cancelIzinRequest(${izin.id})">
-                                    <i class="fas fa-trash-alt"></i> Batalkan Pengajuan
                                 </button>
                             </div>
                         ` : ''}
