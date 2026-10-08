@@ -315,9 +315,9 @@ const printLetters = {
     },
 
     // Render tanpa banner jpeg — hanya kop teks polos di atas isi surat
-    _showPlain(contentHtml) {
+    _showPlain(contentHtml, pageClass) {
         const pageHtml = `
-            <div class="print-letter-page">
+            <div class="print-letter-page${pageClass ? ' ' + pageClass : ''}">
                 <div class="letter-body" style="padding-top:28px;">
                     ${this._letterHeaderPlain()}
                     ${contentHtml}
@@ -586,7 +586,8 @@ const printLetters = {
                 <p class="signature-name-underline">Muhammad Nasrullah, S. AB</p>
             </div>
         `;
-        this._showPlain(html);
+        // Ukuran kecil (seperempat A4) khusus Surat Izin Keluar Kantor - lihat .letter-small di print-letters.css
+        this._showPlain(html, 'letter-small');
     },
 
     // =============================================================
