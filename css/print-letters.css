@@ -295,3 +295,37 @@
     .cuti-checkbox-cols label { margin-bottom: 3px; }
     .signature-space { height: 40px; }
 }
+
+
+/* ============================================================
+   Surat Izin Keluar Kantor - ukuran KECIL (seperempat A4 = A6, 105 x 148 mm)
+   Dicetak di pojok kiri-atas kertas A4, tinggal digunting.
+   ============================================================ */
+.print-letter-page.letter-small {
+    width: 105mm; max-width: 105mm; min-height: 148mm; height: 148mm; box-sizing: border-box;
+    margin: 20px auto 60px;
+    border: 1.5px solid #111;
+    font-size: 11px; line-height: 1.35;
+}
+.print-letter-page.letter-small .letter-body { padding: 8px 12px 10px !important; flex: none; }
+.print-letter-page.letter-small .letter-kop { gap: 6px; margin-bottom: 3px; width: 100%; }
+.print-letter-page.letter-small .letter-kop-logo { width: 30px; height: 30px; }
+.print-letter-page.letter-small .letter-kop-title { font-size: 10px; letter-spacing: 0.2px; }
+.print-letter-page.letter-small .letter-kop-divider { margin-bottom: 4px; width: 100%; border-top-width: 1.5px; }
+.print-letter-page.letter-small .letter-kop-center-title { display: none; }
+.print-letter-page.letter-small .letter-title { font-size: 12.5px; margin: 6px 0 8px; }
+.print-letter-page.letter-small .letter-field-table td { padding: 3px 1px !important; font-size: 11px; }
+.print-letter-page.letter-small .letter-field-table .lbl { width: 74px !important; }
+.print-letter-page.letter-small .letter-field-table .sep { width: 8px !important; }
+.print-letter-page.letter-small .letter-input { font-size: 11px; }
+.print-letter-page.letter-small .letter-signoff-block { margin-top: 10px; font-size: 11px; }
+.print-letter-page.letter-small .signature-space { height: 52px !important; }
+
+@media print {
+    .print-letter-page.letter-small {
+        width: 105mm !important; max-width: 105mm !important;
+        height: 148mm !important; min-height: 148mm !important;
+        margin: 8mm 0 0 8mm !important;
+        overflow: hidden !important;
+    }
+}
