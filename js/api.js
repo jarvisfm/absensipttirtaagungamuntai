@@ -14,6 +14,17 @@ const API_BASE_URL = 'https://script.google.com/macros/s/AKfycbz3qeYiMdaJ1gvnpnv
 // Isi setelah Worker di-deploy, contoh: 'https://absensi-sesi.xxxx.workers.dev'
 const SESSION_WORKER_URL = 'https://absensi-sesi.absensi-taa.workers.dev';
 
+// [TAMBAHAN 8 Okt 2026] Cara halaman Absensi mengambil jadwal & absen hari ini
+// (getAbsensiPageData):
+//   'off'    = HANYA Apps Script (perilaku lama).
+//   'shadow' = TETAP pakai hasil Apps Script untuk tampilan, tapi Worker juga
+//              menghitung di belakang layar dan hasilnya dibandingkan; laporan
+//              cocok/beda dikirim ke tabel shadow_log di D1 (karyawan tidak
+//              merasakan perbedaan apa pun). INI MODE UJI.
+//   'worker' = pakai hasil Worker (cepat); kalau Worker menyerahkan/gagal,
+//              otomatis jatuh balik ke Apps Script.
+const ABSENSI_PAGE_DATA_MODE = 'shadow';
+
 // [TAMBAHAN - optimasi jam sibuk] Aksi yang AMAN di-retry otomatis kalau
 // gagal/timeout - HANYA aksi BACA (get*/check*/is*/validate*/verify*) plus
 // login/reverseGeocode/previewLeaveDuration (menimpa/melihat data, tidak
@@ -427,6 +438,85 @@ const api = {
     // sekali (semuanya lokal, tidak ada kuota server) - cukup gabungkan
     // hasil checkAttendanceAccess()/getTodayAttendance() versi
     // localStorage yang SUDAH ADA di atas, tanpa endpoint baru di backend.
+    // [TAMBAHAN 8 Okt 2026] Jawaban Worker untuk /absensi-page-data. Mengembalikan
+    // objek JSON apa adanya ({success:true,...} atau {success:false,fallback:true,reason})
+    // atau null kalau Worker tidak terjangkau/lambat.
+    async _pageDataViaWorker(userId) {
+        if (!SESSION_WORKER_URL) return null;
+        const u = (typeof auth !== 'undefined' && auth.getCurrentUser) ? auth.getCurrentUser() : null;
+        if (!u || !u.sessionToken) return null;
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000);
+        try {
+            const res = await fetch(SESSION_WORKER_URL.replace(/\/+$/, '') + '/absensi-page-data', {
+                method: 'POST',
+                headers: { 'Content-Type': 'text/plain' },
+                body: JSON.stringify({ userId, authUserId: u.id, authRole: u.role, sessionToken: u.sessionToken }),
+                signal: controller.signal
+            });
+            return await res.json();
+        } catch (e) {
+            return null;
+        } finally {
+            clearTimeout(timeoutId);
+        }
+    },
+
+    _stableForCompare(v) {
+        if (Array.isArray(v)) return v.map((x) => this._stableForCompare(x));
+        if (v && typeof v === 'object') {
+            const o = {};
+            Object.keys(v).sort().forEach((k) => { if (v[k] !== undefined) o[k] = this._stableForCompare(v[k]); });
+            return o;
+        }
+        return v;
+    },
+
+    // Mode bayangan: bandingkan hasil Apps Script (gas) dengan Worker, kirim
+    // laporannya ke D1 (cocok & fallback disampel 20%, BEDA selalu, maks 5/sesi).
+    async _reportShadow(userId, gas, worker) {
+        try {
+            if (!gas || gas.success !== true || !gas.data) return;
+            const u = (typeof auth !== 'undefined' && auth.getCurrentUser) ? auth.getCurrentUser() : null;
+            if (!u || !u.sessionToken) return;
+
+            let kind, detail = '';
+            if (!worker) {
+                kind = 'fallback'; detail = 'tidak-ada-respons';
+            } else if (worker.success !== true) {
+                kind = 'fallback'; detail = String(worker.reason || '');
+            } else {
+                const parts = ['access', 'accessError', 'today', 'todayError', 'pending'];
+                const diffKeys = parts.filter((k) =>
+                    JSON.stringify(this._stableForCompare(gas.data[k])) !== JSON.stringify(this._stableForCompare(worker.data[k])));
+                if (!diffKeys.length) {
+                    kind = 'match';
+                } else {
+                    kind = 'diff';
+                    detail = 'beda:' + diffKeys.join(',') + ' | ' + JSON.stringify({ gas: gas.data, worker: worker.data, wmeta: worker.meta });
+                    console.warn('[SHADOW] Worker BEDA dari Apps Script pada:', diffKeys, { gas: gas.data, worker: worker.data });
+                }
+            }
+
+            if (kind === 'diff') {
+                let n = 0;
+                try { n = parseInt(sessionStorage.getItem('shadow_diff_count') || '0', 10); sessionStorage.setItem('shadow_diff_count', String(n + 1)); } catch (e) { /* abaikan */ }
+                if (n >= 5) return;
+            } else if (Math.random() > 0.2) {
+                return;
+            }
+
+            fetch(SESSION_WORKER_URL.replace(/\/+$/, '') + '/shadow-report', {
+                method: 'POST',
+                headers: { 'Content-Type': 'text/plain' },
+                body: JSON.stringify({ userId, authUserId: u.id, authRole: u.role, sessionToken: u.sessionToken, kind, detail }),
+                keepalive: true
+            }).catch(() => {});
+        } catch (e) {
+            // mode bayangan tidak boleh mengganggu apa pun
+        }
+    },
+
     async getAbsensiPageData(userId) {
         if (!API_BASE_URL) {
             const access = await this.checkAttendanceAccess(userId);
@@ -442,6 +532,22 @@ const api = {
                 }
             };
         }
+        const mode = (typeof ABSENSI_PAGE_DATA_MODE === 'string') ? ABSENSI_PAGE_DATA_MODE : 'off';
+
+        if (mode === 'worker') {
+            const fast = await this._pageDataViaWorker(userId);
+            if (fast && fast.success === true && fast.data) return fast;
+            return this.request('getAbsensiPageData', { userId });
+        }
+
+        if (mode === 'shadow') {
+            // Worker jalan PARALEL, hasilnya hanya dibandingkan - tampilan tetap dari Apps Script.
+            const workerPromise = this._pageDataViaWorker(userId);
+            const gas = await this.request('getAbsensiPageData', { userId });
+            workerPromise.then((w) => this._reportShadow(userId, gas, w)).catch(() => {});
+            return gas;
+        }
+
         return this.request('getAbsensiPageData', { userId });
     },
 
