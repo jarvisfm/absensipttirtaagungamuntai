@@ -25,6 +25,43 @@ const adminReports = {
         this.bindAttendanceEvents();
         this.populateEmployeeFilter();
         this.renderAttendanceReports();
+        this._loadKuotaBadges();
+    },
+
+    // Badge kuota Cuti & Izin Harian per karyawan di Rekap Absensi. Diambil
+    // dari server (sudah memperhitungkan kuota override per-karyawan); selagi
+    // belum datang / gagal, dipakai hitungan lokal dari loadData().
+    async _loadKuotaBadges() {
+        try {
+            const res = await api.getAllKuotaKaryawan();
+            if (res && res.success && res.data && res.data.kuota) {
+                this.kuotaServer = res.data.kuota;
+                this.renderAttendanceReports();
+            }
+        } catch (e) { console.error('Gagal memuat kuota karyawan:', e); }
+    },
+
+    _kuotaBadgesHtml(empId, small) {
+        const id = String(empId);
+        const sv = this.kuotaServer && this.kuotaServer[id];
+        let cuti, izin;
+        if (sv) {
+            cuti = sv.cuti; izin = sv.izin;
+        } else {
+            const lq = this.leaveQuota && this.leaveQuota[id];
+            const iq = this.izinHarianQuota;
+            if (!lq || !iq) return '';
+            cuti = { kuota: 12, terpakai: lq.pakai, sisa: lq.sisa };
+            const pi = (iq.total && iq.total[id]) || 0;
+            izin = { kuota: iq.kuota, terpakai: pi, sisa: iq.kuota - pi };
+        }
+        const mk = (ic, label, q) => {
+            const habis = q.sisa <= 0;
+            const bg = habis ? '#FEE2E2' : '#CCFBF1';
+            const fg = habis ? '#B91C1C' : '#0F766E';
+            return `<span title="Terpakai ${q.terpakai} dari ${q.kuota} hari tahun ini" style="background:${bg};color:${fg};padding:3px 10px;border-radius:20px;font-weight:500;"><i class="fas ${ic}" style="margin-right:4px;"></i>${label}: ${q.sisa}/${q.kuota}</span>`;
+        };
+        return mk('fa-umbrella-beach', 'Sisa Cuti', cuti) + mk('fa-file-alt', 'Sisa Izin', izin);
     },
 
     async initJurnalReports() {
@@ -986,12 +1023,13 @@ const adminReports = {
                                     <div style="font-size:0.78rem;color:var(--text-muted);">${emp.department || '-'} — ${emp.bagian || '-'} — ${emp.position || '-'} — ${emp.shift || '-'}</div>
                                 </div>
                             </div>
-                            <div style="display:flex;gap:12px;font-size:0.8rem;">
+                            <div style="display:flex;gap:12px;font-size:0.8rem;flex-wrap:wrap;">
                                 <span style="background:#d1fae5;color:#065f46;padding:3px 10px;border-radius:20px;font-weight:500;">Hadir: ${totalHadir}</span>
                                 <span style="background:#fef3c7;color:#92400e;padding:3px 10px;border-radius:20px;font-weight:500;">Terlambat: ${totalTerlambat}</span>
                                 <span style="background:#FFE4D6;color:#C2410C;padding:3px 10px;border-radius:20px;font-weight:500;">Hadir Terlambat: ${totalHadirTerlambat}</span>
                                 <span style="background:#FEE2E2;color:#B91C1C;padding:3px 10px;border-radius:20px;font-weight:500;">Tidak Hadir: ${totalTidakHadir}</span>
                                 <span style="background:#e0e7ff;color:#3730a3;padding:3px 10px;border-radius:20px;font-weight:500;">Total: ${totalHari} hari</span>
+                                ${this._kuotaBadgesHtml(emp.id)}
                             </div>
                         </div>
                     </td>
@@ -1277,6 +1315,7 @@ const adminReports = {
                         <span style="background:#FFE4D6;color:#C2410C;padding:3px 10px;border-radius:20px;font-weight:500;">Hadir Terlambat: ${totalHadirTerlambat}</span>
                         <span style="background:#FEE2E2;color:#B91C1C;padding:3px 10px;border-radius:20px;font-weight:500;">Tidak Hadir: ${totalTidakHadir}</span>
                         <span style="background:#e0e7ff;color:#3730a3;padding:3px 10px;border-radius:20px;font-weight:500;">Total: ${totalHari} hari</span>
+                        ${this._kuotaBadgesHtml(emp.id)}
                     </div>
             `;
 
