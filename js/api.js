@@ -94,7 +94,39 @@ function _burstSpreadDelay(action) {
 const api = {
 
     // ========== SERVER TIME (anti-akal jam HP) ==========
+    // [TAMBAHAN 8 Okt 2026] Pembantu umum untuk route Worker yang TIDAK butuh
+    // sesi (data publik / jam server). Return objek JSON jawaban Worker, atau
+    // null kalau Worker tidak terjangkau/timeout (pemanggil jatuh balik ke
+    // Apps Script seperti sebelumnya).
+    async _publicViaWorker(path, payload, timeoutMs) {
+        if (!SESSION_WORKER_URL) return null;
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+        try {
+            const res = await fetch(SESSION_WORKER_URL.replace(/\/+$/, '') + path, {
+                method: 'POST',
+                headers: { 'Content-Type': 'text/plain' },
+                body: JSON.stringify(payload || {}),
+                signal: controller.signal
+            });
+            return await res.json();
+        } catch (e) {
+            return null;
+        } finally {
+            clearTimeout(timeoutId);
+        }
+    },
+
+    // [TAMBAHAN 8 Okt 2026] Jam server dari Cloudflare Worker dulu (tidak antre
+    // di Apps Script); gagal -> Apps Script persis seperti sebelumnya. Waktu
+    // tempuh jaringan dikompensasi setengah RTT supaya jam akurat.
     async getServerTime() {
+        const t0 = performance.now();
+        const fast = await this._publicViaWorker('/server-time', {}, 3000);
+        if (fast && fast.success === true && fast.data && typeof fast.data.timestamp === 'number') {
+            fast.data.timestamp += (performance.now() - t0) / 2;
+            return fast;
+        }
         return this.request('getServerTime', {});
     },
 
@@ -852,7 +884,12 @@ const api = {
         if (!API_BASE_URL) {
             return { success: true, data: {} };
         }
-        return this.request('getHolidayDates', { year: year || new Date().getFullYear() });
+        // [TAMBAHAN 8 Okt 2026] Tanggal merah sudah disalin ke D1 (sync_kv
+        // 'holidays:<tahun>'). Worker dulu; kosong/gagal -> Apps Script.
+        const y = year || new Date().getFullYear();
+        const fast = await this._publicViaWorker('/holidays', { year: y }, 4000);
+        if (fast && fast.success === true && fast.data && typeof fast.data === 'object') return fast;
+        return this.request('getHolidayDates', { year: y });
     },
 
     // ========== IZIN / PERMISSION ==========
