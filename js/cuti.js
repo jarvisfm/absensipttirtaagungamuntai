@@ -745,13 +745,6 @@ const cuti = {
                                 <strong>Alasan Pembatalan:</strong> ${leave.cancelledNote}
                             </div>
                         ` : ''}
-                        ${(leave.status === 'approved' || leave.status === 'ditunda') ? `
-                            <div style="margin-top:8px;">
-                                <button class="btn-small btn-outline" onclick="printLetters.openCuti(${leave.id})">
-                                    <i class="fas fa-print"></i> Cetak Formulir Cuti
-                                </button>
-                            </div>
-                        ` : ''}
                         ${leave.status === 'approved' && (leave.emailSent === false || leave.emailSent === 'false') ? `
                             <div style="margin-top:8px;padding:8px 12px;border-radius:8px;background:rgba(245,158,11,0.08);border-left:3px solid var(--color-warning);font-size:var(--font-size-sm);color:var(--text-secondary);">
                                 <i class="fas fa-triangle-exclamation" style="color:var(--color-warning);margin-right:6px;"></i>
@@ -762,6 +755,13 @@ const cuti = {
                             <div style="margin-top:8px;">
                                 <button class="btn-small btn-outline" style="color:var(--color-danger,#EF4444);border-color:var(--color-danger,#EF4444);" onclick="cuti.cancelLeaveRequest(${leave.id})">
                                     <i class="fas fa-trash-alt"></i> Batalkan Pengajuan
+                                </button>
+                            </div>
+                        ` : ''}
+                        ${(leave.status !== 'cancelled' && leave.status !== 'rejected') ? `
+                            <div style="margin-top:8px;">
+                                <button class="btn-small btn-outline" onclick="printLetters.openCuti(${leave.id})">
+                                    <i class="fas fa-print"></i> Cetak Surat Cuti
                                 </button>
                             </div>
                         ` : ''}
