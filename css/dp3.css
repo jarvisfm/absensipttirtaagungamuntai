@@ -200,8 +200,10 @@ table.dp3p-score td.b { font-weight: 700; }
 .dp3p-sign.r { margin-left: 46%; text-align: left; }
 .dp3p-sign.r .c { text-align: center; }
 .dp3p-sign.r .nm { text-align: center; }
-.dp3p-sign.l .c { padding-left: 8mm; }
-.dp3p-sign.l .nm { padding-left: 4mm; }
+/* Blok kiri (no. 10): lebar menyesuaikan baris tanggal, label & nama rata tengah di bawahnya */
+.dp3p-sign.l { display: table; }
+.dp3p-sign.l .c { text-align: center; }
+.dp3p-sign.l .nm { text-align: center; }
 .dp3p-cover { text-align: center; }
 .dp3p-cover .garuda { width: 25mm; height: auto; display: block; margin: 2mm auto 2mm; }
 .dp3p-cover .ttl { font-weight: 700; line-height: 1.3; }
