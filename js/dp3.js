@@ -406,7 +406,18 @@ const dp3 = {
         return s ? this._e(s) : '-';
     },
 
-    _tglAkhirTahun(tahun) { return `31 DESEMBER ${tahun}`; },
+    // Tanggal penilai selesai menilai (dari updatedAt tersimpan), format "8 OKTOBER 2026"
+    _tglPenilaian(r) {
+        const BLN = ['JANUARI','FEBRUARI','MARET','APRIL','MEI','JUNI','JULI','AGUSTUS','SEPTEMBER','OKTOBER','NOVEMBER','DESEMBER'];
+        const d = r && r.updatedAt ? new Date(r.updatedAt) : null;
+        if (!d || isNaN(d.getTime())) return `31 DESEMBER ${r ? r.tahun : ''}`;
+        let p;
+        try {
+            p = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Makassar', day: 'numeric', month: 'numeric', year: 'numeric' })
+                .formatToParts(d).reduce((a, x) => (a[x.type] = x.value, a), {});
+        } catch (e) { p = { day: d.getDate(), month: d.getMonth() + 1, year: d.getFullYear() }; }
+        return `${parseInt(p.day, 10)} ${BLN[parseInt(p.month, 10) - 1]} ${p.year}`;
+    },
 
     _nilaiPage(r) {
         const dn = r.dinilai || {};
@@ -472,7 +483,7 @@ const dp3 = {
         const pen = r.penilai || {};
         const ats = r.atasan || {};
         const tahun = r.tahun;
-        const tgl = this._tglAkhirTahun(tahun);
+        const tgl = this._tglPenilaian(r);
         const rah = '<div class="dp3p-rahasia">R A H A S I A</div>';
 
         const scoreRows = this.CRITERIA.map(c => `
