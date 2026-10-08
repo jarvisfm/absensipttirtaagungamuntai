@@ -870,6 +870,12 @@ const api = {
 
     // Sisa kuota Cuti Tahunan (dihitung server-side dari total cuti tahunan
     // yang sudah disetujui tahun berjalan)
+    // Kuota Cuti & Izin Harian SEMUA karyawan sekaligus (badge di Rekap Absensi)
+    async getAllKuotaKaryawan() {
+        if (!API_BASE_URL) return { success: true, data: { tahun: new Date().getFullYear(), kuota: {} } };
+        return this.request('getAllKuotaKaryawan', {});
+    },
+
     async getLeaveBalance(userId) {
         if (!API_BASE_URL) {
             return { success: true, data: { tahun: new Date().getFullYear(), kuota: 12, terpakai: 0, sisa: 12 } };
