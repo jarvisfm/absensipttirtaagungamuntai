@@ -32,6 +32,7 @@
     <link rel="stylesheet" href="css/modal.css">
     <link rel="stylesheet" href="css/rich-note.css">
     <link rel="stylesheet" href="css/dp3.css">
+    <link rel="stylesheet" href="css/mutasi.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap"
@@ -282,6 +283,12 @@
                             <a href="#" class="nav-link">
                                 <i class="fas fa-id-card"></i>
                                 <span>Data Karyawan</span>
+                            </a>
+                        </li>
+                        <li class="nav-item" data-page="mutasi">
+                            <a href="#" class="nav-link">
+                                <i class="fas fa-right-left"></i>
+                                <span>Mutasi</span>
                             </a>
                         </li>
                         <li class="nav-item" data-page="attendance-reports">
@@ -3653,6 +3660,11 @@
                     </div>
                 </div>
 
+                <!-- Mutasi Jabatan - Menu Admin (js/mutasi.js) -->
+                <div class="page" id="page-mutasi">
+                    <div id="mutasi-root"></div>
+                </div>
+
                 <!-- DP3 - Daftar Penilaian Pelaksanaan Pekerjaan (js/dp3.js) -->
                 <div class="page" id="page-dp3">
                     <div id="dp3-root"></div>
@@ -4205,6 +4217,7 @@
     <script src="js/face-recognition.js"></script>
     <script src="js/rich-note.js"></script>
     <script src="js/dp3.js"></script>
+    <script src="js/mutasi.js"></script>
     <script src="js/paraf.js"></script>
     <script src="js/izin.js"></script>
     <script src="js/cuti.js"></script>
