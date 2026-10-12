@@ -1290,6 +1290,15 @@ const api = {
     async getSlipGajiSaya() {
         return this.request('getSlipGajiSaya', { ...this._slipAuth() });
     },
+    async tambahSlipGaji(data) {
+        return this.request('tambahSlipGaji', { ...data, ...this._slipAuth() });
+    },
+    async updateSlipGaji(data) {
+        return this.request('updateSlipGaji', { ...data, ...this._slipAuth() });
+    },
+    async hapusSlipGaji(id) {
+        return this.request('hapusSlipGaji', { id, ...this._slipAuth() });
+    },
 
     // ========== RIWAYAT KGB / KENAIKAN GAJI BERKALA ==========
     async getRiwayatKgb(userId) {
