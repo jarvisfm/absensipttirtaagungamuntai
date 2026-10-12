@@ -12,6 +12,8 @@ const mutasi = {
     selectedId: '',
     saving: false,
     BAGIAN: ['SPI', 'UMUM DAN KEPEGAWAIAN', 'KEUANGAN', 'HUBUNGAN LANGGANAN', 'TEKNIK DAN PENGAWASAN', 'OPERASI DAN JARINGAN'],
+    UNIT_WILAYAH: ['BNA Amuntai', 'SPAM Alabio', 'SPAM Jarang Kuantan', 'SPAM Sungai Tabukan', 'SPAM Muara Tapus', 'SPAM Telaga Silaba', 'SPAM Rantau Bujur', 'SPAM Muara Baruh', 'SPAM Banjang', 'SPAM Tangkawang', 'SPAM Babirik', 'SPAM Danau Panggang', 'SPAM Paminggir'],
+    UNIT_JAGA: ['SATPAM', 'TRD - BNA Amuntai', 'TRD - Cabang I', 'TRD - Cabang II', 'TRD - Cabang III'],
     ROLES: [['staff', 'Staff'], ['asmen', 'Asmen (Asisten Manajer)'], ['manajer', 'Manajer'], ['direktur', 'Direktur']],
 
     _e(s) {
@@ -148,6 +150,12 @@ const mutasi = {
         const bag = String(emp.bagian || '');
         const bagList = this.BAGIAN.includes(bag) || !bag ? this.BAGIAN : [bag, ...this.BAGIAN];
         const bagOpts = `<option value="">-- Pilih Bagian --</option>` + bagList.map(b => `<option value="${this._e(b)}"${b === bag ? ' selected' : ''}>${this._e(b)}</option>`).join('');
+        const unit = String(emp.unitWilayah || '').trim();
+        const opt = (u) => `<option value="${this._e(u)}"${u === unit ? ' selected' : ''}>${this._e(u)}</option>`;
+        const unitExtra = unit && !this.UNIT_WILAYAH.includes(unit) && !this.UNIT_JAGA.includes(unit) ? opt(unit) : '';
+        const unitOpts = `<option value="">-- Pilih Unit Wilayah --</option>${unitExtra}
+            <optgroup label="Unit Wilayah">${this.UNIT_WILAYAH.map(opt).join('')}</optgroup>
+            <optgroup label="Unit Jaga (Non-Wilayah)">${this.UNIT_JAGA.map(opt).join('')}</optgroup>`;
         box.innerHTML = `
         <div class="mts-card mts-emp-head">
             ${this._avatar(emp, true)}
@@ -161,13 +169,13 @@ const mutasi = {
             <div class="mts-flow-box">
                 <small>SEKARANG</small>
                 <b>${this._e(emp.jabatan || '-')}</b>
-                <div class="mts-flow-meta">${this._roleChip(role)}<span>${this._e(emp.bagian || '-')}</span></div>
+                <div class="mts-flow-meta">${this._roleChip(role)}<span>${this._e(emp.bagian || '-')}</span><span>${this._e(emp.unitWilayah || '-')}</span></div>
             </div>
             <div class="mts-flow-arrow"><i class="fas fa-arrow-right"></i></div>
             <div class="mts-flow-box new" id="mts-prev">
                 <small>MENJADI</small>
                 <b id="mts-prev-j">${this._e(emp.jabatan || '-')}</b>
-                <div class="mts-flow-meta"><span id="mts-prev-r">${this._roleChip(role)}</span><span id="mts-prev-b">${this._e(emp.bagian || '-')}</span></div>
+                <div class="mts-flow-meta"><span id="mts-prev-r">${this._roleChip(role)}</span><span id="mts-prev-b">${this._e(emp.bagian || '-')}</span><span id="mts-prev-u">${this._e(emp.unitWilayah || '-')}</span></div>
             </div>
         </div>
 
@@ -185,6 +193,10 @@ const mutasi = {
                 <div>
                     <label class="mts-label" for="mts-bagian">Bagian</label>
                     <select id="mts-bagian" class="mts-input" onchange="mutasi.updatePreview()">${bagOpts}</select>
+                </div>
+                <div class="mts-full">
+                    <label class="mts-label" for="mts-unit">Unit Wilayah</label>
+                    <select id="mts-unit" class="mts-input" onchange="mutasi.updatePreview()">${unitOpts}</select>
                 </div>
             </div>
             <div class="mts-sec" style="margin-top:22px;"><i class="fas fa-file-signature"></i> Surat Keputusan (SK)</div>
@@ -228,6 +240,7 @@ const mutasi = {
         setH('mts-prev-j', this._e(j || emp.jabatan || '-'));
         setH('mts-prev-r', this._roleChip(val('mts-role') || emp.role));
         setH('mts-prev-b', this._e(val('mts-bagian') || emp.bagian || '-'));
+        setH('mts-prev-u', this._e(val('mts-unit') || emp.unitWilayah || '-'));
         const box = document.getElementById('mts-prev');
         if (box) box.classList.toggle('changed', !!j);
     },
@@ -272,8 +285,9 @@ const mutasi = {
         if (!nomor) { toast.error('Nomor SK Mutasi wajib diisi'); return; }
         const role = val('mts-role');
         const bagian = val('mts-bagian');
+        const unitWilayah = val('mts-unit');
         const roleLabel = (this.ROLES.find(r => r[0] === role) || [role, role])[1];
-        if (!confirm(`Mutasikan ${emp.nama || 'karyawan ini'}?\n\n${emp.jabatan || '-'}  →  ${jabatanBaru}\nRole: ${roleLabel}\nBagian: ${bagian || '-'}`)) return;
+        if (!confirm(`Mutasikan ${emp.nama || 'karyawan ini'}?\n\n${emp.jabatan || '-'}  →  ${jabatanBaru}\nRole: ${roleLabel}\nBagian: ${bagian || '-'}\nUnit Wilayah: ${unitWilayah || '-'}`)) return;
 
         const msg = document.getElementById('mts-msg');
         const btn = document.getElementById('mts-save');
@@ -282,7 +296,7 @@ const mutasi = {
         if (msg) msg.innerHTML = '';
         try {
             const res = await api.applyMutasiKaryawan({
-                userId: emp.id, jabatanBaru, role, bagian,
+                userId: emp.id, jabatanBaru, role, bagian, unitWilayah,
                 nomorSurat: nomor, tanggalSurat: val('mts-tgl'), fileDokumenUrl: val('mts-doc').trim()
             });
             if (!res || !res.success) {
@@ -301,6 +315,7 @@ const mutasi = {
             emp.jabatan = d.jabatanBaru || jabatanBaru;
             emp.role = d.roleBaru || role;
             emp.bagian = d.bagianBaru != null ? d.bagianBaru : bagian;
+            emp.unitWilayah = d.unitWilayahBaru != null ? d.unitWilayahBaru : unitWilayah;
             this.render();
             this.loadRiwayat();
         } catch (e) {
