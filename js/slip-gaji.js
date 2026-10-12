@@ -574,21 +574,26 @@ const slipGaji = {
     },
 
     // Modal konfirmasi hapus (pengganti confirm bawaan browser)
-    _askDelete(o) {
+    // o: { title, msgHtml, okLabel, loadingLabel, icon, tone: 'danger'|'primary', action: async () => bool }
+    _askConfirm(o) {
         this.closeDelete();
+        const tone = o.tone === 'primary'
+            ? { cls: 'sg-btn-primary', bg: '#FFFBEB', fg: '#F59E0B' }
+            : { cls: 'sg-btn-danger', bg: '#FEF2F2', fg: '#EF4444' };
+        const icon = o.icon || 'fa-trash';
         const el = document.createElement('div');
         el.className = 'sg-modal';
         el.id = 'sg-del-modal';
         el.innerHTML = `
             <div class="sg-modal-box" style="max-width:400px">
                 <div class="sg-modal-body" style="text-align:center;padding:24px 22px 18px">
-                    <div style="width:56px;height:56px;margin:0 auto 12px;border-radius:50%;background:#FEF2F2;color:#EF4444;display:flex;align-items:center;justify-content:center;font-size:1.5rem">
-                        <i class="fas fa-trash"></i></div>
+                    <div style="width:56px;height:56px;margin:0 auto 12px;border-radius:50%;background:${tone.bg};color:${tone.fg};display:flex;align-items:center;justify-content:center;font-size:1.5rem">
+                        <i class="fas ${this._e(icon)}"></i></div>
                     <h3 style="margin:0 0 8px;font-size:1.05rem">${this._e(o.title)}</h3>
                     <div style="font-size:.86rem;color:#475569;line-height:1.55">${o.msgHtml}</div>
                     <div class="sg-actions" style="justify-content:center;margin-top:18px">
                         <button type="button" class="sg-btn" id="sg-del-cancel">Batal</button>
-                        <button type="button" class="sg-btn sg-btn-danger" id="sg-del-ok"><i class="fas fa-trash"></i> ${this._e(o.okLabel || 'Hapus')}</button>
+                        <button type="button" class="sg-btn ${tone.cls}" id="sg-del-ok"><i class="fas ${this._e(icon)}"></i> ${this._e(o.okLabel || 'Hapus')}</button>
                     </div>
                 </div>
             </div>`;
@@ -603,15 +608,15 @@ const slipGaji = {
             running = true;
             el.querySelector('#sg-del-cancel').disabled = true;
             ok.disabled = true;
-            ok.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Menghapus...';
+            ok.innerHTML = `<i class="fas fa-spinner fa-spin"></i> ${this._e(o.loadingLabel || 'Menghapus...')}`;
             let done = false;
-            try { done = await o.action(); } catch (e) { console.error(e); toast.error('Gagal menghapus data'); }
+            try { done = await o.action(); } catch (e) { console.error(e); toast.error('Terjadi kesalahan, coba lagi'); }
             running = false;
             if (done) { this.closeDelete(); return; }
             // gagal: modal tetap terbuka supaya bisa dicoba lagi / dibatalkan
             if (document.body.contains(el)) {
                 ok.disabled = false;
-                ok.innerHTML = `<i class="fas fa-trash"></i> ${this._e(o.okLabel || 'Hapus')}`;
+                ok.innerHTML = `<i class="fas ${this._e(icon)}"></i> ${this._e(o.okLabel || 'Hapus')}`;
                 el.querySelector('#sg-del-cancel').disabled = false;
             }
         };
@@ -626,7 +631,7 @@ const slipGaji = {
     hapusPeriode() {
         const p = this.periods.find(x => x.periode === this.periode);
         if (!p) return;
-        this._askDelete({
+        this._askConfirm({
             title: 'Hapus Data Periode?',
             okLabel: 'Hapus Semua',
             msgHtml: `Semua data gaji <b>${this._e(this.periodeLabel(p))}</b> (${this._e(p.total)} karyawan) akan dihapus.<br>Slip yang sudah terkirim ke karyawan juga ikut terhapus.`,
@@ -768,7 +773,7 @@ const slipGaji = {
     hapusSatu(id) {
         const r = this._findRow(id);
         if (!r) return;
-        this._askDelete({
+        this._askConfirm({
             title: 'Hapus Data Gaji?',
             msgHtml: `Data gaji <b>${this._e(r.nama)}</b> (${this._e(this.blth(r))}) akan dihapus.<br>Penerimaan dan potongan karyawan ini ikut terhapus${r.status === 'terkirim' ? ', dan slipnya hilang dari menu Slip Gaji karyawan' : ''}.`,
             action: async () => {
@@ -857,8 +862,9 @@ const slipGaji = {
     },
 
     async _kirim(payload, confirmMsg, btn) {
-        if (this.busy) return;
-        if (confirmMsg && !confirm(confirmMsg)) return;
+        if (this.busy) return false;
+        if (confirmMsg && !confirm(confirmMsg)) return false;
+        let ok = false;
         this.busy = true;
         // animasi loading pada tombol yang diklik; tombol kirim lain dikunci sementara
         const lockBtns = Array.from(document.querySelectorAll('#slip-gaji-root button[onclick*="slipGaji.kirim"]'));
@@ -872,6 +878,7 @@ const slipGaji = {
                 let m = `${d.sent} slip terkirim ke menu Slip Gaji karyawan.`;
                 if (d.skipped) m += ` ${d.skipped} dilewati karena belum cocok dengan akun karyawan.`;
                 toast.success(this._e(m));
+                ok = true;
                 await this.loadPeriods(this.periode);
                 await this.renderTab();
             } else {
@@ -886,6 +893,7 @@ const slipGaji = {
             lockBtns.forEach(x => { if (document.body.contains(x)) x.disabled = false; });
             if (btn && document.body.contains(btn)) btn.innerHTML = oldHtml;
         }
+        return ok;
     },
 
     kirimSatu(id, btn) { return this._kirim({ ids: [id] }, '', btn); },
@@ -893,8 +901,15 @@ const slipGaji = {
     kirimSemua(btn) {
         const p = this.periods.find(x => x.periode === this.periode);
         if (!p) return;
-        return this._kirim({ periode: this.periode, semua: true },
-            `Kirim slip gaji ${this.periodeLabel(p)} ke semua karyawan? Slip akan langsung muncul di menu Slip Gaji masing-masing.`, btn);
+        this._askConfirm({
+            title: 'Kirim ke Semua Karyawan?',
+            tone: 'primary',
+            icon: 'fa-paper-plane',
+            okLabel: 'Kirim Semua',
+            loadingLabel: 'Mengirim...',
+            msgHtml: `Slip gaji <b>${this._e(this.periodeLabel(p))}</b> (${this._e(p.total)} karyawan) akan dikirim.<br>Slip langsung muncul di menu Slip Gaji masing-masing karyawan.`,
+            action: () => this._kirim({ periode: this.periode, semua: true }, '', btn)
+        });
     },
 
     // =====================================================================
