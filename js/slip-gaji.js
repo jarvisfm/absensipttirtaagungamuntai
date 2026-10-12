@@ -742,7 +742,7 @@ const slipGaji = {
     _printCss() {
         return `
         *{box-sizing:border-box} body{font-family:Arial,Helvetica,sans-serif;font-size:12px;color:#000;margin:0;padding:16px}
-        .sg-slip{width:360px;max-width:100%;margin:0 auto 24px;page-break-after:always}
+        .sg-slip{width:360px;max-width:100%;margin:0 0 24px 0;text-align:left;page-break-after:always}
         .sg-slip:last-child{page-break-after:auto}
         .sg-kop{display:flex;align-items:center;gap:10px}
         .sg-kop img{width:46px;height:46px;object-fit:contain}
@@ -752,7 +752,7 @@ const slipGaji = {
         table{border-collapse:collapse;width:100%}
         .sg-meta td{padding:1px 0}.sg-meta td:first-child{width:50px}
         .sg-items td{padding:1px 2px;vertical-align:top}
-        .sg-items .n{width:24px}.v{text-align:right;white-space:nowrap}
+        .sg-items .n{width:24px}.v{text-align:left;white-space:nowrap}.sg-items .v{width:108px}
         .r{text-align:right}
         .sg-sec{font-weight:700;text-decoration:underline;padding-top:8px!important}
         .tot td{font-weight:700;padding-top:3px!important}
