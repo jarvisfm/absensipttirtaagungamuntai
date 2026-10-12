@@ -1,0 +1,113 @@
+/* Menu Slip Gaji - Admin & Karyawan (js/slip-gaji.js) */
+#slip-gaji-root { max-width: 1120px; font-family: inherit; }
+#slip-gaji-root * { box-sizing: border-box; }
+
+/* ── Hero ── */
+.sg-hero { display: flex; align-items: center; gap: 16px; padding: 20px 22px; border-radius: 18px; margin-bottom: 18px;
+    background: linear-gradient(135deg, #F59E0B 0%, #FBBF24 60%, #FCD34D 100%); color: #fff;
+    box-shadow: 0 10px 28px rgba(245, 158, 11, .28); position: relative; overflow: hidden; }
+.sg-hero::after { content: ''; position: absolute; right: -40px; top: -50px; width: 190px; height: 190px; border-radius: 50%; background: rgba(255, 255, 255, .16); }
+.sg-hero-ic { width: 52px; height: 52px; border-radius: 16px; background: rgba(255, 255, 255, .25); display: flex; align-items: center; justify-content: center; font-size: 1.35rem; flex-shrink: 0; }
+.sg-hero h2 { margin: 0 0 3px; font-size: 1.3rem; color: #fff; }
+.sg-hero p { margin: 0; font-size: .86rem; opacity: .95; max-width: 560px; }
+
+/* ── Tab ── */
+.sg-tabs { display: flex; gap: 6px; overflow-x: auto; margin-bottom: 14px; padding-bottom: 2px; }
+.sg-tab { display: inline-flex; align-items: center; gap: 8px; padding: 10px 16px; border-radius: 12px; border: 1.5px solid var(--border-color, #e5e7eb);
+    background: var(--color-white, #fff); color: inherit; font-family: inherit; font-size: .86rem; font-weight: 500; cursor: pointer; white-space: nowrap; transition: .15s; }
+.sg-tab:hover { border-color: #F59E0B; }
+.sg-tab.active { background: rgba(245, 158, 11, .12); border-color: #F59E0B; color: #B45309; font-weight: 600; }
+
+/* ── Card & umum ── */
+.sg-card { background: var(--color-white, #fff); border: 1px solid var(--border-color, #e5e7eb); border-radius: 18px; padding: 18px; margin-bottom: 14px; }
+.sg-h3 { margin: 0 0 12px; font-size: 1rem; }
+.sg-note { font-size: .8rem; color: var(--text-muted, #6b7280); margin: 10px 0; }
+.sg-empty { text-align: center; padding: 28px 10px; color: var(--text-muted, #9ca3af); }
+.sg-empty i { font-size: 2rem; margin-bottom: 8px; display: block; }
+.sg-alert { padding: 10px 14px; border-radius: 12px; font-size: .84rem; margin: 10px 0; background: #EFF6FF; color: #1E40AF; }
+.sg-alert-warn { background: #FFFBEB; color: #92400E; }
+.sg-alert-err { background: #FEF2F2; color: #991B1B; }
+
+.sg-drop { border: 2px dashed var(--border-color, #d1d5db); border-radius: 14px; padding: 18px; display: flex; flex-direction: column; gap: 8px; }
+.sg-drop small { color: var(--text-muted, #6b7280); }
+.sg-drop a { color: #D97706; font-weight: 600; }
+
+.sg-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; margin: 12px 0; }
+.sg-form label, .sg-bar label { display: flex; flex-direction: column; gap: 5px; font-size: .78rem; font-weight: 600; color: var(--text-muted, #6b7280); }
+.sg-form input, .sg-form select, .sg-bar select, .sg-assign { padding: 10px 12px; border: 1.5px solid var(--border-color, #e5e7eb); border-radius: 10px;
+    font-family: inherit; font-size: .88rem; background: var(--bg-secondary, #f8fafc); color: inherit; outline: none; }
+.sg-form input:focus, .sg-form select:focus, .sg-bar select:focus { border-color: #F59E0B; box-shadow: 0 0 0 3px rgba(245, 158, 11, .12); }
+.sg-assign { padding: 6px 8px; font-size: .8rem; max-width: 190px; }
+
+.sg-bar { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.sg-bar-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.sg-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 14px; }
+
+/* ── Tombol ── */
+.sg-btn { display: inline-flex; align-items: center; gap: 7px; padding: 9px 14px; border-radius: 10px; border: 1.5px solid var(--border-color, #e5e7eb);
+    background: var(--color-white, #fff); color: inherit; font-family: inherit; font-size: .84rem; font-weight: 500; cursor: pointer; transition: .15s; }
+.sg-btn:hover { border-color: #F59E0B; }
+.sg-btn:disabled { opacity: .6; cursor: not-allowed; }
+.sg-btn-primary { background: #F59E0B; border-color: #F59E0B; color: #fff; font-weight: 600; }
+.sg-btn-primary:hover { background: #D97706; border-color: #D97706; }
+.sg-btn-danger { background: #EF4444; border-color: #EF4444; color: #fff; }
+.sg-btn-danger:hover { background: #DC2626; border-color: #DC2626; }
+.sg-btn-sm { padding: 6px 10px; font-size: .78rem; }
+
+/* ── Tabel ── */
+.sg-search { position: relative; margin-bottom: 12px; max-width: 320px; }
+.sg-search i { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--text-muted, #9ca3af); font-size: .85rem; }
+.sg-search input { width: 100%; padding: 10px 12px 10px 34px; border: 1.5px solid var(--border-color, #e5e7eb); border-radius: 10px; font-family: inherit; font-size: .86rem; background: var(--bg-secondary, #f8fafc); color: inherit; outline: none; }
+.sg-table-wrap { overflow-x: auto; max-width: 100%; border: 1px solid var(--border-color, #e5e7eb); border-radius: 12px; }
+.sg-table { width: 100%; border-collapse: collapse; font-size: .84rem; }
+.sg-table th { background: #475569; color: #fff; padding: 10px 12px; text-align: left; white-space: nowrap; font-weight: 600; }
+.sg-table td { padding: 9px 12px; border-top: 1px solid var(--border-color, #e5e7eb); white-space: nowrap; }
+.sg-table tbody tr:nth-child(even) { background: rgba(148, 163, 184, .08); }
+.sg-table .r, .sg-table th.r { text-align: right; }
+.sg-table .nowrap { white-space: nowrap; }
+
+.sg-chips { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+.sg-chip { display: inline-block; padding: 4px 10px; border-radius: 999px; font-size: .74rem; font-weight: 600; background: #F1F5F9; color: #475569; }
+.sg-chip.ok { background: #DCFCE7; color: #166534; }
+.sg-chip.warn { background: #FEF3C7; color: #92400E; }
+
+/* ── Karyawan: daftar bulan ── */
+.sg-month { display: flex; align-items: center; gap: 12px; padding: 12px 4px; border-bottom: 1px solid var(--border-color, #e5e7eb); flex-wrap: wrap; }
+.sg-month:last-child { border-bottom: none; }
+.sg-month-ic { width: 42px; height: 42px; border-radius: 12px; background: rgba(245, 158, 11, .14); color: #D97706; display: flex; align-items: center; justify-content: center; }
+.sg-month-txt { flex: 1; min-width: 150px; display: flex; flex-direction: column; }
+.sg-month-txt small { color: var(--text-muted, #6b7280); }
+
+/* ── Slip (tampilan di modal; versi cetak ada di js/slip-gaji.js _printCss) ── */
+.sg-modal { position: fixed; inset: 0; background: rgba(15, 23, 42, .55); z-index: 10000; display: flex; align-items: center; justify-content: center; padding: 14px; }
+.sg-modal-box { background: #fff; border-radius: 16px; width: 100%; max-width: 460px; max-height: 92vh; display: flex; flex-direction: column; overflow: hidden; }
+.sg-modal-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 12px 16px; border-bottom: 1px solid #e5e7eb; font-size: .9rem; }
+.sg-modal-head > div { display: flex; gap: 6px; }
+.sg-modal-body { overflow-y: auto; padding: 16px; }
+
+.sg-slip { font-family: Arial, Helvetica, sans-serif; font-size: 12px; color: #000; width: 100%; max-width: 360px; margin: 0 auto; }
+.sg-slip table { border-collapse: collapse; width: 100%; }
+.sg-slip .sg-kop { display: flex; align-items: center; gap: 10px; }
+.sg-slip .sg-kop img { width: 46px; height: 46px; object-fit: contain; }
+.sg-slip .sg-kop b { display: block; font-size: 13px; }
+.sg-slip .sg-kop span { font-size: 11px; }
+.sg-slip .sg-kop-line { border-top: 3px double #333; margin: 6px 0 10px; }
+.sg-slip .sg-slip-title { text-align: center; font-weight: 700; margin-bottom: 10px; }
+.sg-slip .sg-meta td { padding: 1px 0; }
+.sg-slip .sg-meta td:first-child { width: 50px; }
+.sg-slip .sg-meta .r { text-align: right; }
+.sg-slip .sg-items td { padding: 1px 2px; vertical-align: top; }
+.sg-slip .sg-items .n { width: 24px; }
+.sg-slip .v { text-align: right; white-space: nowrap; }
+.sg-slip .sg-sec { font-weight: 700; text-decoration: underline; padding-top: 8px; }
+.sg-slip .tot td { font-weight: 700; padding-top: 3px; }
+.sg-slip .net .v { border: 1px solid #000; padding: 1px 6px; }
+.sg-slip .sg-ttd { margin-top: 14px; text-align: center; line-height: 1.5; }
+.sg-slip .sg-ttd-sp { margin-top: 34px; color: #555; }
+.sg-slip .sg-ttd-name { font-weight: 700; text-decoration: underline; letter-spacing: 2px; }
+.sg-slip .sg-thanks { margin-top: 10px; }
+
+@media (max-width: 600px) {
+    .sg-hero { padding: 16px; }
+    .sg-card { padding: 14px; }
+}
