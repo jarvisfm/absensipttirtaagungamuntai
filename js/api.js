@@ -1250,6 +1250,10 @@ const api = {
     async getRiwayatMutasi(userId) {
         return this.request('getRiwayatMutasi', { userId });
     },
+    // Mutasi Jabatan (Menu Admin > Mutasi) - ubah jabatan/role/bagian + catat riwayat
+    async applyMutasiKaryawan(data) {
+        return this.request('applyMutasiKaryawan', data);
+    },
     async saveRiwayatMutasi(data) {
         return this.request('saveRiwayatMutasi', data);
     },
