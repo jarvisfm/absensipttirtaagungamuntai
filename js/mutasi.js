@@ -53,116 +53,211 @@ const mutasi = {
         return 'staff';
     },
 
+    _initials(n) {
+        const w = String(n || '?').trim().split(/\s+/);
+        return ((w[0] || '?')[0] + (w.length > 1 ? w[w.length - 1][0] : '')).toUpperCase();
+    },
+    _color(id) {
+        const c = ['#F59E0B', '#0EA5E9', '#10B981', '#8B5CF6', '#EF4444', '#EC4899', '#14B8A6', '#6366F1'];
+        let h = 0; String(id).split('').forEach(ch => { h = (h * 31 + ch.charCodeAt(0)) >>> 0; });
+        return c[h % c.length];
+    },
+    _roleLabel(r) { return (this.ROLES.find(x => x[0] === String(r || 'staff').toLowerCase()) || [r, r || 'Staff'])[1].replace(' (Asisten Manajer)', ''); },
+    _roleChip(r) {
+        const k = String(r || 'staff').toLowerCase();
+        return `<span class="mts-chip mts-chip-${this._e(k)}">${this._e(this._roleLabel(k))}</span>`;
+    },
+    _avatar(e, big) {
+        return `<div class="mts-avatar${big ? ' big' : ''}" style="background:${this._color(e.id)}">${this._e(this._initials(e.nama))}</div>`;
+    },
+
     render() {
         const root = document.getElementById('mutasi-root');
         if (!root) return;
-        const opts = this.employees.map(e =>
-            `<option value="${this._e(e.id)}"${String(e.id) === String(this.selectedId) ? ' selected' : ''}>${this._e(e.nama || '-')}${e.nik ? ' (' + this._e(e.nik) + ')' : ''}</option>`).join('');
+        const items = this.employees.map(e => `
+            <button type="button" class="mts-item${String(e.id) === String(this.selectedId) ? ' active' : ''}" data-id="${this._e(e.id)}"
+                data-q="${this._e(((e.nama || '') + ' ' + (e.nik || '') + ' ' + (e.jabatan || '')).toLowerCase())}" onclick="mutasi.select('${this._e(e.id)}')">
+                ${this._avatar(e)}
+                <span class="mts-item-txt"><b>${this._e(e.nama || '-')}</b><small>${this._e(e.jabatan || '-')}</small></span>
+                ${this._roleChip(e.role)}
+            </button>`).join('');
         root.innerHTML = `
-        <div class="mts-head">
-            <h2>Mutasi Jabatan</h2>
-            <p>Pilih karyawan yang dimutasi. Jabatan, Role &amp; Bagian di Data Karyawan akan ikut berubah dan tercatat di Riwayat Mutasi.</p>
+        <div class="mts-hero">
+            <div class="mts-hero-ic"><i class="fas fa-right-left"></i></div>
+            <div>
+                <h2>Mutasi Jabatan</h2>
+                <p>Pindahkan karyawan ke jabatan baru. Data karyawan ikut diperbarui dan tercatat otomatis di Riwayat Mutasi.</p>
+            </div>
         </div>
-        <div class="mts-card">
-            <label class="mts-label" for="mts-emp">Karyawan</label>
-            <input type="text" id="mts-filter" class="mts-input" placeholder="Ketik untuk mencari nama / NIK..." oninput="mutasi.filter(this.value)">
-            <select id="mts-emp" class="mts-input" size="6" onchange="mutasi.select(this.value)" style="margin-top:8px;">${opts}</select>
-            <div id="mts-form"></div>
-        </div>
-        <div id="mts-riwayat"></div>`;
-        if (this.selectedId) this.renderForm();
+        <div class="mts-layout">
+            <aside class="mts-side">
+                <div class="mts-search"><i class="fas fa-search"></i>
+                    <input type="text" id="mts-filter" placeholder="Cari nama, NIK, jabatan..." oninput="mutasi.filter(this.value)">
+                </div>
+                <div class="mts-count" id="mts-count">${this.employees.length} karyawan</div>
+                <div class="mts-list" id="mts-list">${items || '<div class="mts-empty-s">Tidak ada karyawan</div>'}</div>
+            </aside>
+            <main class="mts-main">
+                <div id="mts-form"></div>
+                <div id="mts-riwayat"></div>
+            </main>
+        </div>`;
+        this.renderForm();
+        if (this.selectedId) this.loadRiwayat();
     },
 
     filter(q) {
         q = String(q || '').toLowerCase().trim();
-        const sel = document.getElementById('mts-emp');
-        if (!sel) return;
-        [...sel.options].forEach(o => {
-            o.hidden = q && !o.textContent.toLowerCase().includes(q);
+        let n = 0;
+        document.querySelectorAll('#mts-list .mts-item').forEach(el => {
+            const ok = !q || el.dataset.q.includes(q);
+            el.style.display = ok ? '' : 'none';
+            if (ok) n++;
         });
+        const c = document.getElementById('mts-count');
+        if (c) c.textContent = `${n} karyawan`;
     },
 
     select(id) {
         this.selectedId = id;
+        document.querySelectorAll('#mts-list .mts-item').forEach(el => el.classList.toggle('active', el.dataset.id === String(id)));
         this.renderForm();
         this.loadRiwayat();
+        if (window.innerWidth < 900) {
+            const f = document.getElementById('mts-form');
+            if (f) f.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
     },
 
     renderForm() {
         const box = document.getElementById('mts-form');
         const emp = this._emp();
         if (!box) return;
-        if (!emp) { box.innerHTML = ''; return; }
+        if (!emp) {
+            box.innerHTML = `
+            <div class="mts-placeholder">
+                <div class="mts-ph-ic"><i class="fas fa-user-tag"></i></div>
+                <h3>Pilih karyawan terlebih dahulu</h3>
+                <p>Klik salah satu nama di daftar untuk mulai memproses mutasi jabatan.</p>
+            </div>`;
+            const r = document.getElementById('mts-riwayat'); if (r) r.innerHTML = '';
+            return;
+        }
         const role = String(emp.role || 'staff').toLowerCase();
-        const roleLabel = (this.ROLES.find(r => r[0] === role) || [role, role])[1];
         const roleOpts = this.ROLES.map(r => `<option value="${r[0]}"${r[0] === role ? ' selected' : ''}>${r[1]}</option>`).join('');
         const bag = String(emp.bagian || '');
         const bagList = this.BAGIAN.includes(bag) || !bag ? this.BAGIAN : [bag, ...this.BAGIAN];
         const bagOpts = `<option value="">-- Pilih Bagian --</option>` + bagList.map(b => `<option value="${this._e(b)}"${b === bag ? ' selected' : ''}>${this._e(b)}</option>`).join('');
         box.innerHTML = `
-        <div class="mts-now">
-            <div><span>Jabatan sekarang</span><b>${this._e(emp.jabatan || '-')}</b></div>
-            <div><span>Role</span><b>${this._e(roleLabel)}</b></div>
-            <div><span>Bagian</span><b>${this._e(emp.bagian || '-')}</b></div>
-        </div>
-        <div class="mts-grid">
-            <div>
-                <label class="mts-label" for="mts-jabatan">Jabatan Baru</label>
-                <input type="text" id="mts-jabatan" class="mts-input" placeholder="Contoh: Asmen Umum" oninput="mutasi.onJabatan(this.value)">
-            </div>
-            <div>
-                <label class="mts-label" for="mts-role">Role (Alur Approval Izin/Cuti)</label>
-                <select id="mts-role" class="mts-input">${roleOpts}</select>
-            </div>
-            <div>
-                <label class="mts-label" for="mts-bagian">Bagian</label>
-                <select id="mts-bagian" class="mts-input">${bagOpts}</select>
-            </div>
-            <div>
-                <label class="mts-label" for="mts-nomor">Nomor SK Mutasi</label>
-                <input type="text" id="mts-nomor" class="mts-input" placeholder="Contoh: 123/Amuntai/PTAA/2026">
-            </div>
-            <div>
-                <label class="mts-label" for="mts-tgl">Terhitung Tanggal</label>
-                <input type="date" id="mts-tgl" class="mts-input">
-            </div>
-            <div>
-                <label class="mts-label" for="mts-doc">Link Dokumen SK (Google Drive, opsional)</label>
-                <input type="url" id="mts-doc" class="mts-input" placeholder="https://drive.google.com/...">
+        <div class="mts-card mts-emp-head">
+            ${this._avatar(emp, true)}
+            <div class="mts-emp-info">
+                <h3>${this._e(emp.nama || '-')}</h3>
+                <span>${emp.nik ? 'NIK ' + this._e(emp.nik) : 'NIK -'}${emp.unitWilayah ? ' · ' + this._e(emp.unitWilayah) : ''}</span>
             </div>
         </div>
-        <div class="mts-note"><i class="fas fa-circle-info"></i>
-            Kalau <b>Role atau Bagian</b> berubah, karyawan tidak boleh punya surat Cuti/Izin yang masih berjalan
-            (belum final) - selesaikan atau batalkan dulu, supaya alur persetujuannya tidak nyangkut. Karyawan perlu
-            login ulang agar menu sesuai jabatan barunya.
+
+        <div class="mts-flow">
+            <div class="mts-flow-box">
+                <small>SEKARANG</small>
+                <b>${this._e(emp.jabatan || '-')}</b>
+                <div class="mts-flow-meta">${this._roleChip(role)}<span>${this._e(emp.bagian || '-')}</span></div>
+            </div>
+            <div class="mts-flow-arrow"><i class="fas fa-arrow-right"></i></div>
+            <div class="mts-flow-box new" id="mts-prev">
+                <small>MENJADI</small>
+                <b id="mts-prev-j">${this._e(emp.jabatan || '-')}</b>
+                <div class="mts-flow-meta"><span id="mts-prev-r">${this._roleChip(role)}</span><span id="mts-prev-b">${this._e(emp.bagian || '-')}</span></div>
+            </div>
         </div>
-        <div id="mts-msg"></div>
-        <button class="btn-primary" id="mts-save" onclick="mutasi.save()"><i class="fas fa-right-left"></i> Proses Mutasi</button>`;
+
+        <div class="mts-card">
+            <div class="mts-sec"><i class="fas fa-briefcase"></i> Jabatan Baru</div>
+            <div class="mts-grid">
+                <div class="mts-full">
+                    <label class="mts-label" for="mts-jabatan">Nama Jabatan</label>
+                    <input type="text" id="mts-jabatan" class="mts-input" placeholder="Contoh: Asmen Umum" oninput="mutasi.onJabatan(this.value)">
+                </div>
+                <div>
+                    <label class="mts-label" for="mts-role">Role (Alur Approval)</label>
+                    <select id="mts-role" class="mts-input" onchange="mutasi.updatePreview()">${roleOpts}</select>
+                </div>
+                <div>
+                    <label class="mts-label" for="mts-bagian">Bagian</label>
+                    <select id="mts-bagian" class="mts-input" onchange="mutasi.updatePreview()">${bagOpts}</select>
+                </div>
+            </div>
+            <div class="mts-sec" style="margin-top:22px;"><i class="fas fa-file-signature"></i> Surat Keputusan (SK)</div>
+            <div class="mts-grid">
+                <div>
+                    <label class="mts-label" for="mts-nomor">Nomor SK Mutasi</label>
+                    <input type="text" id="mts-nomor" class="mts-input" placeholder="123/Amuntai/PTAA/2026">
+                </div>
+                <div>
+                    <label class="mts-label" for="mts-tgl">Terhitung Tanggal</label>
+                    <input type="date" id="mts-tgl" class="mts-input">
+                </div>
+                <div class="mts-full">
+                    <label class="mts-label" for="mts-doc">Link Dokumen SK <em>(Google Drive, opsional)</em></label>
+                    <input type="url" id="mts-doc" class="mts-input" placeholder="https://drive.google.com/...">
+                </div>
+            </div>
+            <div class="mts-note"><i class="fas fa-circle-info"></i>
+                <span>Jika <b>Role atau Bagian</b> berubah, karyawan tidak boleh punya surat Cuti/Izin yang masih berjalan.
+                Karyawan perlu <b>login ulang</b> agar menu sesuai jabatan barunya.</span>
+            </div>
+            <div id="mts-msg"></div>
+            <div class="mts-actions">
+                <button class="mts-btn" id="mts-save" onclick="mutasi.save()"><i class="fas fa-check"></i> Proses Mutasi</button>
+            </div>
+        </div>`;
     },
 
     onJabatan(v) {
         const sel = document.getElementById('mts-role');
         if (sel && v.trim()) sel.value = this._guessRole(v);
+        this.updatePreview();
+    },
+
+    updatePreview() {
+        const emp = this._emp();
+        if (!emp) return;
+        const val = (id) => (document.getElementById(id) || {}).value || '';
+        const j = val('mts-jabatan').trim();
+        const setH = (id, h) => { const el = document.getElementById(id); if (el) el.innerHTML = h; };
+        setH('mts-prev-j', this._e(j || emp.jabatan || '-'));
+        setH('mts-prev-r', this._roleChip(val('mts-role') || emp.role));
+        setH('mts-prev-b', this._e(val('mts-bagian') || emp.bagian || '-'));
+        const box = document.getElementById('mts-prev');
+        if (box) box.classList.toggle('changed', !!j);
     },
 
     async loadRiwayat() {
         const box = document.getElementById('mts-riwayat');
         if (!box) return;
         if (!this.selectedId) { box.innerHTML = ''; return; }
+        const forId = this.selectedId;
         let rows = [];
         try {
-            const res = await api.getRiwayatMutasi(this.selectedId);
+            const res = await api.getRiwayatMutasi(forId);
             rows = (res && res.success && res.data) || [];
         } catch (e) { rows = []; }
+        if (forId !== this.selectedId) return;
         const fmt = (d) => { const m = String(d || '').match(/^(\d{4})-(\d{2})-(\d{2})/); return m ? `${m[3]}/${m[2]}/${m[1]}` : this._e(d || '-'); };
         box.innerHTML = `
         <div class="mts-card">
-            <h3 style="margin:0 0 10px;font-size:1rem;">Riwayat Mutasi karyawan ini</h3>
-            ${rows.length === 0 ? '<div style="color:var(--text-muted);">Belum ada riwayat mutasi.</div>' : `
-            <div style="overflow-x:auto;"><table class="mts-table"><thead><tr>
-                <th>Nomor SK</th><th>Terhitung Tanggal</th><th>Jabatan Lama</th><th>Jabatan Baru</th></tr></thead><tbody>
-                ${rows.map(r => `<tr><td>${this._e(r.nomorSurat)}</td><td>${fmt(r.tanggalSurat)}</td><td>${this._e(r.unorAsal || '-')}</td><td>${this._e(r.unorBaru || '-')}</td></tr>`).join('')}
-            </tbody></table></div>`}
+            <div class="mts-sec"><i class="fas fa-clock-rotate-left"></i> Riwayat Mutasi</div>
+            ${rows.length === 0 ? '<div class="mts-empty-s">Belum ada riwayat mutasi untuk karyawan ini.</div>' : `
+            <div class="mts-tl">
+                ${rows.map(r => `
+                <div class="mts-tl-item">
+                    <div class="mts-tl-dot"></div>
+                    <div class="mts-tl-body">
+                        <div class="mts-tl-top"><b>${this._e(r.unorAsal || '-')}</b> <i class="fas fa-arrow-right"></i> <b>${this._e(r.unorBaru || '-')}</b></div>
+                        <div class="mts-tl-sub">${this._e(r.nomorSurat || '-')} · Terhitung ${fmt(r.tanggalSurat)}</div>
+                    </div>
+                </div>`).join('')}
+            </div>`}
         </div>`;
     },
 
@@ -206,7 +301,7 @@ const mutasi = {
             emp.jabatan = d.jabatanBaru || jabatanBaru;
             emp.role = d.roleBaru || role;
             emp.bagian = d.bagianBaru != null ? d.bagianBaru : bagian;
-            this.renderForm();
+            this.render();
             this.loadRiwayat();
         } catch (e) {
             console.error('Gagal memproses mutasi:', e);
