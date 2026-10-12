@@ -1261,6 +1261,36 @@ const api = {
         return this.request('deleteRiwayatMutasi', { id });
     },
 
+    // ========== SLIP GAJI (js/slip-gaji.js, backend: SlipGaji.gs) ==========
+    // Setiap aksi membawa identitas sesi (authUserId/authRole/sessionToken)
+    // supaya server bisa memastikan siapa yang meminta - admin untuk
+    // import/kirim, karyawan hanya untuk slip miliknya sendiri.
+    _slipAuth() {
+        const u = (typeof auth !== 'undefined' && auth.getCurrentUser) ? auth.getCurrentUser() : null;
+        return u ? { authUserId: u.id, authRole: u.role, sessionToken: u.sessionToken } : {};
+    },
+    async importSlipGaji(data) {
+        return this.request('importSlipGaji', { ...data, ...this._slipAuth() });
+    },
+    async getSlipGajiPeriode() {
+        return this.request('getSlipGajiPeriode', { ...this._slipAuth() });
+    },
+    async getSlipGajiList(periode) {
+        return this.request('getSlipGajiList', { periode, ...this._slipAuth() });
+    },
+    async kirimSlipGaji(data) {
+        return this.request('kirimSlipGaji', { ...data, ...this._slipAuth() });
+    },
+    async hapusSlipGajiPeriode(periode) {
+        return this.request('hapusSlipGajiPeriode', { periode, ...this._slipAuth() });
+    },
+    async assignSlipGajiKaryawan(id, userId) {
+        return this.request('assignSlipGajiKaryawan', { id, userId, ...this._slipAuth() });
+    },
+    async getSlipGajiSaya() {
+        return this.request('getSlipGajiSaya', { ...this._slipAuth() });
+    },
+
     // ========== RIWAYAT KGB / KENAIKAN GAJI BERKALA ==========
     async getRiwayatKgb(userId) {
         return this.request('getRiwayatKgb', { userId });
