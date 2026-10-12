@@ -1854,7 +1854,13 @@ const adminReports = {
             // Cuti, pemohon staff: TETAP 2 tahap Manajer terpisah kalau
             // bukan dari bagian Umum & Kepegawaian (beda dari Izin Harian
             // yang cuma 1 tahap Manajer) - lihat Leave.gs approveLeaveData.
-            order = isPemohonHr
+            // Pemohon staff dari bagian Umum & Kepegawaian: Manajer bidang =
+            // Manajer Umum & Kepegawaian (orang yang sama) -> cukup 1 tahap
+            // Manajer, sama seperti tampilan di halaman Cuti user & Approval
+            // Direktur (cuti.js _buildApprovalStages). isPemohonHr di atas
+            // hanya berlaku utk Asmen, jadi cek bagiannya langsung di sini.
+            const isBagianHr = String(bagian).toUpperCase().trim() === 'UMUM DAN KEPEGAWAIAN';
+            order = isBagianHr
                 ? [ASMEN(), MANAJER('Manajer Umum dan Kepegawaian'), DIREKTUR()]
                 : [ASMEN(), MANAJER(), MANAJER_UMUM(), DIREKTUR()];
         } else {
