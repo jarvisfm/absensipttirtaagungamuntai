@@ -14,8 +14,8 @@ const slipGaji = {
     // ====== Pengaturan tampilan slip (ubah di sini kalau perlu) ======
     COMPANY_NAME: 'PT. TIRTA AGUNG AMUNTAI',
     COMPANY_SUB: '(Perseroda)',
-    SLIP_TITLE: 'SLIP GAJI',
-    JABATAN_TTD: 'Asisten Manajer Kepegawaian',
+    SLIP_TITLE: 'SLIP GAJI KARYAWAN',
+    JABATAN_TTD: 'Kasi. SDM. Kepegawaian',
     KOTA: 'Amuntai',
 
     BULAN: ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'],
@@ -944,7 +944,7 @@ const slipGaji = {
             <table class="sg-items">
                 <tr><td colspan="3" class="sg-sec">PENERIMAAN</td></tr>
                 ${li(r.rincian.p)}
-                <tr class="tot"><td colspan="2">JUMLAH (a)</td><td class="v">${this.rp(r.totalPenerimaan)}</td></tr>
+                <tr class="tot net"><td colspan="2">JUMLAH (a)</td><td class="v">${this.rp(r.totalPenerimaan)}</td></tr>
                 <tr><td colspan="3" class="sg-sec">POTONGAN</td></tr>
                 ${li(r.rincian.k)}
                 <tr class="tot"><td colspan="2">JUMLAH (b)</td><td class="v">${this.rp(r.totalPotongan)}</td></tr>
