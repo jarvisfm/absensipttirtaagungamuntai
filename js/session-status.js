@@ -352,6 +352,21 @@ function getSessionAttendanceLabel(configAll, shiftRaw, dateStr, field, actualVa
 }
 
 /**
+ * Apakah sebuah baris Attendance ikut dihitung di badge "Terlambat"/"Hadir
+ * Terlambat" per sesi. Sebelumnya hanya baris berstatus hadir/ontime/
+ * terlambat/late; baris dengan status lain/kosong (mis. baris kembar hasil
+ * sinkron ulang) tetap TAMPIL di tabel dengan label sesinya, tapi tidak
+ * ikut terhitung - badge jadi lebih kecil dari yang terlihat di tabel.
+ * Sekarang semua baris dihitung KECUALI Izin/Cuti (bukan kehadiran). Sesi
+ * yang isinya bukan jam (mis. "Tidak Hadir"/"SPK") otomatis diabaikan oleh
+ * getSessionAttendanceLabel() karena bukan angka jam.
+ */
+function isAttendanceRowCountable(statusLower) {
+    const s = String(statusLower || '').toLowerCase();
+    return s !== 'izin' && s !== 'cuti';
+}
+
+/**
  * Hitung jumlah KEJADIAN sesi Istirahat/Kembali yang berlabel "Terlambat"
  * (tingkat paling telat, lihat getSessionAttendanceLabel di atas) pada
  * sekumpulan baris Attendance. Dipakai badge/rekap "Terlambat" supaya
@@ -367,7 +382,7 @@ function countBreakSessionsVeryLate(configAll, rows) {
     let total = 0;
     rows.forEach(r => {
         const statusLower = String(r.status || '').toLowerCase();
-        if (!['hadir', 'ontime', 'terlambat', 'late'].includes(statusLower)) return;
+        if (!isAttendanceRowCountable(statusLower)) return;
         ['breakStart', 'breakEnd'].forEach(field => {
             if (!r[field]) return;
             const lbl = getSessionAttendanceLabel(configAll, r.shift, r.date, field, r[field]);
@@ -380,3 +395,4 @@ function countBreakSessionsVeryLate(configAll, rows) {
 window.getShiftTypesConfigFull = getShiftTypesConfigFull;
 window.getSessionAttendanceLabel = getSessionAttendanceLabel;
 window.countBreakSessionsVeryLate = countBreakSessionsVeryLate;
+window.isAttendanceRowCountable = isAttendanceRowCountable;
