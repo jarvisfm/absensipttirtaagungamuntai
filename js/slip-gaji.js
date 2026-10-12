@@ -573,23 +573,75 @@ const slipGaji = {
         });
     },
 
-    async hapusPeriode() {
+    // Modal konfirmasi hapus (pengganti confirm bawaan browser)
+    _askDelete(o) {
+        this.closeDelete();
+        const el = document.createElement('div');
+        el.className = 'sg-modal';
+        el.id = 'sg-del-modal';
+        el.innerHTML = `
+            <div class="sg-modal-box" style="max-width:400px">
+                <div class="sg-modal-body" style="text-align:center;padding:24px 22px 18px">
+                    <div style="width:56px;height:56px;margin:0 auto 12px;border-radius:50%;background:#FEF2F2;color:#EF4444;display:flex;align-items:center;justify-content:center;font-size:1.5rem">
+                        <i class="fas fa-trash"></i></div>
+                    <h3 style="margin:0 0 8px;font-size:1.05rem">${this._e(o.title)}</h3>
+                    <div style="font-size:.86rem;color:#475569;line-height:1.55">${o.msgHtml}</div>
+                    <div class="sg-actions" style="justify-content:center;margin-top:18px">
+                        <button type="button" class="sg-btn" id="sg-del-cancel">Batal</button>
+                        <button type="button" class="sg-btn sg-btn-danger" id="sg-del-ok"><i class="fas fa-trash"></i> ${this._e(o.okLabel || 'Hapus')}</button>
+                    </div>
+                </div>
+            </div>`;
+        document.body.appendChild(el);
+        let running = false;
+        const close = () => { if (!running) this.closeDelete(); };
+        el.addEventListener('click', e => { if (e.target === el) close(); });
+        el.querySelector('#sg-del-cancel').onclick = close;
+        const ok = el.querySelector('#sg-del-ok');
+        ok.onclick = async () => {
+            if (running) return;
+            running = true;
+            el.querySelector('#sg-del-cancel').disabled = true;
+            ok.disabled = true;
+            ok.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Menghapus...';
+            let done = false;
+            try { done = await o.action(); } catch (e) { console.error(e); toast.error('Gagal menghapus data'); }
+            running = false;
+            if (done) { this.closeDelete(); return; }
+            // gagal: modal tetap terbuka supaya bisa dicoba lagi / dibatalkan
+            if (document.body.contains(el)) {
+                ok.disabled = false;
+                ok.innerHTML = `<i class="fas fa-trash"></i> ${this._e(o.okLabel || 'Hapus')}`;
+                el.querySelector('#sg-del-cancel').disabled = false;
+            }
+        };
+        ok.focus();
+    },
+
+    closeDelete() {
+        const el = document.getElementById('sg-del-modal');
+        if (el) el.remove();
+    },
+
+    hapusPeriode() {
         const p = this.periods.find(x => x.periode === this.periode);
         if (!p) return;
-        if (!confirm(`Hapus SEMUA data gaji ${this.periodeLabel(p)} (${p.total} karyawan)? Slip yang sudah terkirim ke karyawan juga ikut terhapus.`)) return;
-        try {
-            const res = await api.hapusSlipGajiPeriode(this.periode);
-            if (res && res.success) {
-                toast.success('Data gaji periode ini dihapus');
-                await this.loadPeriods('');
-                await this.renderTab();
-            } else {
+        this._askDelete({
+            title: 'Hapus Data Periode?',
+            okLabel: 'Hapus Semua',
+            msgHtml: `Semua data gaji <b>${this._e(this.periodeLabel(p))}</b> (${this._e(p.total)} karyawan) akan dihapus.<br>Slip yang sudah terkirim ke karyawan juga ikut terhapus.`,
+            action: async () => {
+                const res = await api.hapusSlipGajiPeriode(this.periode);
+                if (res && res.success) {
+                    toast.success('Data gaji periode ini dihapus');
+                    await this.loadPeriods('');
+                    await this.renderTab();
+                    return true;
+                }
                 toast.error(this._e((res && res.error) || 'Gagal menghapus data'));
+                return false;
             }
-        } catch (e) {
-            console.error(e);
-            toast.error('Gagal menghapus data');
-        }
+        });
     },
 
     // =====================================================================
@@ -713,23 +765,24 @@ const slipGaji = {
         }
     },
 
-    async hapusSatu(id) {
+    hapusSatu(id) {
         const r = this._findRow(id);
         if (!r) return;
-        if (!confirm(`Hapus data gaji ${r.nama} (${this.blth(r)})? Penerimaan dan potongan karyawan ini ikut terhapus${r.status === 'terkirim' ? ', dan slipnya hilang dari menu Slip Gaji karyawan' : ''}.`)) return;
-        try {
-            const res = await api.hapusSlipGaji(id);
-            if (res && res.success) {
-                toast.success('Data gaji karyawan dihapus');
-                await this.loadPeriods(this.periode);
-                await this.renderTab();
-            } else {
+        this._askDelete({
+            title: 'Hapus Data Gaji?',
+            msgHtml: `Data gaji <b>${this._e(r.nama)}</b> (${this._e(this.blth(r))}) akan dihapus.<br>Penerimaan dan potongan karyawan ini ikut terhapus${r.status === 'terkirim' ? ', dan slipnya hilang dari menu Slip Gaji karyawan' : ''}.`,
+            action: async () => {
+                const res = await api.hapusSlipGaji(id);
+                if (res && res.success) {
+                    toast.success('Data gaji karyawan dihapus');
+                    await this.loadPeriods(this.periode);
+                    await this.renderTab();
+                    return true;
+                }
                 toast.error(this._e((res && res.error) || 'Gagal menghapus data'));
+                return false;
             }
-        } catch (e) {
-            console.error(e);
-            toast.error('Gagal menghapus data');
-        }
+        });
     },
 
     // =====================================================================
@@ -738,7 +791,7 @@ const slipGaji = {
     renderKirim() {
         const body = document.getElementById('sg-body');
         const bar = this._periodeBar(this.periods.length ? `
-            <button type="button" class="sg-btn sg-btn-primary" onclick="slipGaji.kirimSemua()"><i class="fas fa-paper-plane"></i> Kirim ke Semua Karyawan</button>
+            <button type="button" class="sg-btn sg-btn-primary" onclick="slipGaji.kirimSemua(this)"><i class="fas fa-paper-plane"></i> Kirim ke Semua Karyawan</button>
             <button type="button" class="sg-btn" onclick="slipGaji.printAll()"><i class="fas fa-print"></i> Cetak Semua Slip</button>
             <button type="button" class="sg-btn" onclick="slipGaji.printDaftar()"><i class="fas fa-list"></i> Cetak Daftar Gaji</button>` : '');
         if (!this.periods.length) { body.innerHTML = bar; return; }
@@ -779,7 +832,7 @@ const slipGaji = {
         } else {
             aksi = `<button type="button" class="sg-btn sg-btn-sm" onclick="slipGaji.openSlip('${this._e(r.id)}')"><i class="fas fa-eye"></i></button>
                 <button type="button" class="sg-btn sg-btn-sm" onclick="slipGaji.printOne('${this._e(r.id)}')"><i class="fas fa-print"></i></button>
-                <button type="button" class="sg-btn sg-btn-sm sg-btn-primary" onclick="slipGaji.kirimSatu('${this._e(r.id)}')">
+                <button type="button" class="sg-btn sg-btn-sm sg-btn-primary" onclick="slipGaji.kirimSatu('${this._e(r.id)}', this)">
                     <i class="fas fa-paper-plane"></i> ${r.status === 'terkirim' ? 'Kirim Ulang' : 'Kirim'}</button>`;
         }
         return `<tr data-q="${this._e((String(r.nama) + ' ' + String(r.email)).toLowerCase())}">
@@ -803,10 +856,15 @@ const slipGaji = {
         }
     },
 
-    async _kirim(payload, confirmMsg) {
+    async _kirim(payload, confirmMsg, btn) {
         if (this.busy) return;
         if (confirmMsg && !confirm(confirmMsg)) return;
         this.busy = true;
+        // animasi loading pada tombol yang diklik; tombol kirim lain dikunci sementara
+        const lockBtns = Array.from(document.querySelectorAll('#slip-gaji-root button[onclick*="slipGaji.kirim"]'));
+        const oldHtml = btn ? btn.innerHTML : '';
+        lockBtns.forEach(x => { x.disabled = true; });
+        if (btn) btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Mengirim...';
         try {
             const res = await api.kirimSlipGaji(payload);
             if (res && res.success) {
@@ -824,16 +882,19 @@ const slipGaji = {
             toast.error('Gagal mengirim slip');
         } finally {
             this.busy = false;
+            // kalau tabel tidak dirender ulang (gagal), kembalikan tombol seperti semula
+            lockBtns.forEach(x => { if (document.body.contains(x)) x.disabled = false; });
+            if (btn && document.body.contains(btn)) btn.innerHTML = oldHtml;
         }
     },
 
-    kirimSatu(id) { return this._kirim({ ids: [id] }); },
+    kirimSatu(id, btn) { return this._kirim({ ids: [id] }, '', btn); },
 
-    kirimSemua() {
+    kirimSemua(btn) {
         const p = this.periods.find(x => x.periode === this.periode);
         if (!p) return;
         return this._kirim({ periode: this.periode, semua: true },
-            `Kirim slip gaji ${this.periodeLabel(p)} ke semua karyawan? Slip akan langsung muncul di menu Slip Gaji masing-masing.`);
+            `Kirim slip gaji ${this.periodeLabel(p)} ke semua karyawan? Slip akan langsung muncul di menu Slip Gaji masing-masing.`, btn);
     },
 
     // =====================================================================
