@@ -979,7 +979,7 @@ const adminReports = {
             if (this.shiftTypesConfigFull) {
                 rows.forEach(r => {
                     const statusLower = String(r.status || '').toLowerCase();
-                    if (!['hadir','ontime','terlambat','late'].includes(statusLower)) return;
+                    if (!isAttendanceRowCountable(statusLower)) return;
                     ['clockIn','breakStart','breakEnd','clockOut'].forEach(field => {
                         if (!r[field]) return;
                         const lbl = getSessionAttendanceLabel(this.shiftTypesConfigFull, r.shift, r.date, field, r[field]);
@@ -1275,7 +1275,7 @@ const adminReports = {
             if (this.shiftTypesConfigFull) {
                 rows.forEach(r => {
                     const statusLower = String(r.status || '').toLowerCase();
-                    if (!['hadir','ontime','terlambat','late'].includes(statusLower)) return;
+                    if (!isAttendanceRowCountable(statusLower)) return;
                     ['clockIn','breakStart','breakEnd','clockOut'].forEach(field => {
                         if (!r[field]) return;
                         const lbl = getSessionAttendanceLabel(this.shiftTypesConfigFull, r.shift, r.date, field, r[field]);
@@ -2218,7 +2218,7 @@ const adminReports = {
             if (cfg) {
                 rows.forEach(r => {
                     const st = String(r.status || '').toLowerCase();
-                    if (!['hadir','ontime','terlambat','late'].includes(st)) return;
+                    if (!isAttendanceRowCountable(st)) return;
                     FIELDS.forEach(f => {
                         if (!r[f]) return;
                         const lbl = getSessionAttendanceLabel(cfg, r.shift, r.date, f, r[f]);
@@ -2644,7 +2644,7 @@ const adminReports = {
             if (this.shiftTypesConfigFull) {
                 attRows.forEach(r => {
                     const statusLower = String(r.status || '').toLowerCase();
-                    if (!['hadir', 'ontime', 'terlambat', 'late'].includes(statusLower)) return;
+                    if (!isAttendanceRowCountable(statusLower)) return;
                     ['clockIn', 'breakStart', 'breakEnd', 'clockOut'].forEach(field => {
                         if (!r[field]) return;
                         const lbl = getSessionAttendanceLabel(this.shiftTypesConfigFull, r.shift, r.date, field, r[field]);
