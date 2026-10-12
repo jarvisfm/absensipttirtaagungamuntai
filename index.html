@@ -33,6 +33,7 @@
     <link rel="stylesheet" href="css/rich-note.css">
     <link rel="stylesheet" href="css/dp3.css">
     <link rel="stylesheet" href="css/mutasi.css">
+    <link rel="stylesheet" href="css/slip-gaji.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap"
@@ -258,6 +259,12 @@
                                 <span>DP3</span>
                             </a>
                         </li>
+                        <li class="nav-item" id="nav-slip-gaji" data-page="slip-gaji">
+                            <a href="#" class="nav-link">
+                                <i class="fas fa-file-invoice-dollar"></i>
+                                <span>Slip Gaji</span>
+                            </a>
+                        </li>
                         <li class="nav-item" data-page="profile">
                             <a href="#" class="nav-link">
                                 <i class="fas fa-user-edit"></i>
@@ -289,6 +296,12 @@
                             <a href="#" class="nav-link">
                                 <i class="fas fa-right-left"></i>
                                 <span>Mutasi</span>
+                            </a>
+                        </li>
+                        <li class="nav-item" data-page="slip-gaji">
+                            <a href="#" class="nav-link">
+                                <i class="fas fa-file-invoice-dollar"></i>
+                                <span>Slip Gaji</span>
                             </a>
                         </li>
                         <li class="nav-item" data-page="attendance-reports">
@@ -3665,6 +3678,11 @@
                     <div id="mutasi-root"></div>
                 </div>
 
+                <!-- Slip Gaji - Admin (import & kirim) dan Karyawan (terima) (js/slip-gaji.js) -->
+                <div class="page" id="page-slip-gaji">
+                    <div id="slip-gaji-root"></div>
+                </div>
+
                 <!-- DP3 - Daftar Penilaian Pelaksanaan Pekerjaan (js/dp3.js) -->
                 <div class="page" id="page-dp3">
                     <div id="dp3-root"></div>
@@ -4218,6 +4236,7 @@
     <script src="js/rich-note.js"></script>
     <script src="js/dp3.js"></script>
     <script src="js/mutasi.js"></script>
+    <script src="js/slip-gaji.js"></script>
     <script src="js/paraf.js"></script>
     <script src="js/izin.js"></script>
     <script src="js/cuti.js"></script>
