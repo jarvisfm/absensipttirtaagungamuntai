@@ -1,0 +1,19 @@
+/* Menu Admin > Mutasi (js/mutasi.js) */
+#mutasi-root { max-width: 860px; }
+.mts-head h2 { margin: 0 0 4px; }
+.mts-head p { margin: 0 0 16px; color: var(--text-muted); font-size: .9rem; }
+.mts-card { background: var(--color-white, #fff); border: 1px solid var(--border-color, #e5e7eb); border-radius: 14px; padding: 18px; margin-bottom: 16px; }
+.mts-label { display: block; font-size: .78rem; font-weight: 600; color: var(--text-muted); margin: 12px 0 4px; }
+.mts-input { width: 100%; padding: 10px 12px; border: 1px solid var(--border-color, #e5e7eb); border-radius: 10px; font-family: inherit; font-size: .9rem; background: var(--color-white, #fff); color: inherit; box-sizing: border-box; }
+.mts-now { display: flex; flex-wrap: wrap; gap: 10px; margin: 16px 0 4px; }
+.mts-now > div { flex: 1 1 200px; background: rgba(245, 158, 11, .08); border-radius: 10px; padding: 10px 12px; }
+.mts-now span { display: block; font-size: .72rem; color: var(--text-muted); }
+.mts-now b { font-size: .92rem; }
+.mts-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 14px; }
+@media (max-width: 640px) { .mts-grid { grid-template-columns: 1fr; } }
+.mts-note { margin: 14px 0; padding: 10px 12px; border-radius: 10px; background: rgba(59, 130, 246, .08); font-size: .82rem; color: var(--text-secondary); }
+.mts-err { margin: 10px 0; padding: 10px 12px; border-radius: 10px; background: #FEE2E2; color: #B91C1C; font-size: .85rem; }
+.mts-err ul { margin: 6px 0 0 18px; padding: 0; }
+.mts-table { width: 100%; border-collapse: collapse; font-size: .85rem; }
+.mts-table th, .mts-table td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--border-color, #e5e7eb); }
+.mts-table th { font-size: .72rem; text-transform: uppercase; color: var(--text-muted); }
