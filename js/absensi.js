@@ -1123,7 +1123,7 @@ const absensi = {
             totalTerlambat = 0; // dihitung ULANG di bawah - lihat BUGFIX di atas
             rows.forEach(r => {
                 const statusLower = String(r.status || '').toLowerCase();
-                if (!['hadir', 'ontime', 'terlambat', 'late'].includes(statusLower)) return;
+                if (!isAttendanceRowCountable(statusLower)) return;
                 if (r.clockIn) {
                     const lblMasuk = getSessionAttendanceLabel(shiftCfgForLate, r.shift, r.date, 'clockIn', r.clockIn);
                     if (lblMasuk && lblMasuk.text === 'Terlambat') totalTerlambat++;
