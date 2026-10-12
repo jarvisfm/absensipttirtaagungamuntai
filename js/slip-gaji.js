@@ -538,10 +538,12 @@ const slipGaji = {
     renderData(kind) {
         const body = document.getElementById('sg-body');
         const bar = this._periodeBar(this.periods.length
-            ? `<button type="button" class="sg-btn sg-btn-danger" onclick="slipGaji.hapusPeriode()"><i class="fas fa-trash"></i> Hapus Data Periode</button>` : '');
+            ? `<button type="button" class="sg-btn sg-btn-primary" onclick="slipGaji.openForm('${kind}')"><i class="fas fa-plus"></i> Tambah Data</button>
+               <button type="button" class="sg-btn sg-btn-danger" onclick="slipGaji.hapusPeriode()"><i class="fas fa-trash"></i> Hapus Data Periode</button>` : '');
         if (!this.periods.length) { body.innerHTML = bar; return; }
         const rows = this.rows;
         const labels = rows.length ? (rows[0].rincian[kind] || []).map(x => x[0]) : [];
+        const stick = 'position:sticky;right:0;background:var(--color-white,#fff);box-shadow:-2px 0 4px rgba(0,0,0,.06)';
         const total = kind === 'p' ? 'totalPenerimaan' : 'totalPotongan';
         body.innerHTML = bar + `
         <div class="sg-card">
@@ -549,11 +551,15 @@ const slipGaji = {
                 <input type="text" placeholder="Cari nama..." oninput="slipGaji.filterTable(this.value)"></div>
             <div class="sg-table-wrap">
                 <table class="sg-table" id="sg-data-table">
-                    <thead><tr><th>No</th><th>BLTH</th><th>Nama</th>${labels.map(l => `<th class="r">${this._e(l)}</th>`).join('')}<th class="r">${kind === 'p' ? 'Jumlah' : 'Jumlah Potongan'}</th></tr></thead>
+                    <thead><tr><th>No</th><th>BLTH</th><th>Nama</th>${labels.map(l => `<th class="r">${this._e(l)}</th>`).join('')}<th class="r">${kind === 'p' ? 'Jumlah' : 'Jumlah Potongan'}</th><th style="position:sticky;right:0">Aksi</th></tr></thead>
                     <tbody>${rows.map((r, i) => `<tr data-q="${this._e(String(r.nama).toLowerCase())}">
                         <td>${i + 1}</td><td>${this._e(this.blth(r))}</td><td>${this._e(r.nama)}</td>
                         ${(r.rincian[kind] || []).map(x => `<td class="r">${this.rp(x[1])}</td>`).join('')}
-                        <td class="r"><b>${this.rp(r[total])}</b></td></tr>`).join('')}
+                        <td class="r"><b>${this.rp(r[total])}</b></td>
+                        <td style="${stick}">
+                            <button type="button" class="sg-btn sg-btn-sm" onclick="slipGaji.openForm('${kind}', '${this._e(r.id)}')"><i class="fas fa-pen-to-square"></i> Edit</button>
+                            <button type="button" class="sg-btn sg-btn-sm sg-btn-danger" onclick="slipGaji.hapusSatu('${this._e(r.id)}')"><i class="fas fa-trash"></i> Hapus</button>
+                        </td></tr>`).join('')}
                     </tbody>
                 </table>
             </div>
@@ -576,6 +582,146 @@ const slipGaji = {
             if (res && res.success) {
                 toast.success('Data gaji periode ini dihapus');
                 await this.loadPeriods('');
+                await this.renderTab();
+            } else {
+                toast.error(this._e((res && res.error) || 'Gagal menghapus data'));
+            }
+        } catch (e) {
+            console.error(e);
+            toast.error('Gagal menghapus data');
+        }
+    },
+
+    // =====================================================================
+    //  ADMIN - Tambah / Edit / Hapus data per karyawan
+    //  (dipakai di tab Gaji Penerimaan [kind 'p'] dan Gaji Potongan [kind 'k'])
+    // =====================================================================
+    async _fetchEmployees() {
+        if (this.employees.length) return;
+        try {
+            const res = await api.getKaryawanList();
+            this.employees = ((res && res.success && res.data) || [])
+                .sort((a, b) => String(a.nama || '').localeCompare(String(b.nama || '')));
+        } catch (e) { console.error('Gagal memuat karyawan:', e); }
+    },
+
+    async openForm(kind, id) {
+        if (this._formBusy) return;
+        const isEdit = !!id;
+        const row = isEdit ? this._findRow(id) : null;
+        if (isEdit && !row) return;
+        const ref = row || this.rows[0];
+        if (!ref) { toast.warning('Belum ada data pada periode ini'); return; }
+        const labels = (ref.rincian[kind] || []).map(x => x[0]);
+        const nilai = row ? (row.rincian[kind] || []).map(x => x[1]) : labels.map(() => 0);
+        const judulJenis = kind === 'p' ? 'Gaji Penerimaan' : 'Gaji Potongan';
+
+        let pilih = '';
+        if (!isEdit) {
+            await this._fetchEmployees();
+            const sudah = new Set(this.rows.map(r => String(r.userId)).filter(Boolean));
+            const namaAda = new Set(this.rows.map(r => String(r.nama).trim().toLowerCase()));
+            const opts = this.employees
+                .filter(e => !sudah.has(String(e.id)) && !namaAda.has(String(e.nama || '').trim().toLowerCase()))
+                .map(e => `<option value="${this._e(e.id)}">${this._e(e.nama)}</option>`).join('');
+            pilih = `
+                <label style="grid-column:1/-1">Karyawan
+                    <select id="sg-f-emp" onchange="slipGaji.onFormEmp()">
+                        <option value="">- Ketik nama manual -</option>${opts}
+                    </select></label>
+                <label style="grid-column:1/-1" id="sg-f-nama-wrap">Nama
+                    <input type="text" id="sg-f-nama" placeholder="Nama karyawan"></label>`;
+        } else {
+            pilih = `
+                <label style="grid-column:1/-1">Nama
+                    <input type="text" value="${this._e(row.nama)}" disabled></label>`;
+        }
+
+        this.closeForm();
+        const p = this.periods.find(x => x.periode === this.periode);
+        const el = document.createElement('div');
+        el.className = 'sg-modal';
+        el.id = 'sg-form-modal';
+        el.innerHTML = `
+            <div class="sg-modal-box">
+                <div class="sg-modal-head">
+                    <b>${isEdit ? 'Edit' : 'Tambah'} Data ${judulJenis}${p ? ' - ' + this._e(this.periodeLabel(p)) : ''}</b>
+                    <div><button type="button" class="sg-btn sg-btn-sm" onclick="slipGaji.closeForm()"><i class="fas fa-times"></i></button></div>
+                </div>
+                <div class="sg-modal-body">
+                    <div class="sg-form" style="margin-top:0">
+                        ${pilih}
+                        ${labels.map((l, i) => `<label>${this._e(l)}
+                            <input type="number" class="sg-f-val" min="0" step="1" inputmode="numeric" value="${this._e(nilai[i] || 0)}"></label>`).join('')}
+                    </div>
+                    ${isEdit ? '' : '<p class="sg-note">Nominal sisi lainnya diisi 0. Lengkapi lewat tombol Edit di tab satunya.</p>'}
+                    <div class="sg-actions">
+                        <button type="button" class="sg-btn" onclick="slipGaji.closeForm()">Batal</button>
+                        <button type="button" class="sg-btn sg-btn-primary" id="sg-f-save" onclick="slipGaji.saveForm('${kind}', '${isEdit ? this._e(id) : ''}')"><i class="fas fa-save"></i> Simpan</button>
+                    </div>
+                </div>
+            </div>`;
+        document.body.appendChild(el);
+        const first = el.querySelector(isEdit ? '.sg-f-val' : '#sg-f-emp');
+        if (first) first.focus();
+    },
+
+    onFormEmp() {
+        const sel = document.getElementById('sg-f-emp');
+        const wrap = document.getElementById('sg-f-nama-wrap');
+        if (wrap && sel) wrap.style.display = sel.value ? 'none' : '';
+    },
+
+    closeForm() {
+        const el = document.getElementById('sg-form-modal');
+        if (el) el.remove();
+    },
+
+    async saveForm(kind, id) {
+        if (this._formBusy) return;
+        const values = Array.from(document.querySelectorAll('#sg-form-modal .sg-f-val'))
+            .map(i => Math.max(0, Math.round(Number(i.value) || 0)));
+        const btn = document.getElementById('sg-f-save');
+        let payload;
+        if (id) {
+            payload = { id, kind, values };
+        } else {
+            const userId = (document.getElementById('sg-f-emp') || {}).value || '';
+            const nama = ((document.getElementById('sg-f-nama') || {}).value || '').trim();
+            if (!userId && !nama) { toast.warning('Pilih karyawan atau isi nama terlebih dahulu'); return; }
+            payload = { periode: this.periode, kind, values, userId, nama };
+        }
+        this._formBusy = true;
+        if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Menyimpan...'; }
+        try {
+            const res = id ? await api.updateSlipGaji(payload) : await api.tambahSlipGaji(payload);
+            if (res && res.success) {
+                toast.success(id ? 'Data berhasil diperbarui' : 'Data berhasil ditambahkan');
+                this.closeForm();
+                await this.loadPeriods(this.periode);
+                await this.renderTab();
+            } else {
+                toast.error(this._e((res && res.error) || 'Gagal menyimpan data'));
+            }
+        } catch (e) {
+            console.error('Simpan data slip gagal:', e);
+            toast.error('Gagal menyimpan data, periksa koneksi lalu coba lagi');
+        } finally {
+            this._formBusy = false;
+            const b = document.getElementById('sg-f-save');
+            if (b) { b.disabled = false; b.innerHTML = '<i class="fas fa-save"></i> Simpan'; }
+        }
+    },
+
+    async hapusSatu(id) {
+        const r = this._findRow(id);
+        if (!r) return;
+        if (!confirm(`Hapus data gaji ${r.nama} (${this.blth(r)})? Penerimaan dan potongan karyawan ini ikut terhapus${r.status === 'terkirim' ? ', dan slipnya hilang dari menu Slip Gaji karyawan' : ''}.`)) return;
+        try {
+            const res = await api.hapusSlipGaji(id);
+            if (res && res.success) {
+                toast.success('Data gaji karyawan dihapus');
+                await this.loadPeriods(this.periode);
                 await this.renderTab();
             } else {
                 toast.error(this._e((res && res.error) || 'Gagal menghapus data'));
