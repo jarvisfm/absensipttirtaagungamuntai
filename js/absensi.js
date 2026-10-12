@@ -2068,6 +2068,20 @@ const absensi = {
             return this._queueOffline(data);
         }
 
+        // [PERBAIKAN Absensi Offline] Kalau masih ada absen yang menunggu
+        // sinkron, kirim DULU yang lama (urutan harus tetap: Masuk sebelum
+        // Istirahat/Pulang). Kalau setelah dicoba masih ada yang tertinggal,
+        // absen baru ini ikut antre di belakangnya - bukan dikirim
+        // mendahului, yang bisa membuat Pulang tercatat tanpa Masuk.
+        if (typeof offlineQueue !== 'undefined') {
+            try {
+                if ((await offlineQueue.getPendingCount()) > 0) {
+                    await offlineQueue.flushQueue({ noJitter: true });
+                    if ((await offlineQueue.getPendingCount()) > 0) return this._queueOffline(data);
+                }
+            } catch (e) { /* lanjut kirim langsung seperti biasa */ }
+        }
+
         try {
             const result = await api.saveAttendance(data);
             // api.request() (js/api.js) MENELAN error jaringan asli & selalu
