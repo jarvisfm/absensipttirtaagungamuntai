@@ -53,12 +53,23 @@ function _offlineQueueSendToServer(record) {
         apiBaseUrl, localId, status, createdAt, attempts, lastError,
         ...cleanPayload
     } = record;
+    // PERBAIKAN: fetch TANPA batas waktu bisa menggantung selamanya di sinyal
+    // lemah (HP "terhubung" tapi data tidak mengalir). Akibatnya flag
+    // _isSyncing di bawah tidak pernah kembali false, dan SELURUH sinkron
+    // berhenti sampai aplikasi ditutup - absen terlihat "tersimpan offline"
+    // terus dan tidak pernah terkirim. Sekarang dibatasi 30 detik.
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 30000);
     return fetch(apiBaseUrl, {
         method: 'POST',
         redirect: 'follow',
         headers: { 'Content-Type': 'text/plain' },
-        body: JSON.stringify({ action: 'saveAttendance', ...cleanPayload })
-    }).then((response) => response.text()).then((text) => JSON.parse(text));
+        // offlineSync/offlineQueuedAt: penanda untuk backend bahwa absen ini
+        // dibuat saat offline & baru dikirim sekarang (lihat Attendance.gs).
+        body: JSON.stringify({ action: 'saveAttendance', ...cleanPayload, offlineSync: true, offlineQueuedAt: createdAt }),
+        signal: controller.signal
+    }).then((response) => response.text()).then((text) => JSON.parse(text))
+      .finally(() => clearTimeout(timer));
     // Sengaja TIDAK menangkap error JSON.parse/fetch di sini - biarkan
     // lempar ke pemanggil (_sendOne di bawah), supaya dianggap error
     // transient (jaringan) dan di-retry, bukan diam-diam dianggap gagal.
@@ -67,7 +78,12 @@ function _offlineQueueSendToServer(record) {
 const offlineQueue = {
     DELAY_BETWEEN_MS: 2000,  // jeda WAJIB antar-pengiriman per device -> maks ~30 request/menit, aman di bawah kuota ~60/menit dengan sisa ruang utk request lain (getServerTime, dsb)
     MAX_JITTER_MS: 4000,     // jeda ACAK sebelum MULAI sinkron - sebar beban kalau banyak HP online bersamaan
-    MAX_ATTEMPTS: 5,         // batas percobaan ulang utk error transient (jaringan/response tidak valid) sebelum ditandai 'failed' permanen
+    MAX_ATTEMPTS: 5,         // setelah sekian kali gagal jaringan, record tetap disimpan & dicoba lagi, tapi TIDAK lagi menahan record lain di belakangnya (dilewati). Tidak pernah dijadikan 'failed' hanya karena jaringan.
+    // Penolakan server yang sifatnya SEMENTARA (server sibuk/antre) - bukan
+    // penolakan sah. Dulu pesan seperti "Sistem sedang memproses absensi Anda
+    // sebelumnya, coba lagi..." langsung membuat absen ditandai 'failed' dan
+    // tidak pernah dicoba lagi.
+    RETRYABLE_ERROR: /sedang memproses|coba lagi|sibuk|timeout|time out|quota|kuota|try again|too many|service invoked too many|exceeded|tidak tersedia|server error|invalid response/i,
 
     _isSyncing: false, // mutex sederhana - cegah 2 pemicu (mis. event 'online' & interval berkala) jalan berbarengan dan saling tabrak
 
@@ -102,6 +118,7 @@ const offlineQueue = {
         try {
             if (!opts.noJitter) await this._sleep(Math.random() * this.MAX_JITTER_MS);
 
+            let syncedCount = 0;
             const pending = await offlineDB.getAllPending();
             for (const record of pending) {
                 // Putus lagi di tengah jalan -> hentikan loop SEKARANG,
@@ -111,9 +128,15 @@ const offlineQueue = {
 
                 await offlineDB.updateStatus(record.localId, 'syncing');
                 const outcome = await this._sendOne(record);
-                if (outcome === 'network-error') break; // hentikan seluruh loop kali ini, coba lagi nanti (bukan lanjut ke record berikutnya)
+                if (outcome === 'ok') syncedCount++;
+                if (outcome === 'network-error' || outcome === 'retry-later') break; // hentikan seluruh loop kali ini, coba lagi nanti (bukan lanjut ke record berikutnya)
+                // outcome 'skip' = record ini sudah berkali-kali gagal jaringan: tetap disimpan,
+                // tapi jangan menahan record lain di belakangnya.
 
                 await this._sleep(this.DELAY_BETWEEN_MS); // THROTTLE - jeda wajib sebelum lanjut ke record berikutnya
+            }
+            if (syncedCount > 0 && typeof window !== 'undefined' && window.dispatchEvent) {
+                window.dispatchEvent(new CustomEvent('offline-queue-synced', { detail: { count: syncedCount } }));
             }
         } finally {
             this._isSyncing = false;
@@ -131,6 +154,13 @@ const offlineQueue = {
                 await offlineDB.remove(record.localId);
                 return 'ok';
             }
+            // Penolakan SEMENTARA (server sibuk/antre) - jangan dianggap gagal
+            // permanen; kembalikan ke 'pending' & coba lagi di putaran berikutnya.
+            const errText = String((result && result.error) || '');
+            if (this.RETRYABLE_ERROR.test(errText)) {
+                await offlineDB.updateStatus(record.localId, 'pending', { lastError: errText });
+                return 'retry-later';
+            }
             // Ditolak backend dengan alasan SAH (bukan soal jaringan) -
             // misal "di luar radius kantor", sesi/userId tidak valid, dst.
             // Mengulang-ulang record ini tidak akan mengubah hasilnya, jadi
@@ -147,14 +177,15 @@ const offlineQueue = {
             // BUKAN penolakan sah. Coba lagi nanti, kecuali sudah melewati
             // batas percobaan (mencegah 1 record bermasalah bikin antrean
             // "macet" selamanya).
+            // PERBAIKAN: error jaringan TIDAK PERNAH lagi mengubah absen jadi
+            // 'failed' (dulu: setelah 5x gagal = dianggap gagal permanen dan
+            // hilang dari antrean, padahal cuma sinyal jelek). Record tetap
+            // 'pending'; setelah MAX_ATTEMPTS cuma dilewati supaya tidak
+            // menahan record lain.
             const attempts = (record.attempts || 0) + 1;
             const lastError = String((e && e.message) || e);
-            if (attempts >= this.MAX_ATTEMPTS) {
-                await offlineDB.updateStatus(record.localId, 'failed', { attempts, lastError });
-                return 'failed';
-            }
             await offlineDB.updateStatus(record.localId, 'pending', { attempts, lastError });
-            return 'network-error';
+            return attempts >= this.MAX_ATTEMPTS ? 'skip' : 'network-error';
         }
     },
 
@@ -181,6 +212,28 @@ const offlineQueue = {
         return offlineDB.countPending();
     },
 
+    // Absen yang DITOLAK server dengan alasan sah (mis. di luar radius).
+    // Dulu diam-diam menghilang dari banner; sekarang ditampilkan supaya
+    // karyawan tahu absennya tidak tercatat dan bisa mengajukan sanggahan.
+    async getFailed() {
+        try { return await offlineDB.getAllFailed(); } catch (e) { return []; }
+    },
+
+    async retryFailed() {
+        const failed = await this.getFailed();
+        for (const r of failed) {
+            await offlineDB.updateStatus(r.localId, 'pending', { attempts: 0 });
+        }
+        this._notifyChange();
+        return this.flushQueue({ noJitter: true });
+    },
+
+    async discardFailed() {
+        const failed = await this.getFailed();
+        for (const r of failed) await offlineDB.remove(r.localId);
+        this._notifyChange();
+    },
+
     // Kabari UI (badge "N absen menunggu sinkron" di halaman Absensi -
     // lihat index.html #offline-queue-banner) setiap kali antrean berubah.
     // Sengaja lewat CustomEvent (bukan pemanggilan langsung ke absensi.js)
@@ -189,13 +242,42 @@ const offlineQueue = {
     // sana, jadi otomatis di-skip, lihat pengecekan di bawah).
     _notifyChange() {
         if (typeof window === 'undefined' || !window.dispatchEvent) return;
-        this.getPendingCount().then((count) => {
-            window.dispatchEvent(new CustomEvent('offline-queue-changed', { detail: { count } }));
+        Promise.all([this.getPendingCount(), this.getFailed()]).then(([count, failed]) => {
+            window.dispatchEvent(new CustomEvent('offline-queue-changed', { detail: { count, failed } }));
         });
     },
 
-    _renderBadge(count) {
+    // Banner merah untuk absen yang ditolak server (dibuat lewat JS supaya
+    // index.html tidak perlu diubah).
+    _renderFailed(failed) {
         if (typeof document === 'undefined') return;
+        const banner = document.getElementById('offline-queue-banner');
+        if (!banner) return;
+        let box = document.getElementById('offline-queue-failed');
+        if (!failed || !failed.length) { if (box) box.style.display = 'none'; return; }
+        if (!box) {
+            box = document.createElement('div');
+            box.id = 'offline-queue-failed';
+            box.style.cssText = 'background:#FEF2F2;border:1px solid #FECACA;color:#991B1B;border-radius:10px;padding:12px 16px;margin-bottom:1rem;font-size:0.85rem;display:flex;align-items:center;gap:10px;justify-content:space-between;flex-wrap:wrap;';
+            banner.parentNode.insertBefore(box, banner.nextSibling);
+        }
+        const esc = (t) => String(t == null ? '' : t).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+        const reason = esc(failed[0].lastError || 'Ditolak server');
+        box.style.display = 'flex';
+        box.innerHTML = `<span><i class="fas fa-triangle-exclamation"></i>
+            <strong>${failed.length}</strong> absen offline GAGAL tercatat di server: ${reason}.
+            Jika ini keliru, ajukan Sanggahan Absensi.</span>
+            <span style="display:flex;gap:8px;">
+                <button type="button" class="btn-secondary" id="offline-queue-retry-btn" style="white-space:nowrap;">Coba Lagi</button>
+                <button type="button" class="btn-secondary" id="offline-queue-discard-btn" style="white-space:nowrap;">Tutup</button>
+            </span>`;
+        box.querySelector('#offline-queue-retry-btn').onclick = () => offlineQueue.retryFailed();
+        box.querySelector('#offline-queue-discard-btn').onclick = () => offlineQueue.discardFailed();
+    },
+
+    _renderBadge(count, failed) {
+        if (typeof document === 'undefined') return;
+        if (failed !== undefined) this._renderFailed(failed);
         const banner = document.getElementById('offline-queue-banner');
         const countEl = document.getElementById('offline-queue-count');
         if (!banner) return;
@@ -225,14 +307,29 @@ if (typeof window !== 'undefined') {
     // lagi setelah HP dapat sinyal" - baik saat halaman pertama dimuat
     // maupun saat tab kembali aktif dari background.
     window.addEventListener('DOMContentLoaded', () => {
-        offlineQueue.getPendingCount().then((c) => offlineQueue._renderBadge(c));
+        offlineQueue._notifyChange();
         offlineQueue.flushQueue();
     });
     document.addEventListener('visibilitychange', () => {
         if (document.visibilityState === 'visible') offlineQueue.flushQueue();
     });
 
-    window.addEventListener('offline-queue-changed', (e) => offlineQueue._renderBadge(e.detail.count));
+    window.addEventListener('offline-queue-changed', (e) => offlineQueue._renderBadge(e.detail.count, e.detail.failed));
+
+    // Setelah absen offline benar-benar terkirim: kabari karyawan & segarkan
+    // tampilan Absensi supaya absennya langsung terbaca (sebelumnya baru
+    // terlihat setelah halaman dimuat ulang manual).
+    window.addEventListener('offline-queue-synced', (e) => {
+        try { if (window.toast) toast.success(`${e.detail.count} absen offline berhasil disinkronkan ke server`); } catch (err) { /* abaikan */ }
+        try {
+            if (window.absensi && typeof absensi.loadTodayAttendance === 'function' && document.getElementById('attendance-status')) {
+                Promise.resolve(absensi.loadTodayAttendance()).then(() => {
+                    if (typeof absensi.loadAttendanceHistory === 'function') absensi.loadAttendanceHistory();
+                    if (typeof absensi.updateUI === 'function') absensi.updateUI();
+                }).catch(() => {});
+            }
+        } catch (err) { /* abaikan */ }
+    });
 
     // Tombol "Sinkron Sekarang" manual di banner (lihat index.html
     // #offline-queue-sync-btn) - pakai noJitter supaya langsung jalan
