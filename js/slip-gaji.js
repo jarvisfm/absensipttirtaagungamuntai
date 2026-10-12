@@ -14,8 +14,8 @@ const slipGaji = {
     // ====== Pengaturan tampilan slip (ubah di sini kalau perlu) ======
     COMPANY_NAME: 'PT. TIRTA AGUNG AMUNTAI',
     COMPANY_SUB: '(Perseroda)',
-    SLIP_TITLE: 'SLIP GAJI KARYAWAN',
-    JABATAN_TTD: 'Kasi. SDM. Kepegawaian',
+    SLIP_TITLE: 'SLIP GAJI',
+    JABATAN_TTD: 'Asisten Manajer Kepegawaian',
     KOTA: 'Amuntai',
 
     BULAN: ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'],
