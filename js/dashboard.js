@@ -214,6 +214,21 @@ const dashboard = {
             donutValue.textContent = `${presentPercent}%`;
         }
 
+        // Busur donut mengikuti data (sebelumnya panjang busur tetap dari CSS)
+        const CIRC = 2 * Math.PI * 40;
+        const arcLen = n => total > 0 ? Math.min(CIRC, (n / total) * CIRC) : 0;
+        const arcs = [['present', present], ['late', late], ['absent', absent]];
+        let arcStart = 0;
+        arcs.forEach(([cls, n]) => {
+            const el = document.querySelector('.donut-fill.' + cls);
+            if (!el) return;
+            const len = arcLen(n);
+            el.style.strokeDasharray = `${len} ${CIRC}`;
+            el.style.strokeDashoffset = `${-arcStart}`;
+            el.style.opacity = len > 0 ? '1' : '0';
+            arcStart += len;
+        });
+
         // Update legend
         const legendValues = document.querySelectorAll('.legend-value');
         if (legendValues.length >= 3) {
