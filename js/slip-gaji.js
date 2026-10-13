@@ -26,6 +26,7 @@ const slipGaji = {
     periode: '',
     rows: [],
     employees: [],
+    ttdMap: {},   // tanda tangan penandatangan per periode (data URL PNG) - lihat openTtd()
     parsed: null,
     busy: false,
 
@@ -85,7 +86,7 @@ const slipGaji = {
         let list = [], err = '';
         try {
             const res = await api.getSlipGajiSaya();
-            if (res && res.success) list = res.data || [];
+            if (res && res.success) { list = res.data || []; this.ttdMap = res.ttdMap || {}; }
             else err = (res && res.error) || 'Gagal memuat slip gaji';
         } catch (e) {
             console.error('Gagal memuat slip gaji:', e);
@@ -135,7 +136,7 @@ const slipGaji = {
         if (!this.periode) return;
         try {
             const res = await api.getSlipGajiList(this.periode);
-            if (res && res.success) this.rows = res.data || [];
+            if (res && res.success) { this.rows = res.data || []; this.ttdMap[this.periode] = res.ttd || ''; }
             else toast.error(this._e((res && res.error) || 'Gagal memuat data slip gaji'));
         } catch (e) {
             console.error('Gagal memuat data slip:', e);
@@ -796,6 +797,7 @@ const slipGaji = {
     renderKirim() {
         const body = document.getElementById('sg-body');
         const bar = this._periodeBar(this.periods.length ? `
+            <button type="button" class="sg-btn" onclick="slipGaji.openTtd()" title="Tulis tanda tangan penandatangan untuk periode ini"><i class="fas fa-pen"></i> ${this._ttdFor({ periode: this.periode }) ? 'Ubah TTD' : 'Tanda Tangan'}</button>
             <button type="button" class="sg-btn sg-btn-primary" onclick="slipGaji.kirimSemua(this)"><i class="fas fa-paper-plane"></i> Kirim ke Semua Karyawan</button>
             <button type="button" class="sg-btn" onclick="slipGaji.printAll()"><i class="fas fa-print"></i> Cetak Semua Slip</button>
             <button type="button" class="sg-btn" onclick="slipGaji.printDaftar()"><i class="fas fa-list"></i> Cetak Daftar Gaji</button>` : '');
@@ -926,6 +928,17 @@ const slipGaji = {
         return `${d.getDate()} ${this.namaBulan(d.getMonth() + 1)} ${d.getFullYear()}`;
     },
 
+    _ttdFor(r) { return String((this.ttdMap || {})[String(r.periode)] || ''); },
+
+    // Gambar tanda tangan di lembar slip (kalau sudah ada); kalau belum,
+    // tampil teks "Ttd" seperti semula.
+    _ttdHtml(r) {
+        const t = this._ttdFor(r);
+        return t
+            ? `<div>Ttd</div><img class="sg-ttd-img" src="${this._e(t)}" alt="Tanda tangan" style="display:block;margin:2px auto;height:54px;max-width:200px;object-fit:contain">`
+            : '<div class="sg-ttd-sp">Ttd</div>';
+    },
+
     slipHtml(r, no) {
         const li = (arr) => arr.map((x, i) => `
             <tr><td class="n">${i + 1}.</td><td>${this._e(x[0])}</td><td class="v">${this.rp(x[1])}</td></tr>`).join('');
@@ -953,7 +966,7 @@ const slipGaji = {
             <div class="sg-ttd">
                 <div>${this._e(this.KOTA)}, ${this._e(this._tglCetak())}</div>
                 <div>${this._e(this.JABATAN_TTD)}</div>
-                <div class="sg-ttd-sp">Ttd</div>
+                ${this._ttdHtml(r)}
                 <div class="sg-ttd-name">${this._e(r.bendahara || '')}</div>
                 ${r.nikBendahara ? `<div>NIK. ${this._e(r.nikBendahara)}</div>` : ''}
             </div>
@@ -1022,9 +1035,156 @@ const slipGaji = {
                 <td class="r">${this.rp(r.totalPenerimaan)}</td><td class="r">${this.rp(r.totalPotongan)}</td><td class="r">${this.rp(r.gajiBersih)}</td></tr>`).join('')}</tbody></table>
             <div class="sg-ttd" style="width:260px;margin-left:auto">
                 <div>${this._e(this.KOTA)}, ${this._e(this._tglCetak())}</div><div>${this._e(this.JABATAN_TTD)}</div>
-                <div class="sg-ttd-sp">Ttd</div><div class="sg-ttd-name">${this._e(first.bendahara || '')}</div>
+                ${this._ttdHtml(first)}<div class="sg-ttd-name">${this._e(first.bendahara || '')}</div>
                 ${first.nikBendahara ? `<div>NIK. ${this._e(first.nikBendahara)}</div>` : ''}</div>`;
         this._printHtml(html, `Daftar Gaji ${p ? this.periodeLabel(p) : ''}`);
+    },
+
+    // =====================================================================
+    //  Tanda tangan (TTD) penandatangan - tombol pensil di tab Print & Kirim
+    //  Digambar langsung (jari / mouse / stylus), disimpan per periode, lalu
+    //  tampil di lembar slip (tampilan & cetak) menggantikan teks "Ttd".
+    // =====================================================================
+    openTtd() {
+        if (!this.periode) return;
+        this.closeTtd();
+        const p = this.periods.find(x => x.periode === this.periode);
+        const cur = this._ttdFor({ periode: this.periode });
+        const el = document.createElement('div');
+        el.className = 'sg-modal';
+        el.id = 'sg-ttd-modal';
+        el.innerHTML = `
+            <div class="sg-modal-box">
+                <div class="sg-modal-head">
+                    <b><i class="fas fa-pen"></i> Tanda Tangan${p ? ' - ' + this._e(this.periodeLabel(p)) : ''}</b>
+                    <div><button type="button" class="sg-btn sg-btn-sm" onclick="slipGaji.closeTtd()"><i class="fas fa-times"></i></button></div>
+                </div>
+                <div class="sg-modal-body">
+                    <p class="sg-note" style="margin-top:0">Tanda tangani di kotak berikut dengan jari, mouse, atau pena stylus. Hasilnya tampil di semua slip periode ini.</p>
+                    <div style="position:relative;border:1.5px dashed #cbd5e1;border-radius:12px;background:#fff">
+                        <canvas id="sg-ttd-canvas" style="display:block;width:100%;height:180px;touch-action:none;cursor:crosshair"></canvas>
+                        <span id="sg-ttd-hint" style="position:absolute;left:0;right:0;top:50%;transform:translateY(-50%);text-align:center;color:#cbd5e1;pointer-events:none;font-size:.9rem">Tanda tangan di sini</span>
+                    </div>
+                    ${cur ? `<p class="sg-note">TTD tersimpan: <img src="${this._e(cur)}" alt="" style="height:30px;vertical-align:middle;margin:0 6px"> Coretan baru akan menggantinya.</p>` : ''}
+                    <div class="sg-actions" style="justify-content:space-between;flex-wrap:wrap">
+                        <span style="display:flex;gap:8px;flex-wrap:wrap">
+                            <button type="button" class="sg-btn sg-btn-sm" id="sg-ttd-clear"><i class="fas fa-eraser"></i> Ulangi</button>
+                            ${cur ? '<button type="button" class="sg-btn sg-btn-sm sg-btn-danger" id="sg-ttd-del"><i class="fas fa-trash"></i> Hapus TTD</button>' : ''}
+                        </span>
+                        <span style="display:flex;gap:8px">
+                            <button type="button" class="sg-btn" onclick="slipGaji.closeTtd()">Batal</button>
+                            <button type="button" class="sg-btn sg-btn-primary" id="sg-ttd-save"><i class="fas fa-save"></i> Simpan</button>
+                        </span>
+                    </div>
+                </div>
+            </div>`;
+        document.body.appendChild(el);
+
+        const cv = el.querySelector('#sg-ttd-canvas');
+        const dpr = Math.min(window.devicePixelRatio || 1, 2);
+        const rect = cv.getBoundingClientRect();
+        cv.width = Math.round(rect.width * dpr);
+        cv.height = Math.round(rect.height * dpr);
+        const ctx = cv.getContext('2d');
+        ctx.scale(dpr, dpr);
+        ctx.lineWidth = 2.6; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.strokeStyle = '#111';
+        let drawing = false, last = null, dirty = false;
+        const pos = (e) => { const r = cv.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; };
+        const mark = () => { if (!dirty) { dirty = true; const h = el.querySelector('#sg-ttd-hint'); if (h) h.style.display = 'none'; } };
+        cv.addEventListener('pointerdown', (e) => {
+            e.preventDefault();
+            try { cv.setPointerCapture(e.pointerId); } catch (err) { /* abaikan */ }
+            drawing = true; last = pos(e); mark();
+            ctx.beginPath(); ctx.arc(last.x, last.y, ctx.lineWidth / 2, 0, Math.PI * 2); ctx.fillStyle = '#111'; ctx.fill();
+        });
+        cv.addEventListener('pointermove', (e) => {
+            if (!drawing) return;
+            e.preventDefault();
+            const pt = pos(e), mid = { x: (last.x + pt.x) / 2, y: (last.y + pt.y) / 2 };
+            ctx.beginPath(); ctx.moveTo(last.x, last.y); ctx.quadraticCurveTo(last.x, last.y, mid.x, mid.y); ctx.lineTo(pt.x, pt.y); ctx.stroke();
+            last = pt;
+        });
+        const stop = () => { drawing = false; };
+        cv.addEventListener('pointerup', stop);
+        cv.addEventListener('pointercancel', stop);
+        cv.addEventListener('pointerleave', stop);
+
+        el.querySelector('#sg-ttd-clear').onclick = () => {
+            ctx.clearRect(0, 0, cv.width, cv.height); dirty = false;
+            const h = el.querySelector('#sg-ttd-hint'); if (h) h.style.display = '';
+        };
+        const del = el.querySelector('#sg-ttd-del');
+        if (del) del.onclick = () => {
+            if (this._ttdBusy) return;
+            this._saveTtd('', del);
+        };
+        el.querySelector('#sg-ttd-save').onclick = () => {
+            if (this._ttdBusy) return;
+            if (!dirty) { toast.warning('Tanda tangan masih kosong. Tulis dulu di kotak.'); return; }
+            const png = this._exportTtd(cv);
+            if (!png) { toast.warning('Tanda tangan tidak terbaca, coba tulis lagi'); return; }
+            this._saveTtd(png, el.querySelector('#sg-ttd-save'));
+        };
+    },
+
+    // Potong ruang kosong di sekeliling coretan, perkecil, jadikan PNG
+    // transparan (cukup kecil untuk disimpan di 1 sel Google Sheets).
+    _exportTtd(cv) {
+        const w = cv.width, h = cv.height;
+        const data = cv.getContext('2d').getImageData(0, 0, w, h).data;
+        let x0 = w, y0 = h, x1 = -1, y1 = -1;
+        for (let y = 0; y < h; y++) {
+            for (let x = 0; x < w; x++) {
+                if (data[(y * w + x) * 4 + 3] > 8) {
+                    if (x < x0) x0 = x; if (x > x1) x1 = x;
+                    if (y < y0) y0 = y; if (y > y1) y1 = y;
+                }
+            }
+        }
+        if (x1 < 0) return '';
+        const pad = 6;
+        x0 = Math.max(0, x0 - pad); y0 = Math.max(0, y0 - pad);
+        x1 = Math.min(w - 1, x1 + pad); y1 = Math.min(h - 1, y1 + pad);
+        const cw = x1 - x0 + 1, ch = y1 - y0 + 1;
+        let scale = Math.min(1, 420 / cw, 170 / ch);
+        for (let i = 0; i < 6; i++) {
+            const out = document.createElement('canvas');
+            out.width = Math.max(1, Math.round(cw * scale));
+            out.height = Math.max(1, Math.round(ch * scale));
+            out.getContext('2d').drawImage(cv, x0, y0, cw, ch, 0, 0, out.width, out.height);
+            const url = out.toDataURL('image/png');
+            if (url.length <= 44000) return url;
+            scale *= 0.75;
+        }
+        return '';
+    },
+
+    async _saveTtd(ttd, btn) {
+        this._ttdBusy = true;
+        const old = btn ? btn.innerHTML : '';
+        if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Menyimpan...'; }
+        try {
+            const res = await api.simpanSlipGajiTtd({ periode: this.periode, ttd });
+            if (res && res.success) {
+                this.ttdMap[this.periode] = ttd;
+                toast.success(ttd ? 'Tanda tangan disimpan' : 'Tanda tangan dihapus');
+                this.closeTtd();
+                if (this.tab === 'kirim') this.renderKirim();
+            } else {
+                toast.error(this._e((res && res.error) || 'Gagal menyimpan tanda tangan'));
+            }
+        } catch (e) {
+            console.error('Simpan TTD gagal:', e);
+            toast.error('Gagal menyimpan tanda tangan, periksa koneksi lalu coba lagi');
+        } finally {
+            this._ttdBusy = false;
+            if (btn && document.body.contains(btn)) { btn.disabled = false; btn.innerHTML = old; }
+        }
+    },
+
+    closeTtd() {
+        const el = document.getElementById('sg-ttd-modal');
+        if (el) el.remove();
     },
 
     openSlip(id) {
