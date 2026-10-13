@@ -1114,6 +1114,15 @@
     .bottom-nav .bottom-nav-item-fab.active .fab-circle { background: linear-gradient(145deg, #F59E0B, #B45309); }
     .bottom-nav .bottom-nav-item-fab.active i { background: none; }
 
+    /* Tab "Menu" (button) - tampil sama seperti tab lain; terbuka = ikon disorot biru */
+    .bottom-nav .bottom-nav-menu {
+        background: none; border: 0; font-family: inherit; cursor: pointer;
+        -webkit-tap-highlight-color: transparent;
+    }
+    .bottom-nav .bottom-nav-menu i { transition: background .25s ease, color .25s ease, transform .25s ease; }
+    .bottom-nav .bottom-nav-menu.open { color: #028ED8; }
+    .bottom-nav .bottom-nav-menu.open i { background: rgba(2, 142, 216, .14); color: #028ED8; }
+
     .bottom-nav-more {
         flex: 0 0 34px; width: 34px; height: 34px; margin: 0 6px 0 2px; padding: 0; cursor: pointer;
         border: 0; border-radius: 50%; background: #e6f3fc; color: #028ED8;
