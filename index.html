@@ -3775,6 +3775,8 @@
             <a href="#" class="bottom-nav-item hidden" id="bottom-nav-approval-direktur" data-page="approval-direktur"><i class="fas fa-stamp"></i><span>Approval</span></a>
             <a href="#" class="bottom-nav-item hidden" id="bottom-nav-approval-direktur" data-page="approval-direktur"><i class="fas fa-stamp"></i><span>Approval</span></a>
             <a href="#" class="bottom-nav-item" id="bottom-nav-logout" onclick="auth.handleLogout()"><i class="fas fa-sign-out-alt"></i><span>Logout</span></a>
+            <!-- Panah kecil: buka panel "Semua Menu" (js/dashboard.js: quickMenu) -->
+            <button type="button" class="bottom-nav-more" id="bottom-nav-more" aria-label="Semua menu" aria-haspopup="dialog" onclick="quickMenu.open(this, { logout: true })"><i class="fas fa-chevron-up"></i></button>
         </nav>
     </div>
 
