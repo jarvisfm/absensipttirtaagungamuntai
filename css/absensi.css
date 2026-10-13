@@ -558,6 +558,209 @@
     font-variant-numeric: tabular-nums;
 }
 
+/* ===== Kartu Absen & tombol sesi - tampilan modern =====
+   Hanya styling (HTML & JS tidak berubah; class .completed, atribut disabled
+   dan style display dari absensi.js tetap jadi acuan).
+   Susunan: Masuk (lebar penuh) -> Istirahat | Selesai Istirahat (2 kotak) ->
+   Pulang (lebar penuh), urutannya sama dengan alur absen sepanjang hari.
+   Tombol yang BISA ditekan sekarang tampil berwarna penuh, yang sudah selesai
+   hijau lembut + centang, yang belum waktunya abu-abu. */
+.attendance-main-card {
+    border: 1px solid var(--border-color);
+    border-radius: 24px;
+    box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
+}
+
+.attendance-main-card .status-text {
+    font-weight: 700;
+}
+
+.attendance-main-card .attendance-buttons {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+    flex-direction: initial;
+}
+
+/* Bungkus Istirahat/Selesai Istirahat "dilebur" supaya kedua tombolnya ikut
+   grid utama; kalau JS menyembunyikannya (style display:none) tetap hilang. */
+.attendance-main-card #break-section {
+    display: contents;
+}
+
+.attendance-main-card .attendance-buttons .clock-in-btn,
+.attendance-main-card .attendance-buttons .clock-out-btn,
+.attendance-main-card .attendance-buttons .break-btn:has(~ .after-break-btn[style*="none"]) {
+    grid-column: 1 / -1;
+}
+
+.attendance-main-card .attendance-buttons .attendance-btn {
+    --btn-c1: #10B981;
+    --btn-c2: #34D399;
+    --btn-glow: rgba(16, 185, 129, 0.35);
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    width: 100%;
+    min-height: 76px;
+    padding: 16px 18px;
+    border: 1.5px solid var(--border-color);
+    border-radius: 18px;
+    background: var(--color-gray-50);
+    box-shadow: none;
+    text-align: left;
+}
+
+.attendance-main-card .attendance-buttons .clock-out-btn     { --btn-c1: #EF4444; --btn-c2: #F87171; --btn-glow: rgba(239, 68, 68, 0.32); }
+.attendance-main-card .attendance-buttons .break-btn         { --btn-c1: #3B82F6; --btn-c2: #60A5FA; --btn-glow: rgba(59, 130, 246, 0.32); }
+.attendance-main-card .attendance-buttons .after-break-btn   { --btn-c1: #F59E0B; --btn-c2: #FBBF24; --btn-glow: rgba(245, 158, 11, 0.36); }
+
+/* Dua tombol istirahat: kotak vertikal (ikon di atas, teks di bawah) */
+.attendance-main-card .attendance-buttons .break-btn,
+.attendance-main-card .attendance-buttons .after-break-btn {
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: flex-start;
+    gap: 10px;
+    min-height: 112px;
+    padding: 14px;
+}
+
+.attendance-main-card .attendance-buttons .break-btn:has(~ .after-break-btn[style*="none"]) {
+    flex-direction: row;
+    align-items: center;
+    gap: 14px;
+    min-height: 76px;
+    padding: 16px 18px;
+}
+
+.attendance-main-card .attendance-buttons .attendance-btn .btn-icon {
+    width: 52px;
+    height: 52px;
+    border-radius: 16px;
+    font-size: 20px;
+    background: linear-gradient(135deg, var(--btn-c1), var(--btn-c2));
+    box-shadow: 0 6px 14px var(--btn-glow);
+}
+
+.attendance-main-card .attendance-buttons .break-btn .btn-icon,
+.attendance-main-card .attendance-buttons .after-break-btn .btn-icon {
+    width: 42px;
+    height: 42px;
+    border-radius: 13px;
+    font-size: 17px;
+}
+
+.attendance-main-card .attendance-buttons .break-btn:has(~ .after-break-btn[style*="none"]) .btn-icon {
+    width: 52px;
+    height: 52px;
+    border-radius: 16px;
+    font-size: 20px;
+}
+
+.attendance-main-card .attendance-buttons .attendance-btn .btn-text {
+    margin-left: 0;
+    flex: 1;
+    min-width: 0;
+    align-items: flex-start;
+    overflow: visible;
+}
+
+.attendance-main-card .attendance-buttons .attendance-btn .btn-label {
+    font-size: 16px;
+    font-weight: 700;
+    line-height: 1.2;
+    color: var(--text-primary);
+}
+
+.attendance-main-card .attendance-buttons .break-btn .btn-label,
+.attendance-main-card .attendance-buttons .after-break-btn .btn-label {
+    font-size: 14px;
+}
+
+.attendance-main-card .attendance-buttons .attendance-btn .btn-time {
+    margin-top: 3px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-muted);
+}
+
+/* Belum waktunya / belum bisa ditekan */
+.attendance-main-card .attendance-buttons .attendance-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.attendance-main-card .attendance-buttons .attendance-btn:disabled .btn-icon {
+    filter: grayscale(0.55);
+    box-shadow: none;
+}
+
+/* Bisa ditekan SEKARANG: berwarna penuh */
+.attendance-main-card .attendance-buttons .attendance-btn:not(:disabled) {
+    background: linear-gradient(135deg, var(--btn-c1), var(--btn-c2));
+    border-color: transparent;
+    box-shadow: 0 12px 24px var(--btn-glow);
+}
+
+.attendance-main-card .attendance-buttons .attendance-btn:not(:disabled) .btn-label,
+.attendance-main-card .attendance-buttons .attendance-btn:not(:disabled) .btn-time {
+    color: #fff;
+}
+
+.attendance-main-card .attendance-buttons .attendance-btn:not(:disabled) .btn-icon {
+    background: rgba(255, 255, 255, 0.22);
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.28);
+}
+
+.attendance-main-card .attendance-buttons .attendance-btn:not(:disabled):hover {
+    background: linear-gradient(135deg, var(--btn-c1), var(--btn-c2));
+    border-color: transparent;
+    box-shadow: 0 16px 30px var(--btn-glow);
+    transform: translateY(-2px);
+}
+
+.attendance-main-card .attendance-buttons .attendance-btn:not(:disabled):active {
+    transform: scale(0.98);
+    box-shadow: 0 6px 14px var(--btn-glow);
+}
+
+/* Sudah selesai: hijau lembut + centang (tetap terbaca jelas, tidak pudar) */
+.attendance-main-card .attendance-buttons .attendance-btn.completed,
+.attendance-main-card .attendance-buttons .attendance-btn.completed:disabled {
+    opacity: 1;
+    cursor: default;
+    background: linear-gradient(135deg, rgba(16, 185, 129, 0.12) 0%, rgba(16, 185, 129, 0.03) 100%);
+    border-color: rgba(16, 185, 129, 0.38);
+    box-shadow: none;
+}
+
+.attendance-main-card .attendance-buttons .attendance-btn.completed .btn-label {
+    color: var(--text-primary);
+}
+
+.attendance-main-card .attendance-buttons .attendance-btn.completed .btn-time {
+    color: var(--text-secondary);
+    font-size: 14px;
+    font-weight: 700;
+}
+
+.attendance-main-card .attendance-buttons .attendance-btn.completed .btn-icon {
+    background: linear-gradient(135deg, var(--btn-c1), var(--btn-c2));
+    box-shadow: none;
+    filter: none;
+}
+
+.attendance-main-card .attendance-buttons .attendance-btn.completed::after {
+    top: 10px;
+    right: 10px;
+    width: 22px;
+    height: 22px;
+    font-size: 11px;
+    box-shadow: none;
+}
+
 /* Timeline Card */
 .timeline-card {
     background: var(--bg-secondary);
