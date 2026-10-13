@@ -700,3 +700,96 @@
     #login-container .login-live-clock, #login-container .company-name, #login-container .login-header p { display: none; }
     #login-container .login-left { padding-bottom: 12px; }
 }
+
+
+/* ---- Partikel bergerak di latar biru (mobile) ----
+   Titik-titik kecil naik pelan dari bawah ke atas, berulang mulus (pola
+   digandakan 100vh di bawahnya lalu digeser -100vh). Murni CSS, ringan
+   (cuma transform), dan otomatis mati kalau user memilih "kurangi animasi". */
+@media (max-width: 992px) {
+    #login-container::after {
+        content: ""; position: absolute; left: 0; top: 0; width: 1px; height: 1px; border-radius: 50%;
+        background: transparent; pointer-events: none; z-index: 0; left: 0;
+        background: none; width: 0; height: 0;
+        box-shadow:
+        43vw 19vh 0 2px rgba(252,209,0,0.35),
+        11vw 68vh 0 1px rgba(255,255,255,0.5),
+        76vw 7vh 0 3px rgba(255,255,255,0.35),
+        6vw 11vh 0 2px rgba(255,255,255,0.65),
+        10vw 30vh 0 1px rgba(255,255,255,0.65),
+        9vw 72vh 0 1px rgba(255,255,255,0.35),
+        82vw 80vh 0 3px rgba(252,209,0,0.35),
+        75vw 74vh 0 2px rgba(255,255,255,0.4),
+        30vw 5vh 0 3px rgba(255,255,255,0.35),
+        39vw 53vh 0 1px rgba(255,255,255,0.4),
+        75vw 39vh 0 3px rgba(255,255,255,0.35),
+        15vw 74vh 0 3px rgba(255,255,255,0.35),
+        49vw 12vh 0 3px rgba(252,209,0,0.35),
+        74vw 7vh 0 3px rgba(255,255,255,0.35),
+        65vw 87vh 0 3px rgba(255,255,255,0.65),
+        42vw 59vh 0 3px rgba(255,255,255,0.65),
+        48vw 38vh 0 1px rgba(255,255,255,0.35),
+        91vw 99vh 0 1px rgba(255,255,255,0.4),
+        75vw 38vh 0 3px rgba(252,209,0,0.75),
+        45vw 93vh 0 2px rgba(255,255,255,0.5),
+        79vw 9vh 0 1px rgba(255,255,255,0.65),
+        23vw 96vh 0 2px rgba(255,255,255,0.35),
+        64vw 53vh 0 1px rgba(255,255,255,0.4),
+        73vw 73vh 0 2px rgba(255,255,255,0.5),
+        90vw 44vh 0 3px rgba(252,209,0,0.75),
+        76vw 58vh 0 1px rgba(255,255,255,0.4),
+        36vw 60vh 0 1px rgba(255,255,255,0.4),
+        95vw 89vh 0 2px rgba(255,255,255,0.65),
+        38vw 91vh 0 2px rgba(255,255,255,0.5),
+        4vw 59vh 0 2px rgba(255,255,255,0.35),
+        80vw 14vh 0 2px rgba(252,209,0,0.35),
+        29vw 98vh 0 2px rgba(255,255,255,0.35),
+        96vw 31vh 0 2px rgba(255,255,255,0.65),
+        65vw 10vh 0 1px rgba(255,255,255,0.65),
+        53vw 70vh 0 2px rgba(255,255,255,0.35),
+        57vw 70vh 0 2px rgba(255,255,255,0.65),
+        43vw 119vh 0 2px rgba(252,209,0,0.35),
+        11vw 168vh 0 1px rgba(255,255,255,0.5),
+        76vw 107vh 0 3px rgba(255,255,255,0.35),
+        6vw 111vh 0 2px rgba(255,255,255,0.65),
+        10vw 130vh 0 1px rgba(255,255,255,0.65),
+        9vw 172vh 0 1px rgba(255,255,255,0.35),
+        82vw 180vh 0 3px rgba(252,209,0,0.35),
+        75vw 174vh 0 2px rgba(255,255,255,0.4),
+        30vw 105vh 0 3px rgba(255,255,255,0.35),
+        39vw 153vh 0 1px rgba(255,255,255,0.4),
+        75vw 139vh 0 3px rgba(255,255,255,0.35),
+        15vw 174vh 0 3px rgba(255,255,255,0.35),
+        49vw 112vh 0 3px rgba(252,209,0,0.35),
+        74vw 107vh 0 3px rgba(255,255,255,0.35),
+        65vw 187vh 0 3px rgba(255,255,255,0.65),
+        42vw 159vh 0 3px rgba(255,255,255,0.65),
+        48vw 138vh 0 1px rgba(255,255,255,0.35),
+        91vw 199vh 0 1px rgba(255,255,255,0.4),
+        75vw 138vh 0 3px rgba(252,209,0,0.75),
+        45vw 193vh 0 2px rgba(255,255,255,0.5),
+        79vw 109vh 0 1px rgba(255,255,255,0.65),
+        23vw 196vh 0 2px rgba(255,255,255,0.35),
+        64vw 153vh 0 1px rgba(255,255,255,0.4),
+        73vw 173vh 0 2px rgba(255,255,255,0.5),
+        90vw 144vh 0 3px rgba(252,209,0,0.75),
+        76vw 158vh 0 1px rgba(255,255,255,0.4),
+        36vw 160vh 0 1px rgba(255,255,255,0.4),
+        95vw 189vh 0 2px rgba(255,255,255,0.65),
+        38vw 191vh 0 2px rgba(255,255,255,0.5),
+        4vw 159vh 0 2px rgba(255,255,255,0.35),
+        80vw 114vh 0 2px rgba(252,209,0,0.35),
+        29vw 198vh 0 2px rgba(255,255,255,0.35),
+        96vw 131vh 0 2px rgba(255,255,255,0.65),
+        65vw 110vh 0 1px rgba(255,255,255,0.65),
+        53vw 170vh 0 2px rgba(255,255,255,0.35),
+        57vw 170vh 0 2px rgba(255,255,255,0.65);
+        animation: loginParticlesUp 24s linear infinite; will-change: transform;
+    }
+    #login-container::before { animation: loginBlobFloat 14s ease-in-out infinite alternate; }
+}
+@keyframes loginParticlesUp { from { transform: translateY(0); } to { transform: translateY(-100vh); } }
+@keyframes loginBlobFloat { from { transform: translate(0, 0) scale(1); } to { transform: translate(-24px, 22px) scale(1.12); } }
+@media (prefers-reduced-motion: reduce) {
+    #login-container::after, #login-container::before { animation: none; }
+}
