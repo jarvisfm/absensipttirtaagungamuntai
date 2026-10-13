@@ -1500,6 +1500,18 @@ const absensi = {
         `;
     }).join('');
 
+    // [TAMBAHAN] Label tiap kolom sesi (Masuk/Istirahat/Kembali/Pulang) dicatat
+    // di atribut data-label, supaya tampilan kartu di HP (css/absensi.css) bisa
+    // menampilkan judul kolom di atas tiap jam. Tidak berpengaruh di desktop.
+    if (historyTable) {
+        const ths = Array.from(historyTable.querySelectorAll('thead th')).map(th => th.textContent.trim());
+        tbody.querySelectorAll('tr').forEach(tr => {
+            Array.from(tr.children).forEach((td, i) => {
+                if (td.colSpan === 1 && ths[i]) td.setAttribute('data-label', ths[i]);
+            });
+        });
+    }
+
     // Konfigurasi jam per Jenis Jadwal (buat hitung status per sesi di atas,
     // dan buat badge "Hadir Terlambat" di renderHistoryStats) - dimuat
     // SEKALI lalu di-cache, kalau belum ada cache-nya, muat dulu lalu
