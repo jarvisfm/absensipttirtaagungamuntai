@@ -665,11 +665,16 @@ window.quickMenu = {
         box.innerHTML = this._items().slice(0, 9).map(it => `<i class="${it.icon}"></i>`).join('');
     },
 
-    open() {
+    open(origin, opts) {
         this.close(true);
+        opts = opts || {};
         const items = this._items();
+        // Dibuka dari panah bottom bar (mobile): tambah tile Logout di akhir
+        if (opts.logout) items.push({ action: 'logout', icon: 'fas fa-sign-out-alt', label: 'Logout', color: '#EF4444' });
         if (!items.length) return;
-        const btn = document.getElementById('quick-menu-btn');
+        const btn = (origin && origin.getBoundingClientRect) ? origin : document.getElementById('quick-menu-btn');
+        this._origin = btn;
+        if (btn) btn.classList.add('open');
         const el = document.createElement('div');
         el.className = 'qm-overlay';
         el.id = 'qm-overlay';
@@ -677,7 +682,7 @@ window.quickMenu = {
             <div class="qm-title">Semua Menu</div>
             <div class="qm-grid">${items.map((it, i) => `
                 <button type="button" class="qm-item" style="--i:${i}" data-idx="${i}">
-                    <span class="qm-ic" style="background:${this._colors[i % this._colors.length]}"><i class="${it.icon}"></i></span>
+                    <span class="qm-ic" style="background:${it.color || this._colors[i % this._colors.length]}"><i class="${it.icon}"></i></span>
                     <span class="qm-lb"></span>
                 </button>`).join('')}</div>
         </div>`;
@@ -694,6 +699,7 @@ window.quickMenu = {
             if (!b) return;
             const it = items[Number(b.dataset.idx)];
             this.close();
+            if (it.action === 'logout') { if (window.auth) auth.handleLogout(); return; }
             if (it.external && it.href) window.open(it.href, '_blank', 'noopener');
             else if (it.page) router.navigate(it.page);
         });
@@ -706,6 +712,7 @@ window.quickMenu = {
     close(immediate) {
         const el = document.getElementById('qm-overlay');
         if (this._esc) { document.removeEventListener('keydown', this._esc); this._esc = null; }
+        if (this._origin) { this._origin.classList.remove('open'); this._origin = null; }
         if (!el) return;
         if (immediate) { el.remove(); return; }
         el.classList.remove('show');
