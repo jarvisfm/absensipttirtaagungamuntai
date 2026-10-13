@@ -1299,6 +1299,9 @@ const api = {
     async hapusSlipGaji(id) {
         return this.request('hapusSlipGaji', { id, ...this._slipAuth() });
     },
+    async simpanSlipGajiTtd(data) {
+        return this.request('simpanSlipGajiTtd', { ...data, ...this._slipAuth() });
+    },
 
     // ========== RIWAYAT KGB / KENAIKAN GAJI BERKALA ==========
     async getRiwayatKgb(userId) {
