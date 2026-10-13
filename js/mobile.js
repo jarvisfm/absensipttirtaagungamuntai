@@ -177,6 +177,11 @@ const mobile = {
                 item.classList.add('active');
             }
         });
+        // Halaman yang tidak punya tab sendiri (Cuti, Slip Gaji, dst) -> sorot tab "Menu"
+        if (!bottomNav.querySelector('.bottom-nav-item.active')) {
+            const menuTab = document.getElementById('bottom-nav-more');
+            if (menuTab) menuTab.classList.add('active');
+        }
     }
 };
 
