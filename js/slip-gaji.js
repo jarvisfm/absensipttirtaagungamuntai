@@ -951,7 +951,7 @@ const slipGaji = {
             <div class="sg-kop-line"></div>
             <div class="sg-slip-title">${this._e(this.SLIP_TITLE)}</div>
             <table class="sg-meta">
-                <tr><td>BLTH</td><td>: ${this._e(this.blth(r))}</td><td class="r">${no ? 'No. ' + this._e(no) : ''}</td></tr>
+                <tr><td>BLTH</td><td>: ${this._e(this.periodeLabel(r))}</td><td class="r">${no ? 'No. ' + this._e(no) : ''}</td></tr>
                 <tr><td>NAMA</td><td colspan="2">: ${this._e(r.nama)}</td></tr>
             </table>
             <table class="sg-items">
