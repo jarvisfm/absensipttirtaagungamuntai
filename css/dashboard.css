@@ -244,3 +244,46 @@
     .qm-panel, .qm-overlay { transition: none; }
     .qm-overlay.show .qm-item { animation: none; opacity: 1; transform: none; }
 }
+
+
+/* ===== Kartu sapaan (modern) ===== */
+.dashboard-welcome .welcome-card {
+    position: relative; overflow: hidden; isolation: isolate;
+    border-radius: 24px; padding: 26px 28px; gap: 16px;
+    text-align: left; flex-direction: row; align-items: center; justify-content: space-between;
+    box-shadow: 0 14px 30px -12px rgba(217, 119, 6, .55);
+}
+.dashboard-welcome .welcome-card.morning   { background: linear-gradient(135deg, #F59E0B 0%, #FBBF24 60%, #FCD34D 100%); box-shadow: 0 14px 30px -12px rgba(217,119,6,.55); }
+.dashboard-welcome .welcome-card.afternoon { background: linear-gradient(135deg, #0b3a6e 0%, #028ED8 70%, #38bdf8 100%); box-shadow: 0 14px 30px -12px rgba(2,142,216,.6); }
+.dashboard-welcome .welcome-card.evening   { background: linear-gradient(135deg, #312e81 0%, #6d28d9 65%, #a78bfa 100%); box-shadow: 0 14px 30px -12px rgba(109,40,217,.55); }
+.dashboard-welcome .welcome-card::before,
+.dashboard-welcome .welcome-card::after {
+    content: ""; position: absolute; border-radius: 50%; z-index: -1; pointer-events: none;
+    background: rgba(255,255,255,.14);
+}
+.dashboard-welcome .welcome-card::before { width: 220px; height: 220px; right: -60px; top: -90px; }
+.dashboard-welcome .welcome-card::after  { width: 130px; height: 130px; left: 38%; bottom: -70px; background: rgba(255,255,255,.1); }
+.dashboard-welcome .welcome-content { min-width: 0; flex: 1; }
+.dashboard-welcome .welcome-content h2 {
+    font-size: 1.45rem; font-weight: 700; line-height: 1.25; letter-spacing: -.2px; margin-bottom: 12px; word-break: break-word;
+}
+.dashboard-welcome .welcome-content h2 #welcome-name { font-weight: 800; }
+.dashboard-welcome .welcome-content p#welcome-shift {
+    display: inline-flex; align-items: center; gap: 8px; opacity: 1; font-size: .82rem; font-weight: 500;
+    padding: 7px 14px; border-radius: 16px; line-height: 1.35; background: rgba(255,255,255,.2);
+    -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); border: 1px solid rgba(255,255,255,.28);
+}
+.dashboard-welcome .welcome-content p#welcome-shift::before {
+    content: "\f017"; font-family: "Font Awesome 6 Free"; font-weight: 400; font-size: .85rem;
+}
+.dashboard-welcome .welcome-illustration {
+    flex: none; width: 76px; height: 76px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    font-size: 2.1rem; opacity: 1; background: rgba(255,255,255,.2); border: 1px solid rgba(255,255,255,.3);
+    -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); box-shadow: inset 0 0 18px rgba(255,255,255,.18);
+}
+@media (max-width: 768px) {
+    .dashboard-welcome .welcome-card { flex-direction: row; text-align: left; padding: 20px 18px; border-radius: 22px; gap: 12px; }
+    .dashboard-welcome .welcome-content h2 { font-size: 1.12rem; margin-bottom: 10px; }
+    .dashboard-welcome .welcome-content p#welcome-shift { font-size: .74rem; padding: 6px 12px; }
+    .dashboard-welcome .welcome-illustration { width: 56px; height: 56px; font-size: 1.5rem; align-self: flex-start; }
+}
