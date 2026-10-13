@@ -116,6 +116,7 @@ const profileManager = {
             document.getElementById('pf-npwp').value              = p.npwp || '';
             document.getElementById('pf-ktp').value               = p.ktp || '';
             document.getElementById('pf-email').value             = p.email || '';
+            document.getElementById('pf-agama').value             = p.agama || '';
 
             // Foto
             this._currentFotoUrl = p.foto || null;
@@ -564,6 +565,7 @@ const profileManager = {
             ktp:              document.getElementById('pf-ktp').value.trim(),
             fileKTP:          document.getElementById('pf-fileKTP')?.value.trim() || '',
             email:            document.getElementById('pf-email').value.trim(),
+            agama:            document.getElementById('pf-agama').value,
             username:         document.getElementById('pf-username').value.trim(),
             // Semua field tab "Kekaryawanan" (Status Pekerjaan s/d Jenis
             // Jadwal) SENGAJA tidak selalu disertakan di sini - lihat
