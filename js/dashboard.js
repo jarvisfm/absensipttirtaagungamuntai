@@ -630,3 +630,96 @@ setInterval(() => {
         dashboard.updateProgressBar();
     }
 }, 60000);
+
+
+// ===== Aksi Cepat: folder "Semua Menu" =====
+// Menampilkan SEMUA menu sidebar karyawan (yang sedang terlihat sesuai role/hak
+// akses) dalam panel grid dengan animasi muncul seperti folder di HP. Daftarnya
+// dibaca langsung dari #employee-menu, jadi otomatis ikut kalau menu bertambah.
+window.quickMenu = {
+    _colors: ['#028ED8', '#F59E0B', '#10B981', '#8B5CF6', '#EF4444', '#0EA5E9', '#EC4899', '#14B8A6', '#6366F1'],
+
+    _items() {
+        const nav = document.getElementById('employee-menu');
+        if (!nav) return [];
+        return Array.from(nav.querySelectorAll('.nav-item'))
+            .filter(li => !li.classList.contains('hidden'))
+            .map(li => {
+                const a = li.querySelector('.nav-link');
+                const icon = li.querySelector('.nav-link > i');
+                const label = li.querySelector('.nav-link > span:not(.nav-pending-badge)');
+                return {
+                    page: li.dataset.page || '',
+                    external: !!li.dataset.external,
+                    href: a ? a.href : '',
+                    icon: icon ? icon.className : 'fas fa-circle',
+                    label: label ? label.textContent.trim() : ''
+                };
+            })
+            .filter(it => it.label);
+    },
+
+    refreshPreview() {
+        const box = document.getElementById('quick-menu-preview');
+        if (!box) return;
+        box.innerHTML = this._items().slice(0, 9).map(it => `<i class="${it.icon}"></i>`).join('');
+    },
+
+    open() {
+        this.close(true);
+        const items = this._items();
+        if (!items.length) return;
+        const btn = document.getElementById('quick-menu-btn');
+        const el = document.createElement('div');
+        el.className = 'qm-overlay';
+        el.id = 'qm-overlay';
+        el.innerHTML = `<div class="qm-panel" role="dialog" aria-label="Semua Menu">
+            <div class="qm-title">Semua Menu</div>
+            <div class="qm-grid">${items.map((it, i) => `
+                <button type="button" class="qm-item" style="--i:${i}" data-idx="${i}">
+                    <span class="qm-ic" style="background:${this._colors[i % this._colors.length]}"><i class="${it.icon}"></i></span>
+                    <span class="qm-lb"></span>
+                </button>`).join('')}</div>
+        </div>`;
+        el.querySelectorAll('.qm-lb').forEach((n, i) => { n.textContent = items[i].label; });
+        // Animasi membesar dari posisi tombol folder
+        const panel = el.querySelector('.qm-panel');
+        if (btn) {
+            const r = btn.getBoundingClientRect();
+            panel.style.transformOrigin = `${r.left + r.width / 2}px ${r.top + r.height / 2}px`;
+        }
+        el.addEventListener('click', (e) => {
+            if (e.target === el) { this.close(); return; }
+            const b = e.target.closest('.qm-item');
+            if (!b) return;
+            const it = items[Number(b.dataset.idx)];
+            this.close();
+            if (it.external && it.href) window.open(it.href, '_blank', 'noopener');
+            else if (it.page) router.navigate(it.page);
+        });
+        this._esc = (e) => { if (e.key === 'Escape') this.close(); };
+        document.addEventListener('keydown', this._esc);
+        document.body.appendChild(el);
+        requestAnimationFrame(() => requestAnimationFrame(() => el.classList.add('show')));
+    },
+
+    close(immediate) {
+        const el = document.getElementById('qm-overlay');
+        if (this._esc) { document.removeEventListener('keydown', this._esc); this._esc = null; }
+        if (!el) return;
+        if (immediate) { el.remove(); return; }
+        el.classList.remove('show');
+        setTimeout(() => el.remove(), 300);
+    },
+
+    init() {
+        this.refreshPreview();
+        const nav = document.getElementById('employee-menu');
+        if (nav && window.MutationObserver) {
+            new MutationObserver(() => this.refreshPreview())
+                .observe(nav, { attributes: true, attributeFilter: ['class'], subtree: true });
+        }
+    }
+};
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', () => quickMenu.init());
+else quickMenu.init();
