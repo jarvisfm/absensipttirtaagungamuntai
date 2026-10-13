@@ -150,6 +150,113 @@
     }
 }
 
+/* ===== Header Absensi (Shift Anda + jam) - tampilan modern =====
+   Hanya styling: markup & JS tidak berubah (id/class lama tetap dipakai oleh
+   absensi.js, termasuk status "is-loading"). */
+.absensi-header {
+    position: relative;
+    overflow: hidden;
+    gap: var(--spacing-lg);
+    background: linear-gradient(135deg, rgba(245, 158, 11, 0.10) 0%, rgba(245, 158, 11, 0) 55%), var(--bg-secondary);
+    border: 1px solid rgba(245, 158, 11, 0.18);
+    box-shadow: 0 10px 28px rgba(15, 23, 42, 0.06);
+}
+
+.absensi-header::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 5px;
+    background: linear-gradient(180deg, #F59E0B 0%, #FBBF24 100%);
+}
+
+.absensi-header .shift-info {
+    gap: 6px;
+    align-items: flex-start;
+}
+
+.absensi-header .shift-info .shift-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: 999px;
+    background: rgba(245, 158, 11, 0.14);
+    color: #B45309;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+}
+
+.absensi-header .shift-info .shift-label::before {
+    content: "\f073";
+    font-family: "Font Awesome 6 Free";
+    font-weight: 900;
+    font-size: 10px;
+}
+
+.absensi-header .shift-info .shift-name {
+    font-size: clamp(20px, 5vw, 26px);
+    font-weight: 800;
+    line-height: 1.15;
+    letter-spacing: -0.02em;
+}
+
+.absensi-header .shift-info .shift-time {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 2px;
+    padding: 5px 12px;
+    border-radius: 10px;
+    background: var(--color-gray-100);
+    font-weight: 600;
+}
+
+.absensi-header .shift-info .shift-time::before {
+    content: "\f017";
+    font-family: "Font Awesome 6 Free";
+    font-weight: 900;
+    font-size: 11px;
+    color: #F59E0B;
+}
+
+.absensi-header .shift-info .shift-pending-badge {
+    padding: 5px 12px;
+    background: linear-gradient(135deg, #FEF3C7 0%, #FDE68A 100%);
+    border: 1px solid rgba(217, 119, 6, 0.25);
+    box-shadow: 0 2px 8px rgba(217, 119, 6, 0.15);
+}
+
+/* Jam & tanggal: kartu gelap */
+.absensi-header .current-datetime {
+    min-width: 190px;
+    padding: 12px 20px;
+    border-radius: 16px;
+    background: linear-gradient(135deg, #1E293B 0%, #0F172A 100%);
+    box-shadow: 0 8px 20px rgba(15, 23, 42, 0.22);
+    text-align: center;
+}
+
+.absensi-header .current-datetime .live-clock {
+    font-size: 28px;
+    font-weight: 800;
+    line-height: 1.1;
+    letter-spacing: 0.02em;
+}
+
+.absensi-header .current-datetime .live-clock:not(.is-loading) {
+    color: #fff;
+}
+
+.absensi-header .current-datetime .live-date {
+    margin-top: 4px;
+    font-size: 12px;
+    color: #94A3B8;
+}
+
 /* Grid Layout */
 .absensi-grid {
     display: grid;
