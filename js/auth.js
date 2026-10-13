@@ -720,116 +720,99 @@ const auth = {
         `;
     },
 
-    // ===== Cetak CV (A4, nuansa biru - putih - kuning sesuai logo TAA) =====
-    printCV() {
+    // ===== Cetak CV (A4, format baku: Curriculum Vitae bernomor 1-9) =====
+    async printCV() {
         const p = this._profileData;
         if (!p) { toast.error('Data profil belum dimuat'); return; }
+        // Buka jendela dulu (sebelum await) supaya tidak diblokir popup-blocker
         const w = window.open('', '_blank');
         if (!w) { toast.error('Popup diblokir browser. Izinkan popup untuk mencetak CV.'); return; }
         w.document.open();
-        w.document.write(this._cvHtml(p));
+        w.document.write('<p style="font-family:Arial;padding:20px;">Menyiapkan CV...</p>');
         w.document.close();
-        // Tunggu logo & foto selesai dimuat sebelum membuka dialog cetak
-        const imgs = Array.from(w.document.images);
-        let done = false;
-        const go = () => { if (done) return; done = true; try { w.focus(); w.print(); } catch (e) { /* abaikan */ } };
-        Promise.all(imgs.map(im => im.complete ? 0 : new Promise(r => { im.onload = im.onerror = r; })))
-            .then(() => setTimeout(go, 150));
-        setTimeout(go, 4000);
+
+        // Riwayat Pendidikan (tab Pendidikan) & Riwayat Pekerjaan (tab Riwayat Mutasi)
+        let pendidikan = [], mutasi = [];
+        try {
+            const [rp, rm] = await Promise.all([
+                api.getRiwayatPendidikan(p.id),
+                api.getRiwayatMutasi(p.id)
+            ]);
+            pendidikan = (rp && rp.success && rp.data) ? rp.data : [];
+            mutasi = (rm && rm.success && rm.data) ? rm.data : [];
+        } catch (err) {
+            console.error('Error load riwayat untuk CV:', err);
+        }
+
+        w.document.open();
+        w.document.write(this._cvHtml(p, pendidikan, mutasi));
+        w.document.close();
+        setTimeout(() => { try { w.focus(); w.print(); } catch (e) { /* abaikan */ } }, 300);
     },
 
-    _cvHtml(p) {
+    _cvHtml(p, pendidikan, mutasi) {
         const e = v => String(v == null ? '' : v).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-        const logo = new URL('assets/logo-taa.png', location.href).href;
-        const keluarga = p.keluarga || [];
-        const pasangan = keluarga.find(k => k.tipe === 'pasangan');
-        const ayah = keluarga.find(k => k.tipe === 'ayah');
-        const ibu = keluarga.find(k => k.tipe === 'ibu');
-        const anak = keluarga.filter(k => k.tipe === 'anak');
-        const nikah = p.statusPernikahan === 'K' ? 'Kawin' : p.statusPernikahan === 'TK' ? 'Belum Kawin' : p.statusPernikahan;
+        const th = v => { const m = String(v || '').match(/\d{4}/); return m ? m[0] : ''; };
+
         const ttl = (p.tempatLahir && p.tanggalLahir) ? `${p.tempatLahir}, ${p.tanggalLahir}` : (p.tempatLahir || p.tanggalLahir || '');
-        const gaji = p.gajiPokok ? 'Rp ' + Number(p.gajiPokok).toLocaleString('id-ID') : '';
-        const initials = (p.nama || 'P').split(' ').filter(Boolean).map(x => x[0]).join('').substring(0, 2).toUpperCase();
-        const tgl = new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+        const gol = [p.pangkat, p.golongan].filter(Boolean).join(' / ');
+        const alamatKantor = 'Jalan Palang Merah No.319.A Amuntai Kalimantan Selatan<br>Kode Pos : 71414 &nbsp; Email Ktr : pdamkabhsu@yahoo.com<br>Telpon 0527 61 345 &nbsp; Fax : 0527 63 057';
 
-        const row = (l, v) => v ? `<div class="r"><span class="l">${e(l)}</span><span class="v">${e(v)}</span></div>` : '';
-        const side = (icon, l, v) => v ? `<div class="s"><div class="sl">${e(l)}</div><div class="sv">${e(v)}</div></div>` : '';
-        const sec = (t, body) => body.trim() ? `<section><h2><i></i>${e(t)}</h2>${body}</section>` : '';
+        // Riwayat Pendidikan: urut SD -> S2
+        const urut = { SD: 1, SMP: 2, SMA: 3, SLTA: 3, SMK: 3, D3: 4, D4: 5, S1: 6, S2: 7, S3: 8 };
+        const pend = (pendidikan || []).slice().sort((a, b) => (urut[a.jenjang] || 99) - (urut[b.jenjang] || 99));
+        const pendHtml = pend.length ? `<table class="in">${pend.map(r => `<tr>
+            <td>Lulus ${e(r.jenjang)}</td><td>: Tahun ${e(r.tahunLulus || '-')}</td>
+            <td>di ${e(r.namaSekolah)}${r.jurusan ? ' (' + e(r.jurusan) + ')' : ''}</td></tr>`).join('')}</table>` : '';
 
-        const foto = p.foto
-            ? `<img class="foto" src="${e(p.foto)}" alt="" referrerpolicy="no-referrer">`
-            : `<div class="foto fi">${e(initials)}</div>`;
-
-        const berkas = [['Surat SK', p.fileSK], ['KTP', p.fileKTP], ['Ijazah', p.fileIjazah], ['Sertifikat', p.fileSertifikat]]
-            .filter(x => x[1]).map(x => `<span class="chip">${e(x[0])}</span>`).join('');
+        // Riwayat Pekerjaan/Jabatan dari Riwayat Mutasi (kosong jika tidak ada mutasi)
+        const mts = (mutasi || []).filter(m => m.tanggalSurat).slice().sort((a, b) => String(a.tanggalSurat).localeCompare(String(b.tanggalSurat)));
+        const kerja = [];
+        if (mts.length) {
+            if (mts[0].unorAsal) kerja.push({ jab: mts[0].unorAsal, dari: th(p.terhitungMulai), sd: th(mts[0].tanggalSurat) });
+            mts.forEach((m, i) => {
+                if (!m.unorBaru) return;
+                kerja.push({ jab: m.unorBaru, dari: th(m.tanggalSurat), sd: i + 1 < mts.length ? th(mts[i + 1].tanggalSurat) : 'sekarang' });
+            });
+        }
+        const kerjaHtml = kerja.length ? `<table class="in">${kerja.map(k => `<tr>
+            <td>${e(k.jab)}</td><td>Tahun ${e(k.dari || '-')} s/d ${e(k.sd)}</td></tr>`).join('')}</table>` : '';
 
         const css = `
-@page{size:A4;margin:0}
+@page{size:A4;margin:18mm 20mm}
 *{box-sizing:border-box;margin:0;padding:0}
-html,body{-webkit-print-color-adjust:exact;print-color-adjust:exact}
-body{font-family:'Segoe UI',Calibri,Arial,sans-serif;color:#1e293b;background:#e5e7eb;font-size:9.6pt}
-.page{width:210mm;min-height:297mm;margin:0 auto;background:linear-gradient(to right,#0b3a6e 0,#0b3a6e 70mm,#fff 70mm);display:grid;grid-template-columns:70mm 1fr;position:relative}
-@media screen{.page{box-shadow:0 4px 24px rgba(0,0,0,.2);margin:10px auto}}
-.side{color:#fff;padding:12mm 7mm 22mm;background:linear-gradient(180deg,#0b3a6e 0%,#0a4f94 100%);position:relative}
-.side:after{content:"";position:absolute;right:0;top:0;bottom:0;width:2.2mm;background:#FCD100}
-.logo{background:#fff;border-radius:3mm;padding:2.5mm;text-align:center;margin-bottom:6mm}
-.logo img{width:22mm;height:auto;display:block;margin:0 auto}
-.fotowrap{text-align:center;margin-bottom:6mm}
-.foto{width:38mm;height:38mm;border-radius:50%;object-fit:cover;border:1.2mm solid #FCD100;background:#028ED8;display:block;margin:0 auto}
-.fi{display:flex;align-items:center;justify-content:center;font-size:30pt;font-weight:700;color:#fff}
-.s{margin-bottom:3.2mm}
-.sh{font-size:8.5pt;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#FCD100;border-bottom:.35mm solid rgba(252,209,0,.55);padding-bottom:1.2mm;margin:6mm 0 3mm}
-.sl{font-size:7.2pt;text-transform:uppercase;letter-spacing:.8px;color:#9fd0f5}
-.sv{font-size:9pt;font-weight:500;word-break:break-word;line-height:1.35}
-.main{padding:12mm 11mm 22mm 10mm}
-.head{border-bottom:.6mm solid #FCD100;padding-bottom:4mm;margin-bottom:5mm;position:relative}
-.head .co{font-size:8pt;letter-spacing:2px;text-transform:uppercase;color:#028ED8;font-weight:700}
-.head h1{font-size:21pt;line-height:1.15;color:#0b3a6e;margin:1.5mm 0 1mm;font-weight:800}
-.head .jb{font-size:11pt;color:#475569}
-.badge{display:inline-block;margin-top:2.5mm;background:#028ED8;color:#fff;font-size:8pt;font-weight:700;padding:1mm 3.5mm;border-radius:10mm;letter-spacing:.8px}
-section{margin-bottom:5.5mm;break-inside:avoid}
-h2{font-size:10.5pt;color:#0b3a6e;text-transform:uppercase;letter-spacing:1.2px;margin-bottom:2.2mm;display:flex;align-items:center;gap:2mm;font-weight:800}
-h2 i{display:inline-block;width:3mm;height:3mm;background:#FCD100;border-radius:.8mm;transform:rotate(45deg);margin-right:1mm;border:.4mm solid #028ED8}
-.r{display:flex;padding:1.5mm 0;border-bottom:.2mm solid #e2e8f0}
-.r .l{width:41mm;flex:none;color:#64748b;font-size:8.8pt}
-.r .v{font-weight:600;color:#0f172a;word-break:break-word}
-.chips{display:flex;flex-wrap:wrap;gap:2mm}
-.chip{background:#e6f3fc;color:#0b3a6e;border:.3mm solid #028ED8;border-radius:10mm;padding:.8mm 3.5mm;font-size:8.5pt;font-weight:600}
-.foot{position:absolute;left:0;right:0;bottom:0;height:11mm;background:#0b3a6e;color:#cfe6f9;font-size:7.5pt;display:flex;align-items:center;justify-content:space-between;padding:0 10mm;border-top:1.2mm solid #FCD100}
+body{font-family:'Times New Roman',Times,serif;font-size:11.5pt;color:#000;line-height:1.45}
+h1{text-align:center;font-size:13pt;text-decoration:underline;margin:6mm 0 10mm;letter-spacing:.5px}
+table.cv{width:100%;border-collapse:collapse}
+table.cv>tbody>tr>td{vertical-align:top;padding:1.6mm 0}
+td.no{width:7mm}
+td.lb{width:48mm}
+td.sp{width:5mm}
+table.in{border-collapse:collapse}
+table.in td{padding:0 6mm 0 0;vertical-align:top}
+.ttd{margin:14mm 0 0 auto;width:75mm;text-align:center}
+.ttd .sp2{height:22mm}
+.ttd b{text-decoration:underline}
 `;
-
-        const kepeg = row('Jabatan', p.jabatan) + row('Unit Wilayah', p.unitWilayah) + row('Status Pekerjaan', p.statusPekerjaan)
-            + row('Pangkat / Golongan', [p.pangkat, p.golongan].filter(Boolean).join(' / ')) + row('Pendidikan', p.pendidikan)
-            + row('Gaji Pokok', gaji) + row('Terhitung Mulai', p.terhitungMulai) + row('Masa Kerja', p.masaKerja)
-            + row('Tahun Pensiun', p.tahunPensiun) + row('Jadwal', p.shift);
-        const pribadi = row('NIK', p.nik) + row('Jenis Kelamin', p.jenisKelamin) + row('Status Pernikahan', nikah)
-            + row('Tempat, Tgl Lahir', ttl) + row('Golongan Darah', p.golonganDarah) + row('No. KTP', p.ktp) + row('NPWP', p.npwp);
-        const kel = row('Pasangan', pasangan && pasangan.nama) + anak.map((a, i) => row('Anak ke-' + (i + 1), a.nama)).join('')
-            + row('Nama Ayah', ayah && ayah.nama) + row('Nama Ibu', ibu && ibu.nama);
+        const row = (no, label, val) => `<tr><td class="no">${no}.</td><td class="lb">${label}</td><td class="sp">:</td><td>${val}</td></tr>`;
 
         return `<!DOCTYPE html><html lang="id"><head><meta charset="utf-8"><title>CV - ${e(p.nama || 'Karyawan')}</title><style>${css}</style></head><body>
-<div class="page">
-  <aside class="side">
-    <div class="logo"><img src="${e(logo)}" alt="Logo TAA"></div>
-    <div class="fotowrap">${foto}</div>
-    <div class="sh">Kontak</div>
-    ${side('', 'No. Telepon', p.noTelp)}${side('', 'Email', p.email)}${side('', 'Unit Wilayah', p.unitWilayah)}
-    <div class="sh">Ringkas</div>
-    ${side('', 'NIK', p.nik)}${side('', 'Golongan', p.golongan)}${side('', 'Masa Kerja', p.masaKerja)}
-  </aside>
-  <main class="main">
-    <div class="head">
-      <div class="co">PT. Tirta Agung Amuntai (Perseroda)</div>
-      <h1>${e(p.nama || '-')}</h1>
-      <div class="jb">${e(p.jabatan || '')}</div>
-      ${p.statusKaryawan ? `<span class="badge">${e(p.statusKaryawan)}</span>` : ''}
-    </div>
-    ${sec('Data Kepegawaian', kepeg)}
-    ${sec('Data Pribadi', pribadi)}
-    ${sec('Data Keluarga', kel)}
-    ${berkas ? sec('Berkas Dokumen', `<div class="chips">${berkas}</div>`) : ''}
-  </main>
-  <div class="foot"><span>PT. Tirta Agung Amuntai (Perseroda)</span><span>Dicetak ${e(tgl)}</span></div>
+<h1>CURRICULUM VITAE</h1>
+<table class="cv"><tbody>
+${row(1, 'Nama Lengkap', e(p.nama))}
+${row(2, 'Tempat/tgl lahir', e(ttl))}
+${row(3, 'Jabatan', e(p.jabatan))}
+${row(4, 'Pangkat/Golongan', e(gol))}
+${row(5, 'Alamat Kantor', alamatKantor)}
+${row(6, 'Alamat rumah', e(p.alamatRumah))}
+${row(7, 'Agama', e(p.agama))}
+${row(8, 'Riwayat Pendidikan', pendHtml)}
+${row(9, 'Riwayat Pekerjaan/<br>Jabatan', kerjaHtml)}
+</tbody></table>
+<div class="ttd">
+  <div>Karyawan/ti PT. Tirta Agung Amuntai,</div>
+  <div class="sp2"></div>
+  <b>${e(p.nama)}</b><br>${p.nik ? 'NIK. ' + e(p.nik) : ''}
 </div>
 </body></html>`;
     },
