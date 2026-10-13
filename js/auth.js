@@ -772,8 +772,8 @@ body{font-family:'Segoe UI',Calibri,Arial,sans-serif;color:#1e293b;background:#e
 @media screen{.page{box-shadow:0 4px 24px rgba(0,0,0,.2);margin:10px auto}}
 .side{color:#fff;padding:12mm 7mm 22mm;background:linear-gradient(180deg,#0b3a6e 0%,#0a4f94 100%);position:relative}
 .side:after{content:"";position:absolute;right:0;top:0;bottom:0;width:2.2mm;background:#FCD100}
-.logo{background:#fff;border-radius:4mm;padding:4mm;text-align:center;margin-bottom:7mm}
-.logo img{width:36mm;height:auto;display:block;margin:0 auto}
+.logo{background:#fff;border-radius:3mm;padding:2.5mm;text-align:center;margin-bottom:6mm}
+.logo img{width:22mm;height:auto;display:block;margin:0 auto}
 .fotowrap{text-align:center;margin-bottom:6mm}
 .foto{width:38mm;height:38mm;border-radius:50%;object-fit:cover;border:1.2mm solid #FCD100;background:#028ED8;display:block;margin:0 auto}
 .fi{display:flex;align-items:center;justify-content:center;font-size:30pt;font-weight:700;color:#fff}
