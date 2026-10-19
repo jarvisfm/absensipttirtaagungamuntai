@@ -745,3 +745,102 @@ window.quickMenu = {
 };
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', () => quickMenu.init());
 else quickMenu.init();
+
+
+// ===== Aksi Cepat gaya BRImo: grid semua menu =====
+// Menampilkan Masuk/Pulang + SEMUA menu sidebar karyawan yang sedang terlihat
+// (otomatis ikut hak akses/role, dan juga saat Admin masuk Mode Karyawan)
+// sebagai grid ikon. 2 baris pertama langsung terlihat, sisanya dibuka lewat
+// tombol "Lainnya". Kolom pencarian memfilter menu.
+window.quickActions = {
+    _colors: ['#028ED8', '#F59E0B', '#10B981', '#8B5CF6', '#EF4444', '#0EA5E9', '#EC4899', '#14B8A6', '#6366F1'],
+    _open: false,
+    _query: '',
+
+    _list() {
+        const base = [
+            { page: 'absensi', icon: 'fas fa-sign-in-alt', label: 'Masuk', color: '#10B981' },
+            { page: 'absensi', icon: 'fas fa-sign-out-alt', label: 'Pulang', color: '#EF4444' }
+        ];
+        const menus = (window.quickMenu ? quickMenu._items() : []).filter(it => it.page !== 'dashboard');
+        const rest = menus.map((it, i) => Object.assign({}, it, { color: this._colors[(i + 2) % this._colors.length] }));
+        return base.concat(rest);
+    },
+
+    render() {
+        const grid = document.getElementById('qa-grid');
+        if (!grid) return;
+        const q = this._query.trim().toLowerCase();
+        const all = this._list();
+        const items = q ? all.filter(it => it.label.toLowerCase().includes(q)) : all;
+        this._items = items;
+        grid.innerHTML = items.map((it, i) => `
+            <button type="button" class="qa-item" data-idx="${i}">
+                <span class="qa-ic" style="background:${it.color}1f;color:${it.color}"><i class="${it.icon}"></i></span>
+                <span class="qa-lb"></span>
+            </button>`).join('') || '<p class="qa-empty">Menu tidak ditemukan</p>';
+        grid.querySelectorAll('.qa-lb').forEach((n, i) => { n.textContent = items[i].label; });
+        this._measure();
+    },
+
+    // Tandai item di luar 2 baris pertama & tampilkan/sembunyikan tombol "Lainnya"
+    _measure() {
+        const grid = document.getElementById('qa-grid');
+        const more = document.getElementById('qa-more');
+        if (!grid || !more) return;
+        const searching = !!this._query.trim();
+        const cols = (getComputedStyle(grid).gridTemplateColumns || '').split(' ').filter(Boolean).length || 4;
+        const cut = cols * 2;
+        grid.querySelectorAll('.qa-item').forEach((el, i) => {
+            el.classList.toggle('qa-extra', i >= cut);
+            el.style.setProperty('--j', Math.max(0, i - cut));
+        });
+        const hasMore = !searching && grid.querySelectorAll('.qa-item').length > cut;
+        more.style.display = hasMore ? 'flex' : 'none';
+        if (searching || !hasMore) {
+            grid.classList.add('qa-all');
+            grid.classList.remove('open');
+        } else {
+            grid.classList.remove('qa-all');
+            if (this._open) { grid.style.setProperty('--qa-full', grid.scrollHeight + 'px'); grid.classList.add('open'); }
+        }
+        more.classList.toggle('open', this._open);
+        more.querySelector('span').textContent = this._open ? 'Sembunyikan' : 'Lainnya';
+    },
+
+    _toggle() {
+        const grid = document.getElementById('qa-grid');
+        if (!grid) return;
+        this._open = !this._open;
+        if (this._open) grid.style.setProperty('--qa-full', grid.scrollHeight + 'px');
+        grid.classList.toggle('open', this._open);
+        this._measure();
+    },
+
+    init() {
+        const grid = document.getElementById('qa-grid');
+        if (!grid) return;
+        this.render();
+        grid.addEventListener('click', (e) => {
+            const b = e.target.closest('.qa-item');
+            if (!b) return;
+            const it = (this._items || [])[Number(b.dataset.idx)];
+            if (!it) return;
+            if (it.external && it.href) window.open(it.href, '_blank', 'noopener');
+            else if (it.page) router.navigate(it.page);
+        });
+        const more = document.getElementById('qa-more');
+        if (more) more.addEventListener('click', () => this._toggle());
+        const search = document.getElementById('qa-search');
+        if (search) search.addEventListener('input', () => { this._query = search.value; this.render(); });
+        // Menu sidebar bisa berubah (role/hak akses/Mode Karyawan) -> render ulang
+        const nav = document.getElementById('employee-menu');
+        if (nav && window.MutationObserver) {
+            new MutationObserver(() => this.render()).observe(nav, { attributes: true, attributeFilter: ['class'], subtree: true });
+        }
+        // Jumlah kolom berubah saat ukuran kartu berubah (rotasi HP, dashboard baru terlihat, dll)
+        if (window.ResizeObserver) new ResizeObserver(() => this._measure()).observe(grid);
+    }
+};
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', () => quickActions.init());
+else quickActions.init();
