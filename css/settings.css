@@ -305,3 +305,6 @@
 
 /* Modal edit dibuka dari menu: tampil fokus ke satu bagian (tab disembunyikan) */
 #modal-edit-profil.pf-focus .pf-tabs-nav { display: none !important; }
+/* Foto/inisial profil di kepala menu Edit Profil: selalu di tengah */
+.pf-menu-head > img,
+.pf-menu-head > div:first-child { display: block; margin-left: auto; margin-right: auto; }
