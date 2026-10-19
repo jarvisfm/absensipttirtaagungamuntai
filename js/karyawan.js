@@ -399,6 +399,7 @@ const karyawanManager = {
             document.getElementById('p-ktp').value             = p.ktp || '';
             document.getElementById('p-email').value           = p.email || '';
             document.getElementById('p-agama').value           = p.agama || '';
+            document.getElementById('p-alamatRumah').value     = p.alamatRumah || '';
 
             // Foto
             if (p.foto) {
@@ -516,7 +517,7 @@ const karyawanManager = {
     resetForm() {
         const fields = ['karyawan-id','p-nik','p-nama','p-jenisKelamin','p-statusPernikahan',
             'p-tempatLahir','p-tanggalLahir','p-golonganDarah','p-noTelp','p-npwp','p-ktp',
-            'p-email','p-agama','p-statusPekerjaan','p-statusKaryawan','p-pendidikan','p-jabatan',
+            'p-email','p-agama','p-alamatRumah','p-statusPekerjaan','p-statusKaryawan','p-pendidikan','p-jabatan',
             'p-unitWilayah','p-unitJaga','p-bagian','p-pangkat','p-golongan','p-gajiPokok',
             'p-terhitungMulai','p-masaKerja','p-tahunPensiun','p-shift','p-fileKTP',
             'p-namaPasangan','p-namaAyah','p-namaIbu','p-username','p-password'];
@@ -787,6 +788,7 @@ const karyawanManager = {
             fileKTP:          document.getElementById('p-fileKTP')?.value.trim() || '',
             email:            document.getElementById('p-email').value.trim(),
             agama:            document.getElementById('p-agama').value,
+            alamatRumah:      document.getElementById('p-alamatRumah').value.trim(),
             statusPekerjaan:  document.getElementById('p-statusPekerjaan').value,
             statusKaryawan:   document.getElementById('p-statusKaryawan').value,
             pendidikan:       document.getElementById('p-pendidikan').value,
@@ -1173,6 +1175,7 @@ const karyawanManager = {
                     ${field('NPWP', p.npwp)}
                     ${field('No. Telp', p.noTelp)}
                     ${field('Email', p.email)}
+                    ${field('Alamat Rumah', p.alamatRumah)}
                 </div>
 
                 <div style="margin-bottom:1.5rem;">
