@@ -61,16 +61,23 @@ const profileManager = {
     // Isinya mengikuti tab-tab di form Edit Profil: Profil, Kekaryawanan,
     // Keluarga, Akun, Pendidikan, Riwayat KGB, Riwayat Pangkat, Riwayat
     // Mutasi, Riwayat Karyawan. Form-nya sendiri ada di modal #modal-edit-profil.
-    openEditModal() {
+    // Dibuka dari menu Edit Profil (gaya daftar menu). `tab` = bagian yang mau
+    // diedit (profil/kekaryawanan/keluarga/akun/pendidikan/kgb/golongan/mutasi/
+    // riwayatkaryawan) - kalau diisi, modal tampil fokus ke bagian itu saja
+    // (bar tab disembunyikan, judul modal = nama bagian).
+    openEditModal(tab, title) {
         const m = document.getElementById('modal-edit-profil');
         if (!m) return;
-        this.switchTab('profil');
+        m.classList.toggle('pf-focus', !!tab);
+        const h = m.querySelector('.modal-header h3');
+        if (h) h.textContent = title || 'Edit Profil';
+        this.switchTab(tab || 'profil');
         m.style.display = 'flex';
     },
 
     closeEditModal() {
         const m = document.getElementById('modal-edit-profil');
-        if (m) m.style.display = 'none';
+        if (m) { m.style.display = 'none'; m.classList.remove('pf-focus'); }
         this.refreshView();
     },
 
@@ -138,54 +145,45 @@ const profileManager = {
         const rk = list(this.riwayatKaryawan, r =>
             `<strong>${esc(r.jenisKepegawaian || '-')}</strong> - ${esc(r.statusKepegawaian || '-')}<br><span style="color:var(--text-muted);">TMT ${esc(r.tmtCapeg || '-')} &bull; SK ${esc(r.nomorSK || '-')}</span> ${link(r.fileDokumenUrl)}`);
 
+        // Gaya daftar menu (seperti halaman Akun aplikasi mobile banking):
+        // kepala profil + grup menu berisi baris [ikon] [judul] [>].
+        const row = (icon, label, tab) => `
+            <button type="button" class="pf-menu-row" onclick="profileManager.openEditModal('${tab}', '${label}')">
+                <span class="pf-menu-ic"><i class="fas ${icon}"></i></span>
+                <span class="pf-menu-lb">${label}</span>
+                <i class="fas fa-chevron-right pf-menu-ch"></i>
+            </button>`;
+        const group = (title, rows) => `
+            <div class="pf-menu-group">
+                <h4 class="pf-menu-title">${title}</h4>
+                <div class="pf-menu-card">${rows}</div>
+            </div>`;
+        const cvRow = `
+            <button type="button" class="pf-menu-row" onclick="auth.printCV()">
+                <span class="pf-menu-ic"><i class="fas fa-print"></i></span>
+                <span class="pf-menu-lb">Cetak CV</span>
+                <i class="fas fa-chevron-right pf-menu-ch"></i>
+            </button>`;
+
         return `
-            <div style="text-align:center;margin-bottom:1.5rem;">
+            <div class="pf-menu-head">
                 ${fotoHtml}
-                <h3 style="margin-top:0.75rem;font-size:1.1rem;">${esc(p.nama || '-')}</h3>
-                <p style="color:var(--text-muted);font-size:0.85rem;">${esc(p.jabatan || '')}${p.unitWilayah ? ' — ' + esc(p.unitWilayah) : ''}</p>
-                <span style="background:${statusColor}20;color:${statusColor};padding:3px 12px;border-radius:20px;font-size:0.8rem;font-weight:600;">${esc(p.statusKaryawan || '')}</span>
-                <div style="margin-top:0.9rem;">
-                    <button type="button" class="btn-primary btn-sm" onclick="auth.printCV()">
-                        <i class="fas fa-print"></i><span> Cetak CV</span>
-                    </button>
-                </div>
+                <h3>${esc(p.nama || '-')}</h3>
+                <p>${esc(p.jabatan || '')}${p.unitWilayah ? ' — ' + esc(p.unitWilayah) : ''}</p>
+                <span class="pf-menu-badge" style="background:${statusColor}20;color:${statusColor};">${esc(p.statusKaryawan || '')}</span>
             </div>
-            ${section('fa-user', 'DATA PRIBADI',
-                field('NIK', esc(p.nik)) +
-                field('Jenis Kelamin', esc(p.jenisKelamin)) +
-                field('Agama', esc(p.agama)) +
-                field('Status Pernikahan', esc(p.statusPernikahan === 'K' ? 'Kawin' : p.statusPernikahan === 'TK' ? 'Belum Kawin' : p.statusPernikahan)) +
-                field('Tempat, Tgl Lahir', p.tempatLahir && p.tanggalLahir ? esc(p.tempatLahir + ', ' + p.tanggalLahir) : esc(p.tempatLahir || p.tanggalLahir)) +
-                field('Golongan Darah', esc(p.golonganDarah)) +
-                field('No. KTP', esc(p.ktp)) +
-                field('NPWP', esc(p.npwp)) +
-                field('No. Telp', esc(p.noTelp)) +
-                field('Email', esc(p.email)))}
-            ${section('fa-briefcase', 'DATA KEKARYAWANAN',
-                field('Status Pekerjaan', esc(p.statusPekerjaan)) +
-                field('Pendidikan', esc(p.pendidikan)) +
-                field('Jabatan', esc(p.jabatan)) +
-                field('Unit Wilayah', esc(p.unitWilayah)) +
-                field('Bagian', esc(p.bagian)) +
-                field('Pangkat', esc(p.pangkat)) +
-                field('Golongan', esc(p.golongan)) +
-                field('Gaji Pokok', p.gajiPokok ? 'Rp ' + Number(p.gajiPokok).toLocaleString('id-ID') : '') +
-                field('Terhitung Mulai', esc(p.terhitungMulai)) +
-                field('Masa Kerja', esc(p.masaKerja)) +
-                field('Tahun Pensiun', esc(p.tahunPensiun)) +
-                field('Jadwal', esc(p.shift)))}
-            ${section('fa-users', 'DATA KELUARGA',
-                field('Pasangan', esc(pasangan && pasangan.nama)) +
-                anak.map((a, i) => field(`Anak ke-${i + 1}`, esc(a.nama))).join('') +
-                field('Nama Ayah', esc(ayah && ayah.nama)) +
-                field('Nama Ibu', esc(ibu && ibu.nama)) +
-                field('Berkas KTP', link(p.fileKTP)))}
-            ${section('fa-user-lock', 'AKUN', field('Username', esc(p.username)))}
-            ${section('fa-graduation-cap', 'RIWAYAT PENDIDIKAN', pendidikan)}
-            ${section('fa-money-bill-trend-up', 'RIWAYAT KGB', kgb)}
-            ${section('fa-layer-group', 'RIWAYAT PANGKAT', gol)}
-            ${section('fa-right-left', 'RIWAYAT MUTASI', mut)}
-            ${section('fa-id-badge', 'RIWAYAT KARYAWAN', rk)}
+            ${group('Informasi Pribadi',
+                row('fa-user', 'Data Pribadi', 'profil') +
+                row('fa-briefcase', 'Data Kekaryawanan', 'kekaryawanan') +
+                row('fa-users', 'Data Keluarga', 'keluarga'))}
+            ${group('Riwayat',
+                row('fa-graduation-cap', 'Riwayat Pendidikan', 'pendidikan') +
+                row('fa-money-bill-trend-up', 'Riwayat KGB', 'kgb') +
+                row('fa-layer-group', 'Riwayat Pangkat', 'golongan') +
+                row('fa-right-left', 'Riwayat Mutasi', 'mutasi') +
+                row('fa-id-badge', 'Riwayat Karyawan', 'riwayatkaryawan'))}
+            ${group('Keamanan', row('fa-user-lock', 'Akun, Password & Notifikasi', 'akun'))}
+            ${group('Dokumen', cvRow)}
         `;
     },
 
