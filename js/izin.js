@@ -864,6 +864,13 @@ const izin = {
                 if (this.currentFile) {
                     await this.uploadLampiranIzin(result.data.id, this.currentFile);
                 }
+            } else {
+                // BUGFIX: sebelumnya penolakan server (mis. Asmen penyetuju belum
+                // diatur Admin) diabaikan dan tetap muncul toast "berhasil dikirim"
+                // padahal data tidak tersimpan. Tampilkan alasan sebenarnya & jangan
+                // reset form supaya isian user tidak hilang.
+                toast.error(result.error || 'Gagal mengirim pengajuan izin.');
+                return;
             }
         } catch (error) {
             console.error('Error submitting izin:', error);
