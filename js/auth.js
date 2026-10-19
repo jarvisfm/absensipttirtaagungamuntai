@@ -750,84 +750,29 @@ const auth = {
         setTimeout(() => { try { w.focus(); w.print(); } catch (e) { /* abaikan */ } }, 300);
     },
 
+    // [DIUBAH 2026-10-19] Format CV dibuat POLOS (tanpa logo, foto, warna
+    // maupun kolom samping) - hanya Curriculum Vitae bernomor 1-9 seperti
+    // format baku di kantor, ditutup tanda tangan "Karyawan/ti PDAM".
     _cvHtml(p, pendidikan, mutasi) {
         const e = v => String(v == null ? '' : v).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-        const logo = new URL('assets/logo-taa.png', location.href).href;
-        const keluarga = p.keluarga || [];
-        const pasangan = keluarga.find(k => k.tipe === 'pasangan');
-        const ayah = keluarga.find(k => k.tipe === 'ayah');
-        const ibu = keluarga.find(k => k.tipe === 'ibu');
-        const anak = keluarga.filter(k => k.tipe === 'anak');
-        const nikah = p.statusPernikahan === 'K' ? 'Kawin' : p.statusPernikahan === 'TK' ? 'Belum Kawin' : p.statusPernikahan;
-        const ttl = (p.tempatLahir && p.tanggalLahir) ? `${p.tempatLahir}, ${p.tanggalLahir}` : (p.tempatLahir || p.tanggalLahir || '');
-        const gaji = p.gajiPokok ? 'Rp ' + Number(p.gajiPokok).toLocaleString('id-ID') : '';
-        const initials = (p.nama || 'P').split(' ').filter(Boolean).map(x => x[0]).join('').substring(0, 2).toUpperCase();
-        const tgl = new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
-
-        const row = (l, v) => v ? `<div class="r"><span class="l">${e(l)}</span><span class="v">${e(v)}</span></div>` : '';
-        const side = (icon, l, v) => v ? `<div class="s"><div class="sl">${e(l)}</div><div class="sv">${e(v)}</div></div>` : '';
-        const sec = (t, body) => body.trim() ? `<section><h2><i></i>${e(t)}</h2>${body}</section>` : '';
-
-        const foto = p.foto
-            ? `<img class="foto" src="${e(p.foto)}" alt="" referrerpolicy="no-referrer">`
-            : `<div class="foto fi">${e(initials)}</div>`;
-
-        const berkas = [['Surat SK', p.fileSK], ['KTP', p.fileKTP], ['Ijazah', p.fileIjazah], ['Sertifikat', p.fileSertifikat]]
-            .filter(x => x[1]).map(x => `<span class="chip">${e(x[0])}</span>`).join('');
-
-        const css = `
-@page{size:A4;margin:0}
-*{box-sizing:border-box;margin:0;padding:0}
-html,body{-webkit-print-color-adjust:exact;print-color-adjust:exact}
-body{font-family:'Segoe UI',Calibri,Arial,sans-serif;color:#1e293b;background:#e5e7eb;font-size:9.6pt}
-.page{width:210mm;min-height:297mm;margin:0 auto;background:linear-gradient(to right,#0b3a6e 0,#0b3a6e 70mm,#fff 70mm);display:grid;grid-template-columns:70mm 1fr;position:relative}
-@media screen{.page{box-shadow:0 4px 24px rgba(0,0,0,.2);margin:10px auto}}
-.side{color:#fff;padding:12mm 7mm 22mm;background:linear-gradient(180deg,#0b3a6e 0%,#0a4f94 100%);position:relative}
-.side:after{content:"";position:absolute;right:0;top:0;bottom:0;width:2.2mm;background:#FCD100}
-.logo{background:#fff;border-radius:3mm;padding:2.5mm;text-align:center;margin-bottom:6mm}
-.logo img{width:22mm;height:auto;display:block;margin:0 auto}
-.fotowrap{text-align:center;margin-bottom:6mm}
-.foto{width:38mm;height:38mm;border-radius:50%;object-fit:cover;border:1.2mm solid #FCD100;background:#028ED8;display:block;margin:0 auto}
-.fi{display:flex;align-items:center;justify-content:center;font-size:30pt;font-weight:700;color:#fff}
-.s{margin-bottom:3.2mm}
-.sh{font-size:8.5pt;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#FCD100;border-bottom:.35mm solid rgba(252,209,0,.55);padding-bottom:1.2mm;margin:6mm 0 3mm}
-.sl{font-size:7.2pt;text-transform:uppercase;letter-spacing:.8px;color:#9fd0f5}
-.sv{font-size:9pt;font-weight:500;word-break:break-word;line-height:1.35}
-.main{padding:12mm 11mm 22mm 10mm}
-.head{border-bottom:.6mm solid #FCD100;padding-bottom:4mm;margin-bottom:5mm;position:relative}
-.head .co{font-size:8pt;letter-spacing:2px;text-transform:uppercase;color:#028ED8;font-weight:700}
-.head h1{font-size:21pt;line-height:1.15;color:#0b3a6e;margin:1.5mm 0 1mm;font-weight:800}
-.head .jb{font-size:11pt;color:#475569}
-.badge{display:inline-block;margin-top:2.5mm;background:#028ED8;color:#fff;font-size:8pt;font-weight:700;padding:1mm 3.5mm;border-radius:10mm;letter-spacing:.8px}
-section{margin-bottom:5.5mm;break-inside:avoid}
-h2{font-size:10.5pt;color:#0b3a6e;text-transform:uppercase;letter-spacing:1.2px;margin-bottom:2.2mm;display:flex;align-items:center;gap:2mm;font-weight:800}
-h2 i{display:inline-block;width:3mm;height:3mm;background:#FCD100;border-radius:.8mm;transform:rotate(45deg);margin-right:1mm;border:.4mm solid #028ED8}
-.r{display:flex;padding:1.5mm 0;border-bottom:.2mm solid #e2e8f0}
-.r .l{width:36mm;padding-right:2mm;flex:none;color:#64748b;font-size:8.8pt}
-.r .v{font-weight:600;color:#0f172a;word-break:break-word}
-.ln{display:flex;gap:2mm;padding:.4mm 0;font-weight:500;font-size:9pt}
-.ln .a{width:17mm;flex:none}
-.ln .b{width:20mm;flex:none}
-.ln .c{flex:1}
-.ln2{display:flex;gap:2mm;padding:.4mm 0;font-weight:500;font-size:9pt}
-.ln2 .a{flex:1}
-.ln2 .b{width:36mm;flex:none}
-.chips{display:flex;flex-wrap:wrap;gap:2mm}
-.chip{background:#e6f3fc;color:#0b3a6e;border:.3mm solid #028ED8;border-radius:10mm;padding:.8mm 3.5mm;font-size:8.5pt;font-weight:600}
-.foot{position:absolute;left:0;right:0;bottom:0;height:11mm;background:#0b3a6e;color:#cfe6f9;font-size:7.5pt;display:flex;align-items:center;justify-content:space-between;padding:0 10mm;border-top:1.2mm solid #FCD100}
-`;
-
+        const BULAN = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+        const tglPanjang = v => {
+            const m = String(v || '').match(/^(\d{4})-(\d{2})-(\d{2})/);
+            return m ? `${parseInt(m[3], 10)} ${BULAN[parseInt(m[2], 10) - 1] || ''} ${m[1]}` : String(v || '');
+        };
         const th = v => { const m = String(v || '').match(/\d{4}/); return m ? m[0] : ''; };
-        const rowAll = (l, v) => `<div class="r"><span class="l">${l}</span><span class="v">${v || '&nbsp;'}</span></div>`;
-        const gol = [p.pangkat, p.golongan].filter(Boolean).join(' / ');
-        const alamatKantor = 'Jalan Palang Merah No.319.A Amuntai Kalimantan Selatan, Kode Pos : 71414, Email Ktr : pdamkabhsu@yahoo.com, Telpon 0527 61 345, Fax : 0527 63 057';
 
-        // Riwayat Pendidikan (tab Pendidikan), urut SD -> S2
+        const tgl = tglPanjang(p.tanggalLahir);
+        const ttl = (p.tempatLahir && tgl) ? `${p.tempatLahir}, ${tgl}` : (p.tempatLahir || tgl || '');
+        const gol = [p.pangkat, p.golongan].filter(Boolean).join('/');
+
+        // Riwayat Pendidikan (tab Pendidikan), urut SD -> S3
         const urut = { SD: 1, SMP: 2, SMA: 3, SLTA: 3, SMK: 3, D3: 4, D4: 5, S1: 6, S2: 7, S3: 8 };
         const pend = (pendidikan || []).slice().sort((x, y) => (urut[x.jenjang] || 99) - (urut[y.jenjang] || 99));
-        const pendHtml = pend.map(r => `<div class="ln"><span class="a">Lulus ${e(r.jenjang)}</span><span class="b">Tahun ${e(r.tahunLulus || '-')}</span><span class="c">di ${e(r.namaSekolah)}${r.jurusan ? ' (' + e(r.jurusan) + ')' : ''}</span></div>`).join('');
+        const pendHtml = pend.length ? `<table class="sub">${pend.map(r =>
+            `<tr><td class="c1">Lulus ${e(r.jenjang)}</td><td class="c2">: Tahun ${e(r.tahunLulus || '-')}</td><td class="c3">di ${e(r.namaSekolah || '-')}${r.jurusan ? ' (' + e(r.jurusan) + ')' : ''}</td></tr>`).join('')}</table>` : '';
 
-        // Riwayat Pekerjaan/Jabatan (tab Riwayat Mutasi), kosong jika tidak ada mutasi
+        // Riwayat Pekerjaan/Jabatan (tab Riwayat Mutasi)
         const mts = (mutasi || []).filter(m => m.tanggalSurat).slice().sort((x, y) => String(x.tanggalSurat).localeCompare(String(y.tanggalSurat)));
         const kerja = [];
         if (mts.length) {
@@ -837,36 +782,50 @@ h2 i{display:inline-block;width:3mm;height:3mm;background:#FCD100;border-radius:
                 kerja.push({ jab: m.unorBaru, dari: th(m.tanggalSurat), sd: i + 1 < mts.length ? th(mts[i + 1].tanggalSurat) : 'sekarang' });
             });
         }
-        const kerjaHtml = kerja.map(k => `<div class="ln2"><span class="a">${e(k.jab)}</span><span class="b">Tahun ${e(k.dari || '-')} s/d ${e(k.sd)}</span></div>`).join('');
+        const kerjaHtml = kerja.length ? `<table class="sub">${kerja.map(k =>
+            `<tr><td class="k1">${e(k.jab)}</td><td class="k2">Tahun ${e(k.dari || '-')} s/d ${e(k.sd)}</td></tr>`).join('')}</table>` : '';
 
-        const diri = rowAll('Nama Lengkap', e(p.nama)) + rowAll('Tempat/Tgl Lahir', e(ttl)) + rowAll('Jabatan', e(p.jabatan))
-            + rowAll('Pangkat/Golongan', e(gol)) + rowAll('Alamat Kantor', e(alamatKantor)) + rowAll('Alamat Rumah', e(p.alamatRumah))
-            + rowAll('Agama', e(p.agama)) + rowAll('Riwayat Pendidikan', pendHtml) + rowAll('Riwayat Pekerjaan/ Jabatan', kerjaHtml);
-        const kel = row('Pasangan', pasangan && pasangan.nama) + anak.map((a, i) => row('Anak ke-' + (i + 1), a.nama)).join('')
-            + row('Nama Ayah', ayah && ayah.nama) + row('Nama Ibu', ibu && ibu.nama);
+        const alamatKantor = 'Jalan Palang Merah No.319.A Amuntai Kalimantan Selatan<br>Kode Pos : 71414 Email Ktr : pdamkabhsu@yahoo.com<br>Telpon 0527 61 345 &nbsp; Fax : 0527 63 057';
+        const rumah = [e(p.alamatRumah || ''), p.email ? 'Email : ' + e(p.email) : '', p.noTelp ? 'Telp. : ' + e(p.noTelp) : ''].filter(Boolean).join('<br>');
+
+        const rows = [
+            ['Nama Lengkap', e(p.nama)],
+            ['Tempat/tgl lahir', e(ttl)],
+            ['Jabatan', e(p.jabatan)],
+            ['Pangkat/Golongan', e(gol)],
+            ['Alamat Kantor', alamatKantor],
+            ['Alamat rumah', rumah],
+            ['Agama', e(p.agama)],
+            ['Riwayat Pendidikan', pendHtml],
+            ['Riwayat Pekerjaan/ Jabatan', kerjaHtml]
+        ].map((r, i) => `<tr><td class="no">${i + 1}.</td><td class="lb">${r[0]}</td><td class="sp">:</td><td class="vl">${r[1] || ''}</td></tr>`).join('');
+
+        const css = `
+@page{size:A4;margin:20mm 18mm}
+*{box-sizing:border-box}
+body{font-family:'Times New Roman',Times,serif;font-size:12pt;color:#000;background:#fff;margin:0;line-height:1.35}
+h1{font-size:13pt;text-align:center;text-decoration:underline;margin:0 0 14mm;letter-spacing:.3px}
+table{border-collapse:collapse;width:100%}
+td{vertical-align:top;padding:1.6mm 0}
+.no{width:7mm}
+.lb{width:48mm}
+.sp{width:5mm}
+table.sub{width:100%}
+table.sub td{padding:0 1mm 0 0}
+.c1{width:28mm}.c2{width:32mm}
+.k1{width:62%}.k2{width:38%}
+.ttd{margin:16mm 0 0 auto;width:68mm;text-align:center}
+.ttd .nm{margin-top:24mm;font-weight:bold;text-decoration:underline}
+@media screen{body{max-width:210mm;margin:0 auto;padding:20mm 18mm}}
+`;
 
         return `<!DOCTYPE html><html lang="id"><head><meta charset="utf-8"><title>CV - ${e(p.nama || 'Karyawan')}</title><style>${css}</style></head><body>
-<div class="page">
-  <aside class="side">
-    <div class="logo"><img src="${e(logo)}" alt="Logo TAA"></div>
-    <div class="fotowrap">${foto}</div>
-    <div class="sh">Kontak</div>
-    ${side('', 'No. Telepon', p.noTelp)}${side('', 'Email', p.email)}${side('', 'Unit Wilayah', p.unitWilayah)}
-    <div class="sh">Ringkas</div>
-    ${side('', 'NIK', p.nik)}${side('', 'Golongan', p.golongan)}${side('', 'Masa Kerja', p.masaKerja)}
-  </aside>
-  <main class="main">
-    <div class="head">
-      <div class="co">PT. Tirta Agung Amuntai (Perseroda)</div>
-      <h1>${e(p.nama || '-')}</h1>
-      <div class="jb">${e(p.jabatan || '')}</div>
-      ${p.statusKaryawan ? `<span class="badge">${e(p.statusKaryawan)}</span>` : ''}
-    </div>
-    ${sec('Curriculum Vitae', diri)}
-    ${sec('Data Keluarga', kel)}
-    ${berkas ? sec('Berkas Dokumen', `<div class="chips">${berkas}</div>`) : ''}
-  </main>
-  <div class="foot"><span>PT. Tirta Agung Amuntai (Perseroda)</span><span>Dicetak ${e(tgl)}</span></div>
+<h1>CURRICULUM VITAE</h1>
+<table>${rows}</table>
+<div class="ttd">
+  <div>Karyawan/ti PDAM,</div>
+  <div class="nm">${e(p.nama || '')}</div>
+  <div>${p.nik && p.nik !== '-' ? 'NIK. ' + e(p.nik) : ''}</div>
 </div>
 </body></html>`;
     },
