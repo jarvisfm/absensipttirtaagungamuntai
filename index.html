@@ -3504,6 +3504,15 @@
                                     class="btn-primary" id="btn-print-leave"><i
                                         class="fas fa-print"></i><span>Cetak</span></button></div>
                         </div>
+                        <!-- [TAMBAHAN 2026-10-19] Sub menu Rekap Cuti & Izin: "Rekap Pengajuan"
+                             (tampilan lama) dan "Kuota Habis" (daftar karyawan yang kuota
+                             Cuti Tahunan / Izin Harian-nya sudah habis - pengganti notifikasi
+                             pop-up yang dihapus). -->
+                        <div class="ap-tabs" id="leave-subtabs">
+                            <button type="button" class="ap-tab active" data-leave-tab="rekap"><i class="fas fa-list"></i> Rekap Pengajuan</button>
+                            <button type="button" class="ap-tab" data-leave-tab="kuota"><i class="fas fa-battery-empty"></i> Kuota Habis <span class="ap-tab-count" id="leave-kuota-count">0</span></button>
+                        </div>
+                        <div id="leave-panel-rekap">
                         <div class="reports-filters-card">
                             <div class="reports-filters">
                                 <div class="filter-group"><label>Periode</label><input type="month" id="leave-month"></div>
@@ -3544,6 +3553,45 @@
                                 </table>
                             </div>
                             <div class="mobile-cards" id="leave-mobile-cards"></div>
+                        </div>
+                        </div><!-- /#leave-panel-rekap -->
+
+                        <div id="leave-panel-kuota" style="display:none;">
+                            <div class="reports-filters-card">
+                                <div class="reports-filters">
+                                    <div class="filter-group"><label>Nama Karyawan</label><input type="text" id="leave-kuota-name" placeholder="Cari nama karyawan..."></div>
+                                    <div class="filter-group"><label>Tampilkan</label><select id="leave-kuota-jenis">
+                                            <option value="any">Cuti atau Izin habis</option>
+                                            <option value="cuti">Kuota Cuti Tahunan habis</option>
+                                            <option value="izin">Kuota Izin Harian habis</option>
+                                            <option value="both">Keduanya habis</option>
+                                            <option value="all">Semua karyawan</option>
+                                        </select></div>
+                                    <div class="filter-group"><label>Bagian</label><select id="leave-kuota-bagian">
+                                            <option value="">Semua</option>
+                                        </select></div>
+                                    <div class="filter-group" style="align-self:flex-end;"><button class="btn-secondary" id="btn-export-leave-kuota"><i class="fas fa-download"></i><span>Export</span></button></div>
+                                </div>
+                            </div>
+                            <div id="leave-kuota-summary" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px;"></div>
+                            <div class="reports-table-card">
+                                <div class="table-responsive">
+                                    <table class="reports-table" id="leave-kuota-table">
+                                        <thead>
+                                            <tr>
+                                                <th>Nama</th>
+                                                <th>Jabatan</th>
+                                                <th>Bagian</th>
+                                                <th>Cuti Tahunan<br><small>(terpakai / kuota)</small></th>
+                                                <th>Izin Harian<br><small>(terpakai / kuota)</small></th>
+                                                <th>Keterangan</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="leave-kuota-body"></tbody>
+                                    </table>
+                                </div>
+                                <div class="mobile-cards" id="leave-kuota-mobile-cards"></div>
+                            </div>
                         </div>
                     </div>
                 </div>
