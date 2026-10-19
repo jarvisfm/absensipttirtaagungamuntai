@@ -542,6 +542,9 @@ const printLetters = {
         const keluar    = izin.jamKeluar || izin.jam_keluar || '';
         const masuk     = izin.jamMasuk  || izin.jam_masuk  || '';
         const keperluan = izin.reason    || izin.alasan     || '';
+        // Pemohon Manajer: tidak ada tahap Manajer (langsung Direktur) - kolom
+        // "Disetujui oleh Manajer" dikosongkan.
+        const tanpaTahapManajer = String(emp.role || '').toLowerCase() === 'manajer';
 
         const html = `
             <h3 class="letter-title">SURAT IZIN KELUAR KANTOR</h3>
@@ -572,19 +575,28 @@ const printLetters = {
                         value="${this._formatJam(masuk)}"></td></tr>
             </table>
 
-            ${(izin.managerParaf || izin.managerParafDate) ? `
-            <div class="letter-signoff-block" style="float:left;">
-                <p>&nbsp;</p>
-                <p>Paraf ${this._managerLabelForBagian(emp.bagian)}</p>
-                <div class="signature-space" style="text-align:center;">${this._parafHtml(izin.managerParaf, izin.managerParafDate, 44)}</div>
-            </div>` : ''}
-
-            <div class="letter-signoff-block">
-                <p>Amuntai, ${this._formatTanggalIndo(izin.appliedAt || new Date().toISOString())}</p>
-                <p>Direktur</p>
-                <div class="signature-space" style="text-align:center;">${this._parafHtml(izin.directorParaf, izin.directorParafDate, 44)}</div>
-                <p class="signature-name-underline">Muhammad Nasrullah, S. AB</p>
-            </div>
+            <!-- Tabel 2 kolom (BUKAN float) supaya baris Manajer (kiri) dan Direktur
+                 (kanan) selalu sejajar walau label bagian Manajer panjang & turun baris. -->
+            <table class="letter-signoff-table" style="margin-top:10px;">
+                <tr>
+                    <td>${tanpaTahapManajer ? '' : `
+                        <p style="margin:0 0 2px;">Disetujui oleh ${this._managerLabelForBagian(emp.bagian)}</p>
+                        <p style="margin:0 0 2px;">TTD serta tanggal</p>`}
+                    </td>
+                    <td>
+                        <p style="margin:0 0 2px;">Amuntai, ${this._formatTanggalIndo(izin.appliedAt || new Date().toISOString())}</p>
+                        <p style="margin:0 0 2px;">Direktur</p>
+                    </td>
+                </tr>
+                <tr>
+                    <td><div class="signature-space" style="text-align:center;">${tanpaTahapManajer ? '' : this._parafHtml(izin.managerParaf, izin.managerParafDate, 44)}</div></td>
+                    <td><div class="signature-space" style="text-align:center;">${this._parafHtml(izin.directorParaf, izin.directorParafDate, 44)}</div></td>
+                </tr>
+                <tr>
+                    <td>${(!tanpaTahapManajer && izin.managerName) ? `<p class="signature-name-underline" style="margin:2px 0 0;">${izin.managerName}</p>` : ''}</td>
+                    <td><p class="signature-name-underline" style="margin:2px 0 0;">Muhammad Nasrullah, S. AB</p></td>
+                </tr>
+            </table>
         `;
         // Ukuran kecil (seperempat A4) khusus Surat Izin Keluar Kantor - lihat .letter-small di print-letters.css
         this._showPlain(html, 'letter-small');
