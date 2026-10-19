@@ -766,6 +766,9 @@ const auth = {
         const th = v => { const m = String(v || '').match(/\d{4}/); return m ? m[0] : ''; };
 
         const tgl = tglPanjang(p.tanggalLahir);
+        // Tanggal cetak (hari ini) untuk baris "Amuntai, <tanggal>" di atas tanda tangan
+        const now = new Date();
+        const tglCetak = `${now.getDate()} ${BULAN[now.getMonth()]} ${now.getFullYear()}`; // pakai tanggal lokal perangkat (bukan UTC)
         const ttl = (p.tempatLahir && tgl) ? `${p.tempatLahir}, ${tgl}` : (p.tempatLahir || tgl || '');
         const gol = [p.pangkat, p.golongan].filter(Boolean).join('/');
 
@@ -837,7 +840,7 @@ table.sub td{padding:0 1mm 0 0}
 <h1>CURRICULUM VITAE</h1>
 <table>${rows}</table>
 <div class="ttd">
-  <div>Amuntai, ............................</div>
+  <div>Amuntai, ${e(tglCetak)}</div>
   <div class="nm">${e(p.nama || '')}</div>
   <div>${p.nik && p.nik !== '-' ? 'NIK. ' + e(p.nik) : ''}</div>
 </div>
