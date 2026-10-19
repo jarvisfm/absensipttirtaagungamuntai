@@ -463,17 +463,8 @@ const adminReports = {
         const tahunIni = new Date().getFullYear();
         this.leaveQuota = {};
 
-        // Notif "kuota cuti tahunan habis" hanya perlu ditampilkan SEKALI per
-        // sesi (bukan setiap kali halaman Rekap Cuti & Izin dibuka/refresh),
-        // supaya tidak berulang-ulang muncul. Dicatat per karyawan+tahun di
-        // sessionStorage supaya kalau login lagi (sesi baru) bisa muncul lagi.
-        let warnedSet = new Set();
-        try {
-            warnedSet = new Set(JSON.parse(sessionStorage.getItem('leaveQuotaWarned') || '[]'));
-        } catch (e) {
-            warnedSet = new Set();
-        }
-
+        // (Notifikasi pop-up "kuota cuti tahunan habis" untuk admin DIHAPUS atas
+        // permintaan - kuota tetap dihitung di bawah untuk kolom/tampilan sisa cuti.)
         employees.forEach(emp => {
             const cutiTahunanTerpakai = uniqueLeaves.filter(l =>
                 String(l.userId) === String(emp.id) &&
@@ -484,19 +475,7 @@ const adminReports = {
             const totalPakai = cutiTahunanTerpakai.reduce((sum, l) => sum + (parseInt(l.duration) || 0), 0);
             const sisa = KUOTA_CUTI - totalPakai;
             this.leaveQuota[String(emp.id)] = { pakai: totalPakai, sisa: Math.max(0, sisa) };
-            if (totalPakai >= KUOTA_CUTI) {
-                const warnKey = `${emp.id}-${tahunIni}`;
-                if (!warnedSet.has(warnKey)) {
-                    const nama = emp.name || emp.nama || 'Karyawan';
-                    toast.warning(`⚠️ Kuota cuti tahunan ${nama} sudah habis tahun ini!`);
-                    warnedSet.add(warnKey);
-                }
-            }
         });
-
-        try {
-            sessionStorage.setItem('leaveQuotaWarned', JSON.stringify([...warnedSet]));
-        } catch (e) { /* abaikan kalau sessionStorage penuh/tidak tersedia */ }
 
         // Notif "kuota Izin Harian terlewati" ke admin - pola sama persis
         // dengan notif kuota cuti tahunan di atas (sekali per sesi per
