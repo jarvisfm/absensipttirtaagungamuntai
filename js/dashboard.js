@@ -143,7 +143,8 @@ const dashboard = {
                     const masuk  = sessions.find(s => s.field === 'clockIn');
                     const pulang = sessions.find(s => s.field === 'clockOut');
                     const jamKerja = (masuk && pulang) ? `${masuk.time} - ${pulang.time}` : '';
-                    shiftEl.textContent = jamKerja ? `Shift: ${info.shift} (${jamKerja})` : `Shift: ${info.shift}`;
+                    const namaShift = String(info.shift == null ? '' : info.shift).replace(/\s*\(\s*(?:sen(?:in)?|sel(?:asa)?|rab(?:u)?|kam(?:is)?|jum(?:at|'at)?|sab(?:tu)?|min(?:ggu)?)(?:\s*[-–,&/]\s*(?:sen(?:in)?|sel(?:asa)?|rab(?:u)?|kam(?:is)?|jum(?:at|'at)?|sab(?:tu)?|min(?:ggu)?))*\s*\)\s*$/i, '').trim() || info.shift; // tampilan saja: "Reguler (Sen-Kam)" -> "Reguler"
+                    shiftEl.textContent = jamKerja ? `Shift: ${namaShift} (${jamKerja})` : `Shift: ${namaShift}`;
                 } else {
                     const msg = (result && result.data && result.data.message) || 'Tidak ada jadwal';
                     shiftEl.textContent = `Shift: Libur (${msg})`;
