@@ -460,6 +460,21 @@
                     </div>
 
                     <div class="dashboard-grid">
+                        <div class="dashboard-card quick-actions qa-card">
+                            <div class="card-header">
+                                <h3>Aksi Cepat</h3>
+                            </div>
+                            <!-- Gaya grid menu seperti BRImo: semua menu sidebar tampil sebagai ikon,
+                                 2 baris pertama langsung terlihat, sisanya lewat tombol "Lainnya".
+                                 Diisi js/dashboard.js (quickActions) - otomatis sama dengan menu sidebar
+                                 user, termasuk saat Admin masuk Mode Karyawan. -->
+                            <div class="qa-wrap">
+                                <label class="qa-search"><i class="fas fa-search"></i><input type="search" id="qa-search" placeholder="Cari menu" autocomplete="off"></label>
+                                <div class="qa-grid" id="qa-grid"></div>
+                                <button type="button" class="qa-more" id="qa-more" style="display:none;"><span>Lainnya</span><i class="fas fa-chevron-down"></i></button>
+                            </div>
+                        </div>
+
                         <div class="dashboard-card stats-card">
                             <div class="card-header">
                                 <h3>Statistik Kehadiran</h3>
@@ -523,21 +538,6 @@
                                     <div class="progress-fill" id="work-progress"></div>
                                 </div>
                                 <p class="progress-text">Progress hari ini</p>
-                            </div>
-                        </div>
-
-                        <div class="dashboard-card quick-actions qa-card">
-                            <div class="card-header">
-                                <h3>Aksi Cepat</h3>
-                            </div>
-                            <!-- Gaya grid menu seperti BRImo: semua menu sidebar tampil sebagai ikon,
-                                 2 baris pertama langsung terlihat, sisanya lewat tombol "Lainnya".
-                                 Diisi js/dashboard.js (quickActions) - otomatis sama dengan menu sidebar
-                                 user, termasuk saat Admin masuk Mode Karyawan. -->
-                            <div class="qa-wrap">
-                                <label class="qa-search"><i class="fas fa-search"></i><input type="search" id="qa-search" placeholder="Cari menu" autocomplete="off"></label>
-                                <div class="qa-grid" id="qa-grid"></div>
-                                <button type="button" class="qa-more" id="qa-more" style="display:none;"><span>Lainnya</span><i class="fas fa-chevron-down"></i></button>
                             </div>
                         </div>
 
