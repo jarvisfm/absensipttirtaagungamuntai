@@ -1744,7 +1744,11 @@ const izin = {
                 ${richNote.editorHtml('approval-catatan')}
             </div>
 
-            ${window.paraf ? paraf.editorHtml('approval-paraf-izin') : ''}
+            ${window.paraf ? ((item.type === 'keluar_kantor' && role === 'manajer')
+                // Izin Keluar Kantor, tahap Manajer: kotak ini jadi "TTD serta tanggal"
+                // Manajer di surat (kolom "Disetujui oleh Manajer ...").
+                ? paraf.editorHtml('approval-paraf-izin', { title: 'TTD Manajer', hint: '(tampil di surat: "TTD serta tanggal")' })
+                : paraf.editorHtml('approval-paraf-izin')) : ''}
 
             ${(role === 'direktur' && item.status === 'approved') ? `
             <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px;">
