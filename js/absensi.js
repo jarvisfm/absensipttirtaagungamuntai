@@ -575,7 +575,7 @@ const absensi = {
 
         nameEl.textContent = this.accessInfo.activeSessionLabel
             ? `${this._cleanShiftBaseName(this.accessInfo.shift)} ${this.accessInfo.activeSessionLabel}`
-            : (this.accessInfo.shift || '-');
+            : (this._shortShiftName(this.accessInfo.shift) || '-');
 
         const sessions = this.accessInfo.sessions || [];
         const masuk  = sessions.find(s => s.field === 'clockIn');
@@ -583,11 +583,21 @@ const absensi = {
         timeEl.textContent = (masuk && pulang) ? `${masuk.time} - ${pulang.time}` : '-';
     },
 
+    // [TAMBAHAN] Nama Jenis Jadwal untuk TAMPILAN ke karyawan: buang keterangan
+    // rentang hari di belakangnya, mis. "Reguler (Sen-Kam)" -> "Reguler".
+    // HANYA tampilan - nama aslinya (kunci Jenis Jadwal di menu Jadwal Shift
+    // admin, dipakai di data karyawan & absensi) tidak diubah sama sekali.
+    _shortShiftName(raw) {
+        const s = String(raw == null ? '' : raw);
+        const short = s.replace(/\s*\(\s*(?:sen(?:in)?|sel(?:asa)?|rab(?:u)?|kam(?:is)?|jum(?:at|'at)?|sab(?:tu)?|min(?:ggu)?)(?:\s*[-–,&/]\s*(?:sen(?:in)?|sel(?:asa)?|rab(?:u)?|kam(?:is)?|jum(?:at|'at)?|sab(?:tu)?|min(?:ggu)?))*\s*\)\s*$/i, '').trim();
+        return short || s;
+    },
+
     // Rapikan nama shift mentah (mis. "Operator - BNA Amuntai (3 Sesi)")
     // jadi "Operator BNA Amuntai" - buang keterangan "(N Sesi)" & tanda "-"
     // supaya enak dibaca saat digabung dengan label sesi (Pagi/Siang/Malam).
     _cleanShiftBaseName(raw) {
-        return String(raw || '')
+        return this._shortShiftName(raw)
             .replace(/\s*\(\d+\s*Sesi\)\s*/gi, ' ')
             .replace(/\s*-\s*/g, ' ')
             .replace(/\s+/g, ' ')
@@ -609,7 +619,7 @@ const absensi = {
         const lastPart = parts[parts.length - 1];
 
         if (parts.length < 2 || !SESSION_LABELS.includes(lastPart)) {
-            return shift;
+            return this._shortShiftName(shift);
         }
 
         const baseName = this._cleanShiftBaseName(parts.slice(0, -1).join(' - '));
