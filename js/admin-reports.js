@@ -85,6 +85,227 @@ const adminReports = {
         await this.loadData();
         this.bindLeaveEvents();
         this.renderLeaveReports();
+        this.bindLeaveKuotaEvents();
+        this.showLeaveSubTab(this._leaveSubTab || 'rekap');
+        this._loadLeaveKuota();
+    },
+
+    // =====================================================================
+    // [TAMBAHAN 2026-10-19] Sub menu "Kuota Habis" di Rekap Cuti & Izin.
+    // Pengganti notifikasi pop-up kuota habis: admin melihat daftar
+    // karyawan yang kuota Cuti Tahunan / Izin Harian tahun berjalan-nya
+    // sudah habis. Data dari api.getAllKuotaKaryawan() (sudah memperhitungkan
+    // kuota override per-karyawan), fallback ke hitungan lokal loadData().
+    // "Habis" = sisa <= 0 (sama dengan warna merah badge di Rekap Absensi).
+    // =====================================================================
+    _leaveSubTab: 'rekap',
+    kuotaFilter: { name: '', jenis: 'any', bagian: '' },
+
+    bindLeaveKuotaEvents() {
+        if (this._leaveKuotaListenersAttached) {
+            this._fillKuotaBagianOptions();
+            return;
+        }
+        this._leaveKuotaListenersAttached = true;
+
+        const bar = document.getElementById('leave-subtabs');
+        if (bar) bar.addEventListener('click', (e) => {
+            const btn = e.target.closest('[data-leave-tab]');
+            if (btn) this.showLeaveSubTab(btn.dataset.leaveTab);
+        });
+
+        const nameEl = document.getElementById('leave-kuota-name');
+        if (nameEl) nameEl.addEventListener('input', (e) => {
+            this.kuotaFilter.name = e.target.value.trim();
+            this.renderLeaveKuota();
+        });
+        const jenisEl = document.getElementById('leave-kuota-jenis');
+        if (jenisEl) jenisEl.addEventListener('change', (e) => {
+            this.kuotaFilter.jenis = e.target.value;
+            this.renderLeaveKuota();
+        });
+        const bagianEl = document.getElementById('leave-kuota-bagian');
+        if (bagianEl) bagianEl.addEventListener('change', (e) => {
+            this.kuotaFilter.bagian = e.target.value;
+            this.renderLeaveKuota();
+        });
+        const exp = document.getElementById('btn-export-leave-kuota');
+        if (exp) exp.addEventListener('click', () => this.exportLeaveKuota());
+        this._fillKuotaBagianOptions();
+    },
+
+    _fillKuotaBagianOptions() {
+        const sel = document.getElementById('leave-kuota-bagian');
+        if (!sel) return;
+        const existing = Array.from(sel.options).map(o => o.value);
+        [...new Set((this.rawEmployees || []).map(e => e.bagian).filter(b => b && b.trim()))].sort().forEach(b => {
+            if (!existing.includes(b)) {
+                const opt = document.createElement('option');
+                opt.value = b;
+                opt.textContent = b;
+                sel.appendChild(opt);
+            }
+        });
+    },
+
+    showLeaveSubTab(tab) {
+        this._leaveSubTab = tab === 'kuota' ? 'kuota' : 'rekap';
+        const isKuota = this._leaveSubTab === 'kuota';
+        document.querySelectorAll('#leave-subtabs [data-leave-tab]').forEach(b => {
+            b.classList.toggle('active', b.dataset.leaveTab === this._leaveSubTab);
+        });
+        const rekap = document.getElementById('leave-panel-rekap');
+        const kuota = document.getElementById('leave-panel-kuota');
+        if (rekap) rekap.style.display = isKuota ? 'none' : '';
+        if (kuota) kuota.style.display = isKuota ? '' : 'none';
+        // Tombol Export Excel & Cetak di header khusus untuk tab Rekap Pengajuan.
+        ['btn-export-leave', 'btn-print-leave'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.style.display = isKuota ? 'none' : '';
+        });
+        if (isKuota) this.renderLeaveKuota();
+    },
+
+    async _loadLeaveKuota() {
+        try {
+            const res = await api.getAllKuotaKaryawan();
+            if (res && res.success && res.data && res.data.kuota) {
+                this.kuotaServer = res.data.kuota;
+            }
+        } catch (e) { console.error('Gagal memuat kuota karyawan:', e); }
+        this.renderLeaveKuota();
+    },
+
+    // Susun daftar kuota per karyawan (server dulu, fallback hitungan lokal).
+    _buildLeaveKuotaRows() {
+        return (this.rawEmployees || []).map(emp => {
+            const id = String(emp.id);
+            const sv = this.kuotaServer && this.kuotaServer[id];
+            let cuti, izin;
+            if (sv) {
+                cuti = sv.cuti; izin = sv.izin;
+            } else {
+                const lq = this.leaveQuota && this.leaveQuota[id];
+                const iq = this.izinHarianQuota;
+                if (!lq || !iq) return null;
+                cuti = { kuota: 12, terpakai: lq.pakai, sisa: lq.sisa };
+                const pi = (iq.total && iq.total[id]) || 0;
+                izin = { kuota: iq.kuota, terpakai: pi, sisa: iq.kuota - pi };
+            }
+            return {
+                id,
+                name: emp.name || emp.nama || '-',
+                position: emp.position || emp.jabatan || '-',
+                bagian: emp.bagian || '-',
+                cuti, izin,
+                cutiHabis: cuti.sisa <= 0,
+                izinHabis: izin.sisa <= 0
+            };
+        }).filter(Boolean);
+    },
+
+    _filteredLeaveKuota() {
+        const { name, jenis, bagian } = this.kuotaFilter;
+        return this._buildLeaveKuotaRows().filter(r => {
+            if (name && !String(r.name).toLowerCase().includes(name.toLowerCase())) return false;
+            if (bagian && r.bagian !== bagian) return false;
+            if (jenis === 'cuti') return r.cutiHabis;
+            if (jenis === 'izin') return r.izinHabis;
+            if (jenis === 'both') return r.cutiHabis && r.izinHabis;
+            if (jenis === 'any') return r.cutiHabis || r.izinHabis;
+            return true;
+        }).sort((a, b) =>
+            ((b.cutiHabis ? 1 : 0) + (b.izinHabis ? 1 : 0)) - ((a.cutiHabis ? 1 : 0) + (a.izinHabis ? 1 : 0)) ||
+            String(a.name).localeCompare(String(b.name))
+        );
+    },
+
+    _kuotaKeterangan(r) {
+        const p = [];
+        if (r.cutiHabis) p.push('Cuti Tahunan habis');
+        if (r.izinHabis) p.push(r.izin.sisa < 0 ? `Izin Harian melebihi kuota (${-r.izin.sisa} hari)` : 'Izin Harian habis');
+        return p.length ? p.join(' &bull; ') : 'Masih ada sisa';
+    },
+
+    _kuotaCell(q, habis) {
+        const bg = habis ? '#FEE2E2' : '#CCFBF1';
+        const fg = habis ? '#B91C1C' : '#0F766E';
+        return `<span style="background:${bg};color:${fg};padding:3px 10px;border-radius:20px;font-weight:600;white-space:nowrap;">${q.terpakai} / ${q.kuota} hari</span><br><small style="color:var(--text-muted);">Sisa: ${Math.max(0, q.sisa)} hari</small>`;
+    },
+
+    renderLeaveKuota() {
+        const tbody = document.getElementById('leave-kuota-body');
+        const mobile = document.getElementById('leave-kuota-mobile-cards');
+        if (!tbody) return;
+
+        const all = this._buildLeaveKuotaRows();
+        const cutiHabis = all.filter(r => r.cutiHabis).length;
+        const izinHabis = all.filter(r => r.izinHabis).length;
+        const anyHabis = all.filter(r => r.cutiHabis || r.izinHabis).length;
+
+        const badge = document.getElementById('leave-kuota-count');
+        if (badge) {
+            badge.textContent = anyHabis;
+            badge.classList.toggle('has', anyHabis > 0);
+        }
+        const sum = document.getElementById('leave-kuota-summary');
+        if (sum) {
+            const chip = (bg, fg, t) => `<span style="background:${bg};color:${fg};padding:5px 12px;border-radius:20px;font-weight:600;font-size:0.82rem;">${t}</span>`;
+            sum.innerHTML =
+                chip('#FEE2E2', '#B91C1C', `<i class="fas fa-umbrella-beach"></i> Cuti Tahunan habis: ${cutiHabis} karyawan`) +
+                chip('#FEF3C7', '#B45309', `<i class="fas fa-file-alt"></i> Izin Harian habis: ${izinHabis} karyawan`) +
+                chip('#E5E7EB', '#374151', `Tahun ${new Date().getFullYear()}`);
+        }
+
+        const data = this._filteredLeaveKuota();
+        if (data.length === 0) {
+            const msg = all.length === 0 ? 'Memuat data kuota...' : 'Tidak ada karyawan yang sesuai filter';
+            tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:2rem;color:var(--text-muted);">${msg}</td></tr>`;
+            if (mobile) mobile.innerHTML = `<div style="text-align:center;padding:2rem;color:var(--text-muted);">${msg}</div>`;
+            return;
+        }
+
+        tbody.innerHTML = data.map(r => `
+            <tr>
+                <td>${this._esc(r.name)}</td>
+                <td>${this._esc(r.position)}</td>
+                <td>${this._esc(r.bagian)}</td>
+                <td>${this._kuotaCell(r.cuti, r.cutiHabis)}</td>
+                <td>${this._kuotaCell(r.izin, r.izinHabis)}</td>
+                <td>${this._kuotaKeterangan(r)}</td>
+            </tr>`).join('');
+
+        if (mobile) mobile.innerHTML = data.map(r => `
+            <div class="mobile-card" style="margin-bottom:16px;">
+                <div class="mobile-card-header"><span class="mobile-card-title">${this._esc(r.name)}</span></div>
+                <div class="mobile-card-row"><span class="mobile-card-label">Jabatan</span><span class="mobile-card-value">${this._esc(r.position)}</span></div>
+                <div class="mobile-card-row"><span class="mobile-card-label">Bagian</span><span class="mobile-card-value">${this._esc(r.bagian)}</span></div>
+                <div class="mobile-card-row"><span class="mobile-card-label">Cuti Tahunan</span><span class="mobile-card-value">${this._kuotaCell(r.cuti, r.cutiHabis)}</span></div>
+                <div class="mobile-card-row"><span class="mobile-card-label">Izin Harian</span><span class="mobile-card-value">${this._kuotaCell(r.izin, r.izinHabis)}</span></div>
+                <div class="mobile-card-row"><span class="mobile-card-label">Keterangan</span><span class="mobile-card-value">${this._kuotaKeterangan(r)}</span></div>
+            </div>`).join('');
+    },
+
+    exportLeaveKuota() {
+        const data = this._filteredLeaveKuota();
+        if (data.length === 0) {
+            toast.warning('Tidak ada data untuk diexport.');
+            return;
+        }
+        const rows = data.map(r => ({
+            Nama: r.name,
+            Jabatan: r.position,
+            Bagian: r.bagian,
+            'Cuti Terpakai': r.cuti.terpakai,
+            'Cuti Kuota': r.cuti.kuota,
+            'Cuti Sisa': Math.max(0, r.cuti.sisa),
+            'Izin Terpakai': r.izin.terpakai,
+            'Izin Kuota': r.izin.kuota,
+            'Izin Sisa': Math.max(0, r.izin.sisa),
+            Keterangan: this._kuotaKeterangan(r).replace(/&bull;/g, '-')
+        }));
+        this.downloadFile('\ufeff' + this.convertToCSV(rows), 'Kuota_Cuti_Izin_Habis.csv', 'text/csv;charset=utf-8');
+        toast.success('Data berhasil diexport ke Kuota_Cuti_Izin_Habis.csv');
     },
 
     // PERBAIKAN PERFORMA (24 September 2026): hitung rentang tanggal
