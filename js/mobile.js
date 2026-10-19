@@ -15,6 +15,30 @@ const mobile = {
         
         // Listen for resize events
         window.addEventListener('resize', () => this.handleResize());
+
+        // [TAMBAHAN 2026-10-19] Di HP, sidebar tidak dipakai lagi kalau
+        // bottom bar tampil (semua menu ada di tombol "Menu" bottom bar).
+        // Bottom bar bisa muncul/hilang dari luar file ini (login, Mode
+        // Karyawan admin), jadi pantau perubahan style-nya.
+        const bn = document.getElementById('bottom-nav');
+        if (bn && window.MutationObserver) {
+            new MutationObserver(() => this.syncSidebarAvailability())
+                .observe(bn, { attributes: true, attributeFilter: ['style', 'class'] });
+        }
+    },
+
+    // True kalau di HP DAN bottom bar sedang tampil -> sidebar dimatikan.
+    // Admin (bottom bar disembunyikan) tetap memakai sidebar seperti biasa.
+    sidebarDisabled() {
+        const bn = document.getElementById('bottom-nav');
+        return !!(this.isMobile && bn && window.getComputedStyle(bn).display !== 'none');
+    },
+
+    syncSidebarAvailability() {
+        const menuToggle = document.getElementById('mobile-menu-toggle');
+        const disabled = this.sidebarDisabled();
+        if (menuToggle) menuToggle.style.display = (this.isMobile && !disabled) ? 'flex' : 'none';
+        if (disabled && this.sidebarOpen) this.closeSidebar();
     },
     
     checkMobile() {
@@ -52,6 +76,9 @@ const mobile = {
         
         // Update tables to cards on mobile
         this.updateTableViews();
+
+        // Sembunyikan tombol hamburger kalau bottom bar tampil (lihat init()).
+        this.syncSidebarAvailability();
     },
     
     initSidebar() {
@@ -120,6 +147,7 @@ const mobile = {
     },
     
     toggleSidebar() {
+    if (this.sidebarDisabled()) return;
     const sidebar = document.getElementById('sidebar');
     const overlay = document.getElementById('sidebar-overlay');
     
