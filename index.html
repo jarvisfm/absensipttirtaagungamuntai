@@ -526,34 +526,18 @@
                             </div>
                         </div>
 
-                        <div class="dashboard-card quick-actions">
+                        <div class="dashboard-card quick-actions qa-card">
                             <div class="card-header">
                                 <h3>Aksi Cepat</h3>
                             </div>
-                            <div class="quick-buttons">
-                                <button class="quick-btn" onclick="router.navigate('absensi')">
-                                    <div class="quick-icon clock-in">
-                                        <i class="fas fa-sign-in-alt"></i>
-                                    </div>
-                                    <span>Masuk</span>
-                                </button>
-                                <button class="quick-btn" onclick="router.navigate('absensi')">
-                                    <div class="quick-icon clock-out">
-                                        <i class="fas fa-sign-out-alt"></i>
-                                    </div>
-                                    <span>Pulang</span>
-                                </button>
-                                <button class="quick-btn" onclick="router.navigate('cuti')">
-                                    <div class="quick-icon leave">
-                                        <i class="fas fa-umbrella-beach"></i>
-                                    </div>
-                                    <span>Ajukan Cuti</span>
-                                </button>
-                                <!-- Folder "Semua Menu": diklik -> semua menu sidebar muncul (js/dashboard.js: quickMenu) -->
-                                <button class="quick-btn quick-folder" id="quick-menu-btn" type="button" onclick="quickMenu.open()" aria-haspopup="dialog">
-                                    <div class="quick-folder-icon" id="quick-menu-preview"></div>
-                                    <span>Semua Menu</span>
-                                </button>
+                            <!-- Gaya grid menu seperti BRImo: semua menu sidebar tampil sebagai ikon,
+                                 2 baris pertama langsung terlihat, sisanya lewat tombol "Lainnya".
+                                 Diisi js/dashboard.js (quickActions) - otomatis sama dengan menu sidebar
+                                 user, termasuk saat Admin masuk Mode Karyawan. -->
+                            <div class="qa-wrap">
+                                <label class="qa-search"><i class="fas fa-search"></i><input type="search" id="qa-search" placeholder="Cari menu" autocomplete="off"></label>
+                                <div class="qa-grid" id="qa-grid"></div>
+                                <button type="button" class="qa-more" id="qa-more" style="display:none;"><span>Lainnya</span><i class="fas fa-chevron-down"></i></button>
                             </div>
                         </div>
 
