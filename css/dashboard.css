@@ -326,3 +326,18 @@
 .qa-more i { font-size: .75rem; transition: transform .35s cubic-bezier(.2, .9, .25, 1.2); }
 .qa-more.open i { transform: rotate(180deg); }
 @media (prefers-reduced-motion: reduce) { .qa-grid { transition: none; } .qa-grid.open .qa-item.qa-extra { animation: none; } }
+
+
+/* Aksi Cepat dipindah ke paling atas dashboard: satu baris penuh, lalu
+   kartu Statistik Kehadiran + Sesi Hari Ini mengisi sisa baris di bawahnya. */
+.dashboard-grid > .quick-actions.qa-card { grid-column: 1 / -1; }
+@media (min-width: 1201px) {
+    .dashboard-grid > .stats-card { grid-column: span 7; }
+    .dashboard-grid > .session-card { grid-column: span 5; }
+}
+@media (min-width: 769px) and (max-width: 1200px) {
+    .dashboard-grid > .session-card { grid-column: 1 / -1; }
+}
+@media (min-width: 769px) {
+    .quick-actions.qa-card .qa-grid { grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); }
+}
