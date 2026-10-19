@@ -732,20 +732,22 @@ const auth = {
         w.document.close();
 
         // Riwayat Pendidikan (tab Pendidikan) & Riwayat Pekerjaan (tab Riwayat Mutasi)
-        let pendidikan = [], mutasi = [];
+        let pendidikan = [], mutasi = [], riwayatKaryawan = [];
         try {
-            const [rp, rm] = await Promise.all([
+            const [rp, rm, rk] = await Promise.all([
                 api.getRiwayatPendidikan(p.id),
-                api.getRiwayatMutasi(p.id)
+                api.getRiwayatMutasi(p.id),
+                api.getRiwayatKaryawan(p.id).catch(() => null)
             ]);
             pendidikan = (rp && rp.success && rp.data) ? rp.data : [];
             mutasi = (rm && rm.success && rm.data) ? rm.data : [];
+            riwayatKaryawan = (rk && rk.success && rk.data) ? rk.data : [];
         } catch (err) {
             console.error('Error load riwayat untuk CV:', err);
         }
 
         w.document.open();
-        w.document.write(this._cvHtml(p, pendidikan, mutasi));
+        w.document.write(this._cvHtml(p, pendidikan, mutasi, riwayatKaryawan));
         w.document.close();
         setTimeout(() => { try { w.focus(); w.print(); } catch (e) { /* abaikan */ } }, 300);
     },
@@ -753,7 +755,7 @@ const auth = {
     // [DIUBAH 2026-10-19] Format CV dibuat POLOS (tanpa logo, foto, warna
     // maupun kolom samping) - hanya Curriculum Vitae bernomor 1-9 seperti
     // format baku di kantor, ditutup tanda tangan "Karyawan/ti PDAM".
-    _cvHtml(p, pendidikan, mutasi) {
+    _cvHtml(p, pendidikan, mutasi, riwayatKaryawan) {
         const e = v => String(v == null ? '' : v).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
         const BULAN = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
         const tglPanjang = v => {
@@ -772,18 +774,29 @@ const auth = {
         const pendHtml = pend.length ? `<table class="sub">${pend.map(r =>
             `<tr><td class="c1">Lulus ${e(r.jenjang)}</td><td class="c2">: Tahun ${e(r.tahunLulus || '-')}</td><td class="c3">di ${e(r.namaSekolah || '-')}${r.jurusan ? ' (' + e(r.jurusan) + ')' : ''}</td></tr>`).join('')}</table>` : '';
 
-        // Riwayat Pekerjaan/Jabatan (tab Riwayat Mutasi)
-        const mts = (mutasi || []).filter(m => m.tanggalSurat).slice().sort((x, y) => String(x.tanggalSurat).localeCompare(String(y.tanggalSurat)));
+        // Riwayat Pekerjaan/Jabatan: disusun dari tab Riwayat Mutasi
+        // (Jabatan Lama -> Jabatan Baru, "Terhitung Tanggal"). Tahun MULAI
+        // jabatan pertama diambil dari data profil yang ada, urut prioritas:
+        // Terhitung Mulai (Kekaryawanan) -> TMT Capeg paling awal (Riwayat
+        // Karyawan). Kalau tidak ada mutasi sama sekali, ditampilkan jabatan
+        // saat ini saja. Tahun yang tidak diketahui TIDAK ditulis "-".
+        const tmtCapegAwal = (riwayatKaryawan || []).map(r => th(r.tmtCapeg)).filter(Boolean).sort()[0] || '';
+        const tahunMulai = th(p.terhitungMulai) || tmtCapegAwal;
+        const mts = (mutasi || []).filter(m => m.tanggalSurat && (m.unorAsal || m.unorBaru)).slice()
+            .sort((x, y) => String(x.tanggalSurat).localeCompare(String(y.tanggalSurat)));
         const kerja = [];
         if (mts.length) {
-            if (mts[0].unorAsal) kerja.push({ jab: mts[0].unorAsal, dari: th(p.terhitungMulai), sd: th(mts[0].tanggalSurat) });
+            if (mts[0].unorAsal) kerja.push({ jab: mts[0].unorAsal, dari: tahunMulai, sd: th(mts[0].tanggalSurat) });
             mts.forEach((m, i) => {
                 if (!m.unorBaru) return;
                 kerja.push({ jab: m.unorBaru, dari: th(m.tanggalSurat), sd: i + 1 < mts.length ? th(mts[i + 1].tanggalSurat) : 'sekarang' });
             });
+        } else if (p.jabatan) {
+            kerja.push({ jab: p.jabatan, dari: tahunMulai, sd: 'sekarang' });
         }
+        const periode = k => k.dari ? `Tahun ${e(k.dari)} s/d ${e(k.sd)}` : `s/d ${e(k.sd)}`;
         const kerjaHtml = kerja.length ? `<table class="sub">${kerja.map(k =>
-            `<tr><td class="k1">${e(k.jab)}</td><td class="k2">Tahun ${e(k.dari || '-')} s/d ${e(k.sd)}</td></tr>`).join('')}</table>` : '';
+            `<tr><td class="k1">${e(k.jab)}</td><td class="k2">${periode(k)}</td></tr>`).join('')}</table>` : '';
 
         const alamatKantor = 'Jalan Palang Merah No.319.A Amuntai Kalimantan Selatan<br>Kode Pos : 71414 Email Ktr : pdamkabhsu@yahoo.com<br>Telpon 0527 61 345 &nbsp; Fax : 0527 63 057';
         const rumah = [e(p.alamatRumah || ''), p.email ? 'Email : ' + e(p.email) : '', p.noTelp ? 'Telp. : ' + e(p.noTelp) : ''].filter(Boolean).join('<br>');
@@ -823,7 +836,7 @@ table.sub td{padding:0 1mm 0 0}
 <h1>CURRICULUM VITAE</h1>
 <table>${rows}</table>
 <div class="ttd">
-  <div>Karyawan/ti,</div>
+  <div>Karyawan/ti PDAM,</div>
   <div class="nm">${e(p.nama || '')}</div>
   <div>${p.nik && p.nik !== '-' ? 'NIK. ' + e(p.nik) : ''}</div>
 </div>
