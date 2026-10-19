@@ -1311,3 +1311,24 @@
     .jjo-filter-actions .btn { flex: 1 1 calc(50% - var(--spacing-sm)); justify-content: center; }
     .jjo-table-wrap { max-width: 100%; -webkit-overflow-scrolling: touch; }
 }
+
+/* [PERBAIKAN 2026-10-19] Sidebar admin di HP: tombol logout (footer sidebar)
+   tidak kelihatan karena tinggi 100vh lebih besar dari area layar yang
+   benar-benar terlihat (address bar browser HP menutupi bagian bawah).
+   Pakai 100dvh (tinggi layar yang terlihat), daftar menu discroll di
+   dalam sidebar, dan footer (profil + logout) selalu menempel di bawah. */
+@media (max-width: 768px) {
+    .sidebar {
+        height: 100vh;
+        height: 100dvh;
+        max-height: 100dvh;
+    }
+    .sidebar .sidebar-header,
+    .sidebar .sidebar-footer { flex-shrink: 0; }
+    .sidebar .sidebar-nav {
+        min-height: 0;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+        overscroll-behavior: contain;
+    }
+}
