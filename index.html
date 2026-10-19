@@ -1657,542 +1657,14 @@
                             <p>Kelola data pribadi, kepegawaian, keluarga, dan akun Anda sendiri</p>
                         </div>
 
+                        <!-- [DIUBAH 2026-10-19] Halaman Edit Profil sekarang menampilkan kartu
+                             "Profil Saya" (tampilan baca). Form edit yang lama dipindah ke modal
+                             #modal-edit-profil, dibuka lewat tombol "Edit Profil" di bawah. -->
                         <div class="settings-card pf-profile-card">
-                            <!-- Tab Navigation -->
-                            <div class="pf-tabs-nav" style="display:flex;gap:4px;margin-bottom:1.5rem;border-bottom:2px solid var(--border-color);padding-bottom:0;overflow-x:auto;flex-wrap:nowrap;-webkit-overflow-scrolling:touch;">
-                                <button type="button" class="tab-btn active" onclick="profileManager.switchTab('profil')" id="pf-tab-profil" style="padding:8px 16px;border:none;background:none;cursor:pointer;font-weight:600;color:var(--color-primary);border-bottom:2px solid var(--color-primary);margin-bottom:-2px;white-space:nowrap;flex-shrink:0;">Profil</button>
-                                <button type="button" class="tab-btn" onclick="profileManager.switchTab('kekaryawanan')" id="pf-tab-kekaryawanan" style="padding:8px 16px;border:none;background:none;cursor:pointer;font-weight:500;color:var(--text-muted);white-space:nowrap;flex-shrink:0;">Kekaryawanan</button>
-                                <button type="button" class="tab-btn" onclick="profileManager.switchTab('keluarga')" id="pf-tab-keluarga" style="padding:8px 16px;border:none;background:none;cursor:pointer;font-weight:500;color:var(--text-muted);white-space:nowrap;flex-shrink:0;">Keluarga</button>
-                                <button type="button" class="tab-btn" onclick="profileManager.switchTab('akun')" id="pf-tab-akun" style="padding:8px 16px;border:none;background:none;cursor:pointer;font-weight:500;color:var(--text-muted);white-space:nowrap;flex-shrink:0;">Akun</button>
-                                <button type="button" class="tab-btn" onclick="profileManager.switchTab('pendidikan')" id="pf-tab-pendidikan" style="padding:8px 16px;border:none;background:none;cursor:pointer;font-weight:500;color:var(--text-muted);white-space:nowrap;flex-shrink:0;">Pendidikan</button>
-                                <button type="button" class="tab-btn" onclick="profileManager.switchTab('kgb')" id="pf-tab-kgb" style="padding:8px 16px;border:none;background:none;cursor:pointer;font-weight:500;color:var(--text-muted);white-space:nowrap;flex-shrink:0;">Riwayat KGB</button>
-                                <button type="button" class="tab-btn" onclick="profileManager.switchTab('golongan')" id="pf-tab-golongan" style="padding:8px 16px;border:none;background:none;cursor:pointer;font-weight:500;color:var(--text-muted);white-space:nowrap;flex-shrink:0;">Riwayat Pangkat</button>
-                                <button type="button" class="tab-btn" onclick="profileManager.switchTab('mutasi')" id="pf-tab-mutasi" style="padding:8px 16px;border:none;background:none;cursor:pointer;font-weight:500;color:var(--text-muted);white-space:nowrap;flex-shrink:0;">Riwayat Mutasi</button>
-                                <button type="button" class="tab-btn" onclick="profileManager.switchTab('riwayatkaryawan')" id="pf-tab-riwayatkaryawan" style="padding:8px 16px;border:none;background:none;cursor:pointer;font-weight:500;color:var(--text-muted);white-space:nowrap;flex-shrink:0;">Riwayat Karyawan</button>
-                            </div>
-
-                            <input type="hidden" id="pf-id">
-
-                            <!-- Tab Profil -->
-                            <div id="pf-tabcontent-profil">
-                                <div style="text-align:center;margin-bottom:1.5rem;">
-                                    <div id="pf-foto-preview-container" style="width:100px;height:100px;border-radius:50%;margin:0 auto 8px;overflow:hidden;background:var(--color-gray-200);display:flex;align-items:center;justify-content:center;">
-                                        <img id="pf-foto-preview" src="" alt="Foto" style="width:100%;height:100%;object-fit:cover;display:none;">
-                                        <i class="fas fa-user" id="pf-foto-placeholder" style="font-size:2.5rem;color:var(--text-muted);"></i>
-                                    </div>
-                                    <div style="display:flex;gap:16px;justify-content:center;flex-wrap:wrap;">
-                                        <label style="cursor:pointer;color:var(--color-primary);font-size:0.85rem;font-weight:500;margin:0;">
-                                            <i class="fas fa-upload"></i> Upload Foto
-                                            <input type="file" id="pf-foto-file" accept="image/*" style="display:none;" onchange="profileManager.previewFoto(this)">
-                                        </label>
-                                        <!-- TAMBAHAN: ambil foto langsung lewat kamera perangkat, pakai INPUT
-                                             YANG SAMA persis dengan "Upload Foto" di atas (lihat
-                                             profileManager.openCameraForFoto()) - jadi logika preview &
-                                             simpan (previewFoto/saveProfile) tidak perlu diubah/didobel sama
-                                             sekali, tinggal atribut "capture" yang dipasang sesaat sebelum
-                                             dialog file dibuka supaya HP langsung buka kamera, bukan galeri. -->
-                                        <button type="button" onclick="profileManager.openCameraForFoto()" style="cursor:pointer;color:var(--color-primary);font-size:0.85rem;font-weight:500;background:none;border:none;padding:0;">
-                                            <i class="fas fa-camera"></i> Ambil Foto
-                                        </button>
-                                        <!-- TAMBAHAN: hapus foto profil. Sembunyi kalau memang belum ada foto
-                                             sama sekali (lihat profileManager.loadMyProfile()/previewFoto()/
-                                             hapusFoto() yang mengatur tampil/sembunyinya). -->
-                                        <button type="button" id="pf-foto-hapus-btn" onclick="profileManager.hapusFoto()" style="display:none;cursor:pointer;color:var(--color-danger,#EF4444);font-size:0.85rem;font-weight:500;background:none;border:none;padding:0;">
-                                            <i class="fas fa-trash"></i> Hapus Foto
-                                        </button>
-                                    </div>
-                                </div>
-                                <div class="form-row two-col">
-                                    <div class="form-group">
-                                        <label>NIK</label>
-                                        <input type="text" id="pf-nik" placeholder="Nomor Induk Karyawan">
-                                    </div>
-                                    <div class="form-group">
-                                        <label>Nama Lengkap *</label>
-                                        <input type="text" id="pf-nama" placeholder="Nama lengkap" required>
-                                    </div>
-                                </div>
-                                <div class="form-row two-col">
-                                    <div class="form-group">
-                                        <label>Jenis Kelamin</label>
-                                        <select id="pf-jenisKelamin">
-                                            <option value="">Pilih</option>
-                                            <option value="LAKI-LAKI">Laki-laki</option>
-                                            <option value="PEREMPUAN">Perempuan</option>
-                                        </select>
-                                    </div>
-                                    <div class="form-group">
-                                        <label>Status Pernikahan</label>
-                                        <select id="pf-statusPernikahan">
-                                            <option value="">Pilih</option>
-                                            <option value="TK/0">TK/0</option>
-                                            <option value="TK/1">TK/1</option>
-                                            <option value="TK/2">TK/2</option>
-                                            <option value="TK/3">TK/3</option>
-                                            <option value="K/0">K/0</option>
-                                            <option value="K/1">K/1</option>
-                                            <option value="K/2">K/2</option>
-                                            <option value="K/3">K/3</option>
-                                        </select>
-                                    </div>
-                                </div>
-                                <div class="form-row two-col">
-                                    <div class="form-group">
-                                        <label>Tempat Lahir</label>
-                                        <input type="text" id="pf-tempatLahir" placeholder="Kota kelahiran">
-                                    </div>
-                                    <div class="form-group">
-                                        <label>Tanggal Lahir</label>
-                                        <input type="date" id="pf-tanggalLahir" onchange="profileManager.autoHitungTahunPensiun()">
-                                    </div>
-                                </div>
-                                <div class="form-row two-col">
-                                    <div class="form-group">
-                                        <label>Golongan Darah</label>
-                                        <select id="pf-golonganDarah">
-                                            <option value="">Pilih</option>
-                                            <option value="A">A</option>
-                                            <option value="B">B</option>
-                                            <option value="AB">AB</option>
-                                            <option value="O">O</option>
-                                        </select>
-                                    </div>
-                                    <div class="form-group">
-                                        <label>No. Telp</label>
-                                        <input type="text" id="pf-noTelp" placeholder="08xx-xxxx-xxxx">
-                                    </div>
-                                </div>
-                                <div class="form-row two-col">
-                                    <div class="form-group">
-                                        <label>NPWP</label>
-                                        <input type="text" id="pf-npwp" placeholder="Nomor NPWP">
-                                    </div>
-                                    <div class="form-group">
-                                        <label>No. KTP</label>
-                                        <input type="text" id="pf-ktp" placeholder="Nomor KTP">
-                                    </div>
-                                </div>
-                                <div class="form-group">
-                                    <label>Email</label>
-                                    <input type="email" id="pf-email" placeholder="email@example.com">
-                                </div>
-                                <div class="form-group">
-                                    <label>Agama</label>
-                                    <select id="pf-agama">
-                                        <option value="">Pilih</option>
-                                        <option value="Islam">Islam</option>
-                                        <option value="Kristen">Kristen</option>
-                                        <option value="Katolik">Katolik</option>
-                                        <option value="Hindu">Hindu</option>
-                                        <option value="Buddha">Buddha</option>
-                                        <option value="Konghucu">Konghucu</option>
-                                    </select>
-                                </div>
-                            </div>
-
-                            <!-- Tab Kekaryawanan -->
-                            <div id="pf-tabcontent-kekaryawanan" style="display:none;">
-                                <div id="pf-kekaryawanan-note" style="display:none;background:#FEF3C7;border:1px solid #FCD34D;color:#92400E;border-radius:8px;padding:10px 14px;margin-bottom:1.25rem;font-size:0.85rem;">
-                                    <i class="fas fa-lock"></i> Data di tab ini hanya dapat diubah oleh Admin. 
-                                </div>
-                                <div class="form-row two-col">
-                                    <div class="form-group">
-                                        <label>Status Pekerjaan</label>
-                                        <select id="pf-statusPekerjaan">
-                                            <option value="Karyawan Tetap">Karyawan Tetap</option>
-                                            <option value="Tenaga Kontrak">Tenaga Kontrak</option>
-                                            <option value="Outsourcing">Outsourcing</option>
-                                        </select>
-                                    </div>
-                                    <div class="form-group">
-                                        <label>Status Karyawan</label>
-                                        <select id="pf-statusKaryawan">
-                                            <option value="AKTIF">Aktif</option>
-                                            <option value="PENSIUN">Pensiun</option>
-                                        </select>
-                                    </div>
-                                </div>
-                                <div class="form-row two-col">
-                                    <div class="form-group">
-                                        <label>Pendidikan</label>
-                                        <select id="pf-pendidikan">
-                                            <option value="">Pilih</option>
-                                            <option value="SD">SD</option>
-                                            <option value="SLTP">SLTP/SMP</option>
-                                            <option value="SLTA">SLTA/SMA</option>
-                                            <option value="SMK">SMK</option>
-                                            <option value="STM">STM</option>
-                                            <option value="D3">D3</option>
-                                            <option value="Strata 1">Strata 1 (S1)</option>
-                                            <option value="Strata 2">Strata 2 (S2)</option>
-                                        </select>
-                                    </div>
-                                    <div class="form-group">
-                                        <label>Jabatan</label>
-                                        <input type="text" id="pf-jabatan" placeholder="Jabatan">
-                                    </div>
-                                </div>
-                                <div class="form-group">
-                                    <label>Unit Wilayah</label>
-                                    <select id="pf-unitWilayah">
-                                        <option value="">-- Pilih Unit Wilayah --</option>
-                                        <optgroup label="Unit Wilayah">
-                                            <option value="BNA Amuntai">BNA Amuntai</option>
-                                            <option value="SPAM Alabio">SPAM Alabio</option>
-                                            <option value="SPAM Jarang Kuantan">SPAM Jarang Kuantan</option>
-                                            <option value="SPAM Sungai Tabukan">SPAM Sungai Tabukan</option>
-                                            <option value="SPAM Muara Tapus">SPAM Muara Tapus</option>
-                                            <option value="SPAM Telaga Silaba">SPAM Telaga Silaba</option>
-                                            <option value="SPAM Rantau Bujur">SPAM Rantau Bujur</option>
-                                            <option value="SPAM Muara Baruh">SPAM Muara Baruh</option>
-                                            <option value="SPAM Banjang">SPAM Banjang</option>
-                                            <option value="SPAM Tangkawang">SPAM Tangkawang</option>
-                                            <option value="SPAM Babirik">SPAM Babirik</option>
-                                            <option value="SPAM Danau Panggang">SPAM Danau Panggang</option>
-                                            <option value="SPAM Paminggir">SPAM Paminggir</option>
-                                        </optgroup>
-                                        <optgroup label="Unit Jaga (Non-Wilayah)">
-                                            <option value="SATPAM">SATPAM</option>
-                                            <option value="TRD - BNA Amuntai">TRD - BNA Amuntai</option>
-                                            <option value="TRD - Cabang I">TRD - Cabang I</option>
-                                            <option value="TRD - Cabang II">TRD - Cabang II</option>
-                                            <option value="TRD - Cabang III">TRD - Cabang III</option>
-                                        </optgroup>
-                                    </select>
-                                </div>
-                                <div class="form-row two-col">
-                                    <div class="form-group">
-                                        <label for="pf-bagian">Bagian</label>
-                                        <select id="pf-bagian">
-                                            <option value="">-- Pilih Bagian --</option>
-                                            <option value="SPI">SPI</option>
-                                            <option value="UMUM DAN KEPEGAWAIAN">UMUM DAN KEPEGAWAIAN</option>
-                                            <option value="KEUANGAN">KEUANGAN</option>
-                                            <option value="HUBUNGAN LANGGANAN">HUBUNGAN LANGGANAN</option>
-                                            <option value="TEKNIK DAN PENGAWASAN">TEKNIK DAN PENGAWASAN</option>
-                                            <option value="OPERASI DAN JARINGAN">OPERASI DAN JARINGAN</option>
-                                        </select>
-                                    </div>
-                                    <div class="form-group">
-                                        <label for="pf-role">Role (Alur Approval Izin/Cuti)</label>
-                                        <select id="pf-role">
-                                            <option value="staff">Staff</option>
-                                            <option value="asmen">Asmen (Asisten Manajer)</option>
-                                            <option value="manajer">Manajer</option>
-                                            <option value="direktur">Direktur</option>
-                                        </select>
-                                    </div>
-                                </div>
-                                <div class="form-row two-col">
-                                    <div class="form-group">
-                                        <label>Pangkat</label>
-                                        <select id="pf-pangkat">
-                                            <option value="">-- Pilih Pangkat --</option>
-                                            <option value="Pegawai Dasar Muda">Pegawai Dasar Muda</option>
-                                            <option value="Pegawai Dasar Muda I">Pegawai Dasar Muda I</option>
-                                            <option value="Pegawai Dasar">Pegawai Dasar</option>
-                                            <option value="Pegawai Dasar I">Pegawai Dasar I</option>
-                                            <option value="Pelaksana Muda">Pelaksana Muda</option>
-                                            <option value="Pelaksana Muda I">Pelaksana Muda I</option>
-                                            <option value="Pelaksana">Pelaksana</option>
-                                            <option value="Pelaksana I">Pelaksana I</option>
-                                            <option value="Staf Muda">Staf Muda</option>
-                                            <option value="Staf Muda I">Staf Muda I</option>
-                                            <option value="Staf">Staf</option>
-                                            <option value="Staf I">Staf I</option>
-                                            <option value="Staf Madya">Staf Madya</option>
-                                            <option value="Staf Madya I">Staf Madya I</option>
-                                            <option value="Staf Utama Madya">Staf Utama Madya</option>
-                                            <option value="Staf Utama">Staf Utama</option>
-                                        </select>
-                                    </div>
-                                    <div class="form-group">
-                                        <label>Golongan</label>
-                                        <select id="pf-golongan">
-                                            <option value="">-- Pilih Golongan --</option>
-                                            <option value="A/1">A/1</option>
-                                            <option value="A/2">A/2</option>
-                                            <option value="A/3">A/3</option>
-                                            <option value="A/4">A/4</option>
-                                            <option value="B/1">B/1</option>
-                                            <option value="B/2">B/2</option>
-                                            <option value="B/3">B/3</option>
-                                            <option value="B/4">B/4</option>
-                                            <option value="C/1">C/1</option>
-                                            <option value="C/2">C/2</option>
-                                            <option value="C/3">C/3</option>
-                                            <option value="C/4">C/4</option>
-                                            <option value="D/1">D/1</option>
-                                            <option value="D/2">D/2</option>
-                                            <option value="D/3">D/3</option>
-                                            <option value="D/4">D/4</option>
-                                        </select>
-                                    </div>
-                                </div>
-                                <div class="form-row two-col">
-                                    <div class="form-group">
-                                        <label>Gaji Pokok</label>
-                                        <input type="number" id="pf-gajiPokok" placeholder="0">
-                                    </div>
-                                    <div class="form-group">
-                                        <label>Terhitung Mulai</label>
-                                        <input type="date" id="pf-terhitungMulai" onchange="profileManager.autoHitungMasaKerja()">
-                                    </div>
-                                </div>
-                                <div class="form-row two-col">
-                                    <div class="form-group">
-                                        <label>Masa Kerja</label>
-                                        <input type="text" id="pf-masaKerja" placeholder="Contoh: 21/3">
-                                    </div>
-                                    <div class="form-group">
-                                        <label>Tahun Pensiun</label>
-                                        <input type="text" id="pf-tahunPensiun" placeholder="Tahun pensiun">
-                                        <small style="color:var(--text-muted);">Otomatis terisi: Tahun Lahir + 56 (bisa diubah manual kalau perlu)</small>
-                                    </div>
-                                </div>
-                                <div class="form-group">
-                                    <label>Jenis Jadwal</label>
-                                    <select id="pf-shift">
-                                        <option value="Reguler (Sen-Kam)">Reguler (Senin-Jumat)</option>
-                                        <option value="Jaga Malam">Jaga Malam (Senin-Sabtu)</option>
-                                        <option value="Operator - BNA Amuntai (3 Sesi)">Operator - BNA Amuntai (3 Sesi)</option>
-                                        <option value="SATPAM">SATPAM</option>
-                                        <option value="TRD">TRD</option>
-                                        <option value="Operator - 24 Jam">Operator - 24 Jam</option>
-                                        <option value="Operator - 18 Jam">Operator - 18 Jam</option>
-                                        <option value="Operator - 16 Jam">Operator - 16 Jam</option>
-                                        <option value="Operator - 13 Jam">Operator - 13 Jam</option>
-                                    </select>
-                                </div>
-                            </div>
-
-                            <!-- Tab Keluarga -->
-                            <div id="pf-tabcontent-keluarga" style="display:none;">
-                                <div class="form-group">
-                                    <label style="font-weight:600;">Link KTP (Anda)</label>
-                                    <input type="url" id="pf-fileKTP" placeholder="https://drive.google.com/file/d/..."
-                                        oninput="profileManager.updateKtpUserPreview()"
-                                        style="width:100%;padding:6px 10px;border:1px solid var(--border-color);border-radius:6px;font-family:inherit;">
-                                    <div id="pf-fileKTP-preview" style="position:relative;height:180px;border:1px solid var(--border-color);border-radius:8px;overflow:hidden;background:var(--bg-secondary,#f8f9fa);margin-top:8px;display:none;"></div>
-                                </div>
-                                <div class="form-group" style="margin-top:1.5rem;">
-                                    <label style="font-weight:600;">Nama Pasangan (Suami/Istri)</label>
-                                    <input type="text" id="pf-namaPasangan" placeholder="Nama pasangan">
-                                </div>
-                                <div class="form-group" style="margin-top:1rem;">
-                                    <div id="pf-pasangan-doc-list" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;"></div>
-                                </div>
-                                <div class="form-group" style="margin-top:1.5rem;">
-                                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem;">
-                                        <label style="font-weight:600;margin:0;">Anak-anak</label>
-                                        <button type="button" onclick="profileManager.addAnakField()" style="background:var(--color-primary);color:#fff;border:none;padding:4px 12px;border-radius:6px;cursor:pointer;font-size:0.8rem;"><i class="fas fa-plus"></i> Tambah Anak</button>
-                                    </div>
-                                    <div id="pf-anak-list"></div>
-                                </div>
-                                <div class="form-row two-col" style="margin-top:1.5rem;">
-                                    <div class="form-group">
-                                        <label style="font-weight:600;">Nama Ayah</label>
-                                        <input type="text" id="pf-namaAyah" placeholder="Nama ayah">
-                                    </div>
-                                    <div class="form-group">
-                                        <label style="font-weight:600;">Nama Ibu</label>
-                                        <input type="text" id="pf-namaIbu" placeholder="Nama ibu">
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Tab Akun -->
-                            <div id="pf-tabcontent-akun" style="display:none;">
-                                <p style="font-size:0.85rem;color:var(--text-muted);margin-bottom:1rem;">Akun ini digunakan untuk login ke aplikasi absensi.</p>
-                                <div class="form-group">
-                                    <label>Username *</label>
-                                    <input type="text" id="pf-username" placeholder="Username untuk login">
-                                </div>
-                                <div class="form-group">
-                                    <label>Password</label>
-                                    <div style="position:relative;display:flex;align-items:center;">
-                                        <input type="password" id="pf-password" placeholder="Kosongkan jika tidak ingin mengubah" style="padding-right:45px;">
-                                        <button type="button" class="toggle-password" id="pf-toggle-password" onclick="profileManager.togglePasswordVisibility()">
-                                            <i class="fas fa-eye"></i>
-                                        </button>
-                                    </div>
-                                    <small style="color:var(--text-muted);">Kosongkan jika tidak ingin mengubah password</small>
-                                </div>
-
-                                <!-- ===== Login Sidik Jari (WebAuthn) — TAMBAHAN ===== -->
-                                <div class="form-group" style="margin-top:1.5rem;padding-top:1.25rem;border-top:1px solid var(--border-color);">
-                                    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
-                                        <div>
-                                            <label style="margin-bottom:2px;">Login Sidik Jari</label>
-                                            <p style="font-size:0.8rem;color:var(--text-muted);margin:0;">Aktifkan untuk login lebih cepat pakai sidik jari/Face Unlock di perangkat ini. Username &amp; password tetap bisa dipakai kapan saja.</p>
-                                        </div>
-                                        <label class="toggle-switch" style="flex-shrink:0;">
-                                            <input type="checkbox" id="pf-biometric-toggle" onchange="auth.toggleBiometricSetting(this)">
-                                            <span class="toggle-slider"></span>
-                                        </label>
-                                    </div>
-                                </div>
-
-                                <div class="form-group">
-                                    <label>Daftar Sidik Jari Terdaftar</label>
-                                    <div id="pf-biometric-device-list" style="margin-top:0.5rem;">
-                                        <p style="font-size:0.85rem;color:var(--text-muted);">Memuat...</p>
-                                    </div>
-                                </div>
-
-                                <!-- ===== Notifikasi HP (Firebase Cloud Messaging) — TAMBAHAN ===== -->
-                                <div class="form-group" style="margin-top:1.5rem;padding-top:1.25rem;border-top:1px solid var(--border-color);">
-                                    <label style="margin-bottom:2px;">Notifikasi HP</label>
-                                    <p style="font-size:0.8rem;color:var(--text-muted);margin:0 0 10px;">Dapatkan notifikasi pengingat absensi (mis. belum Masuk) langsung ke HP, walau aplikasi ini tidak sedang dibuka.</p>
-                                    <div id="pf-push-notif-status"></div>
-                                </div>
-                            </div>
-
-                            <!-- Tab Pendidikan (Riwayat SD/SMP/SMA/S1/S2 + link Ijazah & Transkrip) -->
-                            <div id="pf-tabcontent-pendidikan" style="display:none;">
-                                <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:1.5rem;flex-wrap:wrap;">
-                                    <p style="font-size:0.85rem;color:var(--text-muted);margin:0;max-width:640px;">
-                                        Simpan riwayat pendidikan Anda mulai dari SD sampai S2, lengkap dengan link Google
-                                        Drive Ijazah dan Transkrip Nilai. Upload file Ijazah/Transkrip ke Google Drive Anda
-                                        sendiri, atur akses "Siapa saja memiliki link", lalu tempel link-nya di sini.
-                                    </p>
-                                    <button type="button" class="btn-primary" style="white-space:nowrap;flex-shrink:0;" onclick="profileManager.openPendidikanModal()">
-                                        <i class="fas fa-plus"></i> Tambah Riwayat Pendidikan
-                                    </button>
-                                </div>
-
-                                <div id="pf-pendidikan-list" style="margin-bottom:1.5rem;"></div>
-                            </div>
-
-                            <!-- Tab Kenaikan Gaji Berkala -->
-                            <div id="pf-tabcontent-kgb" style="display:none;">
-                                <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:1.5rem;flex-wrap:wrap;">
-                                    <p style="font-size:0.85rem;color:var(--text-muted);margin:0;max-width:640px;">
-                                        Simpan riwayat Kenaikan Gaji Berkala (KGB) Anda beserta link Google Drive
-                                        dokumennya. Upload file ke Google Drive Anda sendiri, atur akses "Siapa saja
-                                        memiliki link", lalu tempel link-nya di sini.
-                                    </p>
-                                    <button type="button" class="btn-primary" style="white-space:nowrap;flex-shrink:0;" onclick="profileManager.openKgbModal()">
-                                        <i class="fas fa-plus"></i> Tambah Kenaikan Gaji Berkala
-                                    </button>
-                                </div>
-
-                                <div class="employees-table-card">
-                                    <div class="table-responsive">
-                                        <table class="employees-table">
-                                            <thead>
-                                                <tr>
-                                                    <th>Nomor Surat</th>
-                                                    <th>TMT KGB</th>
-                                                    <th>Masa Kerja</th>
-                                                    <th>Dokumen</th>
-                                                    <th>Aksi</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody id="pf-kgb-list"></tbody>
-                                        </table>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Tab Golongan -->
-                            <div id="pf-tabcontent-golongan" style="display:none;">
-                                <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:1.5rem;flex-wrap:wrap;">
-                                    <p style="font-size:0.85rem;color:var(--text-muted);margin:0;max-width:640px;">
-                                        Simpan riwayat kenaikan Pangkat Anda beserta link Google Drive dokumen SK-nya.
-                                        Upload file ke Google Drive Anda sendiri, atur akses "Siapa saja memiliki
-                                        link", lalu tempel link-nya di sini.
-                                    </p>
-                                    <button type="button" class="btn-primary" style="white-space:nowrap;flex-shrink:0;" onclick="profileManager.openGolonganModal()">
-                                        <i class="fas fa-plus"></i> Tambah Golongan
-                                    </button>
-                                </div>
-
-                                <div class="employees-table-card">
-                                    <div class="table-responsive">
-                                        <table class="employees-table">
-                                            <thead>
-                                                <tr>
-                                                    <th>Golongan</th>
-                                                    <th>TMT</th>
-                                                    <th>Nomor SK</th>
-                                                    <th>Dokumen</th>
-                                                    <th>Aksi</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody id="pf-golongan-list"></tbody>
-                                        </table>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Tab Riwayat Mutasi -->
-                            <div id="pf-tabcontent-mutasi" style="display:none;">
-                                <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:1.5rem;flex-wrap:wrap;">
-                                    <p style="font-size:0.85rem;color:var(--text-muted);margin:0;max-width:640px;">
-                                        Simpan riwayat mutasi/perpindahan tugas Anda beserta link Google Drive Surat
-                                        Keputusan Mutasi. Upload file SK Mutasi ke Google Drive Anda sendiri, atur akses
-                                        "Siapa saja memiliki link", lalu tempel link-nya di sini.
-                                    </p>
-                                    <button type="button" class="btn-primary" style="white-space:nowrap;flex-shrink:0;" onclick="profileManager.openMutasiModal()">
-                                        <i class="fas fa-plus"></i> Tambah Riwayat Mutasi
-                                    </button>
-                                </div>
-
-                                <div class="employees-table-card">
-                                    <div class="table-responsive">
-                                        <table class="employees-table">
-                                            <thead>
-                                                <tr>
-                                                    <th>Nomor SK</th>
-                                                    <th>Terhitung Tanggal</th>
-                                                    <th>Jabatan Lama</th>
-                                                    <th>Jabatan Baru</th>
-                                                    <th>Dokumen</th>
-                                                    <th>Aksi</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody id="pf-mutasi-list"></tbody>
-                                        </table>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Tab Riwayat Karyawan -->
-                            <div id="pf-tabcontent-riwayatkaryawan" style="display:none;">
-                                <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:1.5rem;flex-wrap:wrap;">
-                                    <p style="font-size:0.85rem;color:var(--text-muted);margin:0;max-width:640px;">
-                                        Simpan riwayat status kepegawaian Anda (CAPEG/Karyawan) beserta link Google
-                                        Drive dokumen SK-nya. Upload file ke Google Drive Anda sendiri, atur akses
-                                        "Siapa saja memiliki link", lalu tempel link-nya di sini.
-                                    </p>
-                                    <button type="button" class="btn-primary" style="white-space:nowrap;flex-shrink:0;" onclick="profileManager.openRiwayatKaryawanModal()">
-                                        <i class="fas fa-plus"></i> Tambah Riwayat Karyawan
-                                    </button>
-                                </div>
-
-                                <div class="employees-table-card">
-                                    <div class="table-responsive">
-                                        <table class="employees-table">
-                                            <thead>
-                                                <tr>
-                                                    <th>Jenis Kepegawaian</th>
-                                                    <th>Status Kepegawaian</th>
-                                                    <th id="pf-rk-th-tmt">TMT CAPEG</th>
-                                                    <th>Nomor SK</th>
-                                                    <th>Dokumen</th>
-                                                    <th>Aksi</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody id="pf-riwayatkaryawan-list"></tbody>
-                                        </table>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="form-actions" style="margin-top:1.5rem;border-top:1px solid var(--border-color);padding-top:1.5rem;">
-                                <button type="button" class="btn-primary" id="btn-save-profile" onclick="profileManager.saveProfile()">
-                                    <i class="fas fa-save"></i> Simpan Perubahan
+                            <div id="pf-view-content"><p style="text-align:center;color:var(--text-muted);padding:2rem 0;">Memuat profil...</p></div>
+                            <div style="text-align:center;margin-top:1rem;border-top:1px solid var(--border-color);padding-top:1.25rem;">
+                                <button type="button" class="btn-primary" onclick="profileManager.openEditModal()">
+                                    <i class="fas fa-pen"></i> Edit Profil
                                 </button>
                             </div>
                         </div>
@@ -4231,6 +3703,559 @@
     </div>
 </div>
     
+    <!-- [TAMBAHAN 2026-10-19] Modal Edit Profil (form edit yang dulu langsung tampil di halaman
+         Edit Profil). Sengaja diletakkan SEBELUM modal-modal riwayat (pendidikan, KGB, dst.)
+         supaya modal-modal itu tetap tampil di atasnya. -->
+    <div class="modal-overlay" id="modal-edit-profil" style="display:none;">
+        <div class="modal-container" style="max-width:900px;">
+            <div class="modal-header">
+                <h3>Edit Profil</h3>
+                <button type="button" class="btn-close-modal" onclick="profileManager.closeEditModal()"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="profile-modal-body">
+                        <div class="pf-edit-form">
+                            <!-- Tab Navigation -->
+                            <div class="pf-tabs-nav" style="display:flex;gap:4px;margin-bottom:1.5rem;border-bottom:2px solid var(--border-color);padding-bottom:0;overflow-x:auto;flex-wrap:nowrap;-webkit-overflow-scrolling:touch;">
+                                <button type="button" class="tab-btn active" onclick="profileManager.switchTab('profil')" id="pf-tab-profil" style="padding:8px 16px;border:none;background:none;cursor:pointer;font-weight:600;color:var(--color-primary);border-bottom:2px solid var(--color-primary);margin-bottom:-2px;white-space:nowrap;flex-shrink:0;">Profil</button>
+                                <button type="button" class="tab-btn" onclick="profileManager.switchTab('kekaryawanan')" id="pf-tab-kekaryawanan" style="padding:8px 16px;border:none;background:none;cursor:pointer;font-weight:500;color:var(--text-muted);white-space:nowrap;flex-shrink:0;">Kekaryawanan</button>
+                                <button type="button" class="tab-btn" onclick="profileManager.switchTab('keluarga')" id="pf-tab-keluarga" style="padding:8px 16px;border:none;background:none;cursor:pointer;font-weight:500;color:var(--text-muted);white-space:nowrap;flex-shrink:0;">Keluarga</button>
+                                <button type="button" class="tab-btn" onclick="profileManager.switchTab('akun')" id="pf-tab-akun" style="padding:8px 16px;border:none;background:none;cursor:pointer;font-weight:500;color:var(--text-muted);white-space:nowrap;flex-shrink:0;">Akun</button>
+                                <button type="button" class="tab-btn" onclick="profileManager.switchTab('pendidikan')" id="pf-tab-pendidikan" style="padding:8px 16px;border:none;background:none;cursor:pointer;font-weight:500;color:var(--text-muted);white-space:nowrap;flex-shrink:0;">Pendidikan</button>
+                                <button type="button" class="tab-btn" onclick="profileManager.switchTab('kgb')" id="pf-tab-kgb" style="padding:8px 16px;border:none;background:none;cursor:pointer;font-weight:500;color:var(--text-muted);white-space:nowrap;flex-shrink:0;">Riwayat KGB</button>
+                                <button type="button" class="tab-btn" onclick="profileManager.switchTab('golongan')" id="pf-tab-golongan" style="padding:8px 16px;border:none;background:none;cursor:pointer;font-weight:500;color:var(--text-muted);white-space:nowrap;flex-shrink:0;">Riwayat Pangkat</button>
+                                <button type="button" class="tab-btn" onclick="profileManager.switchTab('mutasi')" id="pf-tab-mutasi" style="padding:8px 16px;border:none;background:none;cursor:pointer;font-weight:500;color:var(--text-muted);white-space:nowrap;flex-shrink:0;">Riwayat Mutasi</button>
+                                <button type="button" class="tab-btn" onclick="profileManager.switchTab('riwayatkaryawan')" id="pf-tab-riwayatkaryawan" style="padding:8px 16px;border:none;background:none;cursor:pointer;font-weight:500;color:var(--text-muted);white-space:nowrap;flex-shrink:0;">Riwayat Karyawan</button>
+                            </div>
+
+                            <input type="hidden" id="pf-id">
+
+                            <!-- Tab Profil -->
+                            <div id="pf-tabcontent-profil">
+                                <div style="text-align:center;margin-bottom:1.5rem;">
+                                    <div id="pf-foto-preview-container" style="width:100px;height:100px;border-radius:50%;margin:0 auto 8px;overflow:hidden;background:var(--color-gray-200);display:flex;align-items:center;justify-content:center;">
+                                        <img id="pf-foto-preview" src="" alt="Foto" style="width:100%;height:100%;object-fit:cover;display:none;">
+                                        <i class="fas fa-user" id="pf-foto-placeholder" style="font-size:2.5rem;color:var(--text-muted);"></i>
+                                    </div>
+                                    <div style="display:flex;gap:16px;justify-content:center;flex-wrap:wrap;">
+                                        <label style="cursor:pointer;color:var(--color-primary);font-size:0.85rem;font-weight:500;margin:0;">
+                                            <i class="fas fa-upload"></i> Upload Foto
+                                            <input type="file" id="pf-foto-file" accept="image/*" style="display:none;" onchange="profileManager.previewFoto(this)">
+                                        </label>
+                                        <!-- TAMBAHAN: ambil foto langsung lewat kamera perangkat, pakai INPUT
+                                             YANG SAMA persis dengan "Upload Foto" di atas (lihat
+                                             profileManager.openCameraForFoto()) - jadi logika preview &
+                                             simpan (previewFoto/saveProfile) tidak perlu diubah/didobel sama
+                                             sekali, tinggal atribut "capture" yang dipasang sesaat sebelum
+                                             dialog file dibuka supaya HP langsung buka kamera, bukan galeri. -->
+                                        <button type="button" onclick="profileManager.openCameraForFoto()" style="cursor:pointer;color:var(--color-primary);font-size:0.85rem;font-weight:500;background:none;border:none;padding:0;">
+                                            <i class="fas fa-camera"></i> Ambil Foto
+                                        </button>
+                                        <!-- TAMBAHAN: hapus foto profil. Sembunyi kalau memang belum ada foto
+                                             sama sekali (lihat profileManager.loadMyProfile()/previewFoto()/
+                                             hapusFoto() yang mengatur tampil/sembunyinya). -->
+                                        <button type="button" id="pf-foto-hapus-btn" onclick="profileManager.hapusFoto()" style="display:none;cursor:pointer;color:var(--color-danger,#EF4444);font-size:0.85rem;font-weight:500;background:none;border:none;padding:0;">
+                                            <i class="fas fa-trash"></i> Hapus Foto
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="form-row two-col">
+                                    <div class="form-group">
+                                        <label>NIK</label>
+                                        <input type="text" id="pf-nik" placeholder="Nomor Induk Karyawan">
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Nama Lengkap *</label>
+                                        <input type="text" id="pf-nama" placeholder="Nama lengkap" required>
+                                    </div>
+                                </div>
+                                <div class="form-row two-col">
+                                    <div class="form-group">
+                                        <label>Jenis Kelamin</label>
+                                        <select id="pf-jenisKelamin">
+                                            <option value="">Pilih</option>
+                                            <option value="LAKI-LAKI">Laki-laki</option>
+                                            <option value="PEREMPUAN">Perempuan</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Status Pernikahan</label>
+                                        <select id="pf-statusPernikahan">
+                                            <option value="">Pilih</option>
+                                            <option value="TK/0">TK/0</option>
+                                            <option value="TK/1">TK/1</option>
+                                            <option value="TK/2">TK/2</option>
+                                            <option value="TK/3">TK/3</option>
+                                            <option value="K/0">K/0</option>
+                                            <option value="K/1">K/1</option>
+                                            <option value="K/2">K/2</option>
+                                            <option value="K/3">K/3</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="form-row two-col">
+                                    <div class="form-group">
+                                        <label>Tempat Lahir</label>
+                                        <input type="text" id="pf-tempatLahir" placeholder="Kota kelahiran">
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Tanggal Lahir</label>
+                                        <input type="date" id="pf-tanggalLahir" onchange="profileManager.autoHitungTahunPensiun()">
+                                    </div>
+                                </div>
+                                <div class="form-row two-col">
+                                    <div class="form-group">
+                                        <label>Golongan Darah</label>
+                                        <select id="pf-golonganDarah">
+                                            <option value="">Pilih</option>
+                                            <option value="A">A</option>
+                                            <option value="B">B</option>
+                                            <option value="AB">AB</option>
+                                            <option value="O">O</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group">
+                                        <label>No. Telp</label>
+                                        <input type="text" id="pf-noTelp" placeholder="08xx-xxxx-xxxx">
+                                    </div>
+                                </div>
+                                <div class="form-row two-col">
+                                    <div class="form-group">
+                                        <label>NPWP</label>
+                                        <input type="text" id="pf-npwp" placeholder="Nomor NPWP">
+                                    </div>
+                                    <div class="form-group">
+                                        <label>No. KTP</label>
+                                        <input type="text" id="pf-ktp" placeholder="Nomor KTP">
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label>Email</label>
+                                    <input type="email" id="pf-email" placeholder="email@example.com">
+                                </div>
+                                <div class="form-group">
+                                    <label>Agama</label>
+                                    <select id="pf-agama">
+                                        <option value="">Pilih</option>
+                                        <option value="Islam">Islam</option>
+                                        <option value="Kristen">Kristen</option>
+                                        <option value="Katolik">Katolik</option>
+                                        <option value="Hindu">Hindu</option>
+                                        <option value="Buddha">Buddha</option>
+                                        <option value="Konghucu">Konghucu</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <!-- Tab Kekaryawanan -->
+                            <div id="pf-tabcontent-kekaryawanan" style="display:none;">
+                                <div id="pf-kekaryawanan-note" style="display:none;background:#FEF3C7;border:1px solid #FCD34D;color:#92400E;border-radius:8px;padding:10px 14px;margin-bottom:1.25rem;font-size:0.85rem;">
+                                    <i class="fas fa-lock"></i> Data di tab ini hanya dapat diubah oleh Admin. 
+                                </div>
+                                <div class="form-row two-col">
+                                    <div class="form-group">
+                                        <label>Status Pekerjaan</label>
+                                        <select id="pf-statusPekerjaan">
+                                            <option value="Karyawan Tetap">Karyawan Tetap</option>
+                                            <option value="Tenaga Kontrak">Tenaga Kontrak</option>
+                                            <option value="Outsourcing">Outsourcing</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Status Karyawan</label>
+                                        <select id="pf-statusKaryawan">
+                                            <option value="AKTIF">Aktif</option>
+                                            <option value="PENSIUN">Pensiun</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="form-row two-col">
+                                    <div class="form-group">
+                                        <label>Pendidikan</label>
+                                        <select id="pf-pendidikan">
+                                            <option value="">Pilih</option>
+                                            <option value="SD">SD</option>
+                                            <option value="SLTP">SLTP/SMP</option>
+                                            <option value="SLTA">SLTA/SMA</option>
+                                            <option value="SMK">SMK</option>
+                                            <option value="STM">STM</option>
+                                            <option value="D3">D3</option>
+                                            <option value="Strata 1">Strata 1 (S1)</option>
+                                            <option value="Strata 2">Strata 2 (S2)</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Jabatan</label>
+                                        <input type="text" id="pf-jabatan" placeholder="Jabatan">
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label>Unit Wilayah</label>
+                                    <select id="pf-unitWilayah">
+                                        <option value="">-- Pilih Unit Wilayah --</option>
+                                        <optgroup label="Unit Wilayah">
+                                            <option value="BNA Amuntai">BNA Amuntai</option>
+                                            <option value="SPAM Alabio">SPAM Alabio</option>
+                                            <option value="SPAM Jarang Kuantan">SPAM Jarang Kuantan</option>
+                                            <option value="SPAM Sungai Tabukan">SPAM Sungai Tabukan</option>
+                                            <option value="SPAM Muara Tapus">SPAM Muara Tapus</option>
+                                            <option value="SPAM Telaga Silaba">SPAM Telaga Silaba</option>
+                                            <option value="SPAM Rantau Bujur">SPAM Rantau Bujur</option>
+                                            <option value="SPAM Muara Baruh">SPAM Muara Baruh</option>
+                                            <option value="SPAM Banjang">SPAM Banjang</option>
+                                            <option value="SPAM Tangkawang">SPAM Tangkawang</option>
+                                            <option value="SPAM Babirik">SPAM Babirik</option>
+                                            <option value="SPAM Danau Panggang">SPAM Danau Panggang</option>
+                                            <option value="SPAM Paminggir">SPAM Paminggir</option>
+                                        </optgroup>
+                                        <optgroup label="Unit Jaga (Non-Wilayah)">
+                                            <option value="SATPAM">SATPAM</option>
+                                            <option value="TRD - BNA Amuntai">TRD - BNA Amuntai</option>
+                                            <option value="TRD - Cabang I">TRD - Cabang I</option>
+                                            <option value="TRD - Cabang II">TRD - Cabang II</option>
+                                            <option value="TRD - Cabang III">TRD - Cabang III</option>
+                                        </optgroup>
+                                    </select>
+                                </div>
+                                <div class="form-row two-col">
+                                    <div class="form-group">
+                                        <label for="pf-bagian">Bagian</label>
+                                        <select id="pf-bagian">
+                                            <option value="">-- Pilih Bagian --</option>
+                                            <option value="SPI">SPI</option>
+                                            <option value="UMUM DAN KEPEGAWAIAN">UMUM DAN KEPEGAWAIAN</option>
+                                            <option value="KEUANGAN">KEUANGAN</option>
+                                            <option value="HUBUNGAN LANGGANAN">HUBUNGAN LANGGANAN</option>
+                                            <option value="TEKNIK DAN PENGAWASAN">TEKNIK DAN PENGAWASAN</option>
+                                            <option value="OPERASI DAN JARINGAN">OPERASI DAN JARINGAN</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="pf-role">Role (Alur Approval Izin/Cuti)</label>
+                                        <select id="pf-role">
+                                            <option value="staff">Staff</option>
+                                            <option value="asmen">Asmen (Asisten Manajer)</option>
+                                            <option value="manajer">Manajer</option>
+                                            <option value="direktur">Direktur</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="form-row two-col">
+                                    <div class="form-group">
+                                        <label>Pangkat</label>
+                                        <select id="pf-pangkat">
+                                            <option value="">-- Pilih Pangkat --</option>
+                                            <option value="Pegawai Dasar Muda">Pegawai Dasar Muda</option>
+                                            <option value="Pegawai Dasar Muda I">Pegawai Dasar Muda I</option>
+                                            <option value="Pegawai Dasar">Pegawai Dasar</option>
+                                            <option value="Pegawai Dasar I">Pegawai Dasar I</option>
+                                            <option value="Pelaksana Muda">Pelaksana Muda</option>
+                                            <option value="Pelaksana Muda I">Pelaksana Muda I</option>
+                                            <option value="Pelaksana">Pelaksana</option>
+                                            <option value="Pelaksana I">Pelaksana I</option>
+                                            <option value="Staf Muda">Staf Muda</option>
+                                            <option value="Staf Muda I">Staf Muda I</option>
+                                            <option value="Staf">Staf</option>
+                                            <option value="Staf I">Staf I</option>
+                                            <option value="Staf Madya">Staf Madya</option>
+                                            <option value="Staf Madya I">Staf Madya I</option>
+                                            <option value="Staf Utama Madya">Staf Utama Madya</option>
+                                            <option value="Staf Utama">Staf Utama</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Golongan</label>
+                                        <select id="pf-golongan">
+                                            <option value="">-- Pilih Golongan --</option>
+                                            <option value="A/1">A/1</option>
+                                            <option value="A/2">A/2</option>
+                                            <option value="A/3">A/3</option>
+                                            <option value="A/4">A/4</option>
+                                            <option value="B/1">B/1</option>
+                                            <option value="B/2">B/2</option>
+                                            <option value="B/3">B/3</option>
+                                            <option value="B/4">B/4</option>
+                                            <option value="C/1">C/1</option>
+                                            <option value="C/2">C/2</option>
+                                            <option value="C/3">C/3</option>
+                                            <option value="C/4">C/4</option>
+                                            <option value="D/1">D/1</option>
+                                            <option value="D/2">D/2</option>
+                                            <option value="D/3">D/3</option>
+                                            <option value="D/4">D/4</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="form-row two-col">
+                                    <div class="form-group">
+                                        <label>Gaji Pokok</label>
+                                        <input type="number" id="pf-gajiPokok" placeholder="0">
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Terhitung Mulai</label>
+                                        <input type="date" id="pf-terhitungMulai" onchange="profileManager.autoHitungMasaKerja()">
+                                    </div>
+                                </div>
+                                <div class="form-row two-col">
+                                    <div class="form-group">
+                                        <label>Masa Kerja</label>
+                                        <input type="text" id="pf-masaKerja" placeholder="Contoh: 21/3">
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Tahun Pensiun</label>
+                                        <input type="text" id="pf-tahunPensiun" placeholder="Tahun pensiun">
+                                        <small style="color:var(--text-muted);">Otomatis terisi: Tahun Lahir + 56 (bisa diubah manual kalau perlu)</small>
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label>Jenis Jadwal</label>
+                                    <select id="pf-shift">
+                                        <option value="Reguler (Sen-Kam)">Reguler (Senin-Jumat)</option>
+                                        <option value="Jaga Malam">Jaga Malam (Senin-Sabtu)</option>
+                                        <option value="Operator - BNA Amuntai (3 Sesi)">Operator - BNA Amuntai (3 Sesi)</option>
+                                        <option value="SATPAM">SATPAM</option>
+                                        <option value="TRD">TRD</option>
+                                        <option value="Operator - 24 Jam">Operator - 24 Jam</option>
+                                        <option value="Operator - 18 Jam">Operator - 18 Jam</option>
+                                        <option value="Operator - 16 Jam">Operator - 16 Jam</option>
+                                        <option value="Operator - 13 Jam">Operator - 13 Jam</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <!-- Tab Keluarga -->
+                            <div id="pf-tabcontent-keluarga" style="display:none;">
+                                <div class="form-group">
+                                    <label style="font-weight:600;">Link KTP (Anda)</label>
+                                    <input type="url" id="pf-fileKTP" placeholder="https://drive.google.com/file/d/..."
+                                        oninput="profileManager.updateKtpUserPreview()"
+                                        style="width:100%;padding:6px 10px;border:1px solid var(--border-color);border-radius:6px;font-family:inherit;">
+                                    <div id="pf-fileKTP-preview" style="position:relative;height:180px;border:1px solid var(--border-color);border-radius:8px;overflow:hidden;background:var(--bg-secondary,#f8f9fa);margin-top:8px;display:none;"></div>
+                                </div>
+                                <div class="form-group" style="margin-top:1.5rem;">
+                                    <label style="font-weight:600;">Nama Pasangan (Suami/Istri)</label>
+                                    <input type="text" id="pf-namaPasangan" placeholder="Nama pasangan">
+                                </div>
+                                <div class="form-group" style="margin-top:1rem;">
+                                    <div id="pf-pasangan-doc-list" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;"></div>
+                                </div>
+                                <div class="form-group" style="margin-top:1.5rem;">
+                                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem;">
+                                        <label style="font-weight:600;margin:0;">Anak-anak</label>
+                                        <button type="button" onclick="profileManager.addAnakField()" style="background:var(--color-primary);color:#fff;border:none;padding:4px 12px;border-radius:6px;cursor:pointer;font-size:0.8rem;"><i class="fas fa-plus"></i> Tambah Anak</button>
+                                    </div>
+                                    <div id="pf-anak-list"></div>
+                                </div>
+                                <div class="form-row two-col" style="margin-top:1.5rem;">
+                                    <div class="form-group">
+                                        <label style="font-weight:600;">Nama Ayah</label>
+                                        <input type="text" id="pf-namaAyah" placeholder="Nama ayah">
+                                    </div>
+                                    <div class="form-group">
+                                        <label style="font-weight:600;">Nama Ibu</label>
+                                        <input type="text" id="pf-namaIbu" placeholder="Nama ibu">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Tab Akun -->
+                            <div id="pf-tabcontent-akun" style="display:none;">
+                                <p style="font-size:0.85rem;color:var(--text-muted);margin-bottom:1rem;">Akun ini digunakan untuk login ke aplikasi absensi.</p>
+                                <div class="form-group">
+                                    <label>Username *</label>
+                                    <input type="text" id="pf-username" placeholder="Username untuk login">
+                                </div>
+                                <div class="form-group">
+                                    <label>Password</label>
+                                    <div style="position:relative;display:flex;align-items:center;">
+                                        <input type="password" id="pf-password" placeholder="Kosongkan jika tidak ingin mengubah" style="padding-right:45px;">
+                                        <button type="button" class="toggle-password" id="pf-toggle-password" onclick="profileManager.togglePasswordVisibility()">
+                                            <i class="fas fa-eye"></i>
+                                        </button>
+                                    </div>
+                                    <small style="color:var(--text-muted);">Kosongkan jika tidak ingin mengubah password</small>
+                                </div>
+
+                                <!-- ===== Login Sidik Jari (WebAuthn) — TAMBAHAN ===== -->
+                                <div class="form-group" style="margin-top:1.5rem;padding-top:1.25rem;border-top:1px solid var(--border-color);">
+                                    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+                                        <div>
+                                            <label style="margin-bottom:2px;">Login Sidik Jari</label>
+                                            <p style="font-size:0.8rem;color:var(--text-muted);margin:0;">Aktifkan untuk login lebih cepat pakai sidik jari/Face Unlock di perangkat ini. Username &amp; password tetap bisa dipakai kapan saja.</p>
+                                        </div>
+                                        <label class="toggle-switch" style="flex-shrink:0;">
+                                            <input type="checkbox" id="pf-biometric-toggle" onchange="auth.toggleBiometricSetting(this)">
+                                            <span class="toggle-slider"></span>
+                                        </label>
+                                    </div>
+                                </div>
+
+                                <div class="form-group">
+                                    <label>Daftar Sidik Jari Terdaftar</label>
+                                    <div id="pf-biometric-device-list" style="margin-top:0.5rem;">
+                                        <p style="font-size:0.85rem;color:var(--text-muted);">Memuat...</p>
+                                    </div>
+                                </div>
+
+                                <!-- ===== Notifikasi HP (Firebase Cloud Messaging) — TAMBAHAN ===== -->
+                                <div class="form-group" style="margin-top:1.5rem;padding-top:1.25rem;border-top:1px solid var(--border-color);">
+                                    <label style="margin-bottom:2px;">Notifikasi HP</label>
+                                    <p style="font-size:0.8rem;color:var(--text-muted);margin:0 0 10px;">Dapatkan notifikasi pengingat absensi (mis. belum Masuk) langsung ke HP, walau aplikasi ini tidak sedang dibuka.</p>
+                                    <div id="pf-push-notif-status"></div>
+                                </div>
+                            </div>
+
+                            <!-- Tab Pendidikan (Riwayat SD/SMP/SMA/S1/S2 + link Ijazah & Transkrip) -->
+                            <div id="pf-tabcontent-pendidikan" style="display:none;">
+                                <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:1.5rem;flex-wrap:wrap;">
+                                    <p style="font-size:0.85rem;color:var(--text-muted);margin:0;max-width:640px;">
+                                        Simpan riwayat pendidikan Anda mulai dari SD sampai S2, lengkap dengan link Google
+                                        Drive Ijazah dan Transkrip Nilai. Upload file Ijazah/Transkrip ke Google Drive Anda
+                                        sendiri, atur akses "Siapa saja memiliki link", lalu tempel link-nya di sini.
+                                    </p>
+                                    <button type="button" class="btn-primary" style="white-space:nowrap;flex-shrink:0;" onclick="profileManager.openPendidikanModal()">
+                                        <i class="fas fa-plus"></i> Tambah Riwayat Pendidikan
+                                    </button>
+                                </div>
+
+                                <div id="pf-pendidikan-list" style="margin-bottom:1.5rem;"></div>
+                            </div>
+
+                            <!-- Tab Kenaikan Gaji Berkala -->
+                            <div id="pf-tabcontent-kgb" style="display:none;">
+                                <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:1.5rem;flex-wrap:wrap;">
+                                    <p style="font-size:0.85rem;color:var(--text-muted);margin:0;max-width:640px;">
+                                        Simpan riwayat Kenaikan Gaji Berkala (KGB) Anda beserta link Google Drive
+                                        dokumennya. Upload file ke Google Drive Anda sendiri, atur akses "Siapa saja
+                                        memiliki link", lalu tempel link-nya di sini.
+                                    </p>
+                                    <button type="button" class="btn-primary" style="white-space:nowrap;flex-shrink:0;" onclick="profileManager.openKgbModal()">
+                                        <i class="fas fa-plus"></i> Tambah Kenaikan Gaji Berkala
+                                    </button>
+                                </div>
+
+                                <div class="employees-table-card">
+                                    <div class="table-responsive">
+                                        <table class="employees-table">
+                                            <thead>
+                                                <tr>
+                                                    <th>Nomor Surat</th>
+                                                    <th>TMT KGB</th>
+                                                    <th>Masa Kerja</th>
+                                                    <th>Dokumen</th>
+                                                    <th>Aksi</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="pf-kgb-list"></tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Tab Golongan -->
+                            <div id="pf-tabcontent-golongan" style="display:none;">
+                                <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:1.5rem;flex-wrap:wrap;">
+                                    <p style="font-size:0.85rem;color:var(--text-muted);margin:0;max-width:640px;">
+                                        Simpan riwayat kenaikan Pangkat Anda beserta link Google Drive dokumen SK-nya.
+                                        Upload file ke Google Drive Anda sendiri, atur akses "Siapa saja memiliki
+                                        link", lalu tempel link-nya di sini.
+                                    </p>
+                                    <button type="button" class="btn-primary" style="white-space:nowrap;flex-shrink:0;" onclick="profileManager.openGolonganModal()">
+                                        <i class="fas fa-plus"></i> Tambah Golongan
+                                    </button>
+                                </div>
+
+                                <div class="employees-table-card">
+                                    <div class="table-responsive">
+                                        <table class="employees-table">
+                                            <thead>
+                                                <tr>
+                                                    <th>Golongan</th>
+                                                    <th>TMT</th>
+                                                    <th>Nomor SK</th>
+                                                    <th>Dokumen</th>
+                                                    <th>Aksi</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="pf-golongan-list"></tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Tab Riwayat Mutasi -->
+                            <div id="pf-tabcontent-mutasi" style="display:none;">
+                                <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:1.5rem;flex-wrap:wrap;">
+                                    <p style="font-size:0.85rem;color:var(--text-muted);margin:0;max-width:640px;">
+                                        Simpan riwayat mutasi/perpindahan tugas Anda beserta link Google Drive Surat
+                                        Keputusan Mutasi. Upload file SK Mutasi ke Google Drive Anda sendiri, atur akses
+                                        "Siapa saja memiliki link", lalu tempel link-nya di sini.
+                                    </p>
+                                    <button type="button" class="btn-primary" style="white-space:nowrap;flex-shrink:0;" onclick="profileManager.openMutasiModal()">
+                                        <i class="fas fa-plus"></i> Tambah Riwayat Mutasi
+                                    </button>
+                                </div>
+
+                                <div class="employees-table-card">
+                                    <div class="table-responsive">
+                                        <table class="employees-table">
+                                            <thead>
+                                                <tr>
+                                                    <th>Nomor SK</th>
+                                                    <th>Terhitung Tanggal</th>
+                                                    <th>Jabatan Lama</th>
+                                                    <th>Jabatan Baru</th>
+                                                    <th>Dokumen</th>
+                                                    <th>Aksi</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="pf-mutasi-list"></tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Tab Riwayat Karyawan -->
+                            <div id="pf-tabcontent-riwayatkaryawan" style="display:none;">
+                                <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:1.5rem;flex-wrap:wrap;">
+                                    <p style="font-size:0.85rem;color:var(--text-muted);margin:0;max-width:640px;">
+                                        Simpan riwayat status kepegawaian Anda (CAPEG/Karyawan) beserta link Google
+                                        Drive dokumen SK-nya. Upload file ke Google Drive Anda sendiri, atur akses
+                                        "Siapa saja memiliki link", lalu tempel link-nya di sini.
+                                    </p>
+                                    <button type="button" class="btn-primary" style="white-space:nowrap;flex-shrink:0;" onclick="profileManager.openRiwayatKaryawanModal()">
+                                        <i class="fas fa-plus"></i> Tambah Riwayat Karyawan
+                                    </button>
+                                </div>
+
+                                <div class="employees-table-card">
+                                    <div class="table-responsive">
+                                        <table class="employees-table">
+                                            <thead>
+                                                <tr>
+                                                    <th>Jenis Kepegawaian</th>
+                                                    <th>Status Kepegawaian</th>
+                                                    <th id="pf-rk-th-tmt">TMT CAPEG</th>
+                                                    <th>Nomor SK</th>
+                                                    <th>Dokumen</th>
+                                                    <th>Aksi</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="pf-riwayatkaryawan-list"></tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="form-actions" style="margin-top:1.5rem;border-top:1px solid var(--border-color);padding-top:1.5rem;">
+                                <button type="button" class="btn-primary" id="btn-save-profile" onclick="profileManager.saveProfile()">
+                                    <i class="fas fa-save"></i> Simpan Perubahan
+                                </button>
+                            </div>
+                        </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Profile Modal -->
     <div class="modal-overlay" id="modal-profile" style="display: none;">
         <div class="modal-container modal-profile">
