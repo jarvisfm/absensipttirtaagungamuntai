@@ -265,8 +265,7 @@ const offlineQueue = {
         const reason = esc(failed[0].lastError || 'Ditolak server');
         box.style.display = 'flex';
         box.innerHTML = `<span><i class="fas fa-triangle-exclamation"></i>
-            <strong>${failed.length}</strong> absen offline GAGAL tercatat di server: ${reason}.
-            Jika ini keliru, ajukan Sanggahan Absensi.</span>
+            <strong>${failed.length}</strong> absen offline GAGAL tercatat di server: ${reason}.</span>
             <span style="display:flex;gap:8px;">
                 <button type="button" class="btn-secondary" id="offline-queue-retry-btn" style="white-space:nowrap;">Coba Lagi</button>
                 <button type="button" class="btn-secondary" id="offline-queue-discard-btn" style="white-space:nowrap;">Tutup</button>
