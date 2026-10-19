@@ -61,9 +61,17 @@ const mobile = {
         // Toggle sidebar behavior
         const sidebar = document.getElementById('sidebar');
         if (sidebar) {
+            // [PERBAIKAN 2026-10-19] Event 'resize' di browser HP ikut terpicu
+            // saat address bar naik/turun waktu scroll (tinggi berubah, lebar
+            // tetap) - dulu itu langsung menutup sidebar yang sedang dibuka.
+            // Sekarang sidebar hanya ditutup kalau LEBAR layar benar-benar berubah.
+            const widthChanged = window.innerWidth !== this._lastWidth;
+            this._lastWidth = window.innerWidth;
             if (this.isMobile) {
-                sidebar.classList.remove('open');
-                this.sidebarOpen = false;
+                if (widthChanged || !wasMobile) {
+                    sidebar.classList.remove('open');
+                    this.sidebarOpen = false;
+                }
             } else {
                 sidebar.style.transform = '';
             }
