@@ -30,6 +30,8 @@ const profileManager = {
         this.isAdmin = (user.role === 'admin');
 
         if (!this.myId) {
+            const vc = document.getElementById('pf-view-content');
+            if (vc) vc.innerHTML = '<p style="text-align:center;color:var(--text-muted);padding:2rem 0;">Akun ini belum terhubung ke data karyawan.</p>';
             toast.error('Akun Admin ini belum terhubung ke data karyawan di menu Data Karyawan, jadi belum ada profil untuk diedit di sini.');
             return;
         }
@@ -52,6 +54,139 @@ const profileManager = {
         await this.loadRiwayatGolongan();
         await this.loadRiwayatMutasi();
         await this.loadRiwayatKaryawan();
+        this.refreshView();
+    },
+
+    // ===== [TAMBAHAN 2026-10-19] Kartu "Profil Saya" (tampilan baca) =====
+    // Isinya mengikuti tab-tab di form Edit Profil: Profil, Kekaryawanan,
+    // Keluarga, Akun, Pendidikan, Riwayat KGB, Riwayat Pangkat, Riwayat
+    // Mutasi, Riwayat Karyawan. Form-nya sendiri ada di modal #modal-edit-profil.
+    openEditModal() {
+        const m = document.getElementById('modal-edit-profil');
+        if (!m) return;
+        this.switchTab('profil');
+        m.style.display = 'flex';
+    },
+
+    closeEditModal() {
+        const m = document.getElementById('modal-edit-profil');
+        if (m) m.style.display = 'none';
+        this.refreshView();
+    },
+
+    async refreshView() {
+        const el = document.getElementById('pf-view-content');
+        if (!el || !this.myId) return;
+        try {
+            const result = await api.getKaryawanDetail(this.myId);
+            if (result.success && result.data) {
+                el.innerHTML = this.renderViewHtml(result.data);
+            } else {
+                el.innerHTML = '<p style="text-align:center;color:var(--text-muted);">Gagal memuat data profil.</p>';
+            }
+        } catch (e) {
+            console.error('Error refresh tampilan profil:', e);
+            el.innerHTML = '<p style="text-align:center;color:var(--text-muted);">Terjadi kesalahan saat memuat profil.</p>';
+        }
+    },
+
+    renderViewHtml(p) {
+        const esc = (t) => String(t == null ? '' : t).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+        const field = (label, value) => (value || value === 0)
+            ? `<div style="display:flex;gap:12px;padding:8px 0;border-bottom:1px solid var(--border-color);">
+                    <span style="min-width:150px;max-width:150px;color:var(--text-muted);font-size:0.85rem;">${label}</span>
+                    <span style="font-weight:500;font-size:0.85rem;word-break:break-word;">${value}</span>
+               </div>`
+            : '';
+        const section = (icon, title, body) => body
+            ? `<div style="margin-bottom:1.5rem;">
+                    <div style="font-weight:600;color:var(--color-primary);margin-bottom:0.5rem;font-size:0.9rem;"><i class="fas ${icon}"></i> ${title}</div>
+                    ${body}
+               </div>`
+            : '';
+        const link = (url, text) => url ? `<a href="${esc(url)}" target="_blank" rel="noopener" style="color:var(--color-primary);"><i class="fas fa-file"></i> ${text || 'Lihat Berkas'}</a>` : '';
+        const list = (arr, fn) => (arr && arr.length)
+            ? arr.map(r => `<div style="padding:8px 0;border-bottom:1px solid var(--border-color);font-size:0.85rem;">${fn(r)}</div>`).join('')
+            : '';
+
+        const keluarga = p.keluarga || [];
+        const pasangan = keluarga.find(k => k.tipe === 'pasangan');
+        const ayah     = keluarga.find(k => k.tipe === 'ayah');
+        const ibu      = keluarga.find(k => k.tipe === 'ibu');
+        const anak     = keluarga.filter(k => k.tipe === 'anak');
+
+        const colors = ['#F59E0B','#3B82F6','#10B981','#EF4444','#8B5CF6'];
+        const color  = colors[(p.nama || '').charCodeAt(0) % colors.length];
+        const initials = (p.nama || 'P').split(' ').map(w => w[0]).join('').substring(0,2).toUpperCase();
+        const fotoHtml = p.foto
+            ? `<img src="${esc(p.foto)}" style="width:90px;height:90px;border-radius:50%;object-fit:cover;border:3px solid var(--color-primary);">`
+            : `<div style="width:90px;height:90px;border-radius:50%;background:${color};color:#fff;display:flex;align-items:center;justify-content:center;font-size:1.8rem;font-weight:700;margin:0 auto;">${initials}</div>`;
+        const statusColor = p.statusKaryawan === 'AKTIF' ? '#10B981' : '#F59E0B';
+
+        // dipakai auth.printCV()
+        if (window.auth) auth._profileData = p;
+
+        const ket = (r, ...keys) => keys.map(k => r[k]).filter(Boolean).map(esc).join(' &bull; ');
+        const pendidikan = list(this.riwayatPendidikan, r =>
+            `<strong>${esc(r.jenjang || '-')}</strong> - ${esc(r.namaSekolah || '-')}<br><span style="color:var(--text-muted);">${ket(r, 'jurusan', 'tahunLulus', 'nomorIjazah')}</span> ${link(r.fileIjazahUrl, 'Ijazah')} ${link(r.fileTranskripUrl, 'Transkrip')}`);
+        const kgb = list(this.riwayatKgb, r =>
+            `<strong>${esc(r.nomorSurat || '-')}</strong><br><span style="color:var(--text-muted);">TMT ${esc(r.tmtKgb || '-')} &bull; Masa kerja ${esc(r.masaKerjaTahun || 0)} th ${esc(r.masaKerjaBulan || 0)} bln</span> ${link(r.fileDokumenUrl)}`);
+        const gol = list(this.riwayatGolongan, r =>
+            `<strong>${esc(r.golongan || '-')}</strong><br><span style="color:var(--text-muted);">TMT ${esc(r.tmtGolongan || '-')} &bull; SK ${esc(r.nomorSK || '-')}</span> ${link(r.fileDokumenUrl)}`);
+        const mut = list(this.riwayatMutasi, r =>
+            `<strong>${esc(r.nomorSurat || '-')}</strong> (${esc(r.tanggalSurat || '-')})<br><span style="color:var(--text-muted);">${esc(r.unorAsal || '-')} &rarr; ${esc(r.unorBaru || '-')}</span> ${link(r.fileDokumenUrl)}`);
+        const rk = list(this.riwayatKaryawan, r =>
+            `<strong>${esc(r.jenisKepegawaian || '-')}</strong> - ${esc(r.statusKepegawaian || '-')}<br><span style="color:var(--text-muted);">TMT ${esc(r.tmtCapeg || '-')} &bull; SK ${esc(r.nomorSK || '-')}</span> ${link(r.fileDokumenUrl)}`);
+
+        return `
+            <div style="text-align:center;margin-bottom:1.5rem;">
+                ${fotoHtml}
+                <h3 style="margin-top:0.75rem;font-size:1.1rem;">${esc(p.nama || '-')}</h3>
+                <p style="color:var(--text-muted);font-size:0.85rem;">${esc(p.jabatan || '')}${p.unitWilayah ? ' — ' + esc(p.unitWilayah) : ''}</p>
+                <span style="background:${statusColor}20;color:${statusColor};padding:3px 12px;border-radius:20px;font-size:0.8rem;font-weight:600;">${esc(p.statusKaryawan || '')}</span>
+                <div style="margin-top:0.9rem;">
+                    <button type="button" class="btn-primary btn-sm" onclick="auth.printCV()">
+                        <i class="fas fa-print"></i><span> Cetak CV</span>
+                    </button>
+                </div>
+            </div>
+            ${section('fa-user', 'DATA PRIBADI',
+                field('NIK', esc(p.nik)) +
+                field('Jenis Kelamin', esc(p.jenisKelamin)) +
+                field('Agama', esc(p.agama)) +
+                field('Status Pernikahan', esc(p.statusPernikahan === 'K' ? 'Kawin' : p.statusPernikahan === 'TK' ? 'Belum Kawin' : p.statusPernikahan)) +
+                field('Tempat, Tgl Lahir', p.tempatLahir && p.tanggalLahir ? esc(p.tempatLahir + ', ' + p.tanggalLahir) : esc(p.tempatLahir || p.tanggalLahir)) +
+                field('Golongan Darah', esc(p.golonganDarah)) +
+                field('No. KTP', esc(p.ktp)) +
+                field('NPWP', esc(p.npwp)) +
+                field('No. Telp', esc(p.noTelp)) +
+                field('Email', esc(p.email)))}
+            ${section('fa-briefcase', 'DATA KEKARYAWANAN',
+                field('Status Pekerjaan', esc(p.statusPekerjaan)) +
+                field('Pendidikan', esc(p.pendidikan)) +
+                field('Jabatan', esc(p.jabatan)) +
+                field('Unit Wilayah', esc(p.unitWilayah)) +
+                field('Bagian', esc(p.bagian)) +
+                field('Pangkat', esc(p.pangkat)) +
+                field('Golongan', esc(p.golongan)) +
+                field('Gaji Pokok', p.gajiPokok ? 'Rp ' + Number(p.gajiPokok).toLocaleString('id-ID') : '') +
+                field('Terhitung Mulai', esc(p.terhitungMulai)) +
+                field('Masa Kerja', esc(p.masaKerja)) +
+                field('Tahun Pensiun', esc(p.tahunPensiun)) +
+                field('Jadwal', esc(p.shift)))}
+            ${section('fa-users', 'DATA KELUARGA',
+                field('Pasangan', esc(pasangan && pasangan.nama)) +
+                anak.map((a, i) => field(`Anak ke-${i + 1}`, esc(a.nama))).join('') +
+                field('Nama Ayah', esc(ayah && ayah.nama)) +
+                field('Nama Ibu', esc(ibu && ibu.nama)) +
+                field('Berkas KTP', link(p.fileKTP)))}
+            ${section('fa-user-lock', 'AKUN', field('Username', esc(p.username)))}
+            ${section('fa-graduation-cap', 'RIWAYAT PENDIDIKAN', pendidikan)}
+            ${section('fa-money-bill-trend-up', 'RIWAYAT KGB', kgb)}
+            ${section('fa-layer-group', 'RIWAYAT PANGKAT', gol)}
+            ${section('fa-right-left', 'RIWAYAT MUTASI', mut)}
+            ${section('fa-id-badge', 'RIWAYAT KARYAWAN', rk)}
+        `;
     },
 
     switchTab(tab) {
@@ -644,6 +779,7 @@ const profileManager = {
 
             document.getElementById('pf-password').value = '';
             await this.loadMyProfile();
+            this.closeEditModal();
 
         } catch (e) {
             console.error('Error save profil:', e);
