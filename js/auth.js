@@ -823,7 +823,7 @@ table.sub td{padding:0 1mm 0 0}
 <h1>CURRICULUM VITAE</h1>
 <table>${rows}</table>
 <div class="ttd">
-  <div>Karyawan/ti PDAM,</div>
+  <div>Karyawan/ti,</div>
   <div class="nm">${e(p.nama || '')}</div>
   <div>${p.nik && p.nik !== '-' ? 'NIK. ' + e(p.nik) : ''}</div>
 </div>
