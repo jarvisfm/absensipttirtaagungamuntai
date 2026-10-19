@@ -38,6 +38,7 @@ const absensi = {
         if (typeof preFetchedHasPending === 'boolean') {
             if (navBadge) navBadge.style.display = preFetchedHasPending ? '' : 'none';
             if (shiftBadge) shiftBadge.style.display = preFetchedHasPending ? 'inline-flex' : 'none';
+            if (window.suratTugas) suratTugas.setPending(preFetchedHasPending);
             return;
         }
 
@@ -53,6 +54,7 @@ const absensi = {
             const hasPending = res.success && (res.data || []).some(st => st.status === 'pending');
             if (navBadge) navBadge.style.display = hasPending ? '' : 'none';
             if (shiftBadge) shiftBadge.style.display = hasPending ? 'inline-flex' : 'none';
+            if (window.suratTugas) suratTugas.setPending(hasPending);
         } catch (e) {
             // Diam-diam saja kalau gagal - badge bukan info kritikal,
             // jangan sampai memunculkan error yang mengganggu.
@@ -234,6 +236,11 @@ const absensi = {
     // (pageData null), kedua fungsi itu dipanggil TANPA argumen seperti
     // semula - otomatis jatuh ke perilaku lama (fetch sendiri-sendiri),
     // tidak ada badge yang salah tampil gara-gara ini.
+    // Kunci tombol Input SPPD langsung begitu data halaman datang (tanpa
+    // menunggu jeda acak badge di bawah) supaya tidak sempat ke-klik dobel.
+    Promise.resolve(pageDataPromise).then(pd => {
+        if (pd && pd.pending && window.suratTugas) suratTugas.setPending(pd.pending.suratTugas > 0);
+    }).catch(() => {});
     const badgeJitterMs = Math.random() * 1500;
     setTimeout(async () => {
         const pageData = await pageDataPromise;
@@ -2448,6 +2455,9 @@ const absensi = {
                     : 'Sedang dinas luar? Catat di sini';
             }
         }
+        // Kunci juga kalau masih ada SPPD yang menunggu approval admin
+        // (lihat suratTugas.applyLockUI() di surat-tugas.js).
+        if (window.suratTugas) suratTugas.applyLockUI();
     },
 
     renderTimeline() {
