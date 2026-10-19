@@ -359,6 +359,13 @@
     /* Main content full width */
     .main-content {
         margin-left: 0;
+        /* [PERBAIKAN 2026-10-19] .main-content adalah item flex (flex:1) di
+           .app-container. Tanpa min-width:0, lebarnya ikut melebar mengikuti
+           isi terlebar (tabel Jadwal Jaga Operator, form Mutasi) sehingga
+           halaman terpotong di kanan. min-width:0 membuatnya tetap seukuran
+           layar - tabel lebar cukup discroll di dalam wrapper-nya sendiri. */
+        min-width: 0;
+        max-width: 100%;
     }
     
     /* Top bar adjustments */
@@ -1278,3 +1285,29 @@
     .bottom-nav-more:active { transform: scale(.88); }
 }
 @media (min-width: 769px) { .bottom-nav-more { display: none; } }
+
+/* [PERBAIKAN 2026-10-19] Halaman Mutasi & Jadwal Jaga Operator (admin) terpotong di HP */
+@media (max-width: 768px) {
+    #mutasi-root,
+    .jjo-container { width: 100%; max-width: 100%; min-width: 0; }
+    .jjo-container { padding: var(--spacing-sm); }
+    #mutasi-root .mts-layout, #mutasi-root .mts-main, #mutasi-root .mts-main > div, #mutasi-root .mts-card, #mutasi-root .mts-side { min-width: 0; }
+    #mutasi-root .mts-layout { grid-template-columns: minmax(0, 1fr); }
+    #mutasi-root .mts-grid { grid-template-columns: minmax(0, 1fr); }
+    #mutasi-root .mts-grid > *, #mutasi-root .mts-flow > * { min-width: 0; }
+    #mutasi-root .mts-flow { grid-template-columns: minmax(0, 1fr); }
+    #mutasi-root .mts-flow-arrow { transform: rotate(90deg); justify-self: center; }
+    #mutasi-root .mts-card { padding: 16px; }
+    #mutasi-root .mts-input { max-width: 100%; min-width: 0; }
+    #mutasi-root .mts-actions { justify-content: stretch; }
+    #mutasi-root .mts-actions .mts-btn { width: 100%; }
+    #mutasi-root .mts-hero { padding: 16px; }
+
+    .jjo-filters { padding: var(--spacing-md); }
+    .jjo-filter-item { width: 100%; }
+    .jjo-filter-item select,
+    .jjo-filter-item input { width: 100%; min-width: 0; }
+    .jjo-filter-actions { width: 100%; margin-left: 0; flex-wrap: wrap; }
+    .jjo-filter-actions .btn { flex: 1 1 calc(50% - var(--spacing-sm)); justify-content: center; }
+    .jjo-table-wrap { max-width: 100%; -webkit-overflow-scrolling: touch; }
+}
