@@ -108,6 +108,17 @@
     margin-bottom: 11px; height: 10px;
 }
 
+/* Semua surat (Izin Keluar Kantor, Permohonan Izin Harian, Formulir Cuti):
+   TANPA garis titik-titik di bawah isian maupun baris pengisi kosong.
+   Tinggi/jarak baris tetap dipertahankan (hanya garisnya yang dihilangkan)
+   supaya tata letak surat tidak bergeser. !important + selektor lebih
+   spesifik dipakai karena aturan cetak (@media print) di bawah juga
+   memakai !important untuk .letter-input & .letter-input-inline. */
+.print-letter-page .letter-input,
+.print-letter-page .letter-input-inline,
+.print-letter-page .letter-textarea,
+.print-letter-page .letter-dotted-line { border-bottom: none !important; }
+
 /* Kotak catatan non-editable bergaris titik-titik berlapis, meniru form asli
    (khusus dipakai _openIzinPermohonanStaff - Pertimbangan Manajer & Keputusan
    Direktur). Pakai <div>, bukan <textarea>, jadi tidak bisa diedit saat print. */
@@ -318,10 +329,6 @@
 .print-letter-page.letter-small .letter-field-table .lbl { width: 74px !important; }
 .print-letter-page.letter-small .letter-field-table .sep { width: 8px !important; }
 .print-letter-page.letter-small .letter-input { font-size: 11px; }
-/* Surat Izin Keluar Kantor: tanpa garis titik-titik di bawah isian (!important
-   karena aturan cetak di bawah juga memakai !important untuk .letter-input).
-   Berlaku HANYA untuk surat ini - .letter-small tidak dipakai surat lain. */
-.print-letter-page.letter-small .letter-input { border-bottom: none !important; }
 .print-letter-page.letter-small .letter-signoff-block { margin-top: 10px; font-size: 11px; }
 .print-letter-page.letter-small .signature-space { height: 52px !important; }
 
