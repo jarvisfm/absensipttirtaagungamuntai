@@ -281,3 +281,27 @@
         min-width: 100%;
     }
 }
+
+
+/* ===== Edit Profil: gaya daftar menu (grup + baris ikon/judul/panah) ===== */
+.pf-menu-page { max-width: 640px; margin: 0 auto; }
+.pf-menu-head { text-align: center; padding: 6px 0 18px; }
+.pf-menu-head h3 { margin-top: .75rem; font-size: 1.15rem; font-weight: 800; color: #0f172a; }
+.pf-menu-head p { color: var(--text-muted); font-size: .85rem; margin: 2px 0 8px; }
+.pf-menu-badge { display: inline-block; padding: 3px 12px; border-radius: 20px; font-size: .78rem; font-weight: 700; }
+.pf-menu-group { margin-top: 20px; }
+.pf-menu-title { font-size: 1.02rem; font-weight: 800; color: #0f172a; margin: 0 4px 10px; }
+.pf-menu-card { background: #fff; border-radius: 18px; box-shadow: 0 4px 16px rgba(15, 23, 42, .07); overflow: hidden; }
+.pf-menu-row {
+    display: flex; align-items: center; gap: 14px; width: 100%; padding: 16px 18px; border: 0; background: none;
+    cursor: pointer; font-family: inherit; text-align: left; -webkit-tap-highlight-color: transparent; transition: background .15s ease;
+}
+.pf-menu-row + .pf-menu-row { border-top: 1px solid #eef2f7; }
+.pf-menu-row:hover { background: #f8fafc; }
+.pf-menu-row:active { background: #eef6fd; }
+.pf-menu-ic { width: 26px; flex: none; text-align: center; font-size: 1.1rem; color: #64748b; }
+.pf-menu-lb { flex: 1; min-width: 0; font-size: .95rem; font-weight: 500; color: #1e293b; }
+.pf-menu-ch { flex: none; font-size: .85rem; color: #2563eb; }
+
+/* Modal edit dibuka dari menu: tampil fokus ke satu bagian (tab disembunyikan) */
+#modal-edit-profil.pf-focus .pf-tabs-nav { display: none !important; }
