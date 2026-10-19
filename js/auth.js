@@ -677,6 +677,7 @@ const auth = {
                 ${field('NPWP', p.npwp)}
                 ${field('No. Telp', p.noTelp)}
                 ${field('Email', p.email)}
+                ${field('Alamat Rumah', p.alamatRumah)}
             </div>
 
             <div style="margin-bottom:1.5rem;">
