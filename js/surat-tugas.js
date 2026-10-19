@@ -1,2088 +1,270 @@
 /**
- * Portal Karyawan - Izin/Sakit
- * Leave permission functionality with face recognition
+ * Portal Karyawan - Surat Tugas (SPPD)
+ * Karyawan input pengajuan Surat Tugas (dinas luar) - berstatus PENDING
+ * dulu, baru berlaku (Attendance tercatat otomatis Dinas Luar) SETELAH
+ * disetujui Admin. Lihat approveSuratTugasData() di Surattugas.gs.
  */
+const suratTugas = {
+    // true selama karyawan masih punya Surat Tugas berstatus pending (belum
+    // diputuskan Admin). Selama true, tombol Input SPPD dikunci supaya tidak
+    // ada data SPPD ganda di Admin. Diisi dari absensi.refreshSuratTugasBadge()
+    // & absensi.init() (data pending yang sudah ada), dan dijaga ulang di
+    // server (submitSuratTugasData di Surattugas.gs).
+    hasPending: false,
 
-const izin = {
-    izinData: [],
-    currentFile: null,
-    verifiedData: null,
-    filterStatus: '',
-
-    async init() {
-        await this.loadIzinData();
-        this.initForm();
-        this.initFilters();
-        this.renderIzinList();
-        this.updateStats();
-
-        // Set default date to today
-        const dateInput = document.getElementById('izin-date');
-        if (dateInput) {
-            dateInput.valueAsDate = new Date();
-        }
-
-        // Batasi Tanggal Mulai/Selesai Permohonan Izin Harian HANYA ke
-        // tanggal-tanggal yang boleh diajukan (lihat _initIzinHarianDatePickers).
-        this._initIzinHarianDatePickers();
-
-        // initForm() (di atas) sudah sempat panggil toggleKeluarKantorFields()
-        // sekali di awal, TAPI saat itu this._izinDateFP belum ada (baru
-        // dibuat oleh _initIzinHarianDatePickers() barusan) jadi batasan
-        // kalendernya belum sempat disesuaikan - panggil sekali lagi di sini
-        // supaya kalender Sakit/Izin Harian sudah benar sejak halaman
-        // pertama dibuka, bukan cuma setelah dropdown-nya diganti manual.
-        this.toggleKeluarKantorFields(document.getElementById('izin-type')?.value || '');
-
-        // NOTE: dropdown "Pilih Asmen" di form ini sudah DIHAPUS - Asmen
-        // penyetuju sekarang diatur Admin per-karyawan lewat Edit Karyawan
-        // > tab Kekaryawanan (field asmenPenyetujuId), backend mengambilnya
-        // otomatis di submitIzinData (Izin.gs). Alur approval-nya sendiri
-        // (asmen -> manajer -> direktur) TIDAK berubah.
-
-        // Kalau user sedang dalam periode Izin ATAU Cuti yang sudah disetujui
-        // (hari ini masuk rentang tanggalnya), kunci form pengajuan sampai
-        // periode itu selesai - supaya tidak bisa mengajukan izin/cuti baru
-        // yang tumpang tindih.
-        this._checkActiveBlock();
-
-        // Info (BUKAN blokir - user tetap boleh mengajukan Izin Harian
-        // berapa kali pun) kalau total Izin Harian (disetujui) tahun ini
-        // sudah lewat kuota. Kuotanya sekarang dihitung backend & bisa
-        // di-override per-karyawan oleh Admin (lihat getIzinHarianBalance()
-        // di Izin.gs) - lihat catatan di _checkIzinHarianQuota().
-        await this._checkIzinHarianQuota();
-
-        // [TAMBAHAN] Prefetch status "sudah Absen Masuk hari ini?" SEKALI
-        // saat halaman dibuka (disimpan di this._sudahAbsenMasukCache),
-        // supaya nanti saat dropdown Jenis Izin diganti ke "Permohonan Izin
-        // Harian" (lihat listener di initForm()) jawabannya sudah tersedia
-        // instan tanpa perlu nunggu round-trip ke server lagi (Apps Script
-        // kadang butuh 1-3 detik) - itu yang bikin modal danger-nya terasa
-        // delay. Sengaja TIDAK di-await di sini (fire-and-forget) supaya
-        // tidak menahan proses init() lain menunggu network call ini
-        // selesai duluan.
-        this._prefetchSudahAbsenMasukHariIni();
+    setPending(has) {
+        this.hasPending = !!has;
+        this.applyLockUI();
     },
 
-    // [TAMBAHAN] Lihat catatan di pemanggilnya (init()) di atas.
-    async _prefetchSudahAbsenMasukHariIni() {
-        this._sudahAbsenMasukCache = await this._cekSudahAbsenMasukHariIni();
-        // Kalau prefetch ini baru selesai SETELAH user sempat memilih
-        // "Permohonan Izin Harian" duluan (jarang terjadi, tapi bisa kalau
-        // network lambat), pastikan kalendernya ikut disesuaikan begitu
-        // hasilnya datang - bukan cuma nunggu user ganti-ganti dropdown lagi.
-        const currentType = document.getElementById('izin-type')?.value || '';
-        if (this._sudahAbsenMasukCache && currentType === 'izin_harian') {
-            this._setIzinDateRangeRestricted(true, true);
+    // Satu-satunya tempat yang mengatur tampilan tombol Input SPPD:
+    // dikunci kalau sedang Izin/Cuti ATAU masih ada SPPD yang menunggu approval.
+    applyLockUI() {
+        const btn = document.getElementById('btn-surat-tugas-trigger');
+        if (!btn) return;
+        const isExcused = !!(window.absensi && absensi.currentState === 'excused');
+        // Pending TIDAK mendisable tombol - modal tetap bisa dibuka untuk melihat
+        // riwayat, tapi form input disembunyikan (lihat openModal()).
+        btn.disabled = isExcused;
+        btn.classList.toggle('disabled', isExcused);
+        const subEl = document.getElementById('surat-tugas-trigger-sub');
+        if (subEl) {
+            subEl.textContent = isExcused
+                ? 'Tidak bisa diisi selama masih Izin/Cuti'
+                : (this.hasPending
+                    ? 'Menunggu approval admin - lihat riwayat di sini'
+                    : 'Sedang dinas luar? Catat di sini');
         }
     },
 
-    // Lihat catatan di pemanggilnya (init()) - toast info saja, tidak
-    // mengunci form sama sekali. Sekalian isi badge "Sisa Izin Harian"
-    // di header halaman (id="izin-harian-quota-value", lihat index.html).
-    //
-    // [DIUBAH] Kuota Izin Harian dulu di-hardcode 2 di sini (dan
-    // diduplikasi lagi di karyawan.js/admin-reports.js). Sekarang Admin
-    // bisa mengubah kuota ini KHUSUS untuk karyawan tertentu lewat kartu
-    // "Sisa Izin Harian (hari)" di modal Detail Karyawan (lihat
-    // karyawan.js viewDetail()/adjustKuota()) - supaya perubahan itu
-    // langsung kelihatan di sini juga, angkanya sekarang diambil dari
-    // getIzinHarianBalance() (Izin.gs) yang menghitung server-side dan
-    // otomatis memakai kuota override karyawan ini kalau ada, atau kuota
-    // default 2 kalau belum pernah diubah Admin.
-    async _checkIzinHarianQuota() {
-        const currentUser = auth.getCurrentUser();
-        const userId = currentUser?.employeeId || currentUser?.id;
+    openModal() {
+        // Sudah ada SPPD yang menunggu approval - jangan izinkan input lagi
+        // (cegah data ganda). Tombolnya juga sudah dikunci lewat applyLockUI().
+        // Kalau pending: modal dibuka dalam mode riwayat saja (form disembunyikan).
+        const pending = this.hasPending;
+        const formEl = document.getElementById('st-form-section');
+        const noticeEl = document.getElementById('st-pending-notice');
+        if (formEl) formEl.style.display = pending ? 'none' : '';
+        if (noticeEl) noticeEl.style.display = pending ? '' : 'none';
 
-        let kuota = 2;
-        let totalPakai = 0;
-        let sisa = 2;
-        try {
-            const result = await api.getIzinHarianBalance(userId);
-            if (result && result.success && result.data) {
-                kuota = result.data.kuota;
-                totalPakai = result.data.terpakai;
-                sisa = result.data.sisa;
-            } else {
-                throw new Error(result && result.error || 'getIzinHarianBalance gagal');
-            }
-        } catch (e) {
-            console.error('Gagal memuat kuota Izin Harian dari server, fallback ke data halaman ini:', e);
-            // Fallback: hitung dari data yang sudah dimuat di halaman ini
-            // dengan kuota default (perilaku lama) supaya badge tidak
-            // kosong kalau server tidak terjangkau.
-            const tahunIni = String(new Date().getFullYear());
-            totalPakai = this.izinData
-                .filter(rec => rec.type === 'izin_harian' && rec.status === 'approved' && (rec.date || '').startsWith(tahunIni))
-                .reduce((sum, rec) => sum + (parseInt(rec.duration) || 0), 0);
-            sisa = kuota - totalPakai;
-        }
-
-        const badgeEl = document.getElementById('izin-harian-quota-value');
-        // Tetap tampilkan sisa APA ADANYA (boleh negatif, mis. "-1") kalau
-        // sudah kepakai lebih dari kuota - supaya kelihatan jelas sudah
-        // lewat berapa, bukan cuma mentok di 0 seolah pas kuota.
-        if (badgeEl) badgeEl.textContent = String(sisa);
-
-        if (totalPakai > kuota) {
-            toast.warning(`Izin Harian Anda tahun ini sudah ${totalPakai} hari, melewati kuota ${kuota} hari/tahun. Anda tetap bisa mengajukan, tapi ini akan tercatat.`);
-        }
-    },
-
-    /**
-     * Tanggal-tanggal yang BOLEH diajukan untuk Tanggal Mulai/Selesai
-     * Permohonan Izin Harian: hari ini + 3 hari KERJA berikutnya (Sabtu &
-     * Minggu dilewati, tidak dihitung) - jadi total 4 tanggal yang bisa
-     * dipilih. Kalau jendela 4 tanggal ini menyeberangi pergantian bulan
-     * (mis. akhir Agustus ke awal September), otomatis ikut - fungsi ini
-     * cuma mengumpulkan tanggal aslinya, bukan per-bulan.
-     *
-     * [TAMBAHAN] Parameter excludeToday: kalau true, tanggal HARI INI ikut
-     * dilewati dari daftar (dipakai saat user SUDAH Absen Masuk hari ini -
-     * lihat _cekSudahAbsenMasukHariIni() - supaya tetap bisa mengajukan
-     * Permohonan Izin Harian untuk BESOK/setelahnya, cuma tanggal hari ini
-     * saja yang tidak boleh dipilih). Total tanggal yang dikembalikan tetap
-     * 4, jadi kalau hari ini dilewati maka jendelanya otomatis maju 1 hari
-     * kerja tambahan ke depan.
-     */
-    _getAllowedIzinHarianDates(excludeToday = false) {
-        const allowed = [];
-        const cursor = new Date();
-        cursor.setHours(0, 0, 0, 0);
-        const todayTime = cursor.getTime();
-        while (allowed.length < 4) {
-            const day = cursor.getDay(); // 0 = Minggu, 6 = Sabtu
-            const isWeekend = (day === 0 || day === 6);
-            const isSkippedToday = excludeToday && cursor.getTime() === todayTime;
-            if (!isWeekend && !isSkippedToday) allowed.push(new Date(cursor));
-            cursor.setDate(cursor.getDate() + 1);
-        }
-        return allowed;
-    },
-
-    // [TAMBAHAN] Tanggal hari ini dalam format yyyy-MM-dd, SAMA dengan
-    // format value #izin-date-start/#izin-date-end (flatpickr dateFormat
-    // 'Y-m-d') supaya bisa dibandingkan langsung sebagai string. Pakai
-    // dateTime.getLocalDate() (jam server, anti akal-akalan ganti jam HP)
-    // kalau tersedia, sama seperti dipakai _checkActiveBlock() di atas.
-    _getTodayDateStr() {
-        return (typeof dateTime !== 'undefined' && dateTime.getLocalDate)
-            ? dateTime.getLocalDate()
-            : new Date().toISOString().split('T')[0];
-    },
-
-    /**
-     * Pasang flatpickr di #izin-date-start & #izin-date-end. Field ini
-     * dipakai BERSAMA oleh Permohonan Izin Harian (kalender dibatasi cuma
-     * _getAllowedIzinHarianDates()) DAN Sakit (kalender BEBAS, semua
-     * tanggal bisa dipilih - lihat _setIzinDateRangeRestricted()) - jadi
-     * flatpickr-nya diinit SEKALI di sini dengan opsi restricted (default,
-     * karena dropdown Jenis Izin defaultnya "Sakit" - lihat toggleFormFields()
-     * yang langsung menyesuaikan begitu halaman dibuka/tipe diganti).
-     * Instance-nya disimpan di this._izinDateFP supaya bisa diubah-ubah
-     * batasannya tanpa perlu destroy/reinit tiap ganti Jenis Izin. Native
-     * <input type="date"> tidak bisa dibuat begini (cuma bisa MIN/MAX
-     * polos, tidak bisa skip tanggal tertentu di tengah rentang untuk Izin
-     * Harian), makanya field ini "ditingkatkan" pakai flatpickr - lihat
-     * include CDN-nya di index.html.
-     */
-    _initIzinHarianDatePickers() {
-        if (typeof flatpickr === 'undefined') return;
-        const allowedDates = this._getAllowedIzinHarianDates();
-        const opts = {
-            dateFormat: 'Y-m-d',
-            enable: allowedDates,
-            defaultDate: allowedDates[0],
-            // [TAMBAHAN] Lapis pengaman TAMBAHAN di atas 'enable' (yang
-            // menonaktifkan tanggal hari ini di kalender saat sudah Absen
-            // Masuk) - kalau dengan cara apapun tanggal hari ini tetap
-            // ke-pilih (mis. 'enable' belum sempat ke-update saat user
-            // klik cepat), onChange ini mengecek ULANG status absen
-            // langsung ke server begitu tanggal dipilih, dan kalau memang
-            // sudah absen hari ini, LANGSUNG batalkan pilihan tanggal itu +
-            // tampilkan notif tegas - jangan cuma diam2 dibiarkan lolos
-            // sampai tombol Kirim ditekan.
-            onChange: (selectedDates, dateStr) => this._handleIzinDateStartChanged(dateStr)
-        };
-        this._izinDateFP = [];
-        ['izin-date-start', 'izin-date-end'].forEach((id) => {
-            const el = document.getElementById(id);
-            if (el && !el._flatpickr) flatpickr(el, opts);
-            if (el && el._flatpickr) this._izinDateFP.push(el._flatpickr);
-        });
-    },
-
-    // [TAMBAHAN] Lihat catatan onChange di _initIzinHarianDatePickers() di
-    // atas. Hanya relevan untuk Jenis Izin = izin_harian (Sakit boleh pilih
-    // tanggal hari ini/lewat dengan bebas, tidak ada larangan).
-    //
-    // [PERUBAHAN] Sebelumnya tanggal yang ditolak ini langsung DIGANTI
-    // OTOMATIS ke tanggal valid berikutnya (mis. besok) TANPA user sadar -
-    // ini bikin bingung: user mengira masih mengajukan untuk HARI INI
-    // (karena tidak ngeh field-nya sudah bergeser sendiri), padahal yang
-    // benar-benar terkirim itu untuk BESOK. Sekarang field-nya cuma
-    // DIKOSONGKAN (bukan diisi otomatis) supaya user WAJIB memilih ulang
-    // tanggalnya sendiri secara sadar dari kalender yang sudah tidak
-    // menyertakan hari ini - validasi "Harap isi Tanggal Mulai dan Tanggal
-    // Selesai!" di submitIzinForm() otomatis mencegah submit sebelum user
-    // memilih tanggal penggantinya.
-    async _handleIzinDateStartChanged(dateStr) {
-        const typeSelect = document.getElementById('izin-type');
-        if (!typeSelect || typeSelect.value !== 'izin_harian') return;
-        if (dateStr !== this._getTodayDateStr()) return;
-
-        const sudahAbsen = await this._cekSudahAbsenMasukHariIni();
-        this._sudahAbsenMasukCache = sudahAbsen;
-        if (!sudahAbsen) return;
-
-        toast.error('Tidak bisa memilih tanggal HARI INI untuk Permohonan Izin Harian karena Anda sudah Absen Masuk. Silakan pilih tanggal besok atau setelahnya di kalender.');
-
-        // Nonaktifkan tanggal hari ini dari kalender & KOSONGKAN pilihan
-        // yang baru saja ditolak - JANGAN diisi otomatis, supaya user
-        // sadar betul harus memilih ulang secara manual (lihat catatan di
-        // atas).
-        this._setIzinDateRangeRestricted(true, true);
-        this._izinDateFP.forEach(fp => fp.clear());
-    },
-
-    /**
-     * Ganti batasan kalender Tanggal Mulai/Selesai (#izin-date-start &
-     * #izin-date-end) TANPA destroy/reinit flatpickr-nya - dipanggil dari
-     * toggleFormFields() tiap kali Jenis Izin diganti:
-     * - restricted=true  (Izin Harian): cuma _getAllowedIzinHarianDates()
-     *   yang bisa dipilih (hari ini + 3 hari kerja ke depan).
-     * - restricted=false (Sakit): SEMUA tanggal bisa dipilih bebas (lewat
-     *   fungsi enable yang selalu return true) - kalender kembali normal
-     *   seperti kalender biasa, tidak ada tanggal yang disembunyikan/abu-abu
-     *   (lihat .flatpickr-day.flatpickr-disabled di izin.css - class itu
-     *   otomatis tidak pernah kepasang kalau semua tanggal enabled).
-     */
-    // [TAMBAHAN] Parameter excludeToday diteruskan ke _getAllowedIzinHarianDates()
-    // - dipakai supaya tanggal hari ini ikut di-nonaktifkan di kalender saat
-    // user sudah Absen Masuk hari ini (lihat pemanggil-pemanggilnya).
-    _setIzinDateRangeRestricted(restricted, excludeToday = false) {
-        if (!this._izinDateFP || !this._izinDateFP.length) return;
-        const enableOption = restricted ? this._getAllowedIzinHarianDates(excludeToday) : [() => true];
-        this._izinDateFP.forEach(fp => fp.set('enable', enableOption));
-    },
-
-    // Cek apakah user sedang dalam periode Izin/Cuti yang sudah disetujui
-    // penuh (status 'approved') dan MASIH BERLANGSUNG hari ini. Kalau ya,
-    // form pengajuan izin dikunci (lihat _toggleFormBlock) sampai periode
-    // itu lewat. Dicek lintas jenis: sedang Cuti pun tetap mengunci form
-    // Izin ini, bukan cuma sesama Izin.
-    async _checkActiveBlock() {
-        const currentUser = auth.getCurrentUser();
-        const userId = currentUser?.employeeId || currentUser?.id || 'demo-user';
-        const todayStr = (typeof dateTime !== 'undefined' && dateTime.getLocalDate)
-            ? dateTime.getLocalDate()
-            : new Date().toISOString().split('T')[0];
-
-        let activeInfo = null;
-
-        // 1) Cek riwayat Izin milik sendiri (sudah dimuat di this.izinData)
-        for (const rec of this.izinData) {
-            if (rec.status !== 'approved') continue;
-            const { start, end } = this._getIzinRange(rec);
-            if (start && end && start <= todayStr && todayStr <= end) {
-                activeInfo = { jenis: 'Izin', typeLabel: rec.typeLabel || 'Izin', sampai: end };
-                break;
-            }
-        }
-
-        // 2) Kalau belum ketemu, cek juga riwayat Cuti (request terpisah,
-        //    karena halaman ini tidak memuat data Cuti secara default)
-        if (!activeInfo) {
-            try {
-                const cutiRes = await api.getLeaves(userId);
-                const cutiList = (cutiRes && cutiRes.data) || [];
-                for (const rec of cutiList) {
-                    if (rec.status !== 'approved') continue;
-                    if (rec.startDate && rec.endDate && rec.startDate <= todayStr && todayStr <= rec.endDate) {
-                        activeInfo = { jenis: 'Cuti', typeLabel: rec.typeLabel || 'Cuti', sampai: rec.endDate };
-                        break;
-                    }
-                }
-            } catch (e) {
-                // Gagal ambil data Cuti (mis. offline) - jangan sampai
-                // mengunci form karena error jaringan, biarkan tetap terbuka.
-                console.error('Gagal cek status Cuti aktif:', e);
-            }
-        }
-
-        this._toggleFormBlock(activeInfo);
-    },
-
-    // Izin tipe 'izin_harian' punya field date+dateEnd eksplisit. Tipe lain
-    // (sick/keluar_kantor/dll) cuma punya date+duration(hari) - hitung
-    // tanggal selesainya dari situ supaya bisa dibandingkan dengan cara yang
-    // sama.
-    _getIzinRange(rec) {
-        const start = rec.date;
-        let end = rec.dateEnd;
-        if (!end && start) {
-            const durasi = parseInt(rec.duration, 10) || 1;
-            const d = new Date(start);
-            d.setDate(d.getDate() + durasi - 1);
-            end = d.toISOString().split('T')[0];
-        }
-        return { start, end };
-    },
-
-    // Tampilkan/sembunyikan form Pengajuan Izin berdasarkan hasil
-    // _checkActiveBlock(). activeInfo null berarti tidak sedang Izin/Cuti -
-    // form tetap terbuka seperti biasa.
-    _toggleFormBlock(activeInfo) {
-        const form    = document.getElementById('izin-form');
-        const blocked = document.getElementById('izin-form-blocked');
-        if (!form || !blocked) return;
-
-        if (activeInfo) {
-            form.style.display = 'none';
-            blocked.style.display = 'block';
-            const msgEl = document.getElementById('izin-form-blocked-msg');
-            if (msgEl) {
-                const sampaiFormatted = (typeof dateTime !== 'undefined' && dateTime.formatDate)
-                    ? dateTime.formatDate(new Date(activeInfo.sampai), 'short')
-                    : activeInfo.sampai;
-                msgEl.textContent = `Anda sedang ${activeInfo.jenis} (${activeInfo.typeLabel}) sampai ${sampaiFormatted}. Pengajuan baru bisa dilakukan setelah periode ini selesai.`;
-            }
-        } else {
-            form.style.display = '';
-            blocked.style.display = 'none';
-        }
-    },
-
-    // Muat daftar Asmen (kalau user role-nya staff). Visibilitas dropdown-nya
-    // sendiri diatur oleh _toggleAsmenGroup() berdasarkan Jenis Izin yang
-    // dipilih — Asmen penyetuju CUMA dipakai untuk Surat Permohonan Izin
-    // (izin_harian), bukan untuk Izin Keluar Kantor/Sakit/dll.
-    async _setupAsmenDropdown() {
-        const user = auth.getCurrentUser();
-        const group = document.getElementById('izin-asmen-group');
-        const select = document.getElementById('izin-asmen');
-        if (!group || !select) return;
-
-        this._userNeedsAsmen = !!(user && user.role === 'staff');
-
-        if (!this._userNeedsAsmen) {
-            group.style.display = 'none';
-            select.required = false;
+        // Jangan izinkan input Surat Tugas selama user masih dalam rentang
+        // Izin/Cuti yang sedang berjalan hari ini (lihat updateUI() di
+        // absensi.js yang men-disable tombolnya) - dicek ulang di sini
+        // sebagai jaga-jaga kalau tombolnya somehow masih ke-klik.
+        if (window.absensi && absensi.currentState === 'excused') {
+            toast.error('Tidak bisa input Surat Tugas selama masih Izin/Cuti. Coba lagi setelah rentang Izin/Cuti Anda selesai.');
             return;
         }
 
-        try {
-            const result = await api.getAsmenByBagian(user.bagian);
-            const list = result.data || [];
-            select.innerHTML = list.length
-                ? '<option value="">Pilih Asmen...</option>' +
-                  list.map(a => `<option value="${a.id}">${a.nama}</option>`).join('')
-                : '<option value="">Tidak ada Asmen untuk bagian ini</option>';
-        } catch (error) {
-            console.error('Gagal memuat daftar Asmen:', error);
-            select.innerHTML = '<option value="">Gagal memuat daftar Asmen</option>';
+        // Reset form tiap dibuka
+        if (!pending) {
+        document.getElementById('st-nomorSurat').value = '';
+        document.getElementById('st-tujuan').value = '';
+        document.getElementById('st-tanggalMulai').value = '';
+        document.getElementById('st-tanggalSelesai').value = '';
+        document.getElementById('st-keterangan').value = '';
+        document.getElementById('st-fileUrl').value = '';
         }
 
-        // Sinkronkan visibilitas dengan Jenis Izin yang sedang dipilih saat ini
-        const currentType = document.getElementById('izin-type')?.value || '';
-        this._toggleAsmenGroup(currentType);
+        document.getElementById('modal-surat-tugas').style.display = 'flex';
+        this._renderHistory();
+
+        // Pastikan tombol Simpan dalam keadaan aktif & teks normal tiap
+        // modal dibuka (jaga-jaga kalau submit sebelumnya gagal di tengah
+        // jalan dan sempat tidak ke-reset).
+        this._resetSimpanButton();
     },
 
-    // Tampilkan/wajibkan dropdown Asmen HANYA saat Jenis Izin = izin_harian
-    // (Surat Permohonan Izin) DAN user yang login role-nya staff.
-    _toggleAsmenGroup(type) {
-        const group = document.getElementById('izin-asmen-group');
-        const select = document.getElementById('izin-asmen');
-        if (!group || !select) return;
-
-        const show = !!this._userNeedsAsmen && type === 'izin_harian';
-        group.style.display = show ? 'block' : 'none';
-        select.required = show;
-    },
-
-    async loadIzinData() {
-        const currentUser = auth.getCurrentUser();
-        // Konsisten dengan userId yang dikirim saat submit (lihat submitIzinForm):
-        // admin dual-role (mis. M. Azemi) pakai employeeId, karyawan biasa pakai id.
-        const userId = currentUser?.employeeId || currentUser?.id || 'demo-user';
-        try {
-            // PENTING: ini riwayat MILIK SENDIRI di halaman "Izin/Sakit", jadi selalu
-            // getIzin(userId) - jangan pakai isApprover() di sini. Kalau Asmen/Manajer/
-            // Direktur login, mereka tetap hanya boleh lihat izin MEREKA SENDIRI di sini.
-            // Data untuk approval (izin milik orang lain) dimuat terpisah lewat
-            // loadAllIzinData(), dipakai khusus oleh halaman approval.
-            const result = await api.getIzin(userId);
-            this.izinData = result.data || [];
-        } catch (error) {
-            console.error('Error loading izin:', error);
-            this.izinData = storage.get('izin', []);
-        }
-    },
-
-    // Dipakai KHUSUS oleh halaman Approval Asmen/Manajer/Direktur - berisi izin
-    // SEMUA karyawan, disimpan terpisah dari this.izinData (riwayat pribadi)
-    // supaya tidak ketuker/tercampur.
-    async loadAllIzinData() {
-        try {
-            const result = await api.getAllIzin();
-            this.allIzinData = result.data || [];
-        } catch (error) {
-            console.error('Error loading all izin:', error);
-            this.allIzinData = [];
-        }
-    },
-
-    // [TAMBAHAN] Cek apakah user SUDAH melakukan absen Masuk hari ini -
-    // dipakai untuk mencegah pengajuan "Permohonan Izin Harian" (izin_harian)
-    // kalau user sudah hadir/absen masuk hari ini (lihat _showIzinHarianBlockedModal
-    // & guard di submitIzinForm di bawah). SENGAJA TIDAK memakai
-    // window.absensi.currentState, karena state itu cuma keisi kalau user
-    // sempat membuka halaman Absensi lebih dulu di sesi ini - di sini kita
-    // query langsung ke api.getTodayAttendance() (sumber data yang sama
-    // dipakai absensi.js) supaya akurat dari halaman manapun/urutan buka
-    // halaman apapun.
-    async _cekSudahAbsenMasukHariIni() {
-        try {
-            const currentUser = auth.getCurrentUser();
-            const effectiveId = currentUser?.employeeId || currentUser?.id;
-            if (!effectiveId) return false;
-            const result = await api.getTodayAttendance(effectiveId);
-            const today = result?.data || {};
-            return !!today.clockIn;
-        } catch (e) {
-            console.error('Gagal cek status absen hari ini:', e);
-            // Gagal cek (mis. offline) - jangan sampai memblokir pengajuan
-            // izin cuma karena error jaringan, anggap belum absen.
-            return false;
-        }
-    },
-
-    // [TAMBAHAN] Tampilkan modal danger "tidak bisa mengajukan Izin Harian
-    // karena sudah absen masuk hari ini".
-    _showIzinHarianBlockedModal() {
-        const modal = document.getElementById('modal-izin-harian-blocked');
-        if (modal) {
-            modal.style.display = 'flex';
-        } else {
-            // Fallback: kalau markup modal ini (di index.html) belum ter-deploy
-            // di halaman yang sedang jalan, jangan sampai user cuma diam-diam
-            // ke-reset dropdown-nya tanpa penjelasan sama sekali - tetap kasih
-            // tahu alasannya lewat toast (mekanisme notifikasi yang sudah pasti
-            // ada, dipakai di semua bagian form ini).
-            console.error('Modal #modal-izin-harian-blocked tidak ditemukan di halaman - pastikan index.html sudah versi terbaru.');
-            toast.error('Tidak bisa mengajukan Permohonan Izin Harian untuk HARI INI karena Anda sudah Absen Masuk. Silakan pilih tanggal besok atau setelahnya.');
-        }
-    },
-
-    initForm() {
-        // Guard: cegah listener dobel kalau initForm() terpanggil ulang
-        // (terjadi setiap kali router membuka halaman Izin lagi)
-        if (this._formBound) return;
-        this._formBound = true;
-
-        const form = document.getElementById('izin-form');
-        const verifyBtn = document.getElementById('btn-verify-izin');
-        const fileInput = document.getElementById('izin-document');
-        const fileUpload = document.getElementById('file-upload');
-
-        if (form) {
-            form.addEventListener('submit', (e) => {
-                e.preventDefault();
-                this.submitIzinForm();
-            });
-        }
-
-        const typeSelect = document.getElementById('izin-type');
-        if (typeSelect) {
-            typeSelect.addEventListener('change', (e) => this.toggleKeluarKantorFields(e.target.value));
-            // Sesuaikan field & kalender dengan tipe yang SUDAH terpilih
-            // begitu halaman pertama dibuka - sebelumnya cuma jalan saat
-            // dropdown-nya diganti, jadi kalau defaultnya "Sakit" kalendernya
-            // masih ikut mode restricted Izin Harian sampai user iseng
-            // ganti-ganti dropdown dulu.
-            this.toggleKeluarKantorFields(typeSelect.value);
-        }
-
-        // [TAMBAHAN] Listener TERPISAH (bukan mengubah listener 'change'
-        // yang sudah ada di atas) - begitu user memilih "Permohonan Izin
-        // Harian" padahal sudah Absen Masuk hari ini: BUKAN diblokir total
-        // lagi, tapi tanggal HARI INI saja yang dilewati dari kalender
-        // (user tetap boleh mengajukan untuk BESOK/setelahnya - lihat
-        // _getAllowedIzinHarianDates(excludeToday) & guard final yang
-        // sepadan di submitIzinForm()).
-        //
-        // [PERUBAHAN] Kalau tanggal yang sedang terisi di form kebetulan
-        // masih tanggal hari ini (default saat halaman dibuka), field-nya
-        // SEKARANG DIKOSONGKAN (bukan otomatis digeser ke besok) - supaya
-        // user sadar & memilih sendiri tanggal penggantinya dari kalender,
-        // bukan diam-diam terkirim untuk tanggal yang tidak mereka sadari
-        // sudah berubah. Toast info di bawah menjelaskan alasannya.
-        if (typeSelect) {
-            typeSelect.addEventListener('change', async (e) => {
-                if (e.target.value !== 'izin_harian') return;
-                // Pakai cache dari prefetch di init() kalau sudah tersedia
-                // (instan, tanpa delay) - fallback ke network call cuma
-                // kalau prefetch-nya somehow belum sempat selesai (mis.
-                // dropdown diganti sepersekian detik setelah halaman
-                // dibuka).
-                const sudahAbsen = (this._sudahAbsenMasukCache !== undefined)
-                    ? this._sudahAbsenMasukCache
-                    : await this._cekSudahAbsenMasukHariIni();
-                this._sudahAbsenMasukCache = sudahAbsen;
-                if (sudahAbsen) {
-                    this._setIzinDateRangeRestricted(true, true);
-                    const todayStr = this._getTodayDateStr();
-                    let adaTanggalHariIniYangDikosongkan = false;
-                    ['izin-date-start', 'izin-date-end'].forEach((id) => {
-                        const el = document.getElementById(id);
-                        if (el && el.value === todayStr && el._flatpickr) {
-                            el._flatpickr.clear();
-                            adaTanggalHariIniYangDikosongkan = true;
-                        }
-                    });
-                    toast.info(adaTanggalHariIniYangDikosongkan
-                        ? 'Anda sudah Absen Masuk hari ini, jadi tanggal hari ini otomatis dikosongkan dari Permohonan Izin Harian. Silakan pilih sendiri tanggal besok atau setelahnya di kalender.'
-                        : 'Anda sudah Absen Masuk hari ini, jadi Permohonan Izin Harian untuk HARI INI tidak bisa diajukan. Silakan pilih tanggal besok atau setelahnya.');
-                }
-            });
-        }
-
-        document.querySelectorAll('input[name="izin-jam-masuk-mode"]').forEach(radio => {
-            radio.addEventListener('change', () => this.toggleJamMasukMode());
-        });
-
-        if (verifyBtn) {
-            verifyBtn.addEventListener('click', (e) => {
-                e.preventDefault();
-                this.submitIzinForm();
-            });
-        }
-
-        // File upload handling
-        if (fileUpload && fileInput) {
-            fileUpload.addEventListener('click', () => fileInput.click());
-
-            fileUpload.addEventListener('dragover', (e) => {
-                e.preventDefault();
-                fileUpload.classList.add('dragover');
-            });
-
-            fileUpload.addEventListener('dragleave', () => {
-                fileUpload.classList.remove('dragover');
-            });
-
-            fileUpload.addEventListener('drop', (e) => {
-                e.preventDefault();
-                fileUpload.classList.remove('dragover');
-                if (e.dataTransfer.files.length) {
-                    this.handleFile(e.dataTransfer.files[0]);
-                }
-            });
-
-            fileInput.addEventListener('change', (e) => {
-                if (e.target.files.length) {
-                    this.handleFile(e.target.files[0]);
-                }
-            });
-        }
-
-        // Remove file button
-        const removeBtn = document.querySelector('.btn-remove-file');
-        if (removeBtn) {
-            removeBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                this.removeFile();
-            });
-        }
-
-        // [TAMBAHAN] Paraf pemohon (opsional) - tercetak di bawah "Yang Memohon".
-        if (window.paraf) paraf.mount('izin-paraf-container', 'izin-paraf', { title: 'Paraf Pemohon', hint: '(opsional)' });
-
-        this.initFilters();
-    },
-
-    toggleKeluarKantorFields(type) {
-        const jamRow        = document.getElementById('izin-jam-row');
-        const durationGroup = document.getElementById('izin-duration-group');
-        const singleRow     = document.getElementById('izin-date-single-row');
-        const rangeRow      = document.getElementById('izin-date-range-row');
-        const durationInput = document.getElementById('izin-duration');
-        const jamKeluarH    = document.getElementById('izin-jam-keluar-h');
-        const jamKeluarM    = document.getElementById('izin-jam-keluar-m');
-        const jamMasukH     = document.getElementById('izin-jam-masuk-h');
-        const jamMasukM     = document.getElementById('izin-jam-masuk-m');
-        const dateStart     = document.getElementById('izin-date-start');
-        const dateEnd       = document.getElementById('izin-date-end');
-        const dateInput     = document.getElementById('izin-date');
-
-        const isKeluarKantor = type === 'keluar_kantor';
-        const isIzinHarian   = type === 'izin_harian';
-        const isSakit        = type === 'sick';
-        const usesDateRange  = isIzinHarian || isSakit;
-
-        // Asmen penyetuju cuma relevan untuk Surat Permohonan Izin (izin_harian)
-        this._toggleAsmenGroup(type);
-
-        // Jam keluar/masuk — hanya untuk keluar_kantor
-        if (jamRow) jamRow.style.display = isKeluarKantor ? 'flex' : 'none';
-        if (jamKeluarH) jamKeluarH.required = isKeluarKantor;
-        if (jamKeluarM) jamKeluarM.required = isKeluarKantor;
-
-        // Reset mode Masuk Jam ke "Jam" tiap kali ganti tipe izin, supaya
-        // tidak nyangkut di mode "Pulang" saat pindah ke tipe lain lalu balik lagi.
-        if (isKeluarKantor) {
-            const modeJam = document.querySelector('input[name="izin-jam-masuk-mode"][value="jam"]');
-            if (modeJam) modeJam.checked = true;
-            this.toggleJamMasukMode();
-        }
-
-        // Tanggal range — untuk izin_harian DAN sakit
-        if (rangeRow)   rangeRow.style.display   = usesDateRange ? 'flex' : 'none';
-        if (singleRow)  singleRow.style.display  = usesDateRange ? 'none' : 'flex';
-        if (dateStart)  dateStart.required = usesDateRange;
-        if (dateEnd)    dateEnd.required   = usesDateRange;
-        if (dateInput)  dateInput.required = !usesDateRange;
-
-        // Kalender Tanggal Mulai/Selesai: Izin Harian TETAP dibatasi cuma
-        // hari ini + 3 hari kerja ke depan, sedangkan Sakit kalendernya
-        // BEBAS (semua tanggal bisa dipilih, termasuk tanggal yang sudah
-        // lewat - wajar untuk Sakit yang kadang baru dilaporkan setelah
-        // beberapa hari) - lihat _setIzinDateRangeRestricted().
-        // [TAMBAHAN] Kalau tipe-nya Izin Harian DAN user sudah Absen Masuk
-        // hari ini (cache dari prefetch di init()), tanggal HARI INI ikut
-        // dinonaktifkan dari kalender - user tetap bisa mengajukan untuk
-        // besok/setelahnya (lihat guard final di submitIzinForm()).
-        if (usesDateRange) this._setIzinDateRangeRestricted(isIzinHarian, isIzinHarian && !!this._sudahAbsenMasukCache);
-
-        // Durasi — dihitung otomatis (disembunyikan dari input manual) untuk
-        // keluar_kantor, izin_harian, DAN sekarang sakit juga.
-        if (durationGroup) durationGroup.style.display = (isKeluarKantor || usesDateRange) ? 'none' : 'block';
-        if (durationInput) durationInput.required      = (!isKeluarKantor && !usesDateRange);
-    },
-
-    /**
-     * Toggle tampilan "Masuk Jam" di form Surat Izin Keluar Kantor: mode
-     * "Jam" pakai dropdown HH:MM biasa, mode "Pulang" berarti karyawan
-     * tidak kembali lagi ke kantor - dropdown disembunyikan & tidak wajib,
-     * dan nanti nilainya dikirim sebagai teks "Pulang" (submitIzinForm()).
-     */
-    toggleJamMasukMode() {
-        const mode        = document.querySelector('input[name="izin-jam-masuk-mode"]:checked')?.value || 'jam';
-        const selects      = document.getElementById('izin-jam-masuk-selects');
-        const pulangNote   = document.getElementById('izin-jam-masuk-pulang-note');
-        const jamMasukH    = document.getElementById('izin-jam-masuk-h');
-        const jamMasukM    = document.getElementById('izin-jam-masuk-m');
-        const isJam        = mode === 'jam';
-        const isKeluarKantorNow = document.getElementById('izin-type')?.value === 'keluar_kantor';
-
-        if (selects)    selects.style.display    = isJam ? 'flex' : 'none';
-        if (pulangNote) pulangNote.style.display = isJam ? 'none' : 'block';
-        if (jamMasukH)  jamMasukH.required = isJam && isKeluarKantorNow;
-        if (jamMasukM)  jamMasukM.required = isJam && isKeluarKantorNow;
-    },
-    
-    initFilters() {
-        // Status filter for izin history
-        const statusFilter = document.querySelector('.izin-history-card .select-filter');
-        if (statusFilter) {
-            statusFilter.addEventListener('change', (e) => {
-                this.filterStatus = e.target.value === 'Semua Status' ? '' : e.target.value.toLowerCase();
-                this.renderIzinList();
-            });
-        }
-    },
-
-    handleFile(file) {
-        const maxSize = 5 * 1024 * 1024; // 5MB
-        const allowedTypes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png'];
-
-        if (file.size > maxSize) {
-            toast.error('File terlalu besar. Maksimum 5MB');
-            return;
-        }
-
-        if (!allowedTypes.includes(file.type)) {
-            toast.error('Format file tidak didukung. Gunakan PDF, JPG, atau PNG');
-            return;
-        }
-
-        this.currentFile = file;
-
-        // Update UI
-        const uploadArea = document.querySelector('.upload-area');
-        const filePreview = document.getElementById('file-preview');
-        const filename = filePreview?.querySelector('.filename');
-
-        if (uploadArea) uploadArea.style.display = 'none';
-        if (filePreview) filePreview.style.display = 'flex';
-        if (filename) filename.textContent = file.name;
-    },
-
-    removeFile() {
-        this.currentFile = null;
-
-        const uploadArea = document.querySelector('.upload-area');
-        const filePreview = document.getElementById('file-preview');
-        const fileInput = document.getElementById('izin-document');
-
-        if (uploadArea) uploadArea.style.display = 'block';
-        if (filePreview) filePreview.style.display = 'none';
-        if (fileInput) fileInput.value = '';
-    },
-
-    async submitIzinForm() {
-    if (this.isSubmitting) return;
-    this.isSubmitting = true;
-
-    // UX: kunci tombol + tampilkan spinner "Mengirim..." selama proses
-    // berjalan - supaya user yang refleks klik 2x (atau lebih) langsung
-    // dapat feedback visual bahwa pengajuannya SEDANG diproses, bukan
-    // cuma diam saja sampai toast muncul (itu sebabnya user suka klik
-    // berkali-kali, dikira belum ke-klik). isSubmitting di atas SUDAH
-    // mencegah pengajuan dobel secara logika; ini cuma lapisan UX-nya.
-    const verifyBtn = document.getElementById('btn-verify-izin');
-    const verifyBtnOriginalHtml = verifyBtn ? verifyBtn.innerHTML : '';
-    if (verifyBtn) {
-        verifyBtn.disabled = true;
-        verifyBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i><span>Mengirim...</span>';
-    }
-
-    try {
-        const type           = document.getElementById('izin-type')?.value;
-        const date           = document.getElementById('izin-date')?.value;
-        const duration       = document.getElementById('izin-duration')?.value;
-        const reason         = document.getElementById('izin-reason')?.value;
-        const isKeluarKantor = type === 'keluar_kantor';
-        const isIzinHarian   = type === 'izin_harian';
-        const isSakit        = type === 'sick';
-        const usesDateRange  = isIzinHarian || isSakit;
-        const jamKeluarHV = document.getElementById('izin-jam-keluar-h')?.value;
-        const jamKeluarMV = document.getElementById('izin-jam-keluar-m')?.value;
-        const jamMasukMode = document.querySelector('input[name="izin-jam-masuk-mode"]:checked')?.value || 'jam';
-        const jamMasukHV  = document.getElementById('izin-jam-masuk-h')?.value;
-        const jamMasukMV  = document.getElementById('izin-jam-masuk-m')?.value;
-        const jamKeluar      = (jamKeluarHV && jamKeluarMV) ? `${jamKeluarHV}:${jamKeluarMV}` : '';
-        const jamMasuk       = (jamMasukMode === 'pulang')
-            ? 'Pulang'
-            : ((jamMasukHV && jamMasukMV) ? `${jamMasukHV}:${jamMasukMV}` : '');
-        const dateStart      = document.getElementById('izin-date-start')?.value;
-        const dateEnd        = document.getElementById('izin-date-end')?.value;
-
-        // [TAMBAHAN] Jaga-jaga lapis kedua (selain penyesuaian kalender saat
-        // dropdown Jenis Izin diganti, lihat listener di initForm()) -
-        // kalau-kalau user sempat absen masuk SETELAH form izin_harian ini
-        // dibuka/dipilih, submit tetap ditolak di sini SUPAYA TIDAK ADA
-        // Permohonan Izin Harian untuk tanggal HARI INI yang lolos padahal
-        // user sudah hadir hari ini.
-        //
-        // [PERUBAHAN] Pengecualian: kalau tanggal yang diajukan (dateStart)
-        // BUKAN hari ini (mis. besok atau hari kerja setelahnya - lihat
-        // _getAllowedIzinHarianDates), pengajuan tetap DIIZINKAN meski user
-        // sudah Absen Masuk hari ini - karena yang diajukan izinnya untuk
-        // hari lain, bukan hari ini. Guard ini HANYA membatasi Permohonan
-        // Izin Harian untuk tanggal hari ini itu sendiri.
-        const isTanggalMulaiHariIni = dateStart === this._getTodayDateStr();
-        if (type === 'izin_harian' && isTanggalMulaiHariIni && await this._cekSudahAbsenMasukHariIni()) {
-            this._showIzinHarianBlockedModal();
-            return;
-        }
-
-        if (!type || !reason) {
-            toast.error('Harap isi semua field yang wajib diisi!');
-            return;
-        }
-        if (isKeluarKantor && (!jamKeluar || !jamMasuk)) {
-            toast.error('Harap isi Jam Keluar dan Jam Masuk!');
-            return;
-        }
-        if (usesDateRange && (!dateStart || !dateEnd)) {
-            toast.error('Harap isi Tanggal Mulai dan Tanggal Selesai!');
-            return;
-        }
-        if (!isKeluarKantor && !usesDateRange && !date) {
-            toast.error('Harap isi Tanggal!');
-            return;
-        }
-        if (!isKeluarKantor && !usesDateRange && !duration) {
-            toast.error('Harap isi Durasi!');
-            return;
-        }
-
-        const currentUser = auth.getCurrentUser();
-
-        // NOTE: dulu di sini ada validasi "wajib pilih Asmen penyetuju" -
-        // sekarang tidak perlu lagi karena Asmen sudah diatur Admin per-
-        // karyawan (lihat Edit Karyawan > Kekaryawanan), backend yang
-        // otomatis mengambilnya (Izin.gs > submitIzinData).
-
-        const typeLabels = {
-            'sick':         'Sakit',
-            'izin_harian':  'Permohonan Izin Harian',
-            'keluar_kantor':'Keluar Kantor'
-        };
-
-        // Durasi (hari) dihitung otomatis dari rentang tanggal - berlaku
-        // untuk Izin Harian MAUPUN Sakit (dulu Sakit masih input durasi
-        // manual + 1 tanggal saja, sekarang disamakan).
-        let computedDuration = isKeluarKantor ? 0 : parseInt(duration);
-        if (usesDateRange && dateStart && dateEnd) {
-            const diff = (new Date(dateEnd) - new Date(dateStart)) / (1000 * 60 * 60 * 24);
-            computedDuration = Math.max(1, Math.round(diff) + 1);
-        }
-
-        const izinEntry = {
-            // Admin yang dual-role (mis. M. Azemi = Admin sekaligus Asmen
-            // Kepegawaian) login dengan id dari tabel Users, sedangkan seluruh
-            // logika approval (approveIzinData, renderApprovalList) mencari
-            // data pemohon dari tabel Employees berdasarkan userId — pakai
-            // employeeId (kalau ada) supaya izin yang diajukan lewat "Mode
-            // Karyawan" tetap tercatat sebagai identitas karyawan yang benar.
-            userId:        currentUser?.employeeId || currentUser?.id || 'demo-user',
-            type:          type,
-            typeLabel:     typeLabels[type] || type,
-            date:          usesDateRange ? dateStart : date,
-            dateEnd:       usesDateRange ? dateEnd   : '',
-            duration:      computedDuration,
-            reason:        reason,
-            jamKeluar:     isKeluarKantor ? jamKeluar : '',
-            jamMasuk:      isKeluarKantor ? jamMasuk  : '',
-            hasAttachment: !!this.currentFile
-        };
-
-        // [TAMBAHAN] Paraf + tanggal paraf pemohon (opsional)
-        const parafPemohon = window.paraf ? paraf.getValue('izin-paraf') : null;
-        if (parafPemohon) {
-            izinEntry.applicantParaf = parafPemohon.path;
-            izinEntry.applicantParafDate = parafPemohon.date;
-        }
-
-        try {
-            const result = await api.submitIzin(izinEntry);
-            if (result.success) {
-                this.izinData.unshift(result.data);
-                if (this.currentFile) {
-                    await this.uploadLampiranIzin(result.data.id, this.currentFile);
-                }
-            } else {
-                // BUGFIX: sebelumnya penolakan server (mis. Asmen penyetuju belum
-                // diatur Admin) diabaikan dan tetap muncul toast "berhasil dikirim"
-                // padahal data tidak tersimpan. Tampilkan alasan sebenarnya & jangan
-                // reset form supaya isian user tidak hilang.
-                toast.error(result.error || 'Gagal mengirim pengajuan izin.');
-                return;
-            }
-        } catch (error) {
-            console.error('Error submitting izin:', error);
-            toast.error('Gagal mengirim pengajuan izin.');
-            return;
-        }
-
-        this.currentFile = null;
-        toast.success('Pengajuan izin berhasil dikirim!');
-
-        const form = document.getElementById('izin-form');
-        if (form) form.reset();
-        if (window.paraf) paraf.reset('izin-paraf');
-        this.toggleKeluarKantorFields('');
-        this.removeFile();
-
-        this.renderIzinList();
-        this.updateStats();
-    } finally {
-        this.isSubmitting = false;
-        if (verifyBtn) {
-            verifyBtn.disabled = false;
-            verifyBtn.innerHTML = verifyBtnOriginalHtml;
-        }
-    }
-},
-
-    async uploadLampiranIzin(id, file) {
-        return new Promise((resolve) => {
-            const reader = new FileReader();
-            reader.onload = async (e) => {
-                const base64 = e.target.result.split(',')[1];
-                const mimeType = file.type;
-                try {
-                    await api.uploadFileIzin(id, base64, mimeType, file.name);
-                } catch (err) {
-                    console.error('Upload lampiran izin gagal:', err);
-                }
-                resolve();
-            };
-            reader.readAsDataURL(file);
-        });
-    },
-
-    updateStats() {
-        const pending = this.izinData.filter(i => i.status === 'pending').length;
-        const approved = this.izinData.filter(i => i.status === 'approved').length;
-        const rejected = this.izinData.filter(i => i.status === 'rejected').length;
-
-        const pendingEl = document.getElementById('izin-pending-count');
-        const approvedEl = document.getElementById('izin-approved-count');
-        const rejectedEl = document.getElementById('izin-rejected-count');
-
-        if (pendingEl) pendingEl.textContent = pending;
-        if (approvedEl) approvedEl.textContent = approved;
-        if (rejectedEl) rejectedEl.textContent = rejected;
-    },
-
-    renderIzinList() {
-        const list = document.getElementById('izin-list');
-        if (!list) return;
-
-        // Dipakai _getDetailedStatusLabel() di bawah - status "Menunggu"
-        // sekarang butuh tahu role & bagian PEMOHON (di kartu ini, si
-        // pemohon adalah user yang sedang login sendiri) supaya bisa
-        // ditampilkan lebih spesifik ("Menunggu Asmen"/"Menunggu Manajer"
-        // dst, bukan cuma "Menunggu" polos).
-        const currentUser = auth.getCurrentUser();
-
-        // Filter izin data
-        let filteredData = this.izinData.filter(i => {
-            if (!this.filterStatus) return true;
-            if (this.filterStatus === 'menunggu') return i.status === 'pending';
-            if (this.filterStatus === 'disetujui') return i.status === 'approved';
-            if (this.filterStatus === 'ditolak') return i.status === 'rejected';
-            return true;
-        });
-
-        if (filteredData.length === 0) {
-            list.innerHTML = `
-                <div class="empty-state" style="text-align: center; padding: var(--spacing-xl); color: var(--text-muted);">
-                    <i class="fas fa-inbox" style="font-size: 3rem; margin-bottom: var(--spacing);"></i>
-                    <p>${this.filterStatus ? 'Tidak ada pengajuan yang sesuai' : 'Belum ada pengajuan izin'}</p>
-                </div>
-            `;
-            return;
-        }
-
-        // Sort by date descending
-        const sortedData = filteredData.sort((a, b) =>
-            new Date(b.appliedAt) - new Date(a.appliedAt)
-        );
-
-        list.innerHTML = sortedData.map(izin => {
-            const date = new Date(izin.date);
-            const dateFormatted = dateTime.formatDate(date, 'short');
-
-            
-            const icons = {
-                'sick': 'fa-heartbeat',
-                'izin_harian': 'fa-file-alt',
-                'keluar_kantor': 'fa-door-open'
-            };
-            const typeLabelFallback = {
-                'sick': 'Sakit',
-                'permission': 'Izin Penting',
-                'emergency': 'Keadaan Darurat',
-                'izin_harian': 'Permohonan Izin Harian',
-                'keluar_kantor': 'Izin Keluar Kantor'
-            };
-            const typeLabel = izin.typeLabel || typeLabelFallback[izin.type] || 'Izin';
-
-            const durationText = izin.type === 'keluar_kantor'
-                ? this._hitungDurasiJam(izin.jamKeluar, izin.jamMasuk)
-                : `${izin.duration} hari`;
-
-            return `
-                <div class="izin-item">
-                    <div class="izin-icon ${izin.type}">
-                        <i class="fas ${icons[izin.type] || 'fa-file'}"></i>
-                    </div>
-                    <div class="izin-content">
-                        <div class="izin-header-row">
-                            <h4 class="izin-type">${typeLabel}</h4>
-                            <span class="izin-status ${izin.status}" style="cursor:pointer;" onclick="izin.showApprovalProgress(${izin.id})" title="Lihat progress persetujuan">
-                                ${this._getDetailedStatusLabel(izin, currentUser)} <i class="fas fa-chevron-right" style="font-size:0.7em;margin-left:4px;"></i>
-                            </span>
-                        </div>
-                        <div class="izin-details">
-                            <span class="izin-date">
-                                <i class="fas fa-calendar"></i>
-                                ${dateFormatted} (${durationText})
-                            </span>
-                        </div>
-                        <p class="izin-reason">${izin.reason}</p>
-                        ${izin.asmenNote ? `
-                            <div style="margin-top:8px;padding:8px 12px;border-radius:8px;background:rgba(59,130,246,0.08);border-left:3px solid var(--color-primary);font-size:var(--font-size-sm);color:var(--text-secondary);">
-                                <i class="fas fa-comment-dots" style="margin-right:6px;"></i>
-                                <strong>Catatan Asmen:</strong><div class="rn-view rn-card-note">${richNote.view(izin.asmenNote)}</div>
-                            </div>
-                        ` : ''}
-                        ${izin.managerNote ? `
-                            <div style="margin-top:8px;padding:8px 12px;border-radius:8px;background:rgba(59,130,246,0.08);border-left:3px solid var(--color-primary);font-size:var(--font-size-sm);color:var(--text-secondary);">
-                                <i class="fas fa-comment-dots" style="margin-right:6px;"></i>
-                                <strong>Catatan Manajer:</strong><div class="rn-view rn-card-note">${richNote.view(izin.managerNote)}</div>
-                            </div>
-                        ` : ''}
-                        ${izin.hrManagerNote ? `
-                            <div style="margin-top:8px;padding:8px 12px;border-radius:8px;background:rgba(59,130,246,0.08);border-left:3px solid var(--color-primary);font-size:var(--font-size-sm);color:var(--text-secondary);">
-                                <i class="fas fa-comment-dots" style="margin-right:6px;"></i>
-                                <strong>Catatan HR Manajer:</strong><div class="rn-view rn-card-note">${richNote.view(izin.hrManagerNote)}</div>
-                            </div>
-                        ` : ''}
-                        ${izin.directorNote ? `
-                            <div style="margin-top:8px;padding:8px 12px;border-radius:8px;background:rgba(59,130,246,0.08);border-left:3px solid var(--color-primary);font-size:var(--font-size-sm);color:var(--text-secondary);">
-                                <i class="fas fa-comment-dots" style="margin-right:6px;"></i>
-                                <strong>Catatan Direktur:</strong><div class="rn-view rn-card-note">${richNote.view(izin.directorNote)}</div>
-                            </div>
-                        ` : ''}
-                        ${izin.status === 'cancelled' && izin.cancelledNote ? `
-                            <div style="margin-top:8px;padding:8px 12px;border-radius:8px;background:rgba(107,114,128,0.1);border-left:3px solid var(--text-muted,#6B7280);font-size:var(--font-size-sm);color:var(--text-secondary);">
-                                <i class="fas fa-ban" style="margin-right:6px;"></i>
-                                <strong>Alasan Pembatalan:</strong> ${izin.cancelledNote}
-                            </div>
-                        ` : ''}
-                        ${izin.status === 'approved' && (izin.emailSent === false || izin.emailSent === 'false') ? `
-                            <div style="margin-top:8px;padding:8px 12px;border-radius:8px;background:rgba(245,158,11,0.08);border-left:3px solid var(--color-warning);font-size:var(--font-size-sm);color:var(--text-secondary);">
-                                <i class="fas fa-triangle-exclamation" style="color:var(--color-warning);margin-right:6px;"></i>
-                                ${izin.emailError || 'Isi email supaya surat dikirimkan'}
-                            </div>
-                        ` : ''}
-                        ${izin.hasAttachment ? `
-                            <span class="izin-attachment">
-                                <i class="fas fa-paperclip"></i>
-                                Lampiran tersedia
-                            </span>
-                        ` : ''}
-                        ${this.CANCELABLE_IZIN_STATUSES.includes(izin.status) ? `
-                            <div style="margin-top:8px;display:flex;gap:6px;">
-                                <button class="btn-small btn-outline" style="color:var(--color-danger,#EF4444);border-color:var(--color-danger,#EF4444);" onclick="izin.cancelIzinRequest(${izin.id})">
-                                    <i class="fas fa-trash-alt"></i> Batalkan Pengajuan
-                                </button>
-                            </div>
-                        ` : ''}
-                        ${izin.type === 'keluar_kantor' && izin.status !== 'cancelled' && izin.status !== 'rejected' ? `
-                            <div style="margin-top:8px;display:flex;gap:6px;">
-                                <button class="btn-small btn-outline" onclick="printLetters.openIzinKeluarKantor(${izin.id})">
-                                    <i class="fas fa-print"></i> Cetak Surat Izin Keluar Kantor
-                                </button>
-                            </div>
-                        ` : ''}
-                        ${izin.type === 'izin_harian' && izin.status !== 'cancelled' && izin.status !== 'rejected' ? `
-                            <div style="margin-top:8px;display:flex;gap:6px;">
-                                <button class="btn-small btn-outline" onclick="printLetters.openIzinPermohonan(${izin.id})">
-                                    <i class="fas fa-print"></i> Cetak Surat Permohonan Izin
-                                </button>
-                            </div>
-                        ` : ''}
-                    </div>
-                </div>
-            `;
-        }).join('');
-    },
-
-    // Tahap-tahap status yang MASIH BOLEH dibatalkan sendiri oleh pemohon -
-    // yaitu selama belum final/belum ada email surat yang terkirim (lihat
-    // CANCELABLE_IZIN_STATUSES di cancelIzinData(), Izin.gs). Begitu sudah
-    // 'approved' (surat sudah dicetak/dikirim email), 'rejected', atau
-    // 'ditunda', tombol Batalkan tidak lagi ditampilkan.
-    CANCELABLE_IZIN_STATUSES: ['pending', 'asmen_approved', 'manajer_bidang_approved', 'manajer_approved'],
-
-    /**
-     * Batalkan pengajuan izin milik sendiri, selama belum final (lihat
-     * CANCELABLE_IZIN_STATUSES di atas). Alasan pembatalan WAJIB diisi -
-     * dipakai backend (cancelIzinData di Izin.gs) supaya tersimpan di
-     * riwayat DAN diberi tahu ke Asmen/Manajer/Direktur yang gilirannya
-     * lagi menunggu (lewat push notification), bukan cuma "hilang" begitu
-     * saja. Baris TIDAK dihapus lagi - status-nya jadi 'cancelled' supaya
-     * tetap muncul di Riwayat Pengajuan Izin.
-     */
-    async cancelIzinRequest(id) {
-        const catatan = await confirmReasonModal.show({
-            title: 'Batalkan Pengajuan Izin',
-            message: 'Pengajuan ini akan dibatalkan dan approver yang sedang menunggu akan diberi tahu alasannya.',
-            placeholder: 'Contoh: salah tanggal, tidak jadi izin, dobel pengajuan...',
-            confirmText: 'Batalkan Pengajuan'
-        });
-        if (catatan === null) return; // user membatalkan lewat tombol Batal/klik luar/Esc
-
-        try {
-            const currentUser = auth.getCurrentUser();
-            const userId = currentUser?.employeeId || currentUser?.id || 'demo-user';
-            const result = await api.cancelIzin(id, userId, catatan);
-            if (!result.success) {
-                toast.error(result.error || 'Gagal membatalkan pengajuan izin');
-                return;
-            }
-            const idx = this.izinData.findIndex(i => String(i.id) === String(id));
-            if (idx !== -1) this.izinData[idx] = Object.assign({}, this.izinData[idx], result.data);
-            toast.success('Pengajuan izin berhasil dibatalkan.');
-            this.renderIzinList();
-            this.updateStats();
-        } catch (error) {
-            console.error('Error cancelling izin:', error);
-            toast.error('Terjadi kesalahan saat membatalkan pengajuan.');
-        }
-    },
-
-    getStatusLabel(status) {
-        const labels = {
-            'pending': 'Menunggu',
-            'asmen_approved': 'Disetujui Asmen',
-            'manajer_approved': 'Disetujui Manajer',
-            'manager_approved': 'Disetujui Manager',
-            'approved': 'Disetujui',
-            'rejected': 'Ditolak',
-            'cancelled': 'Dibatalkan'
-        };
-        return labels[status] || status;
-    },
-
-    // Label status YANG SEBENARNYA sesuai tahap approval yang berlaku untuk
-    // pengajuan ini - dipakai di SEMUA tempat yang menampilkan badge status
-    // Izin/Sakit/Keluar Kantor: Riwayat Pengajuan Izin milik user sendiri,
-    // kartu Approval (Asmen/Manajer/Direktur), dan kartu Riwayat approval.
-    // Mengikuti persis alur berjenjang yang didokumentasikan di Izin.gs
-    // (lihat komentar di atas approveIzinData):
-    //   - Selagi belum final -> "Menunggu <Asmen/Manajer .../Direktur>"
-    //     (bukan cuma "Menunggu" polos seperti sebelumnya)
-    //   - Begitu benar-benar final (status 'approved') -> "Disetujui oleh
-    //     <nama approver terakhir>" (bukan lagi "Disetujui Asmen/Manajer"
-    //     generik seperti sebelumnya)
-    // Status lain (ditolak) tetap pakai label generik dari getStatusLabel().
-    _getDetailedStatusLabel(item, emp) {
-        if (item.status === 'approved') {
-            // Approver TERAKHIR yang sebenarnya menyelesaikan pengajuan ini -
-            // untuk Izin Harian & pemohon-Manajer selalu Direktur, untuk
-            // Keluar Kantor bisa Manajer ATAU Direktur (kalau pemohonnya
-            // sendiri Manajer), untuk Sakit levelnya cuma 1 tahap sesuai
-            // role pemohon (asmen/manajer/direktur) - urutan prioritas di
-            // bawah ini otomatis mengambil field yang BENAR-BENAR terisi
-            // paling akhir/senior untuk semua kasus di atas.
-            const nama = item.directorName || item.hrManagerName || item.managerName || item.asmenName || '';
-            if (nama && this._isAdminProxy(nama)) return 'Disetujui atau diwakilkan oleh Admin';
-            return nama ? `Disetujui oleh ${nama}` : this.getStatusLabel(item.status);
-        }
-        if (item.status !== 'pending' && item.status !== 'asmen_approved' && item.status !== 'manajer_bidang_approved') {
-            // rejected, atau status lain yang tidak dikenal - tetap label generik
-            return this.getStatusLabel(item.status);
-        }
-
-        const pemohonRole = emp?.role || 'staff';
-        const bagian = emp?.bagian || '';
-        const isPemohonHr = pemohonRole === 'asmen' && String(bagian).toUpperCase().trim() === 'UMUM DAN KEPEGAWAIAN';
-
-        // Sakit: cuma 1 tahap approval sesuai role pemohon, tidak pernah
-        // singgah di status asmen_approved/manajer_bidang_approved (lihat
-        // approveIzinData - blok "if (izin.type === 'sick')").
-        if (item.type === 'sick') {
-            if (pemohonRole === 'staff') return 'Menunggu Asmen';
-            if (pemohonRole === 'asmen') return bagian ? `Menunggu Manajer ${bagian}` : 'Menunggu Manajer';
-            return 'Menunggu Direktur';
-        }
-
-        // Keluar Kantor: tidak ada tahap Asmen sama sekali - langsung
-        // Manajer bagian yang sama, kecuali pemohonnya sendiri Manajer ->
-        // langsung Direktur.
-        if (item.type === 'keluar_kantor') {
-            if (pemohonRole === 'manajer') return 'Menunggu Direktur';
-            return bagian ? `Menunggu Manajer ${bagian}` : 'Menunggu Manajer';
-        }
-
-        // Izin Harian (default) - berjenjang penuh sesuai role pemohon.
-        if (pemohonRole === 'manajer') return 'Menunggu Direktur';
-
-        if (pemohonRole === 'staff') {
-            if (item.status === 'pending')       return 'Menunggu Asmen';
-            if (item.status === 'asmen_approved') return bagian ? `Menunggu Manajer ${bagian}` : 'Menunggu Manajer';
-            return 'Menunggu Direktur'; // manajer_approved
-        }
-
-        if (pemohonRole === 'asmen') {
-            if (isPemohonHr) {
-                return item.status === 'pending' ? 'Menunggu Manajer Umum dan Kepegawaian' : 'Menunggu Direktur';
-            }
-            if (item.status === 'pending')                 return bagian ? `Menunggu Manajer ${bagian}` : 'Menunggu Manajer';
-            if (item.status === 'manajer_bidang_approved') return 'Menunggu Manajer Umum dan Kepegawaian';
-            return 'Menunggu Direktur'; // manajer_approved
-        }
-
-        return this.getStatusLabel(item.status);
-    },
-
-    /**
-     * Bangun daftar TAHAPAN approval (stepper) yang BENAR-BENAR berlaku
-     * untuk pengajuan ini - jumlah & urutan tahapnya BEDA-BEDA tergantung
-     * type (izin_harian/sick/keluar_kantor) dan role+bagian pemohon (lihat
-     * dokumentasi lengkap di Izin.gs, atas approveIzinData). SENGAJA
-     * mengikuti PERSIS cabang logika yang sama dengan _getDetailedStatusLabel()
-     * di atas (bukan tebakan baru) supaya modal progress ini selalu
-     * konsisten dengan label status yang sudah ada di kartu.
-     * Return: array of { key, label, name, at, note, state } - state salah
-     * satu dari 'done' (sudah disetujui, field nama-nya terisi), 'current'
-     * (tahap yang sedang ditunggu SEKARANG), 'upcoming' (belum giliran),
-     * atau 'skipped' (surat sudah ditolak/dibatalkan duluan sebelum sampai
-     * tahap ini, jadi tidak relevan lagi).
-     */
-    _buildApprovalStages(item, emp) {
-        const pemohonRole = emp?.role || 'staff';
-        const bagian = emp?.bagian || '';
-        const isPemohonHr = pemohonRole === 'asmen' && String(bagian).toUpperCase().trim() === 'UMUM DAN KEPEGAWAIAN';
-        const manajerLabel = bagian ? `Manajer ${bagian}` : 'Manajer';
-
-        const stage = (key, label, nameField, atField, noteField) => ({
-            key, label,
-            name: item[nameField] || '',
-            at: item[atField] || '',
-            note: item[noteField] || ''
-        });
-        const ASMEN     = () => stage('asmen', 'Asmen', 'asmenName', 'asmenApprovedAt', 'asmenNote');
-        const MANAJER    = (label) => stage('manajer', label || manajerLabel, 'managerName', 'managerApprovedAt', 'managerNote');
-        const MANAJER_UMUM = () => stage('hrManajer', 'Manajer Umum dan Kepegawaian', 'hrManagerName', 'hrManagerApprovedAt', 'hrManagerNote');
-        const DIREKTUR   = () => stage('direktur', 'Direktur', 'directorName', 'directorApprovedAt', 'directorNote');
-
-        let order;
-        if (item.type === 'sick') {
-            // Sakit: cuma 1 tahap sesuai role pemohon (lihat approveIzinData
-            // - blok "if (izin.type === 'sick')").
-            if (pemohonRole === 'staff')      order = [ASMEN()];
-            else if (pemohonRole === 'asmen') order = [MANAJER()];
-            else                              order = [DIREKTUR()];
-        } else if (item.type === 'keluar_kantor') {
-            // Keluar Kantor: tidak ada tahap Asmen sama sekali.
-            order = (pemohonRole === 'manajer') ? [DIREKTUR()] : [MANAJER()];
-        } else if (pemohonRole === 'manajer') {
-            // Izin Harian/Cuti, pemohon Manajer: tahap Asmen & Manajer dilewati.
-            order = [DIREKTUR()];
-        } else if (pemohonRole === 'asmen') {
-            order = isPemohonHr
-                ? [MANAJER('Manajer Umum dan Kepegawaian'), DIREKTUR()]
-                : [MANAJER(), MANAJER_UMUM(), DIREKTUR()];
-        } else {
-            // staff - berjenjang penuh
-            order = [ASMEN(), MANAJER(), DIREKTUR()];
-        }
-
-        const isStoppedEarly = item.status === 'rejected' || item.status === 'ditolak' || item.status === 'ditunda' || item.status === 'cancelled';
-        let currentAssigned = false;
-        return order.map(s => {
-            if (s.name) return Object.assign({}, s, { state: 'done' });
-            if (isStoppedEarly) return Object.assign({}, s, { state: 'skipped' });
-            if (!currentAssigned) { currentAssigned = true; return Object.assign({}, s, { state: 'current' }); }
-            return Object.assign({}, s, { state: 'upcoming' });
-        });
-    },
-
-    // [TAMBAHAN] Keputusan tahap Direktur yang diambil ADMIN (mewakili)
-    // tercatat dengan nama literal "Admin" (lihat submitApproval() di
-    // bawah) - helper ini mengenali penanda itu supaya teks statusnya
-    // jadi "Disetujui atau diwakilkan oleh Admin", bukan "Disetujui oleh
-    // Direktur"/"Disetujui oleh Admin" polos.
-    _isAdminProxy(name) {
-        return String(name || '').trim().toLowerCase() === 'admin';
-    },
-
-    // Format tanggal-jam ISO jadi "31 Agu 2026, 14.05" - dipakai stepper.
-    _formatStageDateTime(iso) {
-        if (!iso) return '';
-        const d = new Date(iso);
-        if (isNaN(d.getTime())) return '';
-        const months = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Ags','Sep','Okt','Nov','Des'];
-        const jam = String(d.getHours()).padStart(2, '0');
-        const menit = String(d.getMinutes()).padStart(2, '0');
-        return `${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}, ${jam}.${menit}`;
-    },
-
-    // Render HTML stepper vertikal dari _buildApprovalStages() - dipakai
-    // modal "Progress Persetujuan" (lihat showApprovalProgress).
-    _renderApprovalStepperHtml(item, emp) {
-        const stages = this._buildApprovalStages(item, emp);
-        const icon = { done: 'fa-check', current: 'fa-hourglass-half', upcoming: 'fa-circle', skipped: 'fa-xmark' };
-        const stepsHtml = stages.map(s => `
-            <div class="approval-step ${s.state}">
-                <div class="approval-step-icon"><i class="fas ${icon[s.state]}"></i></div>
-                <div class="approval-step-body">
-                    <div class="approval-step-label">${s.label}</div>
-                    <div class="approval-step-status">
-                        ${s.state === 'done'
-                            ? `${(s.key === 'direktur' && this._isAdminProxy(s.name)) ? 'Disetujui atau diwakilkan oleh' : 'Disetujui oleh'} <strong>${s.name}</strong>${s.at ? ' &middot; ' + this._formatStageDateTime(s.at) : ''}`
-                            : s.state === 'current' ? 'Menunggu persetujuan...'
-                            : s.state === 'skipped' ? 'Tidak dilanjutkan'
-                            : 'Menunggu tahap sebelumnya'}
-                    </div>
-                    ${s.note ? `<div class="approval-step-note rn-view">${richNote.view(s.note)}</div>` : ''}
-                </div>
-            </div>`).join('');
-
-        let footerHtml = '';
-        if (item.status === 'rejected') {
-            footerHtml = `<div class="approval-step-final rejected"><i class="fas fa-ban"></i> Pengajuan ini ditolak${this._isAdminProxy(item.rejectedBy) ? ' atau diwakilkan oleh Admin' : (item.rejectedByRole ? ' oleh ' + item.rejectedByRole : '')}${item.rejectedNote ? ': "' + richNote.plain(item.rejectedNote) + '"' : ''}</div>`;
-        } else if (item.status === 'ditunda') {
-            footerHtml = `<div class="approval-step-final postponed"><i class="fas fa-pause-circle"></i> ${this._isAdminProxy(item.directorName) ? 'Ditunda atau diwakilkan oleh Admin' : 'Ditunda oleh Direktur'}${item.directorNote ? ': "' + richNote.plain(item.directorNote) + '"' : ''}</div>`;
-        } else if (item.status === 'cancelled') {
-            footerHtml = `<div class="approval-step-final cancelled"><i class="fas fa-ban"></i> Dibatalkan oleh pemohon${item.cancelledNote ? ': "' + item.cancelledNote + '"' : ''}</div>`;
-        }
-        return `<div class="approval-stepper">${stepsHtml}</div>${footerHtml}`;
-    },
-
-    // Buka modal "Progress Persetujuan" untuk 1 pengajuan - dipakai dari
-    // klik badge status di MANA PUN item ini ditampilkan (Riwayat
-    // Pengajuan Izin milik user sendiri, daftar approval, ATAU riwayat
-    // approval role Asmen/Manajer/Direktur). this._izinCache diisi oleh
-    // setiap fungsi render kartu izin (lihat komentar "// cache utk modal
-    // progress" di tiap render*()) supaya id-nya bisa ditemukan dari
-    // konteks manapun, bukan cuma this.izinData (yang isinya cuma
-    // pengajuan milik user yang login).
-    showApprovalProgress(id) {
-        const item = (this._izinCache && this._izinCache[id]) || this.izinData.find(i => String(i.id) === String(id));
-        if (!item) { toast.error('Data tidak ditemukan'); return; }
-        // Kalau daftar karyawan sudah dimuat (konteks approval), pakai itu
-        // untuk resolve role/bagian pemohon yang SEBENARNYA. Kalau belum
-        // (konteks Riwayat milik user sendiri, _employees belum tentu
-        // dimuat) - item ini pasti milik user yang login sendiri, jadi
-        // currentUser sudah cukup akurat.
-        const emp = (this._employees && this._employees.length) ? this._findEmployee(item.userId) : (auth.getCurrentUser() || {});
-        const modal = document.getElementById('modal-approval-progress');
-        const content = document.getElementById('approval-progress-content');
-        if (!modal || !content) return;
-        content.innerHTML = `
-            <h3 style="margin-bottom:1rem;">${item.typeLabel || 'Progress Persetujuan'}</h3>
-            ${this._renderApprovalStepperHtml(item, emp)}
-            <div style="margin-top:1.25rem;text-align:right;">
-                <button class="btn-secondary" onclick="document.getElementById('modal-approval-progress').style.display='none'">Tutup</button>
-            </div>
-        `;
-        modal.style.display = 'flex';
-    },
-
-    // =========================================================
-    // APPROVAL BERTINGKAT: Asmen -> Manajer -> Direktur
-    // Dipanggil dari router saat halaman approval-asmen/manajer/direktur dibuka.
-    // =========================================================
-    async initApprovalPage(role) {
-        // [TAMBAHAN 2026-10-06] Pasang tab (Perlu Diproses / Riwayat / Luar
-        // Radius) & mode lebar landscape - lihat window.approvalUI di bawah.
-        if (window.approvalUI) approvalUI.initTabs(role);
-
-        // Approver butuh data SEMUA izin (bukan cuma miliknya sendiri) supaya bisa
-        // melihat pengajuan staff lain - pakai allIzinData, TERPISAH dari izinData
-        // (riwayat pribadi approver itu sendiri di halaman Izin/Sakit).
-        await this.loadAllIzinData();
-        await this._ensureEmployeesLoaded();
-        this.renderApprovalList(role);
-        this._populateApprovalHistoryMonthFilter(role);
-        this.renderApprovalHistory(role);
-    },
-
-    // Cache daftar karyawan (untuk resolve nama/jabatan pemohon by userId),
-    // karena tabel Izin sendiri cuma menyimpan userId, bukan snapshot nama.
-    async _ensureEmployeesLoaded() {
-        if (this._employees) return;
-        try {
-            const result = await api.getKaryawanList();
-            this._employees = result.data || [];
-        } catch (error) {
-            console.error('Gagal memuat data karyawan:', error);
-            this._employees = [];
-        }
-    },
-
-    _findEmployee(userId) {
-        return (this._employees || []).find(e => String(e.id) === String(userId)) || {};
-    },
-
-    // Sama seperti kriteria di renderApprovalList, tapi TANPA gate status -
-    // dipakai khusus untuk kartu "Riwayat" (semua pengajuan yang pernah lewat
-    // tahap approval role ini, apapun status akhirnya sekarang: pending,
-    // disetujui, atau ditolak).
-    _izinInScopeForRole(role) {
-        const user = auth.getCurrentUser();
-        const myEmployeeId = user?.employeeId || user?.id;
-        const myBagian = String(user?.bagian || '').toUpperCase().trim();
-        const isHrManajer = myBagian === 'UMUM DAN KEPEGAWAIAN';
-        const data = this.allIzinData || [];
-
-        if (role === 'asmen') {
-            return data.filter(i => String(i.asmenId) === String(myEmployeeId));
-        }
-        if (role === 'manajer') {
-            return data.filter(i => {
-                const pemohon = this._findEmployee(i.userId);
-                const pemohonRole = pemohon.role || 'staff';
-                const pemohonBagian = String(pemohon.bagian || '').toUpperCase().trim();
-
-                if (pemohonRole === 'staff') return pemohonBagian === myBagian;
-                if (pemohonRole === 'asmen') {
-                    const isPemohonHr = pemohonBagian === 'UMUM DAN KEPEGAWAIAN';
-                    if (isPemohonHr) return isHrManajer;
-                    return pemohonBagian === myBagian || isHrManajer;
-                }
-                return false; // Pemohon Manajer: tahap ini dilewati sama sekali
-            });
-        }
-        if (role === 'direktur') {
-            return data; // Direktur adalah approver tertinggi untuk semua pengajuan (termasuk Keluar Kantor)
-        }
-        return [];
-    },
-
-    /**
-     * Isi dropdown filter bulan kartu "Riwayat" dari bulan-bulan yang
-     * BENAR-BENAR ada di pengajuan izin yang relevan buat role ini - sama
-     * pola/perilakunya seperti filter bulan di Riwayat Absensi karyawan
-     * (absensi.js: _populateHistoryMonthFilter).
-     */
-    _populateApprovalHistoryMonthFilter(role) {
-        const select = document.getElementById(`approval-${role}-history-month`);
-        if (!select) return;
-
-        const monthNames = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
-        const scoped = this._izinInScopeForRole(role);
-        const months = [...new Set(scoped.map(i => (i.date || '').substring(0, 7)).filter(Boolean))];
-        months.sort().reverse();
-
-        const todayYM = (typeof dateTime !== 'undefined' && dateTime.getLocalDate) ? dateTime.getLocalDate().substring(0, 7) : '';
-        if (todayYM && !months.includes(todayYM)) months.unshift(todayYM);
-
-        const previouslySelected = select.value;
-        select.innerHTML = months.map(ym => {
-            const [y, m] = ym.split('-');
-            return `<option value="${ym}">${monthNames[parseInt(m) - 1]} ${y}</option>`;
-        }).join('');
-        select.value = months.includes(previouslySelected) ? previouslySelected : (todayYM || months[0] || '');
-
-        if (!select._historyFilterBound) {
-            select.addEventListener('change', () => this.renderApprovalHistory(role));
-            select._historyFilterBound = true;
-        }
-    },
-
-    // Kartu "Riwayat Pengajuan Izin" - beda dari renderApprovalList di atas
-    // (yang cuma nampilin yang MASIH menunggu keputusan role ini), kartu ini
-    // nampilin SEMUA pengajuan yang relevan buat role ini di bulan yang
-    // dipilih, apapun statusnya sekarang (menunggu/disetujui/ditolak) -
-    // supaya bisa lihat riwayat lama, bukan cuma yang aktif hari ini.
-    renderApprovalHistory(role) {
-        const list = document.getElementById(`approval-${role}-history-list`);
-        if (!list) return;
-
-        const select = document.getElementById(`approval-${role}-history-month`);
-        const selectedMonth = select ? select.value : '';
-        let scoped = this._izinInScopeForRole(role);
-        if (selectedMonth) scoped = scoped.filter(i => (i.date || '').startsWith(selectedMonth));
-        scoped = scoped.slice().sort((a, b) => (b.date || '').localeCompare(a.date || ''));
-
-        list.classList.add('ap-list');
-
-        if (scoped.length === 0) {
-            list.innerHTML = approvalUI.empty('fa-clock-rotate-left', 'Tidak ada riwayat pengajuan izin di bulan ini');
-            return;
-        }
-
-        list.innerHTML = approvalUI.board(
-            ['Pemohon', 'Jenis Izin', 'Tanggal', 'Keterangan', 'Status Persetujuan', 'Aksi'],
-            scoped.map(item => this._apIzinRow(item, role, false)).join('')
-        );
-    },
-
-    renderApprovalList(role) {
-        const list = document.getElementById(`approval-${role}-list`);
-        if (!list) return;
-
-        const user = auth.getCurrentUser();
-        // Untuk akun Admin yang juga terhubung ke data karyawan (mode "Switch ke
-        // Karyawan"), id Employees-nya ada di employeeId, bukan id (id di sana
-        // adalah id akun Users). Untuk karyawan biasa, employeeId kosong -> pakai id.
-        const myEmployeeId = user?.employeeId || user?.id;
-        const myBagian = String(user?.bagian || '').toUpperCase().trim();
-        const isHrManajer = myBagian === 'UMUM DAN KEPEGAWAIAN';
-        const data = this.allIzinData || [];
-        let filtered = [];
-
-        if (role === 'asmen') {
-            // Hanya izin yang memang memilih Asmen ini sebagai penyetuju, status masih pending
-            filtered = data.filter(i =>
-                i.status === 'pending' && String(i.asmenId) === String(myEmployeeId)
-            );
-        } else if (role === 'manajer') {
-            filtered = data.filter(i => {
-                const pemohon = this._findEmployee(i.userId);
-                const pemohonRole = pemohon.role || 'staff';
-                const pemohonBagian = String(pemohon.bagian || '').toUpperCase().trim();
-
-                // Izin Keluar Kantor: alur TERPISAH dari izin biasa - Manajer
-                // bagian yang SAMA dengan pemohon adalah approver UTAMA/FINAL
-                // (langsung dari status 'pending', tidak lewat tahap Asmen
-                // sama sekali - lihat approveIzinData() di Izin.gs). Kalau
-                // tidak ditangani di sini duluan, kondisi di bawah untuk
-                // pemohonRole 'staff' (butuh status 'asmen_approved') tidak
-                // akan pernah cocok, karena keluar_kantor memang tidak pernah
-                // mampir ke status itu - jadi tidak pernah muncul di antrean
-                // Manajer sama sekali.
-                if (i.type === 'keluar_kantor') {
-                    // Pemohonnya sendiri Manajer -> tahap ini dilewati,
-                    // langsung ke Direktur (representasi, tidak approve diri
-                    // sendiri/rekan setingkat).
-                    if (pemohonRole === 'manajer') return false;
-                    return i.status === 'pending' && pemohonBagian === myBagian;
-                }
-
-                if (pemohonRole === 'staff') {
-                    // Sudah disetujui Asmen, dan izin itu dari bagian yang sama dengan Manajer ini
-                    return i.status === 'asmen_approved' && pemohonBagian === myBagian;
-                }
-
-                if (pemohonRole === 'asmen') {
-                    const isPemohonHr = pemohonBagian === 'UMUM DAN KEPEGAWAIAN';
-
-                    if (isPemohonHr) {
-                        // Asmen HR sendiri: manajer bidangnya = Manajer HR (orang
-                        // sama), jadi cukup 1 tahap approval saja (representasi).
-                        return isHrManajer && i.status === 'pending';
-                    }
-
-                    // Asmen bagian lain: 2 tahap berurutan —
-                    // (1) Manajer bidang Asmen itu sendiri dulu
-                    if (i.status === 'pending' && pemohonBagian === myBagian) {
-                        return true;
-                    }
-                    // (2) baru Manajer Umum & Kepegawaian, setelah tahap 1 selesai
-                    if (i.status === 'manajer_bidang_approved' && isHrManajer) {
-                        return true;
-                    }
-                    return false;
-                }
-
-                // Pemohon Manajer: tahap ini dilewati sama sekali (langsung ke Direktur)
-                return false;
-            });
-        } else if (role === 'direktur') {
-            filtered = data.filter(i => {
-                const pemohon = this._findEmployee(i.userId);
-                const pemohonRole = pemohon.role || 'staff';
-
-                if (pemohonRole === 'manajer') {
-                    // Pemohon Manajer (semua jenis surat termasuk Sakit):
-                    // Direktur SATU-SATUNYA approver representatif (tahap
-                    // Manajer dilewati sama sekali) - approve-nya di sini
-                    // TETAP final seperti biasa.
-                    return i.status === 'pending';
-                }
-
-                // Sakit pemohon staff/asmen: alur sendiri (1 tahap approval
-                // sesuai level pemohon - Asmen/Manajer, TIDAK PERNAH sampai
-                // ke Direktur sama sekali - lihat approveIzinData blok
-                // 'sick'). Sengaja dikecualikan di sini supaya tidak nyasar
-                // masuk ke kriteria "review" generik izin_harian/keluar_kantor
-                // di bawah (Sakit tidak punya konsep peninjauan Direktur).
-                if (i.type === 'sick') return false;
-
-                // Staff & Asmen (bagian manapun, termasuk Asmen HR sendiri),
-                // baik Izin Harian maupun Keluar Kantor: keputusan FINAL
-                // sudah di tahap Manajer (lihat approveIzinData - Manajer
-                // sekarang mewakili Direktur, perubahan 2026-09-02). Direktur
-                // di sini CUMA opsional meninjau (reviewedOnly=true, status
-                // TIDAK berubah) - begitu sudah pernah ditinjau
-                // (directorReviewedAt terisi), hilang dari daftar supaya
-                // tidak menumpuk terus di antrean.
-                return i.status === 'approved' && !i.directorReviewedAt;
-            });
-        }
-
-        list.classList.add('ap-list');
-        if (window.approvalUI) approvalUI.setCount(role, 'izin', filtered.length);
-
-        if (filtered.length === 0) {
-            list.innerHTML = approvalUI.empty('fa-inbox', 'Tidak ada pengajuan yang menunggu persetujuan Anda saat ini');
-            return;
-        }
-
-        const sorted = filtered.sort((a, b) => new Date(b.appliedAt) - new Date(a.appliedAt));
-
-        list.innerHTML = approvalUI.board(
-            ['Pemohon', 'Jenis Izin', 'Tanggal', 'Keterangan', 'Status Persetujuan', 'Aksi'],
-            sorted.map(item => this._apIzinRow(item, role, true)).join('')
-        );
-    },
-
-    // [TAMBAHAN 2026-10-06] Satu baris tabel approval izin (dipakai kartu
-    // "Menunggu Persetujuan" dan kartu "Riwayat"). withAction=true -> tombol
-    // "Lihat & Proses", false -> tombol "Detail" (buka modal progress).
-    _apIzinMeta(type) {
-        const meta = {
-            sick:          ['#EF4444', 'fa-briefcase-medical'],
-            permission:    ['#3B82F6', 'fa-file-signature'],
-            emergency:     ['#F97316', 'fa-triangle-exclamation'],
-            izin_harian:   ['#F59E0B', 'fa-calendar-day'],
-            keluar_kantor: ['#6366F1', 'fa-right-from-bracket']
-        };
-        return meta[type] || ['#F59E0B', 'fa-file-lines'];
-    },
-
-    _apIzinRow(item, role, withAction) {
-        const ui = approvalUI;
-        const emp = this._findEmployee(item.userId);
-        this._izinCache = this._izinCache || {};
-        this._izinCache[item.id] = item; // cache utk modal progress (showApprovalProgress)
-
-        const typeLabelFallback = {
-            'sick': 'Sakit',
-            'permission': 'Izin Penting',
-            'emergency': 'Keadaan Darurat',
-            'izin_harian': 'Permohonan Izin Harian',
-            'keluar_kantor': 'Izin Keluar Kantor'
-        };
-        const typeLabel = item.typeLabel || typeLabelFallback[item.type] || 'Izin';
-        const [accent, icon] = this._apIzinMeta(item.type);
-
-        const startFmt = dateTime.formatDate(new Date(item.date), 'short');
-        const hasRange = item.dateEnd && item.dateEnd !== item.date;
-        const dateMain = hasRange
-            ? `${startFmt} - ${dateTime.formatDate(new Date(item.dateEnd), 'short')}`
-            : startFmt;
-
-        let dateSub = '';
-        if (hasRange) {
-            dateSub = `<span class="ap-pill">${ui.days(item.date, item.dateEnd)} hari</span>`;
-        } else if (item.type === 'keluar_kantor' && item.jamKeluar) {
-            dateSub = `<span class="ap-pill">${ui.esc(item.jamKeluar)} - ${ui.esc(item.jamMasuk || '?')}</span>`;
-        }
-        const applied = item.appliedAt ? new Date(item.appliedAt) : null;
-        if (applied && !isNaN(applied.getTime())) {
-            dateSub += `<span>Diajukan ${ui.esc(dateTime.formatDate(applied, 'short'))}</span>`;
-        }
-
-        let stages = [];
-        try { stages = this._buildApprovalStages(item, emp); } catch (e) { stages = []; }
-        const statusLabel = this._getDetailedStatusLabel(item, emp);
-
-        const noteExtra = (item.status === 'cancelled' && item.cancelledNote)
-            ? `<div class="ap-note-extra"><i class="fas fa-ban"></i> Dibatalkan: ${ui.esc(item.cancelledNote)}</div>`
-            : '';
-
-        const actionHtml = withAction
-            ? `<button type="button" class="ap-btn ap-btn-primary" onclick="izin.openApprovalModal(${item.id}, '${role}')"><i class="fas fa-eye"></i> Lihat &amp; Proses</button>`
-            : `<button type="button" class="ap-btn ap-btn-ghost" onclick="izin.showApprovalProgress(${item.id})"><i class="fas fa-list-check"></i> Detail</button>`;
-
-        return ui.row(accent, [
-            { cls: 'ap-c-who', html: ui.who(emp.nama || 'Tidak diketahui', [emp.jabatan, emp.bagian]) },
-            { label: 'Jenis Izin', html: ui.chip(typeLabel, icon) },
-            { label: 'Tanggal', html: `<div class="ap-date-main">${ui.esc(dateMain)}</div><div class="ap-date-sub">${dateSub}</div>` },
-            { cls: 'ap-c-note', label: 'Keterangan', html: `<div class="ap-note" title="${ui.esc(item.reason || '')}">${item.reason ? ui.esc(item.reason) : '<span class="ap-muted">-</span>'}</div>${noteExtra}` },
-            { cls: 'ap-c-prog', label: 'Status Persetujuan', html: ui.progress(stages, item.status, statusLabel, `izin.showApprovalProgress(${item.id})`) },
-            { cls: 'ap-c-act', html: actionHtml }
-        ]);
-    },
-
-    openApprovalModal(id, role) {
-        const item = this.allIzinData.find(i => String(i.id) === String(id));
-        const modal = document.getElementById('modal-approval-izin');
-        const content = document.getElementById('approval-izin-content');
-        if (!item || !modal || !content) return;
-
-        const emp = this._findEmployee(item.userId);
-        const typeLabelFallback = {
-            'sick': 'Sakit',
-            'permission': 'Izin Penting',
-            'emergency': 'Keadaan Darurat',
-            'izin_harian': 'Permohonan Izin Harian',
-            'keluar_kantor': 'Izin Keluar Kantor'
-        };
-        const typeLabel = item.typeLabel || typeLabelFallback[item.type] || 'Izin';
-        const dateFormatted = dateTime.formatDate(new Date(item.date), 'short');
-        const dateDisplay = item.dateEnd
-            ? `${dateFormatted} - ${dateTime.formatDate(new Date(item.dateEnd), 'short')}`
-            : dateFormatted;
-
-        const infoRow = (icon, label, value) => `
-            <div style="display:flex;align-items:flex-start;gap:12px;padding:10px 0;border-bottom:1px solid var(--border-color);">
-                <div style="width:32px;height:32px;border-radius:8px;background:rgba(245,158,11,0.12);color:var(--color-primary);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-                    <i class="fas ${icon}"></i>
-                </div>
-                <div style="flex:1;">
-                    <div style="font-size:0.72rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.02em;">${label}</div>
-                    <div style="font-size:0.9rem;font-weight:600;color:var(--text-primary);margin-top:2px;">${value}</div>
-                </div>
-            </div>`;
-
-        content.innerHTML = `
-            <div style="text-align:center;margin-bottom:1.25rem;">
-                <div style="width:56px;height:56px;border-radius:50%;background:rgba(245,158,11,0.12);color:var(--color-primary);display:flex;align-items:center;justify-content:center;font-size:1.4rem;margin:0 auto 10px;">
-                    <i class="fas fa-file-alt"></i>
-                </div>
-                <h3 style="font-size:1.05rem;margin-bottom:4px;">${typeLabel}</h3>
-                <span class="izin-status ${item.status}">${this._getDetailedStatusLabel(item, emp)}</span>
-            </div>
-
-            ${infoRow('fa-user', 'Nama Karyawan', emp.nama || '-')}
-            ${infoRow('fa-briefcase', 'Jabatan', emp.jabatan || '-')}
-            ${infoRow('fa-calendar-day', 'Tanggal Izin', dateDisplay)}
-            ${item.type === 'keluar_kantor' ? infoRow('fa-arrow-right-from-bracket', 'Keluar Jam', item.jamKeluar || '-') : ''}
-            ${item.type === 'keluar_kantor' ? infoRow('fa-arrow-right-to-bracket', 'Masuk Jam', item.jamMasuk || '-') : ''}
-
-            <div style="margin-top:14px;">
-                <div style="font-size:0.72rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.02em;margin-bottom:8px;">Progress Persetujuan</div>
-                ${this._renderApprovalStepperHtml(item, emp)}
-            </div>
-
-            <div style="margin-top:14px;">
-                <div style="font-size:0.72rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.02em;margin-bottom:6px;">Alasan</div>
-                <div style="background:var(--color-gray-50);border-radius:10px;padding:12px 14px;font-size:0.88rem;color:var(--text-primary);line-height:1.5;">${item.reason || '-'}</div>
-            </div>
-
-            ${item.fileUrl ? `
-            <div style="margin-top:14px;">
-                <div style="font-size:0.72rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.02em;margin-bottom:6px;">Surat Keterangan</div>
-                <a href="${item.fileUrl}" target="_blank" rel="noopener" style="display:flex;align-items:center;gap:10px;background:var(--color-gray-50);border-radius:10px;padding:12px 14px;text-decoration:none;color:var(--color-primary);font-size:0.88rem;font-weight:600;">
-                    <i class="fas fa-file-pdf" style="font-size:1.1rem;"></i>
-                    Lihat Surat Keterangan yang Dilampirkan
-                </a>
-            </div>` : ''}
-
-            ${(role === 'direktur' && auth.isAdmin()) ? `
-            <div style="margin-top:14px;padding:10px 14px;border-radius:10px;background:rgba(245,158,11,0.10);border-left:3px solid var(--color-primary);font-size:0.82rem;color:var(--text-primary);line-height:1.5;">
-                <i class="fas fa-user-shield" style="margin-right:6px;color:var(--color-primary);"></i>
-                Anda memproses ini <strong>mewakili Direktur</strong>. Di riwayat, keputusan akan tercatat sebagai <strong>diwakilkan oleh Admin</strong>.
-            </div>` : ''}
-
-            <div class="form-group" style="margin-top:14px;">
-                <label for="approval-catatan" onclick="document.getElementById('approval-catatan')?.focus()">Catatan${role === 'asmen' ? ' (opsional)' : ''}</label>
-                ${richNote.editorHtml('approval-catatan')}
-            </div>
-
-            ${window.paraf ? paraf.editorHtml('approval-paraf-izin') : ''}
-
-            ${(role === 'direktur' && item.status === 'approved') ? `
-            <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px;">
-                <button class="btn-primary" onclick="izin.submitApproval(${item.id}, '${role}', 'approve')">
-                    <i class="fas fa-check"></i> Tandai Sudah Ditinjau
-                </button>
-            </div>
-            ` : `
-            <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px;">
-                <button class="btn-secondary" onclick="izin.submitApproval(${item.id}, '${role}', 'reject')">
-                    <i class="fas fa-times"></i> Tolak
-                </button>
-                <button class="btn-primary" onclick="izin.submitApproval(${item.id}, '${role}', 'approve')">
-                    <i class="fas fa-check"></i> Setuju
-                </button>
-            </div>
-            `}
-        `;
-
-        modal.style.display = 'flex';
-        // [TAMBAHAN] Aktifkan kanvas paraf (opsional) di modal approval.
-        if (window.paraf) paraf.init('approval-paraf-izin');
-    },
-
-    closeApprovalModal() {
-        const modal = document.getElementById('modal-approval-izin');
-        if (modal) modal.style.display = 'none';
-    },
-
-    async submitApproval(id, role, decision) {
-        const catatan = richNote.getValue('approval-catatan');
-        // [TAMBAHAN] Paraf + tanggal paraf (OPSIONAL) - hanya dikirim saat
-        // menyetujui; null kalau approver tidak menggambar paraf.
-        const parafData = (decision === 'approve' && window.paraf) ? paraf.getValue('approval-paraf-izin') : null;
-        const user = auth.getCurrentUser();
-
-        // [TAMBAHAN] Loading state di tombol yang diklik, supaya user tahu
-        // prosesnya masih berjalan (bukan diam/macet) selagi menunggu respons
-        // server - pola SAMA PERSIS dengan adminApprovalModal.confirm()
-        // (admin-approval-modal.js) & submitApproval() versi cuti.js. Tombol
-        // LAIN di modal yang sama (mis. "Tolak" saat "Setuju" sedang
-        // diproses) ikut dinonaktifkan sementara, supaya tidak ada 2
-        // keputusan terkirim bersamaan. window.event dipakai (BUKAN
-        // mengubah atribut onclick di render()) - tombolnya sendiri dibuat
-        // lewat onclick="izin.submitApproval(...)" inline, jadi window.event
-        // masih menunjuk ke event klik yang memicu pemanggilan fungsi ini
-        // (valid karena diambil SEBELUM await pertama).
-        const clickedBtn = window.event?.target?.closest('button') || null;
-        const modalButtons = document.getElementById('approval-izin-content')?.querySelectorAll('button') || [];
-        const originalBtnHtml = clickedBtn ? clickedBtn.innerHTML : null;
-        modalButtons.forEach(b => { b.disabled = true; });
-        if (clickedBtn) {
-            clickedBtn.style.opacity = '0.7';
-            clickedBtn.style.cursor = 'not-allowed';
-            clickedBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Memproses...';
-        }
-        const restoreApprovalButtons = () => {
-            modalButtons.forEach(b => { b.disabled = false; });
-            if (clickedBtn) {
-                clickedBtn.style.opacity = '';
-                clickedBtn.style.cursor = 'pointer';
-                clickedBtn.innerHTML = originalBtnHtml;
-            }
-        };
-
-        // [TAMBAHAN] Tahap Direktur yang di-approve ADMIN (mewakili, lihat
-        // updateApprovalNav() di auth.js) - namanya diganti literal "Admin",
-        // BUKAN nama asli admin yang sedang login. Backend (Izin.gs) sudah
-        // menerima approver.role === 'admin' persis untuk tahap ini, cuma
-        // field `name`-nya yang dipakai apa adanya untuk ditampilkan sebagai
-        // "Disetujui/Ditinjau oleh <name>" - kalau tidak diganti di sini,
-        // yang tampil adalah nama pribadi admin, padahal keputusannya
-        // mewakili Direktur, bukan atas nama admin itu sendiri. TIDAK
-        // berlaku kalau yang login memang Direktur asli (lewat Mode
-        // Karyawan, auth.isAdmin() otomatis false saat itu - lihat isAdmin()
-        // di auth.js), supaya nama Direktur sungguhan tetap tampil normal.
-        const isAdminActingForDirektur = role === 'direktur' && auth.isAdmin();
-
-        const approver = {
-            id: user?.employeeId || user?.id,
-            name: isAdminActingForDirektur ? 'Admin' : user?.name,
-            nik: user?.nik,
-            role: role,
-            bagian: user?.bagian
-        };
-
-        try {
-            const result = decision === 'approve'
-                ? await api.approveIzin(id, approver, catatan, parafData)
-                : await api.rejectIzin(id, approver, catatan);
-
-            if (!result.success) {
-                toast.error(result.error || 'Gagal memproses pengajuan');
-                restoreApprovalButtons();
-                return;
-            }
-
-            const idx = this.allIzinData.findIndex(i => String(i.id) === String(id));
-            if (idx > -1) this.allIzinData[idx] = { ...this.allIzinData[idx], ...result.data };
-
-            this.closeApprovalModal();
-            this.renderApprovalList(role);
-            this._populateApprovalHistoryMonthFilter(role);
-            this.renderApprovalHistory(role);
-            if (decision === 'approve' && result.reviewedOnly) {
-                // Direktur "approve" Izin Harian/Keluar Kantor yang
-                // pemohonnya BUKAN Manajer - ini CUMA catatan peninjauan
-                // beliau, keputusan final SUDAH tuntas di tahap Manajer
-                // bagian terkait sebelumnya (email & efek samping sudah
-                // terkirim/berjalan saat itu, TIDAK diulang lagi di sini).
-                toast.success('Peninjauan Anda tercatat. Pengajuan ini sudah final disetujui oleh Manajer terkait.');
-            } else {
-                toast.success(decision === 'approve' ? 'Pengajuan disetujui' : 'Pengajuan ditolak');
-            }
-
-            // Kalau approval ini adalah TAHAP TERAKHIR (status jadi 'approved'
-            // sepenuhnya), otomatis generate PDF surat (persis tampilan
-            // "Cetak Surat") dan kirim ke email pemohon. Berjalan di
-            // belakang layar, tidak memblokir/mengganggu UI approver.
-            // SENGAJA DILEWATI kalau reviewedOnly (Direktur cuma meninjau
-            // pengajuan yang statusnya SUDAH 'approved' sejak tahap Manajer
-            // sebelumnya) - supaya email TIDAK terkirim DUA KALI.
-            if (decision === 'approve' && !result.reviewedOnly && result.data && result.data.status === 'approved' && window.printLetters) {
-                printLetters.sendSuratEmailIfApproved('izin', result.data);
-            }
-        } catch (error) {
-            console.error('Error submitApproval:', error);
-            toast.error('Terjadi kesalahan, silakan coba lagi.');
-            restoreApprovalButtons();
-        }
-    },
-
-    // Durasi Izin Keluar Kantor ditampilkan dalam jam/menit, bukan hari,
-    // karena field duration untuk tipe ini memang selalu 0 (lihat handleSubmit).
-    _hitungDurasiJam(jamKeluar, jamMasuk) {
-        if (!jamKeluar || !jamMasuk) return '-';
-        if (jamMasuk === 'Pulang') return 'Sampai pulang';
-        const [h1, m1] = jamKeluar.split(':').map(Number);
-        const [h2, m2] = jamMasuk.split(':').map(Number);
-        if ([h1, m1, h2, m2].some(n => isNaN(n))) return '-';
-        let totalMenit = (h2 * 60 + m2) - (h1 * 60 + m1);
-        if (totalMenit < 0) totalMenit += 24 * 60; // jaga-jaga kalau lintas tengah malam
-        const jam = Math.floor(totalMenit / 60);
-        const menit = totalMenit % 60;
-        if (jam === 0) return `${menit} menit`;
-        if (menit === 0) return `${jam} jam`;
-        return `${jam} jam ${menit} menit`;
-    }
-};
-
-// Global init function
-window.initIzin = () => {
-    izin.init();
-};
-
-// Expose
-window.izin = izin;
-
-/**
- * [TAMBAHAN 2026-10-06] Helper tampilan bersama untuk halaman Approval
- * Asmen / Manajer / Direktur (tabel landscape + tab). Dipakai oleh izin.js,
- * cuti.js, dan outofradius.js - style-nya ada di css/izin.css (class "ap-").
- */
-const approvalUI = {
-    _groups: {},   // role -> { pending:[card], history:[card], radius:[card] }
-    _tab: {},      // role -> tab aktif ('pending' | 'history' | 'radius')
-    _counts: {},   // role -> { izin, cuti, oor }
-
-    esc(v) {
-        return String(v == null ? '' : v)
+    // ---------- Riwayat SPPD saya (pola sama dengan Riwayat Sanggahan Saya) ----------
+    _historyRows: [],
+
+    _esc(s) {
+        return String(s == null ? '' : s)
             .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
             .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
     },
 
-    // Jumlah hari inklusif antara dua tanggal (YYYY-MM-DD)
-    days(start, end) {
-        const a = new Date(start), b = new Date(end);
-        if (isNaN(a.getTime()) || isNaN(b.getTime())) return 1;
-        return Math.max(1, Math.round((b - a) / 86400000) + 1);
+    _fmtTgl(ymd) {
+        const m = String(ymd || '').match(/^(\d{4})-(\d{2})-(\d{2})/);
+        if (!m) return this._esc(ymd || '-');
+        const bln = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
+        return `${parseInt(m[3], 10)} ${bln[parseInt(m[2], 10) - 1]} ${m[1]}`;
     },
 
-    _initials(name) {
-        const parts = String(name || '').trim().split(/\s+/).filter(Boolean);
-        if (!parts.length) return '?';
-        return (parts[0][0] + (parts.length > 1 ? parts[parts.length - 1][0] : '')).toUpperCase();
+    async _renderHistory() {
+        const list = document.getElementById('st-history-list');
+        if (!list) return;
+        list.innerHTML = '<span style="font-size:0.8rem;color:var(--text-muted);"><i class="fas fa-spinner fa-spin"></i> Memuat riwayat...</span>';
+
+        const user = auth.getCurrentUser();
+        const effectiveId = user?.employeeId || user?.id;
+        if (!effectiveId) return;
+
+        try {
+            const result = await api.getSuratTugas(effectiveId);
+            this._historyRows = result.success ? (result.data || []) : [];
+            this._populateHistoryMonthFilter();
+            this._renderHistoryList();
+        } catch (e) {
+            console.error('Gagal memuat riwayat Surat Tugas:', e);
+            list.innerHTML = '<span style="font-size:0.8rem;color:var(--color-danger);">Gagal memuat riwayat.</span>';
+        }
     },
 
-    _avatarColor(name) {
-        const palette = ['#F59E0B', '#3B82F6', '#10B981', '#8B5CF6', '#EC4899', '#14B8A6', '#EF4444', '#6366F1'];
-        const s = String(name || '');
-        let h = 0;
-        for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
-        return palette[h % palette.length];
+    _populateHistoryMonthFilter() {
+        const select = document.getElementById('st-history-month');
+        if (!select) return;
+        const monthNames = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+        const months = [...new Set((this._historyRows || []).map(r => String(r.tanggalMulai || '').substring(0, 7)).filter(Boolean))];
+        months.sort().reverse();
+        const todayYM = (typeof dateTime !== 'undefined' && dateTime.getLocalDate) ? dateTime.getLocalDate().substring(0, 7) : '';
+
+        const previouslySelected = select.value;
+        select.innerHTML = ['<option value="">Semua Bulan</option>'].concat(months.map(ym => {
+            const [y, m] = ym.split('-');
+            return `<option value="${ym}">${monthNames[parseInt(m, 10) - 1]} ${y}</option>`;
+        })).join('');
+        select.value = (previouslySelected && months.includes(previouslySelected))
+            ? previouslySelected
+            : (months.includes(todayYM) ? todayYM : '');
+
+        if (!select._historyFilterBound) {
+            select.addEventListener('change', () => this._renderHistoryList());
+            select._historyFilterBound = true;
+        }
     },
 
-    // Sel "Pemohon": avatar inisial + nama + jabatan/bagian
-    who(name, subParts) {
-        const sub = (subParts || []).filter(Boolean).join(' \u2022 ');
-        return `
-            <div class="ap-who">
-                <div class="ap-avatar" style="background:${this._avatarColor(name)};">${this.esc(this._initials(name))}</div>
-                <div class="ap-who-text">
-                    <div class="ap-name" title="${this.esc(name)}">${this.esc(name)}</div>
-                    ${sub ? `<div class="ap-sub" title="${this.esc(sub)}">${this.esc(sub)}</div>` : ''}
-                </div>
-            </div>`;
-    },
+    _renderHistoryList() {
+        const list = document.getElementById('st-history-list');
+        if (!list) return;
+        const select = document.getElementById('st-history-month');
+        const ym = select ? select.value : '';
+        const all = this._historyRows || [];
+        const rows = ym ? all.filter(r => String(r.tanggalMulai || '').startsWith(ym)) : all;
 
-    chip(label, icon) {
-        return `<span class="ap-chip"><i class="fas ${icon || 'fa-file-lines'}"></i><span>${this.esc(label)}</span></span>`;
-    },
-
-    // Bar progres bertahap + label status (klik -> modal progress)
-    progress(stages, status, label, onclick) {
-        const tone = (status === 'approved') ? 'ok'
-            : (status === 'rejected' || status === 'ditolak') ? 'bad'
-            : (status === 'cancelled') ? 'muted'
-            : (status === 'ditunda') ? 'info'
-            : 'wait';
-        const stateText = { done: 'Selesai', current: 'Menunggu', upcoming: 'Belum giliran', skipped: 'Tidak dilanjutkan' };
-        const segs = (stages || []).map(s =>
-            `<span class="ap-seg ${s.state}" title="${this.esc(s.label)}: ${stateText[s.state] || ''}"></span>`
-        ).join('');
-        return `
-            <button type="button" class="ap-prog" onclick="${onclick}" title="Lihat progress persetujuan">
-                ${segs ? `<div class="ap-segs">${segs}</div>` : ''}
-                <span class="ap-prog-label ap-tone-${tone}">${this.esc(label)} <i class="fas fa-chevron-right"></i></span>
-            </button>`;
-    },
-
-    // cells: [{ html, cls?, label? }]
-    row(accent, cells) {
-        return `
-            <div class="ap-row" style="--ap-accent:${accent};">
-                ${cells.map(c => `
-                    <div class="ap-cell ${c.cls || ''}">
-                        ${c.label ? `<div class="ap-lbl">${this.esc(c.label)}</div>` : ''}
-                        ${c.html}
-                    </div>`).join('')}
-            </div>`;
-    },
-
-    board(headers, rowsHtml, extraCls) {
-        return `
-            <div class="ap-board ${extraCls || ''}">
-                <div class="ap-head">${headers.map(h => `<span>${this.esc(h)}</span>`).join('')}</div>
-                ${rowsHtml}
-            </div>`;
-    },
-
-    empty(icon, text) {
-        return `
-            <div class="ap-empty">
-                <div class="ap-empty-ico"><i class="fas ${icon}"></i></div>
-                <p>${this.esc(text)}</p>
-            </div>`;
-    },
-
-    // ---- Tab ----
-    // Dipanggil di awal initApprovalPage(role) (idempotent: aman dipanggil
-    // berulang tiap halaman dibuka). Tab disisipkan lewat JS supaya
-    // index.html tidak perlu diubah.
-    initTabs(role) {
-        const page = document.getElementById(`page-approval-${role}`);
-        const container = page && page.querySelector('.izin-container');
-        if (!container) return;
-        container.classList.add('ap-wide');
-
-        const card = (id) => { const el = document.getElementById(id); return el ? el.closest('.izin-history-card') : null; };
-        this._groups[role] = {
-            pending: [card(`approval-${role}-list`), card(`approval-${role}-list-cuti`)],
-            history: [card(`approval-${role}-history-list`), card(`approval-${role}-history-list-cuti`)],
-            radius:  [card(`out-of-radius-approval-list-${role}`)]
-        };
-
-        let bar = container.querySelector('.ap-tabs');
-        if (!bar) {
-            bar = document.createElement('div');
-            bar.className = 'ap-tabs';
-            bar.innerHTML = `
-                <button type="button" class="ap-tab" data-tab="pending"><i class="fas fa-inbox"></i> Perlu Diproses <span class="ap-tab-count" data-count="pending">0</span></button>
-                <button type="button" class="ap-tab" data-tab="history"><i class="fas fa-clock-rotate-left"></i> Riwayat</button>
-                <button type="button" class="ap-tab" data-tab="radius"><i class="fas fa-location-crosshairs"></i> Absen Luar Radius <span class="ap-tab-count" data-count="radius">0</span></button>`;
-            const header = container.querySelector('.izin-header');
-            if (header) header.insertAdjacentElement('afterend', bar);
-            else container.insertBefore(bar, container.firstChild);
-            bar.addEventListener('click', (e) => {
-                const btn = e.target.closest('.ap-tab');
-                if (btn) this.showTab(role, btn.dataset.tab);
-            });
+        if (!rows.length) {
+            list.innerHTML = `<span style="font-size:0.8rem;color:var(--text-muted);">${all.length ? 'Tidak ada SPPD di bulan ini.' : 'Belum pernah mengajukan Surat Tugas (SPPD).'}</span>`;
+            return;
         }
 
-        this.showTab(role, this._tab[role] || 'pending');
-        this._paintCounts(role);
+        const statusLabels = { pending: 'Menunggu', approved: 'Disetujui', rejected: 'Ditolak' };
+        list.innerHTML = rows.map(r => {
+            const status = r.status || 'pending';
+            const label = statusLabels[status] || status;
+            const range = (r.tanggalMulai === r.tanggalSelesai || !r.tanggalSelesai)
+                ? this._fmtTgl(r.tanggalMulai)
+                : `${this._fmtTgl(r.tanggalMulai)} s.d. ${this._fmtTgl(r.tanggalSelesai)}`;
+            const nomor = r.nomorSurat ? `<div style="font-size:0.75rem;color:var(--text-muted);">No. ${this._esc(r.nomorSurat)}</div>` : '';
+            const link = /^https?:\/\//i.test(String(r.fileUrl || ''))
+                ? ` &bull; <a href="${this._esc(r.fileUrl)}" target="_blank" rel="noopener">Dokumen</a>` : '';
+            const note = (status === 'rejected' && r.rejectedNote)
+                ? `<div style="font-size:0.8rem;color:var(--color-danger);margin-top:6px;"><i class="fas fa-comment-dots"></i> Catatan Admin: &ldquo;${this._esc(r.rejectedNote)}&rdquo;</div>` : '';
+            return `
+                <div style="border:1px solid var(--border-color);border-radius:8px;padding:10px 12px;">
+                    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
+                        <strong style="font-size:0.85rem;">${range}</strong>
+                        <span class="status-badge ${this._esc(status)}" style="font-size:0.7rem;">${this._esc(label)}</span>
+                    </div>
+                    ${nomor}
+                    <div style="font-size:0.8rem;color:var(--text-muted);margin-top:4px;">${this._esc(r.tujuan || '-')}${link}</div>
+                    ${note}
+                </div>`;
+        }).join('');
     },
 
-    showTab(role, key) {
-        const groups = this._groups[role];
-        if (!groups) return;
-        this._tab[role] = key;
+    // Cegah submit dobel: flag jaga-jaga + disable tombol supaya user
+    // tidak bisa klik "Simpan" berkali-kali selagi request masih diproses
+    // (yang bisa bikin data SPPD kecatat berulang di database).
+    _isSubmitting: false,
 
-        const bar = document.querySelector(`#page-approval-${role} .ap-tabs`);
-        if (bar) bar.querySelectorAll('.ap-tab').forEach(b => b.classList.toggle('active', b.dataset.tab === key));
-
-        let shown = 0;
-        Object.keys(groups).forEach(k => {
-            groups[k].forEach(card => {
-                if (!card) return;
-                if (k === key) {
-                    card.style.display = '';
-                    card.style.marginTop = shown++ ? '1.5rem' : '0';
-                } else {
-                    card.style.display = 'none';
-                }
-            });
-        });
+    _setSimpanLoading(loading) {
+        const btn = document.getElementById('st-btn-simpan');
+        if (!btn) return;
+        if (loading) {
+            if (!btn.dataset.originalText) {
+                btn.dataset.originalText = btn.innerHTML;
+            }
+            btn.disabled = true;
+            btn.style.opacity = '0.7';
+            btn.style.cursor = 'not-allowed';
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Menyimpan...';
+        } else {
+            btn.disabled = false;
+            btn.style.opacity = '';
+            btn.style.cursor = 'pointer';
+            if (btn.dataset.originalText) {
+                btn.innerHTML = btn.dataset.originalText;
+            }
+        }
     },
 
-    // source: 'izin' | 'cuti' | 'oor' - jumlah pengajuan yang menunggu
-    setCount(role, source, n) {
-        this._counts[role] = this._counts[role] || {};
-        this._counts[role][source] = n;
-        this._paintCounts(role);
+    _resetSimpanButton() {
+        this._isSubmitting = false;
+        this._setSimpanLoading(false);
     },
 
-    _paintCounts(role) {
-        const bar = document.querySelector(`#page-approval-${role} .ap-tabs`);
-        if (!bar) return;
-        const c = this._counts[role] || {};
-        const set = (key, n) => {
-            const el = bar.querySelector(`.ap-tab-count[data-count="${key}"]`);
-            if (!el) return;
-            el.textContent = n;
-            el.classList.toggle('has', n > 0);
+    async submit() {
+        // Kalau masih ada request submit yang berjalan, abaikan klik ini.
+        if (this._isSubmitting) return;
+
+        const tujuan = document.getElementById('st-tujuan').value.trim();
+        const tanggalMulai = document.getElementById('st-tanggalMulai').value;
+        const tanggalSelesai = document.getElementById('st-tanggalSelesai').value;
+
+        if (!tujuan) { toast.error('Tujuan dinas wajib diisi!'); return; }
+        if (!tanggalMulai || !tanggalSelesai) { toast.error('Tanggal mulai dan selesai wajib diisi!'); return; }
+        if (tanggalSelesai < tanggalMulai) { toast.error('Tanggal selesai tidak boleh sebelum tanggal mulai!'); return; }
+
+        const currentUser = auth.getCurrentUser();
+        const data = {
+            userId: currentUser?.employeeId || currentUser?.id,
+            userName: currentUser?.name || '',
+            nomorSurat: document.getElementById('st-nomorSurat').value.trim(),
+            tujuan,
+            tanggalMulai,
+            tanggalSelesai,
+            keterangan: document.getElementById('st-keterangan').value.trim(),
+            fileUrl: document.getElementById('st-fileUrl').value.trim()
         };
-        set('pending', (c.izin || 0) + (c.cuti || 0));
-        set('radius', c.oor || 0);
+
+        this._isSubmitting = true;
+        this._setSimpanLoading(true);
+
+        try {
+            const result = await api.submitSuratTugas(data);
+            if (result.success) {
+                toast.success('Surat Tugas berhasil diajukan! Menunggu persetujuan Admin sebelum absensi Anda otomatis tercatat Dinas Luar.');
+                document.getElementById('modal-surat-tugas').style.display = 'none';
+                // Kunci tombol Input SPPD sampai admin memutuskan.
+                this.setPending(true);
+                // Refresh halaman Absensi supaya banner "Dinas Luar" langsung
+                // kelihatan kalau hari ini termasuk dalam rentangnya.
+                if (window.absensi && typeof absensi.init === 'function') {
+                    absensi.init();
+                }
+                // Badge kecil "menunggu approval" di menu sidebar - langsung
+                // muncul tanpa perlu reload/login ulang.
+                if (window.absensi && typeof absensi.refreshSuratTugasBadge === 'function') {
+                    absensi.refreshSuratTugasBadge();
+                }
+            } else {
+                toast.error(result.error || 'Gagal menyimpan Surat Tugas');
+                // Server menolak karena sudah ada SPPD pending (mis. dari
+                // perangkat lain) - kunci tombolnya juga di sini.
+                if (result.pendingExists) {
+                    this.setPending(true);
+                    this.openModal();
+                }
+            }
+        } catch (e) {
+            console.error('Error submit Surat Tugas:', e);
+            toast.error('Terjadi kesalahan');
+        } finally {
+            // Apapun hasilnya (sukses/gagal/error), tombol selalu
+            // dikembalikan aktif supaya user bisa coba lagi kalau perlu.
+            this._resetSimpanButton();
+        }
     }
 };
 
-window.approvalUI = approvalUI;
+window.suratTugas = suratTugas;
