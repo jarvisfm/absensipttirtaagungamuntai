@@ -5,7 +5,45 @@
  * disetujui Admin. Lihat approveSuratTugasData() di Surattugas.gs.
  */
 const suratTugas = {
+    // true selama karyawan masih punya Surat Tugas berstatus pending (belum
+    // diputuskan Admin). Selama true, tombol Input SPPD dikunci supaya tidak
+    // ada data SPPD ganda di Admin. Diisi dari absensi.refreshSuratTugasBadge()
+    // & absensi.init() (data pending yang sudah ada), dan dijaga ulang di
+    // server (submitSuratTugasData di Surattugas.gs).
+    hasPending: false,
+
+    setPending(has) {
+        this.hasPending = !!has;
+        this.applyLockUI();
+    },
+
+    // Satu-satunya tempat yang mengatur tampilan tombol Input SPPD:
+    // dikunci kalau sedang Izin/Cuti ATAU masih ada SPPD yang menunggu approval.
+    applyLockUI() {
+        const btn = document.getElementById('btn-surat-tugas-trigger');
+        if (!btn) return;
+        const isExcused = !!(window.absensi && absensi.currentState === 'excused');
+        const locked = isExcused || this.hasPending;
+        btn.disabled = locked;
+        btn.classList.toggle('disabled', locked);
+        const subEl = document.getElementById('surat-tugas-trigger-sub');
+        if (subEl) {
+            subEl.textContent = isExcused
+                ? 'Tidak bisa diisi selama masih Izin/Cuti'
+                : (this.hasPending
+                    ? 'Menunggu approval dari admin'
+                    : 'Sedang dinas luar? Catat di sini');
+        }
+    },
+
     openModal() {
+        // Sudah ada SPPD yang menunggu approval - jangan izinkan input lagi
+        // (cegah data ganda). Tombolnya juga sudah dikunci lewat applyLockUI().
+        if (this.hasPending) {
+            toast.error('Anda masih punya Surat Tugas yang menunggu approval admin. Tunggu sampai diputuskan sebelum mengajukan lagi.');
+            return;
+        }
+
         // Jangan izinkan input Surat Tugas selama user masih dalam rentang
         // Izin/Cuti yang sedang berjalan hari ini (lihat updateUI() di
         // absensi.js yang men-disable tombolnya) - dicek ulang di sini
@@ -94,6 +132,8 @@ const suratTugas = {
             if (result.success) {
                 toast.success('Surat Tugas berhasil diajukan! Menunggu persetujuan Admin sebelum absensi Anda otomatis tercatat Dinas Luar.');
                 document.getElementById('modal-surat-tugas').style.display = 'none';
+                // Kunci tombol Input SPPD sampai admin memutuskan.
+                this.setPending(true);
                 // Refresh halaman Absensi supaya banner "Dinas Luar" langsung
                 // kelihatan kalau hari ini termasuk dalam rentangnya.
                 if (window.absensi && typeof absensi.init === 'function') {
@@ -106,6 +146,12 @@ const suratTugas = {
                 }
             } else {
                 toast.error(result.error || 'Gagal menyimpan Surat Tugas');
+                // Server menolak karena sudah ada SPPD pending (mis. dari
+                // perangkat lain) - kunci tombolnya juga di sini.
+                if (result.pendingExists) {
+                    document.getElementById('modal-surat-tugas').style.display = 'none';
+                    this.setPending(true);
+                }
             }
         } catch (e) {
             console.error('Error submit Surat Tugas:', e);
