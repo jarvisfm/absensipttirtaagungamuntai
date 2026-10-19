@@ -1054,6 +1054,12 @@
                             </button>
                         </div>
                         <div style="padding:0 1.25rem 1.25rem;">
+                            <!-- Tampil menggantikan form selama masih ada SPPD yang menunggu
+                                 approval admin (lihat suratTugas.openModal() di surat-tugas.js) -->
+                            <div id="st-pending-notice" style="display:none;background:rgba(245,158,11,0.12);color:#92400E;border-radius:8px;padding:10px 12px;font-size:0.85rem;margin-bottom:0.5rem;">
+                                <i class="fas fa-hourglass-half"></i> Anda masih punya Surat Tugas yang menunggu approval admin. Pengajuan baru bisa dibuat setelah diputuskan.
+                            </div>
+                            <div id="st-form-section">
                             <p style="font-size:0.85rem;color:var(--text-muted);margin-bottom:1rem;">
                                 Selama rentang tanggal ini, semua sesi absensi (Masuk/Istirahat/Kembali/Pulang) otomatis tercatat Hadir - Anda tidak perlu absen manual.
                             </p>
@@ -1086,6 +1092,19 @@
                             <div style="display:flex;gap:8px;margin-top:1.25rem;">
                                 <button type="button" onclick="document.getElementById('modal-surat-tugas').style.display='none'" style="flex:1;background:none;border:1px solid var(--border-color);color:var(--text-muted);padding:10px;border-radius:8px;cursor:pointer;">Batal</button>
                                 <button type="button" id="st-btn-simpan" onclick="suratTugas.submit()" style="flex:1;background:var(--color-primary);color:#fff;border:none;padding:10px;border-radius:8px;cursor:pointer;font-weight:600;">Simpan</button>
+                            </div>
+                            </div>
+
+                            <!-- Riwayat SPPD milik karyawan (pola sama dengan Riwayat Sanggahan
+                                 Saya). Diisi suratTugas._renderHistory() di surat-tugas.js. -->
+                            <div style="margin-top:1.5rem;padding-top:1rem;border-top:1px solid var(--border-color);">
+                                <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;">
+                                    <label style="font-weight:600;font-size:0.85rem;">Riwayat SPPD Saya</label>
+                                    <select class="select-filter" id="st-history-month" style="max-width:160px;font-size:0.8rem;"></select>
+                                </div>
+                                <div id="st-history-list" style="display:flex;flex-direction:column;gap:8px;margin-top:8px;">
+                                    <span style="font-size:0.8rem;color:var(--text-muted);"><i class="fas fa-spinner fa-spin"></i> Memuat riwayat...</span>
+                                </div>
                             </div>
                         </div>
                     </div>
