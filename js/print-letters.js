@@ -580,8 +580,7 @@ const printLetters = {
             <table class="letter-signoff-table" style="margin-top:10px;">
                 <tr>
                     <td>${tanpaTahapManajer ? '' : `
-                        <p style="margin:0 0 2px;">Disetujui oleh ${this._managerLabelForBagian(emp.bagian)}</p>
-                        <p style="margin:0 0 2px;">TTD serta tanggal</p>`}
+                        <p style="margin:0 0 2px;">Disetujui oleh ${this._managerLabelForBagian(emp.bagian)}</p>`}
                     </td>
                     <td>
                         <p style="margin:0 0 2px;">Amuntai, ${this._formatTanggalIndo(izin.appliedAt || new Date().toISOString())}</p>
@@ -593,7 +592,7 @@ const printLetters = {
                     <td><div class="signature-space" style="text-align:center;">${this._parafHtml(izin.directorParaf, izin.directorParafDate, 44)}</div></td>
                 </tr>
                 <tr>
-                    <td>${(!tanpaTahapManajer && izin.managerName) ? `<p class="signature-name-underline" style="margin:2px 0 0;">${izin.managerName}</p>` : ''}</td>
+                    <td></td><!-- [DIUBAH 2026-10-19] teks "TTD serta tanggal" & nama Manajer dihilangkan atas permintaan -->
                     <td><p class="signature-name-underline" style="margin:2px 0 0;">Muhammad Nasrullah, S. AB</p></td>
                 </tr>
             </table>
