@@ -37,7 +37,9 @@ const mobile = {
     syncSidebarAvailability() {
         const menuToggle = document.getElementById('mobile-menu-toggle');
         const disabled = this.sidebarDisabled();
-        if (menuToggle) menuToggle.style.display = (this.isMobile && !disabled) ? 'flex' : 'none';
+        // CSS (mobile.css) memaksa display:flex !important di HP, jadi harus
+        // pakai setProperty(..., 'important') supaya benar-benar bisa disembunyikan.
+        if (menuToggle) menuToggle.style.setProperty('display', (this.isMobile && !disabled) ? 'flex' : 'none', 'important');
         if (disabled && this.sidebarOpen) this.closeSidebar();
     },
     
