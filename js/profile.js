@@ -29,6 +29,11 @@ const profileManager = {
         this.myId = (user.role === 'admin') ? (user.employeeId || null) : user.id;
         this.isAdmin = (user.role === 'admin');
 
+        // Loading screen (skeleton) setiap kali halaman Edit Profil dibuka -
+        // diganti tampilan asli oleh refreshView() di akhir init().
+        const _vc = document.getElementById('pf-view-content');
+        if (_vc) _vc.innerHTML = this._loadingHtml();
+
         if (!this.myId) {
             const vc = document.getElementById('pf-view-content');
             if (vc) vc.innerHTML = '<p style="text-align:center;color:var(--text-muted);padding:2rem 0;">Akun ini belum terhubung ke data karyawan.</p>';
@@ -79,6 +84,20 @@ const profileManager = {
         const m = document.getElementById('modal-edit-profil');
         if (m) { m.style.display = 'none'; m.classList.remove('pf-focus'); }
         this.refreshView();
+    },
+
+    _loadingHtml() {
+        const row = '<div class="pf-sk-row"><span class="pf-sk pf-sk-ic"></span><span class="pf-sk pf-sk-line"></span></div>';
+        return `<div class="pf-loading" role="status" aria-live="polite">
+            <div class="pf-sk-head">
+                <span class="pf-sk pf-sk-avatar"></span>
+                <span class="pf-sk pf-sk-name"></span>
+                <span class="pf-sk pf-sk-sub"></span>
+            </div>
+            <div class="pf-sk-group"><span class="pf-sk pf-sk-title"></span><div class="pf-sk-card">${row}${row}${row}</div></div>
+            <div class="pf-sk-group"><span class="pf-sk pf-sk-title"></span><div class="pf-sk-card">${row}${row}</div></div>
+            <div class="pf-loading-text"><i class="fas fa-spinner fa-spin"></i> Memuat profil...</div>
+        </div>`;
     },
 
     async refreshView() {
