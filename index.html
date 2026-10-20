@@ -1424,8 +1424,9 @@
                             </div>
                         </div>
                         <div class="izin-history-card">
-                            <div class="card-header">
+                            <div class="card-header" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
                                 <h3>Riwayat Pengajuan Izin</h3>
+                                <select id="izin-history-month" style="padding:6px 10px;border:1px solid var(--border-color);border-radius:8px;font-size:0.85rem;max-width:170px;"></select>
                             </div>
                             <div class="izin-list" id="izin-list"></div>
                         </div>
@@ -1680,7 +1681,7 @@
                         <div class="cuti-history-card">
                             <div class="card-header">
                                 <h3>Riwayat Pengajuan Cuti</h3>
-                                <div class="header-actions"><select class="select-filter">
+                                <div class="header-actions"><select id="cuti-history-month" style="padding:6px 10px;border:1px solid var(--border-color);border-radius:8px;font-size:0.85rem;max-width:170px;"></select><select class="select-filter">
                                         <option>Semua Status</option>
                                         <option>Menunggu</option>
                                         <option>Disetujui</option>
