@@ -69,6 +69,27 @@
             border-color: rgba(255, 255, 255, .3); border-top-color: #fff;
         }
     </style>
+    <style id="topbar-mobile-fix">
+        /* Header mobile: judul halaman, tombol refresh/notifikasi, dan jam
+           tidak lagi berdempetan. Judul panjang dipotong "..." (bukan
+           mendorong tombol), tombol tidak menyusut, jam diberi pemisah. */
+        @media (max-width: 768px) {
+            .top-bar { gap: 10px; }
+            .top-bar .top-bar-left { flex: 1 1 auto; min-width: 0; display: flex; align-items: center; }
+            .top-bar .mobile-menu-toggle { flex: 0 0 40px; margin-right: 10px; }
+            .top-bar .page-title { margin: 0; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+            .top-bar .top-bar-right { flex: 0 0 auto; gap: 10px; }
+            .top-bar .top-bar-actions { gap: 8px; flex-wrap: nowrap; }
+            .top-bar .btn-icon { flex: 0 0 38px; width: 38px; height: 38px; }
+            .top-bar .current-time { flex: 0 0 auto; white-space: nowrap; padding-left: 10px; border-left: 1px solid var(--border-color); }
+            .top-bar .current-time .time { font-size: 14px; line-height: 1.25; }
+            .top-bar .current-time .date { font-size: 10px; line-height: 1.25; }
+        }
+        /* HP sempit: tanggal disembunyikan, jam tetap tampil */
+        @media (max-width: 430px) {
+            .top-bar .current-time .date { display: none; }
+        }
+    </style>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap"
