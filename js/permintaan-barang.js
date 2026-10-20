@@ -64,7 +64,7 @@ const permintaanBarang = {
         if (!this.ctx) return t === 'ringkasan';
         const me = this.ctx.me;
         if (t === 'baru' || t === 'saya' || t === 'menunggu' || t === 'riwayat') return me.hasEmployee;
-        if (t === 'semua') return me.isAdmin;
+        if (t === 'semua') return !!me.rekap;
         return true;
     },
 
@@ -82,7 +82,7 @@ const permintaanBarang = {
         if (!root) return;
         const hero = `
             <div class="pb-hero"><div class="pb-hero-ic"><i class="fas fa-box-open"></i></div>
-            <div><h2>Permintaan Barang</h2><p>Ajukan permintaan barang dan pantau persetujuannya sampai Pejabat Pengadaan.</p></div></div>`;
+            <div><h2>Permintaan Barang</h2><p>${this.ctx && this.ctx.me.rekap ? 'Rekap seluruh permintaan barang dari karyawan.' : 'Ajukan permintaan barang dan pantau persetujuannya sampai Pejabat Pengadaan.'}</p></div></div>`;
         if (this.error) {
             root.innerHTML = `${hero}<div class="pb-alert pb-alert-err"><i class="fas fa-triangle-exclamation"></i> ${this._e(this.error)}</div>
                 <button class="pb-btn pb-btn-primary" onclick="permintaanBarang.init()"><i class="fas fa-rotate"></i> Coba lagi</button>`;
@@ -97,7 +97,7 @@ const permintaanBarang = {
             me.hasEmployee && ['saya', 'fa-list', 'Permintaan Saya'],
             me.hasEmployee && ['menunggu', 'fa-stamp', 'Perlu Persetujuan' + (nMenunggu ? ` <span class="pb-badge">${nMenunggu}</span>` : '')],
             me.hasEmployee && ['riwayat', 'fa-clock-rotate-left', 'Riwayat Persetujuan'],
-            me.isAdmin && ['semua', 'fa-folder-open', 'Semua Permintaan']
+            me.rekap && ['semua', 'fa-folder-open', 'Semua Permintaan']
         ].filter(Boolean);
         const tabHtml = tabs.map(t =>
             `<button type="button" class="pb-tab ${this.tab === t[0] ? 'active' : ''}" onclick="permintaanBarang.setTab('${t[0]}')"><i class="fas ${t[1]}"></i> ${t[2]}</button>`
@@ -111,7 +111,7 @@ const permintaanBarang = {
         else if (this.tab === 'riwayat') body = this._renderList(this.list.riwayat, 'Belum ada riwayat persetujuan.');
         else if (this.tab === 'semua') body = this._renderSemua();
 
-        const warn = !me.hasEmployee
+        const warn = (!me.hasEmployee && !me.rekap)
             ? `<div class="pb-alert pb-alert-warn"><i class="fas fa-circle-info"></i> Akun admin ini belum terhubung ke data karyawan, jadi hanya bisa melihat dan menghapus permintaan.</div>` : '';
         root.innerHTML = `${hero}${warn}<div class="pb-tabs">${tabHtml}</div>${body}`;
     },
@@ -119,7 +119,7 @@ const permintaanBarang = {
     _renderRingkasan() {
         const s = this.list.stats;
         const me = this.ctx.me;
-        const judul = me.isAdmin ? 'Seluruh permintaan' : 'Permintaan Anda';
+        const judul = me.rekap ? 'Rekap seluruh permintaan' : 'Permintaan Anda';
         const cards = [
             ['Total', s.total, 'fa-box', 'blue'],
             ['Menunggu', s.menunggu, 'fa-hourglass-half', 'amber'],
@@ -129,7 +129,7 @@ const permintaanBarang = {
         const perlu = this.list.menunggu.length
             ? `<div class="pb-alert pb-alert-warn"><i class="fas fa-stamp"></i> Ada <b>${this.list.menunggu.length}</b> permintaan yang menunggu persetujuan Anda.
                <button class="pb-btn pb-btn-sm" onclick="permintaanBarang.setTab('menunggu')">Lihat</button></div>` : '';
-        const terbaru = (me.isAdmin ? this.list.semua : this.list.saya).slice(0, 5);
+        const terbaru = (me.rekap ? this.list.semua : this.list.saya).slice(0, 5);
         return `${perlu}
             <div class="pb-card"><h3 class="pb-h3">${judul}</h3><div class="pb-stats">${cards}</div></div>
             <div class="pb-card"><h3 class="pb-h3">Permintaan Terbaru</h3>
