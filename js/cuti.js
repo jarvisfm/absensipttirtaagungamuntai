@@ -570,6 +570,7 @@ const cuti = {
             const result = await api.submitLeave(leaveData);
             if (result.success) {
                 this.leaves.unshift(result.data);
+                this._histMonth = (result.data.startDate || '').substring(0, 7) || this._histMonth; // tampilkan bulan pengajuan baru
                 // Kuota Cuti Tahunan baru berkurang setelah disetujui FINAL oleh
                 // Direktur (status 'approved'), jadi sengaja tidak dikurangi di sini
                 // saat submit - lihat _hitungSisaCutiTahunan() di Leave.gs.
@@ -633,9 +634,37 @@ const cuti = {
         }
     },
 
+    // [TAMBAHAN] Filter bulan & tahun untuk riwayat milik sendiri (pola sama
+    // dengan Riwayat Absensi): daftar bulan diambil dari data yang ada + bulan
+    // berjalan, default bulan berjalan, plus opsi "Semua Bulan".
+    _syncHistoryMonthFilter() {
+        const select = document.getElementById('cuti-history-month');
+        if (!select) return;
+        const monthNames = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+        const months = [...new Set((this.leaves || []).map(r => (r.startDate || (r.appliedAt || '')).substring(0, 7)).filter(Boolean))];
+        months.sort().reverse();
+        const todayYM = (typeof dateTime !== 'undefined' && dateTime.getLocalDate) ? dateTime.getLocalDate().substring(0, 7) : '';
+        if (todayYM && !months.includes(todayYM)) months.unshift(todayYM);
+
+        if (this._histMonth === undefined) this._histMonth = todayYM || months[0] || '';
+        if (this._histMonth && !months.includes(this._histMonth)) this._histMonth = todayYM || months[0] || '';
+
+        select.innerHTML = '<option value="">Semua Bulan</option>' + months.map(ym => {
+            const [y, m] = ym.split('-');
+            return `<option value="${ym}">${monthNames[parseInt(m) - 1]} ${y}</option>`;
+        }).join('');
+        select.value = this._histMonth;
+
+        if (!select._historyFilterBound) {
+            select.addEventListener('change', () => { this._histMonth = select.value; this.renderLeaveList(); });
+            select._historyFilterBound = true;
+        }
+    },
+
     renderLeaveList() {
         const list = document.getElementById('leave-list');
         if (!list) return;
+        this._syncHistoryMonthFilter();
 
         // Dipakai _getDetailedStatusLabel() di bawah - status "Menunggu"
         // sekarang butuh tahu role & bagian PEMOHON (di kartu ini, si
@@ -646,6 +675,7 @@ const cuti = {
 
         // Filter leaves
         let filteredLeaves = this.leaves.filter(l => {
+            if (this._histMonth && !(l.startDate || l.appliedAt || '').startsWith(this._histMonth)) return false;
             if (!this.filterStatus) return true;
             if (this.filterStatus === 'menunggu') return l.status === 'pending';
             if (this.filterStatus === 'disetujui') return l.status === 'approved';
@@ -657,7 +687,7 @@ const cuti = {
             list.innerHTML = `
                 <div class="empty-state" style="text-align: center; padding: var(--spacing-xl); color: var(--text-muted);">
                     <i class="fas fa-inbox" style="font-size: 3rem; margin-bottom: var(--spacing);"></i>
-                    <p>${this.filterStatus ? 'Tidak ada pengajuan yang sesuai' : 'Belum ada pengajuan cuti'}</p>
+                    <p>${(this.filterStatus || this._histMonth) ? 'Tidak ada pengajuan yang sesuai' : 'Belum ada pengajuan cuti'}</p>
                 </div>
             `;
             return;
