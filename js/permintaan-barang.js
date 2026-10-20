@@ -529,9 +529,17 @@ const permintaanBarang = {
                 let nama = e(s.nama);
                 let jab = e(s.jabatan);
                 if (s.tipe === 'asmen' || s.tipe === 'manajer_bidang') jab = 'Atasan Langsung,<br>' + jab;
+                if (s.tipe === 'direktur') jab = 'Menyetujui: Direktur';
                 if (s.tipe === 'pengadaan') {
                     jab = 'Pejabat Pelaksana<br>Pengadaan yang ditunjuk';
-                    nama = s.nama ? nama : '<span style="color:#666">(.....................)</span>';
+                    // Semua Pejabat Pengadaan ditampilkan, yang menyetujui diberi centang.
+                    const selesai = s.status === 'Disetujui';
+                    const daftar = (this.ctx.pengadaanList || []).map(x => ({ id: String(x.id), nama: x.nama }));
+                    if (selesai && !daftar.some(x => x.id === String(s.userId))) daftar.push({ id: String(s.userId), nama: s.nama });
+                    nama = daftar.length ? daftar.map(x => {
+                        const ok = selesai && x.id === String(s.userId);
+                        return `<div style="margin-bottom:6px">${ok ? '<span style="color:#16a34a;font-weight:700;margin-right:4px">&#10003;</span>' : '<span style="color:#6b7280;margin-right:4px">&#9675;</span>'}${e(x.nama)}</div>`;
+                    }).join('') : '<span style="color:#666">(.....................)</span>';
                 }
                 return { jabatan: jab, nama: nama, img: img ? `<img src="data:image/png;base64,${img}">` : '', tgl: e(s.status === 'Disetujui' ? s.tanggal : '') };
             }));
