@@ -88,3 +88,20 @@
     #page-izin .izin-info h2, #page-cuti .cuti-info h2,
     #page-dp3 .dp3-header h2, #page-profile .settings-header h2 { font-size: 1.15rem; }
 }
+
+/* ── Filter riwayat Izin & Cuti (karyawan): judul di atas, filter satu baris di bawahnya ── */
+#page-cuti .cuti-history-card .card-header,
+#page-izin .izin-history-card .card-header { flex-wrap: wrap; gap: 10px; }
+#page-cuti .cuti-history-card .header-actions { display: flex; gap: 8px; align-items: center; }
+#page-cuti .cuti-history-card .header-actions select,
+#page-izin .izin-history-card .card-header select {
+    height: 38px; padding: 0 10px; border: 1px solid var(--border-color, #e5e7eb); border-radius: 10px;
+    font-size: .85rem; background: #fff; min-width: 0; max-width: none !important;
+}
+@media (max-width: 600px) {
+    #page-cuti .cuti-history-card .card-header h3,
+    #page-izin .izin-history-card .card-header h3 { flex: 0 0 100%; margin: 0; }
+    #page-cuti .cuti-history-card .header-actions { flex: 0 0 100%; width: 100%; }
+    #page-cuti .cuti-history-card .header-actions select { flex: 1 1 0; width: 0; }
+    #page-izin .izin-history-card .card-header select { flex: 0 0 100%; width: 100%; }
+}
