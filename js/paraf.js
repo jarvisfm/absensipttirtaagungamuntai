@@ -189,8 +189,13 @@ const paraf = {
                 `<path d="${safePath}" fill="none" stroke="#111827" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
             img = `<img src="data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}" width="${w}" height="${h}" alt="paraf" style="display:inline-block;vertical-align:bottom;">`;
         }
-        return `<div class="letter-paraf" style="text-align:${align};line-height:1.15;">${img}` +
-            `${dateText ? `<div style="font-size:10px;">${dateText}</div>` : ''}</div>`;
+        // [DIUBAH 2026-10-20] Tanggal paraf ditaruh di SAMPING KANAN gambar
+        // paraf (sejajar bagian bawahnya), bukan di bawahnya - dulu tanggal
+        // di bawah paraf sering menimpa nama/NIK di bawah kotak tanda tangan
+        // saat dicetak.
+        const justify = align === 'left' ? 'flex-start' : (align === 'right' ? 'flex-end' : 'center');
+        return `<div class="letter-paraf" style="display:flex;align-items:flex-end;justify-content:${justify};gap:4px;line-height:1.15;">${img}` +
+            `${dateText ? `<span style="font-size:10px;white-space:nowrap;">${dateText}</span>` : ''}</div>`;
     }
 };
 
