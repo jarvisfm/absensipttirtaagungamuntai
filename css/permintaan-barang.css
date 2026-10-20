@@ -69,6 +69,11 @@
 .pb-span2 { grid-column: span 2; }
 .pb-hint { font-size: .75rem; color: #0369A1; margin-top: 6px; }
 .pb-hint:empty { display: none; }
+.pb-riwayat { margin-top: 12px; border: 1px solid #FCD34D; background: #FFFBEB; border-radius: 12px; padding: 10px; }
+.pb-riwayat-h { font-size: .8rem; font-weight: 700; color: #92400E; margin-bottom: 8px; }
+.pb-riwayat .pb-table th { background: #FEF3C7; color: #92400E; }
+.pb-riwayat .pb-table td { background: #fff; color: #333; }
+.pb-riwayat .pb-table { min-width: 560px; }
 
 .pb-chain { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
 .pb-chain li { display: flex; align-items: center; gap: 10px; font-size: .85rem; }
