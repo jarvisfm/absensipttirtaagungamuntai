@@ -467,6 +467,8 @@ const karyawanManager = {
             // Menu Admin yang dibagikan ke karyawan ini (disimpan sebagai teks
             // dipisah koma, mis. "attendance-reports,leave-reports") - centang
             // lagi checklist-nya sesuai data tersimpan.
+            const pengadaanEl = document.getElementById('p-pejabatPengadaan');
+            if (pengadaanEl) pengadaanEl.checked = ['1', 'true', 'ya'].includes(String(p.pejabatPengadaan || '').toLowerCase());
             const sharedMenusEl = document.getElementById('p-sharedAdminMenus');
             if (sharedMenusEl) {
                 const sharedMenus = String(p.sharedAdminMenus || '').split(',').map(s => s.trim()).filter(Boolean);
@@ -539,6 +541,8 @@ const karyawanManager = {
         if (opScheduleResetEl) opScheduleResetEl.querySelectorAll('.op-schedule-unit-checkbox').forEach(cb => cb.checked = false);
         const jjoManajerResetEl = document.getElementById('p-jjoManajerId');
         if (jjoManajerResetEl) jjoManajerResetEl.value = '';
+        const pengadaanResetEl = document.getElementById('p-pejabatPengadaan');
+        if (pengadaanResetEl) pengadaanResetEl.checked = false;
         const sharedMenusResetEl = document.getElementById('p-sharedAdminMenus');
         if (sharedMenusResetEl) sharedMenusResetEl.querySelectorAll('.shared-admin-menu-checkbox').forEach(cb => cb.checked = false);
 
@@ -819,6 +823,8 @@ const karyawanManager = {
             jjoManajerId:     document.getElementById('p-jjoManajerId')?.value || '',
             // Menu Admin yang dibagikan ke karyawan ini (teks dipisah koma)
             sharedAdminMenus: Array.from(document.querySelectorAll('#p-sharedAdminMenus .shared-admin-menu-checkbox:checked')).map(cb => cb.value).join(','),
+            // Pejabat Pengadaan (menu Permintaan Barang) - '1' = ya, '' = bukan
+            pejabatPengadaan: document.getElementById('p-pejabatPengadaan')?.checked ? '1' : '',
             username:         document.getElementById('p-username').value.trim(),
             keluarga
         };
