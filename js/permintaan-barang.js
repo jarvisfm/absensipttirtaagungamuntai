@@ -263,11 +263,42 @@ const permintaanBarang = {
         const exact = this.katalog.filter(k => k.nama.toLowerCase() === v)[0];
         const sat = el.querySelector('.pb-i-satuan');
         if (exact && !sat.value) sat.value = exact.satuan;
-        const like = exact ? [exact] : this.katalog.filter(k => k.nama.toLowerCase().indexOf(v) !== -1).slice(0, 2);
-        hint.innerHTML = like.map(k => {
-            const r = k.riwayat[0];
-            return r ? `<i class="fas fa-clock-rotate-left"></i> <b>${this._e(k.nama)}</b> terakhir diminta ${this._e(r.jumlah)} ${this._e(r.satuan)} oleh ${this._e(r.pemohon)} (${this._e(r.tanggal)}, ${this._e(r.status)})` : '';
-        }).join('<br>');
+        const norm = s => String(s || '').toLowerCase().replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
+        const n = norm(v);
+        const tk = n.split(' ').filter(t => t.length >= 4);
+        const cocok = k => {
+            const m = norm(k.nama);
+            return m === n || (n.length >= 3 && (m.indexOf(n) !== -1 || n.indexOf(m) !== -1)) || m.split(' ').some(t => t.length >= 4 && tk.indexOf(t) !== -1);
+        };
+        const rows = [];
+        this.katalog.filter(cocok).forEach(k => k.riwayat.forEach(r => rows.push({ barang: k.nama, ...r })));
+        rows.sort((a, b) => this._tglMs(b.tanggal) - this._tglMs(a.tanggal));
+        hint.innerHTML = this._riwayatBox(rows.slice(0, 5), 'Riwayat permintaan barang ini sebelumnya:');
+    },
+
+    _tglMs(t) {
+        const p = String(t || '').split('/');
+        return p.length === 3 ? new Date(+p[2], +p[1] - 1, +p[0]).getTime() : 0;
+    },
+
+    _lalu(t) {
+        const ms = this._tglMs(t);
+        if (!ms) return '';
+        const d = Math.floor((Date.now() - ms) / 86400000);
+        return d <= 0 ? 'hari ini' : d + ' hari lalu';
+    },
+
+    _riwayatBox(rows, judul) {
+        if (!rows.length) return '';
+        const tr = rows.map(r => `<tr>
+            <td><b>${this._e(r.barang)}</b></td>
+            <td class="c"><b>${this._e(r.jumlah)} ${this._e(r.satuan)}</b></td>
+            <td>${this._e(r.pemohon)}</td>
+            <td>${this._e(r.unit || r.bagian || '-')}</td>
+            <td class="c">${this._e(r.tanggal)}<small>${this._e(this._lalu(r.tanggal))}</small></td>
+            <td class="c">${this._statusChip(r.status)}</td></tr>`).join('');
+        return `<div class="pb-riwayat"><div class="pb-riwayat-h"><i class="fas fa-triangle-exclamation"></i> ${this._e(judul)}</div>
+            <div class="pb-scroll"><table class="pb-table"><thead><tr><th>Barang</th><th>Jumlah</th><th>Nama Pemohon</th><th>Unit/Bagian</th><th>Tanggal</th><th>Status</th></tr></thead><tbody>${tr}</tbody></table></div></div>`;
     },
 
     async submit() {
@@ -370,6 +401,7 @@ const permintaanBarang = {
                     <span>Bagian</span><b>${this._e([p.bagian, p.subBidang, p.wilayah].filter(Boolean).join(' / ') || '-')}</b></div>
                 <h4 class="pb-h4">Daftar Barang</h4>
                 <div class="pb-scroll"><table class="pb-table"><thead><tr><th>No</th><th>Nama Barang</th><th>Jumlah</th><th>Satuan</th><th>Keterangan</th></tr></thead><tbody>${items}</tbody></table></div>
+                ${this._riwayatBox((p.riwayat || []).map(r => ({ ...r })), 'Riwayat permintaan barang serupa sebelumnya:')}
                 <h4 class="pb-h4">Keperluan</h4>
                 <div class="pb-box">${this._e(p.keperluan).replace(/\n/g, '<br>')}</div>
                 ${catatan}
