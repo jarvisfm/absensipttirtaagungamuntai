@@ -1264,7 +1264,7 @@ const api = {
     // ========== PERMINTAAN BARANG (js/permintaan-barang.js, backend: Permintaan.gs) ==========
     _pbAuth() {
         const u = (typeof auth !== 'undefined' && auth.getCurrentUser) ? auth.getCurrentUser() : null;
-        return u ? { authUserId: u.id, authRole: u.role, sessionToken: u.sessionToken, employeeId: u.employeeId || '' } : {};
+        return u ? { authUserId: u.id, authRole: u.role, sessionToken: u.sessionToken, employeeId: (window.adminSwitch && adminSwitch.isEmployeeMode()) ? (u.employeeId || '') : '' } : {};
     },
     async getPermintaanContext() {
         return this.request('getPermintaanContext', { ...this._pbAuth() });
