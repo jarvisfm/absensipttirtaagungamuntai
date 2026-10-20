@@ -34,6 +34,41 @@
     <link rel="stylesheet" href="css/dp3.css">
     <link rel="stylesheet" href="css/mutasi.css">
     <link rel="stylesheet" href="css/slip-gaji.css">
+    <style id="login-v2-style">
+        /* ============================================================
+           LOGIN V2 - penyesuaian kecil di atas desain login yang ada
+           1) Bagian putih (kartu form) turun sedikit.
+           2) Tombol sidik jari jadi kotak kecil di samping tombol Login.
+           Dimuat SETELAH semua css lain. ID/class untuk auth.js tidak diubah.
+           ============================================================ */
+
+        /* ---- 1) Kartu putih turun ---- */
+        @media (max-width: 992px) {
+            #login-container .login-left { padding-bottom: 64px; }
+        }
+        @media (max-width: 992px) and (max-height: 700px) {
+            #login-container .login-left { padding-bottom: 46px; }
+        }
+        @media (max-width: 992px) and (max-height: 560px) {
+            #login-container .login-left { padding-bottom: 32px; }
+        }
+
+        /* ---- 2) Baris tombol: Login (lebar) + sidik jari (kotak kecil) ---- */
+        #login-container .login-action-row { display: flex; align-items: stretch; gap: 10px; margin-top: 4px; }
+        #login-container .login-action-row .btn-login { flex: 1 1 auto; width: auto; min-width: 0; margin-top: 0; }
+        #login-container .login-action-row .btn-biometric {
+            flex: 0 0 54px; width: 54px; height: auto; margin: 0; padding: 0; gap: 0;
+            border: 0; border-radius: 14px; color: #fff;
+            background: linear-gradient(135deg, #0a4f94 0%, #028ED8 100%);
+            box-shadow: 0 8px 18px rgba(2, 142, 216, .35);
+        }
+        #login-container .login-action-row .btn-biometric span { display: none; }
+        #login-container .login-action-row .btn-biometric i { font-size: 1.55rem; }
+        #login-container .login-action-row .btn-biometric:hover { background: linear-gradient(135deg, #0a4f94 0%, #028ED8 100%); filter: brightness(1.08); }
+        #login-container .login-action-row .btn-biometric.loading::after {
+            border-color: rgba(255, 255, 255, .3); border-top-color: #fff;
+        }
+    </style>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap"
@@ -101,20 +136,21 @@
                         </div>
                     </div>
                     
-                    <button type="submit" class="btn-login">
-                        <span>Login</span>
-                        <i class="fas fa-arrow-right"></i>
-                    </button>
+                    <!-- Baris tombol: Login (lebar) + sidik jari (kotak kecil di samping).
+                         Tombol sidik jari disembunyikan secara default. Baru muncul
+                         otomatis (lewat auth.js) kalau perangkat ini mendukung
+                         sidik jari/Face Unlock DAN sudah pernah diaktifkan sebelumnya. -->
+                    <div class="login-action-row">
+                        <button type="submit" class="btn-login">
+                            <span>Login</span>
+                            <i class="fas fa-arrow-right"></i>
+                        </button>
+                        <button type="button" id="btn-biometric-login" class="btn-biometric" style="display:none;" title="Masuk dengan Sidik Jari" aria-label="Masuk dengan Sidik Jari">
+                            <i class="fas fa-fingerprint"></i>
+                            <span>Masuk dengan Sidik Jari</span>
+                        </button>
+                    </div>
                 </form>
-
-                <!-- Tombol login sidik jari - fitur tambahan, disembunyikan
-                     secara default. Baru muncul otomatis (lewat auth.js)
-                     kalau perangkat ini mendukung sidik jari/Face Unlock
-                     DAN sudah pernah diaktifkan sebelumnya. -->
-                <button type="button" id="btn-biometric-login" class="btn-biometric" style="display:none;">
-                    <i class="fas fa-fingerprint"></i>
-                    <span>Masuk dengan Sidik Jari</span>
-                </button>
 
                 <div class="login-footer">
                     <p>&copy; 2026 <span id="footer-company">PT. Tirta Agung Amuntai</span>. All rights reserved.</p>
