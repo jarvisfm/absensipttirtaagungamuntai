@@ -861,6 +861,7 @@ const izin = {
             const result = await api.submitIzin(izinEntry);
             if (result.success) {
                 this.izinData.unshift(result.data);
+                this._histMonth = (result.data.date || '').substring(0, 7) || this._histMonth; // tampilkan bulan pengajuan baru
                 if (this.currentFile) {
                     await this.uploadLampiranIzin(result.data.id, this.currentFile);
                 }
@@ -929,9 +930,37 @@ const izin = {
         if (rejectedEl) rejectedEl.textContent = rejected;
     },
 
+    // [TAMBAHAN] Filter bulan & tahun untuk riwayat milik sendiri (pola sama
+    // dengan Riwayat Absensi): daftar bulan diambil dari data yang ada + bulan
+    // berjalan, default bulan berjalan, plus opsi "Semua Bulan".
+    _syncHistoryMonthFilter() {
+        const select = document.getElementById('izin-history-month');
+        if (!select) return;
+        const monthNames = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+        const months = [...new Set((this.izinData || []).map(r => (r.date || '').substring(0, 7)).filter(Boolean))];
+        months.sort().reverse();
+        const todayYM = (typeof dateTime !== 'undefined' && dateTime.getLocalDate) ? dateTime.getLocalDate().substring(0, 7) : '';
+        if (todayYM && !months.includes(todayYM)) months.unshift(todayYM);
+
+        if (this._histMonth === undefined) this._histMonth = todayYM || months[0] || '';
+        if (this._histMonth && !months.includes(this._histMonth)) this._histMonth = todayYM || months[0] || '';
+
+        select.innerHTML = '<option value="">Semua Bulan</option>' + months.map(ym => {
+            const [y, m] = ym.split('-');
+            return `<option value="${ym}">${monthNames[parseInt(m) - 1]} ${y}</option>`;
+        }).join('');
+        select.value = this._histMonth;
+
+        if (!select._historyFilterBound) {
+            select.addEventListener('change', () => { this._histMonth = select.value; this.renderIzinList(); });
+            select._historyFilterBound = true;
+        }
+    },
+
     renderIzinList() {
         const list = document.getElementById('izin-list');
         if (!list) return;
+        this._syncHistoryMonthFilter();
 
         // Dipakai _getDetailedStatusLabel() di bawah - status "Menunggu"
         // sekarang butuh tahu role & bagian PEMOHON (di kartu ini, si
@@ -942,6 +971,7 @@ const izin = {
 
         // Filter izin data
         let filteredData = this.izinData.filter(i => {
+            if (this._histMonth && !(i.date || '').startsWith(this._histMonth)) return false;
             if (!this.filterStatus) return true;
             if (this.filterStatus === 'menunggu') return i.status === 'pending';
             if (this.filterStatus === 'disetujui') return i.status === 'approved';
@@ -953,7 +983,7 @@ const izin = {
             list.innerHTML = `
                 <div class="empty-state" style="text-align: center; padding: var(--spacing-xl); color: var(--text-muted);">
                     <i class="fas fa-inbox" style="font-size: 3rem; margin-bottom: var(--spacing);"></i>
-                    <p>${this.filterStatus ? 'Tidak ada pengajuan yang sesuai' : 'Belum ada pengajuan izin'}</p>
+                    <p>${(this.filterStatus || this._histMonth) ? 'Tidak ada pengajuan yang sesuai' : 'Belum ada pengajuan izin'}</p>
                 </div>
             `;
             return;
