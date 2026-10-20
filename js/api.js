@@ -1261,6 +1261,33 @@ const api = {
         return this.request('deleteRiwayatMutasi', { id });
     },
 
+    // ========== PERMINTAAN BARANG (js/permintaan-barang.js, backend: Permintaan.gs) ==========
+    _pbAuth() {
+        const u = (typeof auth !== 'undefined' && auth.getCurrentUser) ? auth.getCurrentUser() : null;
+        return u ? { authUserId: u.id, authRole: u.role, sessionToken: u.sessionToken, employeeId: u.employeeId || '' } : {};
+    },
+    async getPermintaanContext() {
+        return this.request('getPermintaanContext', { ...this._pbAuth() });
+    },
+    async getPermintaanBarangList() {
+        return this.request('getPermintaanBarangList', { ...this._pbAuth() });
+    },
+    async getDetailPermintaanBarang(id) {
+        return this.request('getDetailPermintaanBarang', { id, ...this._pbAuth() });
+    },
+    async buatPermintaanBarang(data) {
+        return this.request('buatPermintaanBarang', { ...data, ...this._pbAuth() });
+    },
+    async approvePermintaanBarang(data) {
+        return this.request('approvePermintaanBarang', { ...data, ...this._pbAuth() });
+    },
+    async hapusPermintaanBarang(id) {
+        return this.request('hapusPermintaanBarang', { id, ...this._pbAuth() });
+    },
+    async getKatalogBarangPermintaan() {
+        return this.request('getKatalogBarangPermintaan', { ...this._pbAuth() });
+    },
+
     // ========== SLIP GAJI (js/slip-gaji.js, backend: SlipGaji.gs) ==========
     // Setiap aksi membawa identitas sesi (authUserId/authRole/sessionToken)
     // supaya server bisa memastikan siapa yang meminta - admin untuk
