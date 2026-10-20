@@ -105,3 +105,74 @@
     #page-cuti .cuti-history-card .header-actions select { flex: 1 1 0; width: 0; }
     #page-izin .izin-history-card .card-header select { flex: 0 0 100%; width: 100%; }
 }
+
+/* ============================================================
+   Kartu Riwayat Pengajuan Izin & Cuti (karyawan) - tampilan modern.
+   Murni CSS (tanpa ubah markup/JS). Warna aksen mengikuti status.
+   ============================================================ */
+#page-izin .izin-list, #page-cuti .leave-list { display: flex; flex-direction: column; gap: 12px; padding: 14px; }
+
+#page-izin .izin-item, #page-cuti .leave-item {
+    --acc: #F59E0B; --acc-soft: rgba(245, 158, 11, .14); --acc-ink: #B45309;
+    position: relative; background: #fff; border: 1px solid #eef0f4; border-radius: 16px;
+    padding: 14px 14px 14px 18px; gap: 12px; overflow: hidden;
+    box-shadow: 0 2px 10px rgba(15, 23, 42, .05);
+    transition: box-shadow .2s ease, transform .2s ease;
+}
+#page-izin .izin-item::before, #page-cuti .leave-item::before {
+    content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 5px; background: var(--acc);
+}
+#page-izin .izin-item:hover, #page-cuti .leave-item:hover {
+    background: #fff; border-radius: 16px; box-shadow: 0 6px 18px rgba(15, 23, 42, .09); transform: translateY(-1px);
+}
+#page-izin .izin-item:last-child, #page-cuti .leave-item:last-child { border-bottom: 1px solid #eef0f4; }
+
+/* warna per status (didukung browser modern; tanpa :has tetap oranye) */
+#page-izin .izin-item:has(.izin-status.approved), #page-cuti .leave-item:has(.leave-status.approved) {
+    --acc: #10B981; --acc-soft: rgba(16, 185, 129, .14); --acc-ink: #047857; }
+#page-izin .izin-item:has(.izin-status.rejected), #page-cuti .leave-item:has(.leave-status.rejected) {
+    --acc: #EF4444; --acc-soft: rgba(239, 68, 68, .12); --acc-ink: #B91C1C; }
+#page-izin .izin-item:has(.izin-status.cancelled), #page-cuti .leave-item:has(.leave-status.cancelled) {
+    --acc: #9CA3AF; --acc-soft: rgba(107, 114, 128, .14); --acc-ink: #4B5563; }
+
+/* ikon: kotak lembut berwarna */
+#page-izin .izin-icon, #page-izin .izin-icon.sick, #page-izin .izin-icon.permission, #page-izin .izin-icon.emergency,
+#page-cuti .leave-icon {
+    width: 44px; height: 44px; border-radius: 14px; background: var(--acc-soft); color: var(--acc-ink); font-size: 1.05rem;
+}
+
+/* judul + status */
+#page-izin .izin-header-row, #page-cuti .leave-header { gap: 8px 10px; margin-bottom: 8px; align-items: flex-start; }
+#page-izin .izin-type, #page-cuti .leave-type { font-size: 1rem; font-weight: 700; color: #1e293b; margin: 0; line-height: 1.3; }
+
+#page-izin .izin-status, #page-cuti .leave-status {
+    display: inline-flex; align-items: center; gap: 6px; max-width: 100%; text-align: left;
+    padding: 5px 12px; border-radius: 999px; font-size: .76rem; font-weight: 700; line-height: 1.3;
+    background: var(--acc-soft); color: var(--acc-ink);
+}
+#page-izin .izin-status::before, #page-cuti .leave-status::before {
+    content: ''; width: 7px; height: 7px; border-radius: 50%; background: currentColor; flex-shrink: 0;
+}
+
+/* tanggal sebagai chip */
+#page-izin .izin-details, #page-cuti .leave-details { margin-bottom: 8px; }
+#page-izin .izin-date, #page-cuti .leave-date {
+    display: inline-flex; align-items: center; gap: 7px; padding: 5px 11px; border-radius: 999px;
+    background: #f8fafc; border: 1px solid #eef0f4; font-size: .8rem; font-weight: 500; color: #475569;
+}
+#page-izin .izin-date i, #page-cuti .leave-date i { color: var(--acc); }
+
+/* alasan: gelap & mudah dibaca */
+#page-izin .izin-reason, #page-cuti .leave-reason { color: #334155; font-size: .88rem; line-height: 1.5; margin: 0; }
+
+/* tombol aksi di dalam kartu: bentuk pil */
+#page-izin .izin-content .btn-small, #page-cuti .leave-content .btn-small {
+    border-radius: 999px; padding: 7px 14px; font-size: .78rem; font-weight: 600;
+}
+
+@media (max-width: 600px) {
+    #page-izin .izin-list, #page-cuti .leave-list { padding: 10px; gap: 10px; }
+    #page-izin .izin-item, #page-cuti .leave-item { flex-wrap: nowrap; padding: 12px 12px 12px 16px; }
+    #page-izin .izin-content, #page-cuti .leave-content { min-width: 0; }
+    #page-izin .izin-header-row, #page-cuti .leave-header { flex-direction: column; align-items: flex-start; flex-wrap: nowrap; }
+}
