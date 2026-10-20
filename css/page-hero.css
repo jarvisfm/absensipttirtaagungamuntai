@@ -1,0 +1,90 @@
+/* ============================================================
+   Banner judul halaman (gaya "Slip Gaji") - Izin/Sakit, Cuti, DP3, Edit Profil.
+   Murni tampilan: tidak mengubah markup/JS. Tiap halaman beda warna & ikon.
+   ============================================================ */
+#page-izin .izin-header,
+#page-cuti .cuti-header,
+#page-dp3 .dp3-header,
+#page-profile .settings-header {
+    position: relative; overflow: hidden; color: #fff;
+    padding: 20px 22px; border-radius: 18px; margin-bottom: 18px;
+    align-items: center;
+}
+#page-izin .izin-header > *, #page-cuti .cuti-header > *,
+#page-dp3 .dp3-header > *, #page-profile .settings-header > * { position: relative; z-index: 1; }
+
+/* blok ikon + judul */
+#page-izin .izin-info, #page-cuti .cuti-info,
+#page-dp3 .dp3-header > div:first-child, #page-profile .settings-header {
+    display: grid; grid-template-columns: 52px 1fr; column-gap: 14px; align-items: center;
+}
+#page-izin .izin-info::before, #page-cuti .cuti-info::before,
+#page-dp3 .dp3-header > div:first-child::before, #page-profile .settings-header::before {
+    grid-row: 1 / span 2; width: 52px; height: 52px; border-radius: 16px;
+    background: rgba(255, 255, 255, .25); display: flex; align-items: center; justify-content: center;
+    font-family: "Font Awesome 6 Free", "Font Awesome 5 Free", sans-serif; font-weight: 900; font-size: 1.3rem;
+}
+#page-izin .izin-info h2, #page-cuti .cuti-info h2,
+#page-dp3 .dp3-header h2, #page-profile .settings-header h2 {
+    color: #fff; margin: 0 0 3px; font-size: 1.3rem; font-weight: 700;
+}
+#page-izin .izin-info p, #page-cuti .cuti-info p,
+#page-dp3 .dp3-header p, #page-profile .settings-header p {
+    color: #fff; opacity: .95; margin: 0; font-size: .86rem;
+}
+
+/* kartu sisa kuota di dalam banner: kaca transparan agar tidak menyatu */
+#page-izin .balance-card, #page-cuti .balance-card {
+    background: rgba(255, 255, 255, .2); box-shadow: none; border: 1px solid rgba(255, 255, 255, .35);
+    -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px);
+}
+#page-izin .balance-icon, #page-cuti .balance-icon { background: rgba(255, 255, 255, .25); }
+
+/* ── Izin / Sakit : hijau teal ── */
+#page-izin .izin-header {
+    background: radial-gradient(circle at 92% -20%, rgba(255,255,255,.22) 0 120px, transparent 121px),
+                linear-gradient(135deg, #0D9488 0%, #14B8A6 60%, #5EEAD4 100%);
+    box-shadow: 0 10px 28px rgba(13, 148, 136, .28);
+}
+#page-izin .izin-info::before { content: "\f477"; } /* file-medical */
+
+/* ── Cuti : biru ── */
+#page-cuti .cuti-header {
+    background: radial-gradient(circle at 6% 130%, rgba(255,255,255,.22) 0 110px, transparent 111px),
+                radial-gradient(circle at 96% 120%, rgba(255,255,255,.14) 0 90px, transparent 91px),
+                linear-gradient(135deg, #1D4ED8 0%, #3B82F6 60%, #60A5FA 100%);
+    box-shadow: 0 10px 28px rgba(37, 99, 235, .28);
+}
+#page-cuti .cuti-info::before { content: "\f5ca"; } /* umbrella-beach */
+
+/* ── DP3 : ungu ── */
+#page-dp3 .dp3-header {
+    background: repeating-linear-gradient(135deg, rgba(255,255,255,.07) 0 14px, transparent 14px 28px),
+                linear-gradient(135deg, #6D28D9 0%, #8B5CF6 60%, #A78BFA 100%);
+    box-shadow: 0 10px 28px rgba(109, 40, 217, .28);
+}
+#page-dp3 .dp3-header > div:first-child::before { content: "\f080"; } /* chart-bar */
+#page-dp3 .dp3-year { color: #fff; font-weight: 500; }
+
+/* ── Edit Profil : merah muda (rose) ── */
+#page-profile .settings-header {
+    background: radial-gradient(circle at 94% 10%, rgba(255,255,255,.2) 0 70px, transparent 71px),
+                radial-gradient(circle at 80% 120%, rgba(255,255,255,.14) 0 80px, transparent 81px),
+                linear-gradient(135deg, #BE123C 0%, #F43F5E 60%, #FB7185 100%);
+    box-shadow: 0 10px 28px rgba(225, 29, 72, .28);
+}
+#page-profile .settings-header::before { content: "\f2bd"; } /* circle-user */
+
+@media (max-width: 992px) {
+    #page-izin .izin-header, #page-cuti .cuti-header { flex-direction: column; align-items: stretch; gap: 14px; }
+}
+@media (max-width: 600px) {
+    #page-izin .izin-header, #page-cuti .cuti-header,
+    #page-dp3 .dp3-header, #page-profile .settings-header { padding: 16px; }
+    #page-izin .izin-info, #page-cuti .cuti-info,
+    #page-dp3 .dp3-header > div:first-child, #page-profile .settings-header { grid-template-columns: 44px 1fr; column-gap: 12px; }
+    #page-izin .izin-info::before, #page-cuti .cuti-info::before,
+    #page-dp3 .dp3-header > div:first-child::before, #page-profile .settings-header::before { width: 44px; height: 44px; font-size: 1.1rem; border-radius: 14px; }
+    #page-izin .izin-info h2, #page-cuti .cuti-info h2,
+    #page-dp3 .dp3-header h2, #page-profile .settings-header h2 { font-size: 1.15rem; }
+}
