@@ -43,6 +43,14 @@
 .pb-row:hover { background: rgba(14, 165, 233, .06); }
 .pb-row-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .pb-row-main span, .pb-row-main small { font-size: .78rem; color: var(--text-muted, #6b7280); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pb-overlay-top { z-index: 10100; }
+.pb-confirm { max-width: 380px; padding: 24px 22px 20px; text-align: center; }
+.pb-confirm-ic { width: 56px; height: 56px; border-radius: 50%; background: #FEE2E2; color: #DC2626; display: flex; align-items: center; justify-content: center; font-size: 1.4rem; margin: 0 auto 12px; }
+.pb-confirm h3 { margin: 0 0 8px; font-size: 1.05rem; }
+.pb-confirm p { margin: 0 0 18px; font-size: .88rem; color: var(--text-muted, #6b7280); line-height: 1.5; }
+.pb-confirm-act { display: flex; gap: 10px; }
+.pb-confirm-act .pb-btn { flex: 1; }
+.pb-btn-danger-fill { background: #DC2626; border-color: #DC2626; color: #fff; }
 .pb-row-act { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
 .pb-rev { color: #B45309; font-weight: 600; margin-left: 4px; }
 .pb-giliran { color: #B45309 !important; }
