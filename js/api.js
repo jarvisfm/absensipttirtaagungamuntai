@@ -1281,6 +1281,9 @@ const api = {
     async approvePermintaanBarang(data) {
         return this.request('approvePermintaanBarang', { ...data, ...this._pbAuth() });
     },
+    async ajukanUlangPermintaanBarang(data) {
+        return this.request('ajukanUlangPermintaanBarang', { ...data, ...this._pbAuth() });
+    },
     async hapusPermintaanBarang(id) {
         return this.request('hapusPermintaanBarang', { id, ...this._pbAuth() });
     },
