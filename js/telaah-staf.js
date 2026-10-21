@@ -105,6 +105,7 @@ const telaahStaf = {
     },
 
     setTab(t, id) {
+        if (this._formModal) this.tutupForm(); // form "Buka" tampil sebagai modal - tutup dulu
         if (t === 'form') this.formId = id || '';
         if (t !== 'form') this._sig = null;
         this.tab = t;
@@ -132,7 +133,7 @@ const telaahStaf = {
         const n = this.list.menungguCount || 0;
         const tabs = [
             me.hasEmployee && ['saya', 'fa-list', 'Telaahan Saya'],
-            me.bolehMembuat && ['form', 'fa-plus-circle', this.formId ? 'Ubah Telaahan' : 'Buat Telaahan'],
+            me.bolehMembuat && ['form', 'fa-plus-circle', (this.formId && this.tab === 'form') ? 'Ubah Telaahan' : 'Buat Telaahan'],
             me.hasEmployee && ['masuk', 'fa-inbox', 'Disposisi Masuk', n],
             me.rekap && ['semua', 'fa-folder-open', 'Semua Telaahan']
         ].filter(Boolean);
@@ -220,11 +221,29 @@ const telaahStaf = {
         return `<div class="tl-card">${rows}</div>`;
     },
 
+    // "Buka"/"Lihat" telaahan: form ditampilkan sebagai modal (bukan pindah halaman).
     bukaForm(id) {
         if (!this.ctx.me.bolehMembuat && !this.ctx.me.rekap) return;
-        this.tab = 'form';
         this.formId = id;
-        this.render();
+        this._openFormModal();
+    },
+
+    _openFormModal() {
+        this._sig = null;
+        this._formModal = true;
+        this._openModal(`<div class="tl-modal tl-modal-wide tl-modal-form">
+            <div class="tl-modal-head"><div><b>Ubah Telaahan Staf</b><small>Ubah isi, simpan, atau cetak</small></div>
+                <button class="tl-icon-btn" onclick="telaahStaf.tutupForm()" title="Tutup"><i class="fas fa-xmark"></i></button></div>
+            <div class="tl-modal-body" id="tl-form-body">${this._renderForm()}</div></div>`, { sticky: true });
+        this._initForm();
+    },
+
+    tutupForm() {
+        this._formModal = false;
+        this._closeModal();
+        this.formId = '';
+        this._sig = null;
+        this.form = null;
     },
 
     // ── Form telaahan ──────────────────────────────────────
@@ -298,7 +317,7 @@ const telaahStaf = {
         this._initSig('tl-sig', '_sig');
         if (!this.formId) return;
 
-        const root = this._root();
+        const root = this._$('tl-form-body') || this._root();
         root.style.opacity = '.6'; root.style.pointerEvents = 'none';
         try {
             const res = await api.getTelaah(this.formId);
@@ -387,6 +406,7 @@ const telaahStaf = {
             this._tampilTtd();
             const nom = this._$('tl-nomor'); if (nom) { nom.value = res.nomor; nom.readOnly = false; }
             await this._muatList();
+            if (this._formModal && this.tab !== 'form') this.render(); // segarkan daftar di belakang modal
         } catch (e) {
             toast.error(e.message || 'Gagal menyimpan');
         }
@@ -451,7 +471,7 @@ const telaahStaf = {
         this._psig = null; this._apv = null; this._disp = null; this._lp = null;
     },
 
-    _openModal(html) {
+    _openModal(html, opts) {
         // Hanya mengganti tampilan modal - state (_lp/_disp/_apv) JANGAN direset di sini.
         const lama = this._$('tl-overlay');
         if (lama) lama.remove();
@@ -459,7 +479,8 @@ const telaahStaf = {
         ov.id = 'tl-overlay';
         ov.className = 'tl-overlay';
         ov.innerHTML = html || '<div class="tl-modal"><div class="tl-empty"><i class="fas fa-spinner fa-spin"></i><p>Memuat...</p></div></div>';
-        ov.addEventListener('click', e => { if (e.target === ov) this._closeModal(); });
+        // Modal form tidak ditutup lewat klik latar (cegah isian hilang tak sengaja).
+        if (!(opts && opts.sticky)) ov.addEventListener('click', e => { if (e.target === ov) this._closeModal(); });
         document.body.appendChild(ov);
         return ov;
     },
