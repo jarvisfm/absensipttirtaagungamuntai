@@ -18,6 +18,7 @@ const permintaanBarang = {
     detail: null,       // permintaan yang sedang dibuka
     detailTtd: {},
     _itemSeq: 0,
+    editing: null,      // permintaan ditolak yang sedang diperbaiki (mode ajukan ulang)
     _submitting: false,
     _sig: null,
 
@@ -69,6 +70,7 @@ const permintaanBarang = {
     },
 
     setTab(t) {
+        if (t !== 'baru') this.editing = null;
         this.tab = t;
         this.render();
         if (t === 'baru') this._initForm();
@@ -106,7 +108,7 @@ const permintaanBarang = {
         let body = '';
         if (this.tab === 'ringkasan') body = this._renderRingkasan();
         else if (this.tab === 'baru') body = this._renderForm();
-        else if (this.tab === 'saya') body = this._renderList(this.list.saya, 'Anda belum pernah membuat permintaan barang.');
+        else if (this.tab === 'saya') body = this._renderList(this.list.saya, 'Anda belum pernah membuat permintaan barang.', false, true);
         else if (this.tab === 'menunggu') body = this._renderList(this.list.menunggu, 'Tidak ada permintaan yang menunggu persetujuan Anda.', true);
         else if (this.tab === 'riwayat') body = this._renderList(this.list.riwayat, 'Belum ada riwayat persetujuan.');
         else if (this.tab === 'semua') body = this._renderSemua();
@@ -136,27 +138,32 @@ const permintaanBarang = {
             ${terbaru.length ? this._rows(terbaru) : '<div class="pb-empty"><i class="fas fa-inbox"></i><p>Belum ada permintaan.</p></div>'}</div>`;
     },
 
-    _rows(arr) {
+    _rows(arr, own) {
         return arr.map(r => {
             const n = r.items.length;
             const ringkas = r.items.slice(0, 2).map(i => this._e(i.nama)).join(', ') + (n > 2 ? ` +${n - 2} lainnya` : '');
             const giliran = r.status === 'Menunggu' && r.giliran
                 ? `<small class="pb-giliran"><i class="fas fa-hourglass-half"></i> Menunggu: ${this._e(r.giliran)}</small>` : '';
+            const rev = r.revisi ? ` <small class="pb-rev">revisi ke-${this._e(r.revisi)}</small>` : '';
+            const tombol = own && r.status === 'Ditolak' ? `<div class="pb-row-act" onclick="event.stopPropagation()">
+                    <button type="button" class="pb-btn pb-btn-sm pb-btn-primary" onclick="permintaanBarang.perbaiki('${this._e(r.id)}')"><i class="fas fa-pen"></i> Perbaiki</button>
+                    <button type="button" class="pb-btn pb-btn-sm pb-btn-danger" onclick="permintaanBarang.hapus('${this._e(r.id)}')"><i class="fas fa-trash"></i> Hapus</button></div>` : '';
             return `<div class="pb-row" onclick="permintaanBarang.openDetail('${this._e(r.id)}')">
                 <div class="pb-row-main">
-                    <b>${this._e(r.nomor)}</b>
+                    <b>${this._e(r.nomor)}${rev}</b>
                     <span>${this._e(r.pemohonNama)} &middot; ${this._e(r.tanggal)}</span>
                     <small>${ringkas || '-'}</small>
                     ${giliran}
+                    ${tombol}
                 </div>
                 ${this._statusChip(r.status)}
             </div>`;
         }).join('');
     },
 
-    _renderList(arr, kosong, aksi) {
+    _renderList(arr, kosong, aksi, own) {
         if (!arr.length) return `<div class="pb-card"><div class="pb-empty"><i class="fas fa-inbox"></i><p>${kosong}</p></div></div>`;
-        return `<div class="pb-card">${aksi ? '<p class="pb-note">Ketuk permintaan untuk menyetujui atau menolak.</p>' : ''}${this._rows(arr)}</div>`;
+        return `<div class="pb-card">${aksi ? '<p class="pb-note">Ketuk permintaan untuk menyetujui atau menolak.</p>' : ''}${this._rows(arr, own)}</div>`;
     },
 
     _renderSemua() {
@@ -175,18 +182,21 @@ const permintaanBarang = {
         const me = this.ctx.me;
         const chain = this.ctx.preview.map((s, i) =>
             `<li><span>${i + 1}</span><div><b>${this._e(s.jabatan)}</b>${s.nama ? `<small>${this._e(s.nama)}</small>` : ''}</div></li>`).join('');
+        const ed = this.editing;
+        const edInfo = ed ? `<div class="pb-alert pb-alert-warn"><i class="fas fa-pen"></i> <span>Memperbaiki permintaan <b>${this._e(ed.nomor)}</b> yang ditolak. Nomor tetap sama dan alur persetujuan dimulai dari awal.${ed.catatan ? '<br>Alasan penolakan: ' + this._e(ed.catatan) : ''}</span></div>` : '';
         return `<div class="pb-card">
-            <h3 class="pb-h3">Form Permintaan Barang</h3>
+            <h3 class="pb-h3">${ed ? 'Perbaiki Permintaan Barang' : 'Form Permintaan Barang'}</h3>
+            ${edInfo}
             <div class="pb-form-grid">
                 <div><label>Nama Pemohon</label><input type="text" value="${this._e(me.nama)}" readonly></div>
                 <div><label>Jabatan</label><input type="text" value="${this._e(me.jabatan || '-')}" readonly></div>
                 <div><label>Bagian</label><input type="text" value="${this._e(me.bagian || '-')}" readonly></div>
                 <div><label>Sub Bidang / Seksi <small>(opsional, dipakai di nomor surat)</small></label>
-                    <input type="text" id="pb-subBidang" placeholder="Contoh: Pergudangan"></div>
-                <div><label>Unit Wilayah</label><input type="text" id="pb-wilayah" value="${this._e(me.unitWilayah || '')}" placeholder="Contoh: BNA Amuntai"></div>
+                    <input type="text" id="pb-subBidang" value="${this._e(ed ? ed.subBidang : '')}" placeholder="Contoh: Pergudangan"></div>
+                <div><label>Unit Wilayah</label><input type="text" id="pb-wilayah" value="${this._e(ed ? ed.wilayah : (me.unitWilayah || ''))}" placeholder="Contoh: BNA Amuntai"></div>
             </div>
             <label class="pb-lbl">Keperluan / Alasan Kebutuhan</label>
-            <textarea id="pb-keperluan" rows="3" placeholder="Jelaskan keperluan permintaan ini..."></textarea>
+            <textarea id="pb-keperluan" rows="3" placeholder="Jelaskan keperluan permintaan ini...">${this._e(ed ? ed.keperluan : '')}</textarea>
 
             <div class="pb-items-head"><b><i class="fas fa-boxes-stacked"></i> Daftar Barang</b>
                 <button type="button" class="pb-btn pb-btn-sm" onclick="permintaanBarang.addItem()"><i class="fas fa-plus"></i> Tambah Barang</button></div>
@@ -198,15 +208,16 @@ const permintaanBarang = {
             <p class="pb-note">Alur dibentuk otomatis dari data kepegawaian Anda. Tahap yang sama dengan pemohon dilewati.</p>
 
             <div class="pb-actions">
-                <button type="button" class="pb-btn pb-btn-primary" id="pb-submit" onclick="permintaanBarang.submit()"><i class="fas fa-paper-plane"></i> Kirim Permintaan</button>
-                <button type="button" class="pb-btn" onclick="permintaanBarang.setTab('ringkasan')">Batal</button>
+                <button type="button" class="pb-btn pb-btn-primary" id="pb-submit" onclick="permintaanBarang.submit()"><i class="fas fa-paper-plane"></i> ${ed ? 'Ajukan Kembali' : 'Kirim Permintaan'}</button>
+                <button type="button" class="pb-btn" onclick="permintaanBarang.setTab('${ed ? 'saya' : 'ringkasan'}')">Batal</button>
             </div>
         </div>`;
     },
 
     async _initForm() {
         this._itemSeq = 0;
-        this.addItem();
+        if (this.editing && this.editing.items.length) this.editing.items.forEach(it => this.addItem(it));
+        else this.addItem();
         if (!this.katalog.length) {
             try {
                 const r = await api.getKatalogBarangPermintaan();
@@ -217,7 +228,7 @@ const permintaanBarang = {
         if (dl) dl.innerHTML = this.katalog.map(k => `<option value="${this._e(k.nama)}">`).join('');
     },
 
-    addItem() {
+    addItem(pre) {
         const box = document.getElementById('pb-items');
         if (!box) return;
         if (box.children.length >= 50) { toast.error('Maksimal 50 barang per permintaan.'); return; }
@@ -238,6 +249,13 @@ const permintaanBarang = {
             </div>
             <div class="pb-hint" id="pb-hint-${id}"></div>`;
         box.appendChild(div);
+        if (pre) {
+            div.querySelector('.pb-i-nama').value = pre.nama || '';
+            div.querySelector('.pb-i-jumlah').value = pre.jumlah || '';
+            div.querySelector('.pb-i-satuan').value = pre.satuan || '';
+            div.querySelector('.pb-i-spek').value = pre.spesifikasi || '';
+            div.querySelector('.pb-i-ket').value = pre.keterangan || '';
+        }
         this._renumber();
     },
 
@@ -323,19 +341,23 @@ const permintaanBarang = {
         const btn = document.getElementById('pb-submit');
         if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Mengirim...'; }
         try {
-            const res = await api.buatPermintaanBarang({
+            const payload = {
                 keperluan, items,
                 subBidang: document.getElementById('pb-subBidang').value.trim(),
                 wilayah: document.getElementById('pb-wilayah').value.trim()
-            });
+            };
+            const res = this.editing
+                ? await api.ajukanUlangPermintaanBarang({ ...payload, id: this.editing.id })
+                : await api.buatPermintaanBarang(payload);
             if (!res || !res.success) throw new Error((res && res.error) || 'Gagal mengirim permintaan');
             toast.success(res.message || 'Permintaan berhasil dibuat.');
+            this.editing = null;
             this.katalog = [];
             this.tab = 'saya';
             await this.init();
         } catch (e) {
             toast.error(e.message || 'Gagal mengirim permintaan');
-            if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-paper-plane"></i> Kirim Permintaan'; }
+            if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-paper-plane"></i> ' + (this.editing ? 'Ajukan Kembali' : 'Kirim Permintaan'); }
         }
         this._submitting = false;
     },
@@ -389,7 +411,10 @@ const permintaanBarang = {
             <td class="c">${this._e(it.jumlah)}</td><td class="c">${this._e(it.satuan)}</td><td>${this._e(it.keterangan || '')}</td></tr>`).join('');
         const catatan = p.status === 'Ditolak' && p.catatan
             ? `<div class="pb-alert pb-alert-err"><i class="fas fa-circle-xmark"></i> Alasan penolakan: ${this._e(p.catatan)}</div>` : '';
+        const rwy = (p.riwayatPenolakan || []).length
+            ? `<div class="pb-alert"><i class="fas fa-clock-rotate-left"></i> <span><b>Riwayat penolakan sebelumnya:</b><br>${p.riwayatPenolakan.map(x => `${this._e(x.tanggal)} - ${this._e(x.jabatan)}${x.oleh ? ' (' + this._e(x.oleh) + ')' : ''}: ${this._e(x.catatan || '-')}`).join('<br>')}</span></div>` : '';
         const aksi = p.bisaApprove ? this._approvePanel(p) : '';
+        const revisi = p.bisaRevisi ? `<button class="pb-btn pb-btn-primary" onclick="permintaanBarang.perbaiki('${this._e(p.id)}')"><i class="fas fa-pen"></i> Perbaiki &amp; Ajukan Ulang</button>` : '';
         const hapus = p.bisaHapus ? `<button class="pb-btn pb-btn-danger" onclick="permintaanBarang.hapus('${this._e(p.id)}')"><i class="fas fa-trash"></i> Hapus</button>` : '';
         ov.innerHTML = `<div class="pb-modal">
             <div class="pb-modal-head"><div><b>${this._e(p.nomor)}</b><small>${this._e(this._tglIndo(p.tanggal))}</small></div>
@@ -405,11 +430,12 @@ const permintaanBarang = {
                 <h4 class="pb-h4">Keperluan</h4>
                 <div class="pb-box">${this._e(p.keperluan).replace(/\n/g, '<br>')}</div>
                 ${catatan}
+                ${rwy}
                 <h4 class="pb-h4">Persetujuan</h4>
                 ${this._stepTable(p)}
                 ${aksi}
             </div>
-            <div class="pb-modal-foot">${hapus}<button class="pb-btn pb-btn-primary" onclick="permintaanBarang.cetak()"><i class="fas fa-print"></i> Cetak Form</button></div>
+            <div class="pb-modal-foot">${hapus}${revisi}<button class="pb-btn pb-btn-primary" onclick="permintaanBarang.cetak()"><i class="fas fa-print"></i> Cetak Form</button></div>
         </div>`;
         if (p.bisaApprove) this._initSignature();
     },
@@ -497,6 +523,26 @@ const permintaanBarang = {
             toast.error(e.message || 'Gagal memproses');
             [b1, b2].forEach(b => { if (b) b.disabled = false; });
         }
+    },
+
+    /** Buka form dalam mode perbaikan untuk permintaan yang ditolak (nomor tetap). */
+    async perbaiki(id) {
+        let p = (this.list.saya || []).filter(x => x.id === String(id))[0];
+        if (!p || p.status !== 'Ditolak') { toast.error('Hanya permintaan yang ditolak yang bisa diperbaiki.'); return; }
+        if (!p.subBidang && !p.wilayah) {
+            // daftar ringkas tidak memuat sub bidang/wilayah - ambil dari detail
+            try {
+                const r = await api.getDetailPermintaanBarang(id);
+                if (r && r.success) p = { ...p, subBidang: r.data.subBidang, wilayah: r.data.wilayah, catatan: r.data.catatan };
+            } catch (e) { /* lanjut dengan data ringkas */ }
+        }
+        this._closeDetail();
+        this.editing = { ...p, subBidang: p.subBidang || '', wilayah: p.wilayah || '', items: p.items || [] };
+        this.tab = 'baru';
+        this.render();
+        this._initForm();
+        const pc = document.querySelector('.page-content');
+        if (pc) pc.scrollTop = 0;
     },
 
     async hapus(id) {
