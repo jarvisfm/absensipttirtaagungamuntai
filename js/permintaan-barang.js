@@ -116,7 +116,21 @@ const permintaanBarang = {
 
         const warn = (!me.hasEmployee && !me.rekap)
             ? `<div class="pb-alert pb-alert-warn"><i class="fas fa-circle-info"></i> Akun admin ini belum terhubung ke data karyawan, jadi hanya bisa melihat dan menghapus permintaan.</div>` : '';
+        // Pertahankan posisi geser tab (HP): render ulang tidak boleh mengembalikan tab ke awal.
+        const oldTabs = root.querySelector('.pb-tabs');
+        const keepX = oldTabs ? oldTabs.scrollLeft : 0;
         root.innerHTML = `${hero}${warn}<div class="pb-tabs">${tabHtml}</div>${body}`;
+        const tabsEl = root.querySelector('.pb-tabs');
+        const act = tabsEl && tabsEl.querySelector('.pb-tab.active');
+        if (tabsEl) {
+            tabsEl.scrollLeft = keepX;
+            if (act) {
+                const l = act.offsetLeft, r = l + act.offsetWidth;
+                if (l < tabsEl.scrollLeft || r > tabsEl.scrollLeft + tabsEl.clientWidth) {
+                    tabsEl.scrollLeft = l - (tabsEl.clientWidth - act.offsetWidth) / 2;
+                }
+            }
+        }
     },
 
     _renderRingkasan() {
@@ -446,16 +460,18 @@ const permintaanBarang = {
             </div>
             <div class="pb-modal-foot">${hapus}${revisi}<button class="pb-btn pb-btn-primary" onclick="permintaanBarang.cetak()"><i class="fas fa-print"></i> Cetak Form</button></div>
         </div>`;
-        if (p.bisaApprove) this._initSignature();
+        if (p.bisaApprove) { this._initSignature(); this._cekSetuju(); }
     },
 
     _approvePanel(p) {
         let pilih = '';
         if (p.langkahAktif === 'direktur') {
             const opts = this.ctx.pengadaanList.map(x => `<option value="${this._e(x.id)}">${this._e(x.nama)}${x.jabatan ? ' - ' + this._e(x.jabatan) : ''}</option>`).join('');
-            pilih = `<label class="pb-lbl">Tunjuk Pejabat Pengadaan</label>
-                <select id="pb-pengadaan"><option value="">Semua Pejabat Pengadaan boleh menyetujui</option>${opts}</select>
-                ${this.ctx.pengadaanList.length ? '' : '<p class="pb-note">Belum ada karyawan bertanda Pejabat Pengadaan (Edit Karyawan &gt; Kekaryawanan).</p>'}`;
+            pilih = `<label class="pb-lbl">Tunjuk Pejabat Pengadaan <span class="pb-req">Wajib</span></label>
+                <select id="pb-pengadaan" onchange="permintaanBarang._cekSetuju()"><option value="">-- Pilih Pejabat Pengadaan --</option>${opts}</select>
+                <div id="pb-pengadaan-badge" class="pb-badge-warn"><i class="fas fa-triangle-exclamation"></i> ${this.ctx.pengadaanList.length
+                    ? 'Tunjuk Pejabat Pengadaan terlebih dahulu, baru tombol Setujui bisa digunakan.'
+                    : 'Belum ada karyawan bertanda Pejabat Pengadaan (Edit Karyawan &gt; Kekaryawanan). Hubungi Admin.'}</div>`;
         }
         return `<div class="pb-approve"><h4 class="pb-h4"><i class="fas fa-stamp"></i> Giliran Anda</h4>
             ${pilih}
@@ -468,6 +484,17 @@ const permintaanBarang = {
                 <button type="button" class="pb-btn pb-btn-ok" id="pb-btn-setuju" onclick="permintaanBarang.putuskan('Disetujui')"><i class="fas fa-check"></i> Setujui</button>
                 <button type="button" class="pb-btn pb-btn-danger" id="pb-btn-tolak" onclick="permintaanBarang.putuskan('Ditolak')"><i class="fas fa-xmark"></i> Tolak</button>
             </div></div>`;
+    },
+
+    /** Direktur: tombol Setujui terkunci sampai Pejabat Pengadaan dipilih. */
+    _cekSetuju() {
+        const sel = document.getElementById('pb-pengadaan');
+        const btn = document.getElementById('pb-btn-setuju');
+        if (!sel || !btn) return;
+        const ok = !!sel.value;
+        btn.disabled = !ok;
+        const badge = document.getElementById('pb-pengadaan-badge');
+        if (badge) badge.style.display = ok ? 'none' : 'flex';
     },
 
     // ── Tanda tangan (canvas) ──────────────────────────────
@@ -511,6 +538,8 @@ const permintaanBarang = {
         const catatan = (document.getElementById('pb-catatan').value || '').trim();
         let ttd = '';
         if (keputusan === 'Disetujui') {
+            const selP = document.getElementById('pb-pengadaan');
+            if (selP && !selP.value) { toast.error('Tunjuk Pejabat Pengadaan terlebih dahulu.'); return; }
             ttd = this._exportSignature();
             if (!ttd) { toast.error('Tanda tangan wajib diisi sebelum menyetujui.'); return; }
         } else {
