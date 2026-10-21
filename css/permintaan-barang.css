@@ -43,6 +43,8 @@
 .pb-row:hover { background: rgba(14, 165, 233, .06); }
 .pb-row-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .pb-row-main span, .pb-row-main small { font-size: .78rem; color: var(--text-muted, #6b7280); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pb-row-act { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+.pb-rev { color: #B45309; font-weight: 600; margin-left: 4px; }
 .pb-giliran { color: #B45309 !important; }
 .pb-chip { display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px; border-radius: 99px; font-size: .74rem; font-weight: 600; white-space: nowrap; flex-shrink: 0; }
 .pb-chip-ok { background: #D1FAE5; color: #065F46; }
