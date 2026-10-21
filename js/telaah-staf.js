@@ -147,7 +147,22 @@ const telaahStaf = {
         else if (this.tab === 'semua') body = this._renderDaftar(this.list.semua, 'Belum ada telaahan.', false);
         else if (this.tab === 'form') body = this._renderForm();
 
+        // Pertahankan posisi geser tab (HP) & geser otomatis ke tab yang sedang aktif
+        // (sama seperti menu Permintaan Barang).
+        const oldTabs = root.querySelector('.tl-tabs');
+        const keepX = oldTabs ? oldTabs.scrollLeft : 0;
         root.innerHTML = `${hero}<div class="tl-tabs">${tabsHtml}</div>${body}`;
+        const tabsEl = root.querySelector('.tl-tabs');
+        const act = tabsEl && tabsEl.querySelector('.tl-tab.active');
+        if (tabsEl) {
+            tabsEl.scrollLeft = keepX;
+            if (act) {
+                const l = act.offsetLeft, r = l + act.offsetWidth;
+                if (l < tabsEl.scrollLeft || r > tabsEl.scrollLeft + tabsEl.clientWidth) {
+                    tabsEl.scrollLeft = l - (tabsEl.clientWidth - act.offsetWidth) / 2;
+                }
+            }
+        }
         if (this.tab === 'form') this._initForm();
     },
 
