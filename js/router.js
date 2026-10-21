@@ -8,7 +8,7 @@ const router = {
     routes: ['dashboard', 'absensi', 'face-recognition', 'izin', 'jurnal', 'cuti', 
          'approval-asmen', 'approval-manajer', 'approval-direktur', 'profile',
          'admin-dashboard', 'employees', 'karyawan', 'attendance-reports', 'jurnal-reports', 
-         'leave-reports', 'surat-tugas-approval', 'shift-schedule', 'jadwal-jaga-operator', 'settings', 'dp3', 'mutasi', 'slip-gaji', 'permintaan-barang'],
+         'leave-reports', 'surat-tugas-approval', 'shift-schedule', 'jadwal-jaga-operator', 'settings', 'dp3', 'mutasi', 'slip-gaji', 'permintaan-barang', 'telaah-staf'],
     
     init() {
         // Handle navigation clicks
@@ -91,6 +91,7 @@ const router = {
             mutasi: 'Mutasi',
             'slip-gaji': 'Slip Gaji',
             'permintaan-barang': 'Permintaan Barang',
+            'telaah-staf': 'Telaahan Staf',
             profile: 'Edit Profil'
         };
         
@@ -238,6 +239,9 @@ const router = {
                 break;
             case 'permintaan-barang':
                 if (window.initPermintaanBarang) window.initPermintaanBarang();
+                break;
+            case 'telaah-staf':
+                if (window.initTelaahStaf) window.initTelaahStaf();
                 break;
         }
         
