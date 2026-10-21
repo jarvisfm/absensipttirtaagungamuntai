@@ -1291,6 +1291,45 @@ const api = {
         return this.request('getKatalogBarangPermintaan', { ...this._pbAuth() });
     },
 
+    // ========== TELAAHAN STAF (js/telaah-staf.js, backend: Telaah.gs) ==========
+    // Memakai identitas sesi yang sama dengan Permintaan Barang (_pbAuth).
+    async getTelaahContext() {
+        return this.request('getTelaahContext', { ...this._pbAuth() });
+    },
+    async getTelaahList() {
+        return this.request('getTelaahList', { ...this._pbAuth() });
+    },
+    async getTelaah(id) {
+        return this.request('getTelaahDetail', { id, ...this._pbAuth() });
+    },
+    async simpanTelaah(data) {
+        return this.request('simpanTelaah', { ...data, ...this._pbAuth() });
+    },
+    async hapusTelaah(id) {
+        return this.request('hapusTelaah', { id, ...this._pbAuth() });
+    },
+    async getTelaahDisposisi(telaahId) {
+        return this.request('getTelaahDisposisi', { telaahId, ...this._pbAuth() });
+    },
+    async ajukanTelaahDisposisi(telaahId) {
+        return this.request('ajukanTelaahDisposisi', { telaahId, ...this._pbAuth() });
+    },
+    async getTelaahDisposisiApprover(telaahId, key) {
+        return this.request('getTelaahDisposisiApprover', { telaahId, key, ...this._pbAuth() });
+    },
+    async approveTelaahDisposisi(data) {
+        return this.request('approveTelaahDisposisi', { ...data, ...this._pbAuth() });
+    },
+    async getTelaahLampiran(telaahId) {
+        return this.request('getTelaahLampiran', { telaahId, ...this._pbAuth() });
+    },
+    async uploadTelaahFoto(telaahId, base64) {
+        return this.request('uploadTelaahFoto', { telaahId, base64, ...this._pbAuth() });
+    },
+    async simpanTelaahLampiran(data) {
+        return this.request('simpanTelaahLampiran', { ...data, ...this._pbAuth() });
+    },
+
     // ========== SLIP GAJI (js/slip-gaji.js, backend: SlipGaji.gs) ==========
     // Setiap aksi membawa identitas sesi (authUserId/authRole/sessionToken)
     // supaya server bisa memastikan siapa yang meminta - admin untuk
