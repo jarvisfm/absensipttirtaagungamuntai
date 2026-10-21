@@ -51,6 +51,8 @@
 .pb-confirm-act { display: flex; gap: 10px; }
 .pb-confirm-act .pb-btn { flex: 1; }
 .pb-btn-danger-fill { background: #DC2626; border-color: #DC2626; color: #fff; }
+.pb-req { display: inline-block; background: #FEE2E2; color: #B91C1C; font-size: .68rem; font-weight: 700; padding: 1px 7px; border-radius: 99px; margin-left: 4px; vertical-align: middle; }
+.pb-badge-warn { display: flex; gap: 8px; align-items: flex-start; margin-top: 8px; padding: 8px 12px; border-radius: 10px; background: #FEF3C7; color: #92400E; font-size: .78rem; font-weight: 600; }
 .pb-row-act { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
 .pb-rev { color: #B45309; font-weight: 600; margin-left: 4px; }
 .pb-giliran { color: #B45309 !important; }
