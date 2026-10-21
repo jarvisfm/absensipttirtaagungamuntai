@@ -536,9 +536,18 @@ const slipGaji = {
     // =====================================================================
     //  ADMIN - Gaji Penerimaan / Potongan
     // =====================================================================
-    // Angsuran Bank Ke-N: label per karyawan, mis. "Angsuran Bank Ke-3"
-    _angRe: /^\s*angsuran\s*bank(\s*ke\s*-?\s*\d*(\s*\/\s*\d*)?)?\s*$/i,
-    _isAng(l) { return this._angRe.test(String(l || '')); },
+    // Cicilan Ke-/Tenor: label per karyawan, mis. "Angsuran Bank Ke-3/60", "Bon Koperasi Ke-1/10".
+    // ke/tenor = nama field yang dikirim ke Apps Script (harus sama dengan SLIP_CICILAN di Slipgaji.gs)
+    _cicilan: [
+        { base: 'Angsuran Bank', ke: 'angsuranKe', tenor: 'angsuranTenor' },
+        { base: 'Bon Koperasi', ke: 'bonKe', tenor: 'bonTenor' },
+        { base: 'Barang Koperasi', ke: 'barangKe', tenor: 'barangTenor' }
+    ],
+    _cicOf(l) {
+        const s = String(l || '');
+        return this._cicilan.find(c => new RegExp('^\\s*' + c.base.replace(/\s+/g, '\\s*') + '(\\s*ke\\s*-?\\s*\\d*(\\s*\\/\\s*\\d*)?)?\\s*$', 'i').test(s)) || null;
+    },
+    _isAng(l) { return !!this._cicOf(l); },
     _angKe(l) { const m = String(l || '').match(/ke\s*-?\s*(\d+)/i); return m ? Number(m[1]) : 0; },
     _angTenor(l) { const m = String(l || '').match(/ke\s*-?\s*\d*\s*\/\s*(\d+)/i); return m ? Number(m[1]) : 0; },
 
@@ -558,7 +567,7 @@ const slipGaji = {
                 <input type="text" placeholder="Cari nama..." oninput="slipGaji.filterTable(this.value)"></div>
             <div class="sg-table-wrap">
                 <table class="sg-table" id="sg-data-table">
-                    <thead><tr><th>No</th><th>BLTH</th><th>Nama</th>${labels.map(l => `<th class="r">${this._e(kind === 'k' && this._isAng(l) ? 'Angsuran Bank' : l)}</th>`).join('')}<th class="r">${kind === 'p' ? 'Jumlah' : 'Jumlah Potongan'}</th><th style="position:sticky;right:0">Aksi</th></tr></thead>
+                    <thead><tr><th>No</th><th>BLTH</th><th>Nama</th>${labels.map(l => `<th class="r">${this._e(kind === 'k' && this._cicOf(l) ? this._cicOf(l).base : l)}</th>`).join('')}<th class="r">${kind === 'p' ? 'Jumlah' : 'Jumlah Potongan'}</th><th style="position:sticky;right:0">Aksi</th></tr></thead>
                     <tbody>${rows.map((r, i) => `<tr data-q="${this._e(String(r.nama).toLowerCase())}">
                         <td>${i + 1}</td><td>${this._e(this.blth(r))}</td><td>${this._e(r.nama)}</td>
                         ${(r.rincian[kind] || []).map(x => `<td class="r">${this.rp(x[1])}${kind === 'k' && this._isAng(x[0]) && this._angKe(x[0]) ? ` <small style="color:#64748b">(ke-${this._angKe(x[0])}${this._angTenor(x[0]) ? '/' + this._angTenor(x[0]) : ''})</small>` : ''}</td>`).join('')}
@@ -716,15 +725,15 @@ const slipGaji = {
                     <div class="sg-form" style="margin-top:0">
                         ${pilih}
                         ${labels.map((l, i) => (kind === 'k' && this._isAng(l))
-                            ? `<label style="grid-column:1/-1">Angsuran Bank Ke-/Tenor
+                            ? `<label style="grid-column:1/-1">${this._cicOf(l).base} Ke-/Tenor
                             <div style="display:flex;gap:8px">
-                                <input type="number" class="sg-f-ang" min="0" max="999" step="1" inputmode="numeric" placeholder="Ke-" title="Nomor cicilan bulan ini" value="${isEdit && this._angKe(l) ? this._angKe(l) : ''}" style="width:72px;flex:none">
-                                <input type="number" class="sg-f-tenor" min="0" max="999" step="1" inputmode="numeric" placeholder="Tenor" title="Tenor (jumlah cicilan), mis. 60" value="${isEdit && this._angTenor(l) ? this._angTenor(l) : ''}" style="width:78px;flex:none">
+                                <input type="number" class="sg-f-ke" data-cic="${this._cicilan.indexOf(this._cicOf(l))}" min="0" max="999" step="1" inputmode="numeric" placeholder="Ke-" title="Nomor cicilan bulan ini" value="${isEdit && this._angKe(l) ? this._angKe(l) : ''}" style="width:72px;flex:none">
+                                <input type="number" class="sg-f-tn" data-cic="${this._cicilan.indexOf(this._cicOf(l))}" min="0" max="999" step="1" inputmode="numeric" placeholder="Tenor" title="Tenor (jumlah cicilan), mis. 60" value="${isEdit && this._angTenor(l) ? this._angTenor(l) : ''}" style="width:78px;flex:none">
                                 <input type="number" class="sg-f-val" min="0" step="1" inputmode="numeric" value="${this._e(nilai[i] || 0)}" style="flex:1;min-width:0">
                             </div></label>`
                             : `<label>${this._e(l)}
                             <input type="number" class="sg-f-val" min="0" step="1" inputmode="numeric" value="${this._e(nilai[i] || 0)}"></label>`).join('')}
-                        ${kind === 'k' && labels.some(l => this._isAng(l)) ? '<p class="sg-note" style="grid-column:1/-1;margin:0">Angsuran Bank: isi nomor cicilan bulan ini (mis. 1) dan tenor (mis. 60) sehingga tertulis Ke-1/60. Saat import bulan berikutnya nomor otomatis naik +1, tenor tetap sama (ubah manual kalau perlu). Kosongkan jika tidak ingin mengubah, isi 0 untuk menghapus.</p>' : ''}
+                        ${kind === 'k' && labels.some(l => this._isAng(l)) ? '<p class="sg-note" style="grid-column:1/-1;margin:0">Angsuran Bank, Bon Koperasi &amp; Barang Koperasi: isi nomor cicilan bulan ini (mis. 1) dan tenor (mis. 60) sehingga tertulis Ke-1/60. Saat import bulan berikutnya nomor otomatis naik +1, tenor tetap sama (ubah manual kalau perlu). Kosongkan jika tidak ingin mengubah, isi 0 untuk menghapus.</p>' : ''}
                     </div>
                     ${isEdit ? '' : '<p class="sg-note">Nominal sisi lainnya diisi 0. Lengkapi lewat tombol Edit di tab satunya.</p>'}
                     <div class="sg-actions">
@@ -763,10 +772,13 @@ const slipGaji = {
             if (!userId && !nama) { toast.warning('Pilih karyawan atau isi nama terlebih dahulu'); return; }
             payload = { periode: this.periode, kind, values, userId, nama };
         }
-        const angEl = document.querySelector('#sg-form-modal .sg-f-ang');
-        const tenorEl = document.querySelector('#sg-form-modal .sg-f-tenor');
-        if (tenorEl) payload.angsuranTenor = tenorEl.value.trim() !== '' ? Math.max(0, Math.min(999, Math.floor(Number(tenorEl.value) || 0))) : null;
-        if (angEl) payload.angsuranKe = angEl.value.trim() !== '' ? Math.max(0, Math.min(999, Math.floor(Number(angEl.value) || 0))) : null;
+        this._cicilan.forEach((c, ci) => {
+            const keEl = document.querySelector('#sg-form-modal .sg-f-ke[data-cic="' + ci + '"]');
+            const tnEl = document.querySelector('#sg-form-modal .sg-f-tn[data-cic="' + ci + '"]');
+            const num = el => el.value.trim() !== '' ? Math.max(0, Math.min(999, Math.floor(Number(el.value) || 0))) : null;
+            if (tnEl) payload[c.tenor] = num(tnEl);
+            if (keEl) payload[c.ke] = num(keEl);
+        });
         this._formBusy = true;
         if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Menyimpan...'; }
         try {
