@@ -64,7 +64,8 @@ const permintaanBarang = {
     _tabAllowed(t) {
         if (!this.ctx) return t === 'ringkasan';
         const me = this.ctx.me;
-        if (t === 'baru' || t === 'saya' || t === 'menunggu' || t === 'riwayat') return me.hasEmployee;
+        if (t === 'baru' || t === 'saya') return !!me.bolehMengajukan;
+        if (t === 'menunggu' || t === 'riwayat') return me.hasEmployee;
         if (t === 'semua') return !!me.rekap;
         return true;
     },
@@ -95,8 +96,8 @@ const permintaanBarang = {
         const nMenunggu = this.list.menunggu.length;
         const tabs = [
             ['ringkasan', 'fa-gauge', 'Ringkasan'],
-            me.hasEmployee && ['baru', 'fa-plus-circle', 'Buat Permintaan'],
-            me.hasEmployee && ['saya', 'fa-list', 'Permintaan Saya'],
+            me.bolehMengajukan && ['baru', 'fa-plus-circle', 'Buat Permintaan'],
+            me.bolehMengajukan && ['saya', 'fa-list', 'Permintaan Saya'],
             me.hasEmployee && ['menunggu', 'fa-stamp', 'Perlu Persetujuan' + (nMenunggu ? ` <span class="pb-badge">${nMenunggu}</span>` : '')],
             me.hasEmployee && ['riwayat', 'fa-clock-rotate-left', 'Riwayat Persetujuan'],
             me.rekap && ['semua', 'fa-folder-open', 'Semua Permintaan']
@@ -121,20 +122,28 @@ const permintaanBarang = {
     _renderRingkasan() {
         const s = this.list.stats;
         const me = this.ctx.me;
-        const judul = me.rekap ? 'Rekap seluruh permintaan' : 'Permintaan Anda';
-        const cards = [
+        // Manajer hanya menyetujui: ringkasan menghitung keputusan Anda, bukan permintaan sendiri.
+        const approverOnly = !me.rekap && !me.bolehMengajukan;
+        const mine = st => this.list.riwayat.filter(r => r.steps.some(x => String(x.userId) === String(me.id) && x.status === st)).length;
+        const judul = me.rekap ? 'Rekap seluruh permintaan' : (approverOnly ? 'Persetujuan Anda' : 'Permintaan Anda');
+        const cards = (approverOnly ? [
+            ['Total Diproses', this.list.riwayat.length, 'fa-box', 'blue'],
+            ['Perlu Persetujuan', this.list.menunggu.length, 'fa-hourglass-half', 'amber'],
+            ['Anda Setujui', mine('Disetujui'), 'fa-circle-check', 'green'],
+            ['Anda Tolak', mine('Ditolak'), 'fa-circle-xmark', 'red']
+        ] : [
             ['Total', s.total, 'fa-box', 'blue'],
             ['Menunggu', s.menunggu, 'fa-hourglass-half', 'amber'],
             ['Disetujui', s.disetujui, 'fa-circle-check', 'green'],
             ['Ditolak', s.ditolak, 'fa-circle-xmark', 'red']
-        ].map(c => `<div class="pb-stat pb-stat-${c[3]}"><i class="fas ${c[2]}"></i><div><b>${c[1]}</b><span>${c[0]}</span></div></div>`).join('');
+        ]).map(c => `<div class="pb-stat pb-stat-${c[3]}"><i class="fas ${c[2]}"></i><div><b>${c[1]}</b><span>${c[0]}</span></div></div>`).join('');
         const perlu = this.list.menunggu.length
             ? `<div class="pb-alert pb-alert-warn"><i class="fas fa-stamp"></i> Ada <b>${this.list.menunggu.length}</b> permintaan yang menunggu persetujuan Anda.
                <button class="pb-btn pb-btn-sm" onclick="permintaanBarang.setTab('menunggu')">Lihat</button></div>` : '';
-        const terbaru = (me.rekap ? this.list.semua : this.list.saya).slice(0, 5);
+        const terbaru = (me.rekap ? this.list.semua : (approverOnly ? this.list.menunggu.concat(this.list.riwayat) : this.list.saya)).slice(0, 5);
         return `${perlu}
             <div class="pb-card"><h3 class="pb-h3">${judul}</h3><div class="pb-stats">${cards}</div></div>
-            <div class="pb-card"><h3 class="pb-h3">Permintaan Terbaru</h3>
+            <div class="pb-card"><h3 class="pb-h3">${approverOnly ? 'Permintaan Terkini' : 'Permintaan Terbaru'}</h3>
             ${terbaru.length ? this._rows(terbaru) : '<div class="pb-empty"><i class="fas fa-inbox"></i><p>Belum ada permintaan.</p></div>'}</div>`;
     },
 
@@ -506,7 +515,7 @@ const permintaanBarang = {
             if (!ttd) { toast.error('Tanda tangan wajib diisi sebelum menyetujui.'); return; }
         } else {
             if (!catatan) { toast.error('Isi alasan penolakan pada kolom catatan.'); return; }
-            if (!confirm('Tolak permintaan ini?')) return;
+            if (!await this._confirm({ judul: 'Tolak Permintaan', pesan: 'Tolak permintaan ini? Pemohon akan diberi tahu alasan penolakan Anda.', ok: 'Ya, Tolak', icon: 'fa-circle-xmark' })) return;
         }
         const b1 = document.getElementById('pb-btn-setuju'), b2 = document.getElementById('pb-btn-tolak');
         [b1, b2].forEach(b => { if (b) b.disabled = true; });
@@ -545,8 +554,37 @@ const permintaanBarang = {
         if (pc) pc.scrollTop = 0;
     },
 
+    /** Modal konfirmasi (pengganti confirm() bawaan browser). Mengembalikan Promise<boolean>. */
+    _confirm({ judul, pesan, ok, icon }) {
+        return new Promise(resolve => {
+            const old = document.getElementById('pb-confirm');
+            if (old) old.remove();
+            const ov = document.createElement('div');
+            ov.id = 'pb-confirm';
+            ov.className = 'pb-overlay pb-overlay-top';
+            ov.innerHTML = `<div class="pb-modal pb-confirm">
+                <div class="pb-confirm-ic"><i class="fas ${this._e(icon || 'fa-circle-question')}"></i></div>
+                <h3>${this._e(judul)}</h3><p>${this._e(pesan)}</p>
+                <div class="pb-confirm-act">
+                    <button type="button" class="pb-btn" data-r="0">Batal</button>
+                    <button type="button" class="pb-btn pb-btn-danger-fill" data-r="1">${this._e(ok || 'Ya')}</button>
+                </div></div>`;
+            const done = v => { ov.remove(); document.removeEventListener('keydown', onKey); resolve(v); };
+            const onKey = e => { if (e.key === 'Escape') done(false); };
+            ov.addEventListener('click', e => {
+                if (e.target === ov) return done(false);
+                const b = e.target.closest('button[data-r]');
+                if (b) done(b.dataset.r === '1');
+            });
+            document.addEventListener('keydown', onKey);
+            document.body.appendChild(ov);
+            const first = ov.querySelector('button[data-r="0"]');
+            if (first) first.focus();
+        });
+    },
+
     async hapus(id) {
-        if (!confirm('Hapus permintaan ini? Tindakan ini tidak bisa dibatalkan.')) return;
+        if (!await this._confirm({ judul: 'Hapus Permintaan', pesan: 'Hapus permintaan ini? Tindakan ini tidak bisa dibatalkan.', ok: 'Ya, Hapus', icon: 'fa-trash' })) return;
         try {
             const res = await api.hapusPermintaanBarang(id);
             if (!res || !res.success) throw new Error((res && res.error) || 'Gagal menghapus');
