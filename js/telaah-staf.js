@@ -466,6 +466,7 @@ const telaahStaf = {
 
     // ── Modal umum & konfirmasi ────────────────────────────
     _closeModal() {
+        if (this._ajukanBusy) return; // sedang mengirim - jangan ditutup
         const ov = this._$('tl-overlay');
         if (ov) ov.remove();
         this._psig = null; this._apv = null; this._disp = null; this._lp = null;
@@ -474,6 +475,12 @@ const telaahStaf = {
     _openModal(html, opts) {
         // Hanya mengganti tampilan modal - state (_lp/_disp/_apv) JANGAN direset di sini.
         const lama = this._$('tl-overlay');
+        // keep: ganti isi modal yang sedang terbuka (tanpa berkedip) + animasi transisi.
+        if (opts && opts.keep && lama) {
+            lama.innerHTML = html;
+            lama.classList.remove('tl-swap'); void lama.offsetWidth; lama.classList.add('tl-swap');
+            return lama;
+        }
         if (lama) lama.remove();
         const ov = document.createElement('div');
         ov.id = 'tl-overlay';
@@ -545,8 +552,10 @@ const telaahStaf = {
         }
     },
 
-    _renderDisposisi() {
+    _renderDisposisi(opts) {
         const d = this._disp;
+        const berikut = (d.rows || []).find(r => r.status === 'Menunggu');
+        const sukses = opts && opts.sukses ? `<div class="tl-alert tl-alert-ok tl-sukses"><i class="fas fa-circle-check"></i> <span>Disposisi berhasil diajukan${berikut ? ' dan sekarang menunggu <b>' + this._e(berikut.jabatan) + '</b>' : ''}.</span></div>` : '';
         const langkah = d.rows.map((r, i) => `
             <div class="tl-step ${r.status === 'Menunggu' ? 'now' : ''}">
                 <div class="tl-step-no">${i + 1}</div>
@@ -570,27 +579,58 @@ const telaahStaf = {
             <div class="tl-modal-head"><div><b>Disposisi: ${this._e(d.telaah.nomor)}</b><small>${this._e(d.telaah.perihal)}</small></div>
                 <button class="tl-icon-btn" onclick="telaahStaf._closeModal()"><i class="fas fa-xmark"></i></button></div>
             <div class="tl-modal-body">
+                ${sukses}
                 <div class="tl-alert"><i class="fas fa-circle-info"></i> Disposisi berjalan berurutan. Tiap pejabat menyetujui dan memberi paraf dari akunnya sendiri. Langkah yang belum punya akun dilewati otomatis.</div>
                 ${langkah}
                 ${d.ditolak ? '<div class="tl-alert tl-alert-err"><i class="fas fa-circle-xmark"></i> Disposisi ditolak. Perbaiki telaahan bila perlu, lalu ajukan ulang untuk memulai dari langkah pertama.</div>' : ''}
             </div>
-            <div class="tl-modal-foot"><button class="tl-btn" onclick="telaahStaf._closeModal()">Tutup</button>${aksi}</div></div>`);
+            <div class="tl-modal-foot"><button class="tl-btn" onclick="telaahStaf._closeModal()">Tutup</button>${aksi}</div></div>`, opts && opts.keep ? { keep: true } : undefined);
+    },
+
+    /** Lapisan loading/sukses di atas modal disposisi (mode: 'load' | 'ok' | null = tutup). */
+    _setBusy(mode, text) {
+        const m = document.querySelector('#tl-overlay .tl-modal');
+        if (!m) return;
+        let b = m.querySelector('.tl-busy');
+        if (!mode) {
+            if (b) { b.classList.add('out'); setTimeout(() => b.remove(), 260); }
+            return;
+        }
+        if (!b) { b = document.createElement('div'); m.appendChild(b); }
+        b.className = 'tl-busy ' + mode;
+        b.innerHTML = `<div class="tl-busy-ic">${mode === 'ok' ? '<span class="tl-check"></span>' : '<span class="tl-spin"></span>'}</div><p>${this._e(text || '')}</p>`;
     },
 
     async ajukan() {
         const d = this._disp;
         if (d.ditolak && !await this._confirm({ judul: 'Ajukan Ulang', pesan: 'Ajukan ulang disposisi dari langkah pertama? Paraf lama akan dihapus.', ok: 'Ya, Ajukan', icon: 'fa-rotate' })) return;
         const id = d.telaah.id;
+        if (this._ajukanBusy) return;
+        this._ajukanBusy = true;
+        this._setBusy('load', 'Mengajukan disposisi...');
         try {
             const res = await api.ajukanTelaahDisposisi(id);
             if (!res || !res.success) throw new Error((res && res.error) || 'Gagal mengajukan');
+            // Berhasil: tampilkan centang + notifikasi, sambil memuat status terbaru.
+            this._setBusy('ok', 'Disposisi berhasil diajukan');
             toast.success(res.message || 'Diajukan');
-            await this._muatList();
-            await this.openDisposisi(id);
+            const [, fresh] = await Promise.all([
+                this._muatList(),
+                api.getTelaahDisposisi(id).catch(() => null),
+                new Promise(r => setTimeout(r, 1100))
+            ]);
+            this._ajukanBusy = false;
+            if (this._$('tl-overlay')) {
+                if (fresh && fresh.success) { this._disp = fresh.data; this._renderDisposisi({ keep: true, sukses: true }); }
+                else { this._setBusy(null); await this.openDisposisi(id); }
+            }
             if (this.tab !== 'form') this.render();
         } catch (e) {
+            this._ajukanBusy = false;
+            this._setBusy(null);
             toast.error(e.message || 'Gagal mengajukan');
         }
+        this._ajukanBusy = false;
     },
 
     cetakDisposisi() {
