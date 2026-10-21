@@ -180,3 +180,49 @@
 #tl-root .tl-row-act .tl-btn-sm { flex: 1 1 auto; }
 #tl-root .tl-chip2 { padding: 4px 11px; }
 @media (max-width: 600px) { #tl-root .tl-row-act .tl-btn-sm { flex: 1 1 44%; } #tl-root .tl-row-act .tl-btn-danger { flex: 0 0 auto; } }
+
+/* ============================================================
+   Telaahan Staf - modal (Buka / Disposisi / Lampiran / Hapus), kotak TTD, kalimat penutup
+   ============================================================ */
+.tl-overlay { --mm: #6366F1; --mm2: #818CF8; --mm-ink: #4338CA; --mm-soft: rgba(99,102,241,.12); --mm-shadow: rgba(99,102,241,.28); }
+.tl-modal label { color: #334155; }
+.tl-modal input, .tl-modal textarea, .tl-modal select { border-radius: 12px; border: 1.5px solid #e2e8f0; padding: 11px 13px; background: #f8fafc; transition: border-color .15s, box-shadow .15s, background .15s; }
+.tl-modal input:focus, .tl-modal textarea:focus, .tl-modal select:focus { outline: none; background: #fff; border-color: var(--mm); box-shadow: 0 0 0 4px var(--mm-soft); }
+.tl-modal input[readonly] { background: #f1f5f9; color: #64748b; }
+.tl-modal .tl-btn { border-radius: 999px; }
+.tl-modal .tl-btn-primary { background: linear-gradient(135deg, var(--mm), var(--mm2)); border-color: transparent; box-shadow: 0 6px 14px var(--mm-shadow); }
+.tl-modal .tl-btn-ok { box-shadow: 0 6px 14px rgba(16,185,129,.28); }
+.tl-modal .tl-btn-danger-fill { background: #DC2626; border-color: #DC2626; color: #fff; }
+.tl-modal .tl-chip { padding: 5px 12px; font-weight: 700; }
+.tl-modal-head b { word-break: break-word; overflow-wrap: anywhere; font-size: 1rem; color: #1e293b; }
+.tl-modal-body { background: #fff; }
+
+/* modal form "Buka" */
+.tl-modal-form { max-width: 880px; }
+.tl-modal-form .tl-h3 { display: none; }
+.tl-modal-form .tl-card { border: 0; box-shadow: none; padding: 0; margin: 0; border-radius: 0; background: transparent; }
+.tl-modal-form .tl-modal-body { padding: 16px 18px 0; }
+.tl-modal-form .tl-actions { position: sticky; bottom: 0; z-index: 3; margin: 14px -18px 0; padding: 12px 18px calc(12px + env(safe-area-inset-bottom, 0px));
+    background: #fff; border-top: 1px solid #eef0f4; box-shadow: 0 -8px 18px rgba(15,23,42,.05); }
+.tl-modal-form .tl-actions .tl-btn { flex: 1 1 auto; }
+
+/* kotak kalimat penutup & perihal */
+#tl-root #tl-penutup, .tl-modal #tl-penutup, #tl-root #tl-perihal, .tl-modal #tl-perihal {
+    display: block; width: 100%; min-height: 110px; resize: vertical; line-height: 1.55; background: #fff; border: 1.5px solid #cbd5e1; padding: 12px 14px; }
+#tl-root #tl-perihal, .tl-modal #tl-perihal { min-height: 64px; }
+
+/* area tanda tangan: kotak jelas dengan garis dasar */
+.tl-h4 { display: flex; align-items: center; gap: 8px; }
+.tl-sig-wrap { position: relative; max-width: 460px !important; border: 2px solid #a5b4fc !important; border-radius: 14px; overflow: hidden; margin: 8px 0 10px;
+    background: linear-gradient(#cbd5e1, #cbd5e1) 18px 74% / calc(100% - 36px) 1.5px no-repeat, #fff; }
+.tl-sig-wrap::before { content: 'Tanda tangan di dalam kotak ini'; position: absolute; top: 9px; left: 14px; font-size: .72rem; font-weight: 600; color: #94a3b8; letter-spacing: .02em; pointer-events: none; }
+.tl-sig-wrap::after { content: '\2715'; position: absolute; left: 20px; top: calc(74% - 20px); font-size: .8rem; color: #cbd5e1; pointer-events: none; }
+.tl-sig-wrap canvas { position: relative; z-index: 1; cursor: crosshair; }
+
+@media (max-width: 600px) {
+    .tl-modal-form { max-height: 96vh; max-height: 96dvh; }
+    .tl-modal-form .tl-actions .tl-btn { flex: 1 1 44%; }
+    .tl-modal-wide { max-width: 100%; }
+    .tl-modal-foot { padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px)); }
+}
+.tl-modal.tl-confirm { border-radius: 22px; max-width: 380px; }
