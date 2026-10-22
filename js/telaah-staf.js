@@ -55,14 +55,14 @@ const telaahStaf = {
         const k = String(kode || '').replace(/[^a-zA-Z0-9\s]/g, '').replace(/\s+/g, '');
         return `…/TS-${k}/PT.TAA/${this.ROMAWI[d.getMonth()]}/${d.getFullYear()}`;
     },
-    _statusChip(s) {
+    _statusChip(s, alasan) {
         const m = {
             Disetujui: ['ok', 'fa-circle-check'], Ditolak: ['no', 'fa-circle-xmark'], Menunggu: ['wait', 'fa-hourglass-half'],
             Dilewati: ['wait', 'fa-forward'], Belum: ['wait', 'fa-clock']
         };
         const x = m[s];
         if (!x) return '<span class="tl-note">-</span>';
-        const label = s === 'Belum' ? 'Belum giliran' : (s === 'Dilewati' ? 'Dilewati (tanpa akun)' : s);
+        const label = s === 'Belum' ? 'Belum giliran' : (s === 'Dilewati' ? (alasan === 'pembuat' ? 'Dilewati (pembuat telaahan)' : 'Dilewati (tanpa akun)') : s);
         return `<span class="tl-chip tl-chip-${x[0]}"><i class="fas ${x[1]}"></i> ${this._e(label)}</span>`;
     },
 
@@ -566,7 +566,7 @@ const telaahStaf = {
                     ${!this._kosong(r.catatan) ? `<div class="tl-cat tl-doc">${richNote.view(r.catatan)}</div>` : ''}
                 </div>
                 ${r.paraf ? `<img src="data:image/png;base64,${r.paraf}" alt="Paraf">` : ''}
-                ${this._statusChip(r.status)}
+                ${this._statusChip(r.status, r.alasan)}
             </div>`).join('');
 
         let aksi;
@@ -921,7 +921,7 @@ const telaahStaf = {
             <div class="isi">${this._kosong(t[k]) ? '-' : richNote.view(t[k])}</div></div>`).join('');
         return `<section class="lembar">
             <div class="j-ts">TELAAHAN STAF</div>
-            <div class="nomor">Nomor : ${e(t.nomor)}</div>
+            <div class="nomor">${e(t.nomor)}</div>
             <table class="hdr">
                 <tr><td>Kepada</td><td>:</td><td>${e(t.kepada)}</td></tr>
                 <tr><td>Dari</td><td>:</td><td>${e(t.dari)}</td></tr>
