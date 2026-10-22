@@ -16,9 +16,7 @@
 #page-face-recognition .camera-card{padding:12px}
 
 /* Kamera */
-#page-face-recognition .camera-preview{height:450px;border-radius:18px;background:radial-gradient(120% 90% at 50% 40%,#334155,#0B1220)}
-#page-face-recognition .camera-preview::after{content:"";position:absolute;inset:0;z-index:4;pointer-events:none;
-  background:radial-gradient(ellipse 44% 48% at 50% 47%,transparent 60%,rgba(2,6,23,.62) 100%)}
+#page-face-recognition .camera-preview{height:450px;border-radius:18px;background:#0B1220}
 #page-face-recognition .camera-preview .captured-photo{border-radius:0}
 #page-face-recognition #btn-refresh-camera{top:12px !important;right:12px !important;width:36px !important;height:36px !important;border-radius:50% !important;
   background:rgba(15,23,42,.55) !important;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);transition:transform .2s,background .2s}
@@ -26,12 +24,17 @@
 
 /* Bingkai oval wajah (area overlay penuh, frame di tengah) */
 #page-face-recognition .face-overlay{top:0;left:0;width:100% !important;height:100% !important;transform:none;pointer-events:none}
-#page-face-recognition .face-frame{inset:auto;top:47%;left:50%;width:180px;height:228px;transform:translate(-50%,-50%);
-  border:2px dashed rgba(255,255,255,.6);border-radius:50% 50% 48% 48% / 46% 46% 54% 54%;transition:border-color .25s,box-shadow .25s}
-#page-face-recognition .face-corner{display:none}
-#page-face-recognition .face-frame.detected{border:3px solid #22C55E;
-  box-shadow:0 0 0 6px rgba(34,197,94,.25),0 0 32px rgba(34,197,94,.45);animation:frPulse 1.6s ease-in-out infinite}
-@keyframes frPulse{50%{box-shadow:0 0 0 10px rgba(34,197,94,.12),0 0 40px rgba(34,197,94,.55)}}
+#page-face-recognition .face-frame{inset:auto;top:47%;left:50%;width:220px;height:270px;transform:translate(-50%,-50%);
+  border:1.5px solid rgba(255,255,255,.35);border-radius:24px;background:rgba(255,255,255,.04);transition:border-color .25s,box-shadow .25s,background .25s}
+#page-face-recognition .face-corner{display:block;width:34px;height:34px;border-color:var(--fr-o1);border-radius:0;filter:drop-shadow(0 0 4px rgba(249,115,22,.45))}
+#page-face-recognition .face-corner.top-left{top:-3px;left:-3px;border-width:4px 0 0 4px;border-top-left-radius:24px}
+#page-face-recognition .face-corner.top-right{top:-3px;right:-3px;border-width:4px 4px 0 0;border-top-right-radius:24px}
+#page-face-recognition .face-corner.bottom-left{bottom:-3px;left:-3px;border-width:0 0 4px 4px;border-bottom-left-radius:24px}
+#page-face-recognition .face-corner.bottom-right{bottom:-3px;right:-3px;border-width:0 4px 4px 0;border-bottom-right-radius:24px}
+#page-face-recognition .face-frame.detected{border-color:rgba(34,197,94,.7);background:rgba(34,197,94,.08);
+  box-shadow:0 0 0 4px rgba(34,197,94,.18),0 0 26px rgba(34,197,94,.35);animation:frPulse 1.6s ease-in-out infinite}
+#page-face-recognition .face-frame.detected .face-corner{border-color:#22C55E;filter:drop-shadow(0 0 4px rgba(34,197,94,.6))}
+@keyframes frPulse{50%{box-shadow:0 0 0 8px rgba(34,197,94,.1),0 0 34px rgba(34,197,94,.45)}}
 #page-face-recognition .face-guide{inset:0;top:0;left:0;transform:none}
 #page-face-recognition .face-guide i{position:absolute;top:47%;left:50%;transform:translate(-50%,-50%);font-size:3.4rem;margin:0;opacity:.28}
 #page-face-recognition .face-guide i.detected{opacity:.55}
@@ -86,7 +89,7 @@
 @media (max-width:992px){#page-face-recognition .camera-preview{height:340px !important}}
 @media (max-width:576px){
   #page-face-recognition .camera-preview{height:320px !important}
-  #page-face-recognition .face-frame{width:165px;height:210px}
+  #page-face-recognition .face-frame{width:190px;height:240px}
   #page-face-recognition .face-rec-header h2{font-size:19px}
   #page-face-recognition .location-map{height:150px}
   #page-face-recognition .face-guide p{font-size:12px;padding:7px 13px}
