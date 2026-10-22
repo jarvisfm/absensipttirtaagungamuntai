@@ -787,7 +787,7 @@ const auth = {
         const kerjaHtml = kerja.length ? `<table class="sub">${kerja.map(k =>
             `<tr><td class="k1">${e(k.jab)}</td><td class="k2">${periode(k)}</td></tr>`).join('')}</table>` : '';
 
-        const alamatKantor = 'Jalan Palang Merah No.319.A Amuntai Kalimantan Selatan<br>Kode Pos : 71414 Email Ktr : pdamkabhsu@yahoo.com<br>Telpon 0527 61 345 &nbsp; Fax : 0527 63 057';
+        const alamatKantor = 'Jalan Palang Merah No.319 A, Kelurahan Murung Sari, Kecamatan Amuntai Tengah<br>Kode Pos : 71414 Email : pttirtaagungamuntai@gmail.com<br>Telpon 0527 61345 &nbsp; Fax : 0527 63057';
         const rumah = [e(p.alamatRumah || ''), p.email ? 'Email : ' + e(p.email) : '', p.noTelp ? 'Telp. : ' + e(p.noTelp) : ''].filter(Boolean).join('<br>');
 
         const rows = [
