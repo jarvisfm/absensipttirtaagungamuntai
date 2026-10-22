@@ -17,6 +17,7 @@ const adminDashboard = {
 
         await this.loadData();
         this.updateStats();
+        this.renderJenisKaryawan();
         this.renderRecentActivity();
         this.renderGolonganChart();
         this.renderPendidikanChart();
@@ -103,6 +104,69 @@ const adminDashboard = {
                 this.animateNumber(el, parseInt(el.textContent) || 0, value);
             }
         });
+    },
+
+    // ── Komposisi jenis karyawan (field statusPekerjaan) ─────────
+    // Dihitung dari data yang sama dengan kartu "Total Karyawan", jadi
+    // jumlah semua badge selalu sama dengan totalnya.
+    JENIS_KARYAWAN: [
+        { label: 'Karyawan Tetap', icon: 'fa-user-shield', c: '#6366F1', soft: '#EEF2FF', line: '#C7D2FE', cocok: s => s.includes('tetap') },
+        { label: 'Tenaga Kontrak', icon: 'fa-file-signature', c: '#F59E0B', soft: '#FFFBEB', line: '#FDE68A', cocok: s => s.includes('kontrak') },
+        { label: 'Outsourcing', icon: 'fa-people-carry-box', c: '#14B8A6', soft: '#F0FDFA', line: '#99F6E4', cocok: s => s.includes('outsourc') || s.includes('alih daya') }
+    ],
+
+    renderJenisKaryawan() {
+        const badges = document.getElementById('aj-badges');
+        if (!badges) return;
+        const bar = document.getElementById('aj-bar');
+        const totalEl = document.getElementById('aj-total');
+        const list = this.employees || [];
+        const total = list.length;
+
+        const items = this.JENIS_KARYAWAN.map(j => ({ ...j, n: 0, klik: true }));
+        const lain = { label: 'Belum diisi / lainnya', icon: 'fa-circle-question', c: '#94A3B8', soft: '#F8FAFC', line: '#E2E8F0', n: 0, klik: false };
+        list.forEach(e => {
+            const s = String(e.statusPekerjaan || '').toLowerCase().trim();
+            const hit = items.find(j => j.cocok(s));
+            if (hit) hit.n++; else lain.n++;
+        });
+        if (lain.n > 0) items.push(lain);
+
+        if (totalEl) totalEl.textContent = total + ' orang';
+        if (!total) {
+            if (bar) bar.innerHTML = '';
+            badges.innerHTML = '<p class="aj-empty">Belum ada data karyawan.</p>';
+            return;
+        }
+
+        const pct = n => (n / total) * 100;
+        if (bar) {
+            bar.innerHTML = items.filter(i => i.n > 0).map(i =>
+                `<span class="aj-seg" style="width:${pct(i.n).toFixed(2)}%;background:${i.c}" title="${i.label}: ${i.n}"></span>`).join('');
+        }
+
+        const bisaKlik = typeof auth !== 'undefined' && auth.isAdmin && auth.isAdmin();
+        badges.innerHTML = items.map(i => {
+            const tag = (i.klik && bisaKlik) ? 'button type="button"' : 'div';
+            const end = (i.klik && bisaKlik) ? 'button' : 'div';
+            const aksi = (i.klik && bisaKlik)
+                ? ` onclick="adminDashboard.lihatJenis('${i.label}')" title="Lihat daftar ${i.label}"` : '';
+            return `<${tag} class="aj-badge${i.klik && bisaKlik ? ' aj-click' : ''}" style="--c:${i.c};--soft:${i.soft};--line:${i.line}"${aksi}>
+                <span class="aj-ic"><i class="fas ${i.icon}"></i></span>
+                <span class="aj-body"><span class="aj-label">${i.label}</span><span class="aj-num" data-n="${i.n}">0</span></span>
+                <span class="aj-pct">${Math.round(pct(i.n))}%</span>
+            </${end}>`;
+        }).join('');
+
+        badges.querySelectorAll('.aj-num').forEach(el => this.animateNumber(el, 0, parseInt(el.dataset.n) || 0));
+    },
+
+    // Klik badge: buka Data Karyawan dengan filter jenis yang sesuai.
+    lihatJenis(jenis) {
+        if (!(auth.isAdmin && auth.isAdmin())) return;
+        const sel = document.getElementById('karyawan-jenis-filter');
+        if (sel) sel.value = jenis;
+        router.navigate('karyawan');
     },
 
     animateNumber(element, start, end) {
