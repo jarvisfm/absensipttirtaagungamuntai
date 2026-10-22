@@ -1169,6 +1169,7 @@ table.sub td{padding:0 1mm 0 0}
     // biometricDevices) supaya muncul di "Daftar Sidik Jari Terdaftar" dan
     // bisa dihapus dari jarak jauh.
     async _createBiometricCredentialAndSave(username, password) {
+        this._bioBusy('Menunggu sidik jari / Face Unlock...', 'Ikuti petunjuk di layar perangkat Anda');
         try {
             const credential = await navigator.credentials.create({
                 publicKey: {
@@ -1232,13 +1233,15 @@ table.sub td{padding:0 1mm 0 0}
 
             const toggle = document.getElementById('pf-biometric-toggle');
             if (toggle) toggle.checked = true;
-            this.renderBiometricSettings();
+            this._bioBusy('Menyimpan...', 'Hampir selesai');
+            await this.renderBiometricSettings();
 
             toast.success('Login sidik jari berhasil diaktifkan di perangkat ini');
             return true;
         } catch (error) {
             console.error('Gagal mendaftarkan sidik jari:', error);
             toast.error('Gagal mengaktifkan sidik jari. Login manual tetap bisa dipakai.');
+            this.renderBiometricSettings();
             return false;
         }
     },
@@ -1414,6 +1417,13 @@ table.sub td{padding:0 1mm 0 0}
 
     // Dipanggil profileManager.switchTab('akun') tiap kali tab Akun dibuka -
     // set posisi toggle & muat ulang daftar perangkat dari server.
+    // Kotak status "sedang diproses" di daftar sidik jari (loading).
+    _bioBusy(judul, sub) {
+        const el = document.getElementById('pf-biometric-device-list');
+        if (!el) return;
+        el.innerHTML = `<div class="sec-busy"><span class="sec-spin"></span><div><b>${judul}</b>${sub ? '<small>' + sub + '</small>' : ''}</div></div>`;
+    },
+
     async renderBiometricSettings() {
         const toggle = document.getElementById('pf-biometric-toggle');
         const listEl = document.getElementById('pf-biometric-device-list');
@@ -1423,7 +1433,7 @@ table.sub td{padding:0 1mm 0 0}
         if (toggle) toggle.checked = !!(saved && saved.credentialId);
 
         if (!listEl || !this.currentUser || !this.currentUser.id) return;
-        listEl.innerHTML = '<p style="font-size:0.85rem;color:var(--text-muted);">Memuat...</p>';
+        listEl.innerHTML = '<div class="sec-skel"></div>';
 
         try {
             const result = await api.getBiometricDevices(this.currentUser.id, this.currentUser.role);
@@ -1437,11 +1447,10 @@ table.sub td{padding:0 1mm 0 0}
                 // login), supaya user yang belum punya sidik jari terdaftar
                 // bisa langsung daftar dari sini.
                 listEl.innerHTML = `
-                    <div style="text-align:center;padding:18px 12px;border:1px dashed var(--border-color);border-radius:8px;">
-                        <i class="fas fa-fingerprint" style="font-size:1.6rem;color:var(--color-primary);margin-bottom:8px;display:block;"></i>
-                        <p style="font-size:0.85rem;color:var(--text-muted);margin:0 0 10px;">Anda belum mendaftarkan sidik jari di perangkat ini.</p>
-                        <button type="button" onclick="auth.startBiometricEnrollmentFromList()"
-                            style="background:var(--color-primary-gradient);color:#fff;border:none;padding:8px 18px;border-radius:8px;cursor:pointer;font-weight:600;font-size:0.85rem;">
+                    <div class="sec-empty">
+                        <div class="sec-ic"><i class="fas fa-fingerprint"></i></div>
+                        <p>Anda belum mendaftarkan sidik jari di perangkat ini.</p>
+                        <button type="button" class="sec-btn" onclick="auth.startBiometricEnrollmentFromList()">
                             <i class="fas fa-fingerprint"></i> Daftarkan Sidik Jari Sekarang
                         </button>
                     </div>`;
@@ -1453,16 +1462,15 @@ table.sub td{padding:0 1mm 0 0}
                     ? new Date(d.createdAt).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })
                     : '';
                 return `
-                    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 12px;border:1px solid var(--border-color);border-radius:8px;margin-bottom:8px;">
-                        <div style="display:flex;align-items:center;gap:10px;">
-                            <i class="fas fa-fingerprint" style="color:var(--color-primary);font-size:1.1rem;"></i>
+                    <div class="sec-card" data-device="${d.id}">
+                        <div class="sec-left">
+                            <div class="sec-ic"><i class="fas fa-fingerprint"></i></div>
                             <div>
-                                <div style="font-weight:600;font-size:0.88rem;">${d.label || 'Perangkat tidak dikenal'}</div>
-                                <div style="font-size:0.75rem;color:var(--text-muted);">Didaftarkan ${tanggal}</div>
+                                <div class="sec-t">${d.label || 'Perangkat tidak dikenal'}</div>
+                                <div class="sec-s">Didaftarkan ${tanggal}</div>
                             </div>
                         </div>
-                        <button type="button" onclick="auth.removeBiometricDeviceById('${d.id}')"
-                            style="background:none;border:none;color:var(--color-danger);cursor:pointer;font-size:0.8rem;font-weight:600;">
+                        <button type="button" class="sec-link" onclick="auth.removeBiometricDeviceById('${d.id}', this)">
                             <i class="fas fa-trash-alt"></i> Hapus
                         </button>
                     </div>
@@ -1470,7 +1478,7 @@ table.sub td{padding:0 1mm 0 0}
             }).join('');
         } catch (error) {
             console.error('Gagal memuat daftar sidik jari:', error);
-            listEl.innerHTML = '<p style="font-size:0.85rem;color:var(--color-danger);">Gagal memuat daftar perangkat.</p>';
+            listEl.innerHTML = '<div class="sec-err"><i class="fas fa-exclamation-circle"></i> Gagal memuat daftar perangkat. <button type="button" class="sec-link" onclick="auth.renderBiometricSettings()"><i class="fas fa-redo"></i> Coba lagi</button></div>';
         }
     },
 
@@ -1521,9 +1529,16 @@ table.sub td{padding:0 1mm 0 0}
 
         if (!this.currentUser || !this.currentUser.id) return;
 
-        const check = await api.verifyPassword(this.currentUser.id, this.currentUser.role, password);
+        this._bioBusy('Memverifikasi password...', 'Mohon tunggu sebentar');
+        let check;
+        try {
+            check = await api.verifyPassword(this.currentUser.id, this.currentUser.role, password);
+        } catch (e) {
+            check = { success: false, error: 'Gagal memverifikasi password' };
+        }
         if (!check.success) {
             toast.error(check.error || 'Password salah, login sidik jari tidak diaktifkan');
+            this.renderBiometricSettings();
             return;
         }
 
@@ -1537,6 +1552,7 @@ table.sub td{padding:0 1mm 0 0}
         const saved = storage.get(this.BIOMETRIC_KEY);
         storage.remove(this.BIOMETRIC_KEY);
         storage.remove(this.BIOMETRIC_DISMISS_KEY);
+        this._bioBusy('Menonaktifkan login sidik jari...', 'Mohon tunggu sebentar');
 
         const btn = document.getElementById('btn-biometric-login');
         if (btn) btn.style.display = 'none';
@@ -1559,12 +1575,19 @@ table.sub td{padding:0 1mm 0 0}
     // menghapus perangkat MANA SAJA yang terdaftar - kalau kebetulan yang
     // dihapus adalah perangkat yang sedang dipakai sekarang, kredensial
     // lokalnya ikut dibersihkan juga.
-    async removeBiometricDeviceById(deviceId) {
+    async removeBiometricDeviceById(deviceId, btnEl) {
         if (!this.currentUser || !this.currentUser.id) return;
+        const card = btnEl && btnEl.closest ? btnEl.closest('.sec-card') : null;
+        if (btnEl) {
+            btnEl.classList.add('is-loading');
+            btnEl.innerHTML = '<span class="sec-spin" style="width:12px;height:12px;border-width:2px"></span> Menghapus...';
+        }
+        if (card) card.classList.add('is-busy');
         try {
             const result = await api.removeBiometricDevice(this.currentUser.id, this.currentUser.role, deviceId);
             if (!result.success) {
                 toast.error(result.error || 'Gagal menghapus perangkat');
+                this.renderBiometricSettings();
                 return;
             }
 
@@ -1582,6 +1605,7 @@ table.sub td{padding:0 1mm 0 0}
         } catch (error) {
             console.error('Gagal menghapus perangkat sidik jari:', error);
             toast.error('Gagal menghapus perangkat');
+            this.renderBiometricSettings();
         }
     }
 };
