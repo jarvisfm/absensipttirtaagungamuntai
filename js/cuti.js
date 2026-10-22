@@ -896,7 +896,10 @@ const cuti = {
             return this.getStatusLabel(item.status);
         }
 
-        const pemohonRole = emp?.role || 'staff';
+        // [PERBAIKAN] Akun Admin dalam "Mode Karyawan": role tingkat atas = 'admin', sedangkan
+        // role karyawannya yang sebenarnya (asmen/manajer/direktur) ada di employeeRole.
+        // Tanpa ini Admin yang juga Asmen dianggap staff -> muncul tahap "Asmen" yang tidak ada.
+        const pemohonRole = (emp?.role === 'admin' ? emp?.employeeRole : emp?.role) || 'staff';
         const bagian = emp?.bagian || '';
         const isPemohonHr = pemohonRole === 'asmen' && String(bagian).toUpperCase().trim() === 'UMUM DAN KEPEGAWAIAN';
 
@@ -932,7 +935,10 @@ const cuti = {
      * ditolak/ditunda Direktur).
      */
     _buildApprovalStages(item, emp) {
-        const pemohonRole = emp?.role || 'staff';
+        // [PERBAIKAN] Akun Admin dalam "Mode Karyawan": role tingkat atas = 'admin', sedangkan
+        // role karyawannya yang sebenarnya (asmen/manajer/direktur) ada di employeeRole.
+        // Tanpa ini Admin yang juga Asmen dianggap staff -> muncul tahap "Asmen" yang tidak ada.
+        const pemohonRole = (emp?.role === 'admin' ? emp?.employeeRole : emp?.role) || 'staff';
         const bagian = emp?.bagian || '';
         const isPemohonHr = String(bagian).toUpperCase().trim() === 'UMUM DAN KEPEGAWAIAN';
         const manajerLabel = bagian ? `Manajer ${bagian}` : 'Manajer Bidang';
