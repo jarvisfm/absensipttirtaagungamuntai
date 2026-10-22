@@ -104,6 +104,31 @@ const adminDashboard = {
                 this.animateNumber(el, parseInt(el.textContent) || 0, value);
             }
         });
+
+        this.updateStatBadges({
+            total: totalEmployees, present: presentToday, absent: absentToday,
+            late: lateToday, leave: onLeave, pending: totalPending
+        });
+    },
+
+    // Pil persen + batang tipis pada kartu statistik (persen terhadap total karyawan;
+    // "Terlambat" dihitung terhadap yang hadir, "Menunggu Approval" berupa penanda).
+    updateStatBadges(v) {
+        const total = v.total || 0;
+        const share = n => (total ? (n / total) * 100 : 0);
+        const set = (id, text, pct) => {
+            const p = document.getElementById('pct-' + id);
+            if (p) p.textContent = text;
+            const b = document.getElementById('bar-' + id);
+            if (b) b.style.width = Math.max(0, Math.min(100, pct)).toFixed(1) + '%';
+        };
+        set('total-employees', total ? '100%' : '0%', total ? 100 : 0);
+        set('present-today', Math.round(share(v.present)) + '%', share(v.present));
+        set('absent-today', Math.round(share(v.absent)) + '%', share(v.absent));
+        set('on-leave', Math.round(share(v.leave)) + '%', share(v.leave));
+        const pHadir = v.present ? (v.late / v.present) * 100 : 0;
+        set('late-today', Math.round(pHadir) + '% dari hadir', pHadir);
+        set('pending-requests', v.pending > 0 ? 'Perlu aksi' : 'Beres', v.pending > 0 ? Math.max(8, share(v.pending)) : 0);
     },
 
     // ── Komposisi jenis karyawan (field statusPekerjaan) ─────────
