@@ -17,6 +17,7 @@ const adminDashboard = {
 
         await this.loadData();
         this.updateStats();
+        this.bindStatPopups();
         this.renderJenisKaryawan();
         this.renderRecentActivity();
         this.renderGolonganChart();
@@ -109,6 +110,123 @@ const adminDashboard = {
             total: totalEmployees, present: presentToday, absent: absentToday,
             late: lateToday, leave: onLeave, pending: totalPending
         });
+        this.buildStatLists(todayStr);
+    },
+
+    // ── Popup daftar karyawan (klik kartu Hadir / Tidak Hadir / Cuti / Terlambat) ──
+    STAT_POPUP: {
+        'present-today': { key: 'present', judul: 'Hadir Hari Ini', c: '#10B981', soft: '#ECFDF5' },
+        'absent-today': { key: 'absent', judul: 'Tidak Hadir', c: '#EF4444', soft: '#FEF2F2' },
+        'late-today': { key: 'late', judul: 'Terlambat', c: '#F59E0B', soft: '#FFFBEB' },
+        'on-leave': { key: 'leave', judul: 'Sedang Cuti / Izin', c: '#8B5CF6', soft: '#F5F3FF' }
+    },
+    _statLists: { present: [], absent: [], late: [], leave: [] },
+
+    // Susun daftar orang per kategori memakai aturan yang sama dengan angka di kartu.
+    buildStatLists(todayStr) {
+        const emp = {};
+        this.employees.forEach(e => { emp[String(e.id)] = e; });
+        const sub = e => e.jabatan || e.bagian || '';
+        const uniq = new Map();
+        const add = (map, e, extra) => { if (e && !map.has(String(e.id))) map.set(String(e.id), { nama: e.nama || '-', sub: sub(e), meta: extra || '' }); };
+
+        const present = new Map(), late = new Map(), leave = new Map();
+        this.attendance.filter(a => a.date === todayStr && a.clockIn).forEach(a => {
+            const e = emp[String(a.userId)];
+            add(present, e, a.clockIn);
+            if (a.status && String(a.status).toLowerCase() === 'terlambat') add(late, e, a.clockIn);
+        });
+        this.leaves.filter(l => l.status === 'approved' && l.startDate <= todayStr && l.endDate >= todayStr)
+            .forEach(l => add(leave, emp[String(l.userId)], l.typeLabel || 'Cuti'));
+        this.izin.filter(i => i.status === 'approved' && i.date === todayStr)
+            .forEach(i => add(leave, emp[String(i.userId)], i.typeLabel || 'Izin'));
+
+        const absent = new Map();
+        this.employees.forEach(e => {
+            const id = String(e.id);
+            if (!present.has(id) && !leave.has(id)) add(absent, e, e.bagian || '');
+        });
+        const arr = m => Array.from(m.values()).sort((a, b) => a.nama.localeCompare(b.nama, 'id'));
+        this._statLists = { present: arr(present), absent: arr(absent), late: arr(late), leave: arr(leave) };
+    },
+
+    // Jadikan 4 kartu bisa diklik (dipasang sekali).
+    bindStatPopups() {
+        Object.keys(this.STAT_POPUP).forEach(id => {
+            const card = document.getElementById(id) && document.getElementById(id).closest('.admin-stat-card');
+            if (!card || card.dataset.popup) return;
+            card.dataset.popup = '1';
+            card.classList.add('asc-click');
+            card.setAttribute('role', 'button');
+            card.setAttribute('tabindex', '0');
+            card.title = 'Klik untuk melihat daftar karyawan';
+            card.addEventListener('click', () => this.lihatStat(id));
+            card.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); this.lihatStat(id); } });
+        });
+    },
+
+    lihatStat(id) {
+        const cfg = this.STAT_POPUP[id];
+        if (!cfg) return;
+        const data = this._statLists[cfg.key] || [];
+        this.tutupStat();
+        if (!document.getElementById('adm-pop-style')) {
+            const st = document.createElement('style');
+            st.id = 'adm-pop-style';
+            st.textContent = `
+                .asc-click { cursor: pointer; }
+                .asc-click:focus-visible { outline: 2px solid var(--c); outline-offset: 2px; }
+                .adm-pop-ov { position: fixed; inset: 0; background: rgba(15,23,42,.45); z-index: 10100; display: flex; align-items: center; justify-content: center; padding: 16px; }
+                .adm-pop { width: 100%; max-width: 380px; max-height: 72vh; display: flex; flex-direction: column; background: var(--bg-secondary, #fff); color: var(--text-primary, #0f172a);
+                    border-radius: 18px; box-shadow: 0 24px 60px -12px rgba(15,23,42,.4); overflow: hidden; animation: admPop .18s ease-out; }
+                @keyframes admPop { from { opacity: 0; transform: translateY(8px) scale(.97); } to { opacity: 1; transform: none; } }
+                .adm-pop-head { display: flex; align-items: center; gap: 10px; padding: 14px 16px; border-bottom: 1px solid rgba(148,163,184,.25); }
+                .adm-pop-head b { flex: 1; font-size: .95rem; }
+                .adm-pop-n { padding: 2px 10px; border-radius: 99px; font-size: .74rem; font-weight: 700; background: var(--soft); color: var(--c); }
+                .adm-pop-x { border: 0; background: transparent; color: #94a3b8; font-size: 1rem; cursor: pointer; padding: 4px 6px; border-radius: 8px; }
+                .adm-pop-x:hover { background: rgba(148,163,184,.18); color: #475569; }
+                .adm-pop-q { margin: 10px 16px 0; padding: 8px 12px; border: 1px solid rgba(148,163,184,.4); border-radius: 10px; font: inherit; font-size: .84rem; background: transparent; color: inherit; }
+                .adm-pop-list { overflow-y: auto; padding: 6px 8px 10px; -webkit-overflow-scrolling: touch; }
+                .adm-pop-row { display: flex; align-items: center; gap: 10px; padding: 8px; border-radius: 12px; }
+                .adm-pop-row:hover { background: rgba(148,163,184,.12); }
+                .adm-pop-av { width: 32px; height: 32px; flex-shrink: 0; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: var(--soft); color: var(--c); font-size: .8rem; font-weight: 700; }
+                .adm-pop-tx { flex: 1; min-width: 0; }
+                .adm-pop-tx b { display: block; font-size: .84rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+                .adm-pop-tx small { display: block; font-size: .72rem; color: #94a3b8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+                .adm-pop-meta { font-size: .74rem; font-weight: 600; color: var(--c); white-space: nowrap; max-width: 40%; overflow: hidden; text-overflow: ellipsis; }
+                .adm-pop-empty { padding: 28px 12px; text-align: center; font-size: .84rem; color: #94a3b8; }`;
+            document.head.appendChild(st);
+        }
+        const esc = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        const ov = document.createElement('div');
+        ov.id = 'adm-pop-ov';
+        ov.className = 'adm-pop-ov';
+        ov.style.cssText = `--c:${cfg.c};--soft:${cfg.soft}`;
+        const rows = list => list.length ? list.map(u => `<div class="adm-pop-row">
+                <span class="adm-pop-av">${esc((u.nama.trim().charAt(0) || '?').toUpperCase())}</span>
+                <span class="adm-pop-tx"><b>${esc(u.nama)}</b>${u.sub ? `<small>${esc(u.sub)}</small>` : ''}</span>
+                ${u.meta ? `<span class="adm-pop-meta">${esc(u.meta)}</span>` : ''}</div>`).join('')
+            : '<div class="adm-pop-empty">Tidak ada karyawan.</div>';
+        ov.innerHTML = `<div class="adm-pop" role="dialog" aria-label="${esc(cfg.judul)}">
+            <div class="adm-pop-head"><b>${esc(cfg.judul)}</b><span class="adm-pop-n">${data.length} orang</span>
+                <button type="button" class="adm-pop-x" aria-label="Tutup"><i class="fas fa-xmark"></i></button></div>
+            ${data.length > 10 ? '<input type="text" class="adm-pop-q" placeholder="Cari nama..." autocomplete="off">' : ''}
+            <div class="adm-pop-list">${rows(data)}</div></div>`;
+        ov.addEventListener('click', e => { if (e.target === ov || e.target.closest('.adm-pop-x')) this.tutupStat(); });
+        const q = ov.querySelector('.adm-pop-q');
+        if (q) q.addEventListener('input', () => {
+            const k = q.value.trim().toLowerCase();
+            ov.querySelector('.adm-pop-list').innerHTML = rows(k ? data.filter(u => u.nama.toLowerCase().includes(k) || u.sub.toLowerCase().includes(k)) : data);
+        });
+        this._popEsc = e => { if (e.key === 'Escape') this.tutupStat(); };
+        document.addEventListener('keydown', this._popEsc);
+        document.body.appendChild(ov);
+    },
+
+    tutupStat() {
+        const ov = document.getElementById('adm-pop-ov');
+        if (ov) ov.remove();
+        if (this._popEsc) { document.removeEventListener('keydown', this._popEsc); this._popEsc = null; }
     },
 
     // Pil persen + batang tipis pada kartu statistik (persen terhadap total karyawan;
