@@ -564,23 +564,48 @@ const permintaanBarang = {
     },
 
     /** Buka form dalam mode perbaikan untuk permintaan yang ditolak (nomor tetap). */
+    /** Layar loading kecil di tengah layar (mode: 'load' | null = tutup). */
+    _loading(mode, text) {
+        let el = document.getElementById('pb-loading');
+        if (!mode) {
+            if (el) { el.classList.add('out'); setTimeout(() => el.remove(), 220); }
+            return;
+        }
+        if (!el) { el = document.createElement('div'); el.id = 'pb-loading'; document.body.appendChild(el); }
+        el.className = 'pb-loading';
+        el.innerHTML = `<div class="pb-loading-box"><span class="pb-spin"></span><p>${this._e(text || 'Memproses...')}</p></div>`;
+    },
+
     async perbaiki(id) {
+        if (this._perbaikiBusy) return;
         let p = (this.list.saya || []).filter(x => x.id === String(id))[0];
         if (!p || p.status !== 'Ditolak') { toast.error('Hanya permintaan yang ditolak yang bisa diperbaiki.'); return; }
-        if (!p.subBidang && !p.wilayah) {
-            // daftar ringkas tidak memuat sub bidang/wilayah - ambil dari detail
-            try {
-                const r = await api.getDetailPermintaanBarang(id);
-                if (r && r.success) p = { ...p, subBidang: r.data.subBidang, wilayah: r.data.wilayah, catatan: r.data.catatan };
-            } catch (e) { /* lanjut dengan data ringkas */ }
+        this._perbaikiBusy = true;
+        this._loading('load', 'Menyiapkan form perbaikan...');
+        try {
+            // Minimal tampil sebentar supaya terasa ada proses (tidak berkedip).
+            const tunggu = new Promise(r => setTimeout(r, 600));
+            if (!p.subBidang && !p.wilayah) {
+                // daftar ringkas tidak memuat sub bidang/wilayah - ambil dari detail
+                try {
+                    const r = await api.getDetailPermintaanBarang(id);
+                    if (r && r.success) p = { ...p, subBidang: r.data.subBidang, wilayah: r.data.wilayah, catatan: r.data.catatan };
+                } catch (e) { /* lanjut dengan data ringkas */ }
+            }
+            await tunggu;
+            this._closeDetail();
+            this.editing = { ...p, subBidang: p.subBidang || '', wilayah: p.wilayah || '', items: p.items || [] };
+            this.tab = 'baru';
+            this.render();
+            this._initForm();
+            const root = this._root && this._root();
+            if (root) { root.classList.remove('pb-enter'); void root.offsetWidth; root.classList.add('pb-enter'); }
+            const pc = document.querySelector('.page-content');
+            if (pc) pc.scrollTop = 0;
+        } finally {
+            this._perbaikiBusy = false;
+            this._loading(null);
         }
-        this._closeDetail();
-        this.editing = { ...p, subBidang: p.subBidang || '', wilayah: p.wilayah || '', items: p.items || [] };
-        this.tab = 'baru';
-        this.render();
-        this._initForm();
-        const pc = document.querySelector('.page-content');
-        if (pc) pc.scrollTop = 0;
     },
 
     /** Modal konfirmasi (pengganti confirm() bawaan browser). Mengembalikan Promise<boolean>. */
