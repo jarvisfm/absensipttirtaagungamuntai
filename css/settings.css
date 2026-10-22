@@ -326,3 +326,48 @@
 .pf-sk-line { height: 12px; flex: 1; max-width: 62%; }
 .pf-loading-text { text-align: center; color: var(--text-muted, #94a3b8); font-size: .85rem; padding: 4px 0 14px; }
 .pf-loading-text i { margin-right: 6px; color: var(--color-primary, #F59E0B); }
+
+/* ============================================
+   Edit Profil > Akun: Sidik Jari & Notifikasi HP (modern + loading)
+   Class unik .sec-* — dirender oleh auth.js & push-notifications.js
+   ============================================ */
+.sec-spin{display:inline-block;width:16px;height:16px;border:2.5px solid currentColor;border-right-color:transparent;border-radius:50%;animation:secSpin .7s linear infinite;flex-shrink:0}
+@keyframes secSpin{to{transform:rotate(360deg)}}
+@keyframes secIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+@keyframes secShim{100%{background-position:-200% 0}}
+
+.sec-skel{height:64px;border-radius:14px;background:linear-gradient(90deg,#F1F5F9 25%,#E2E8F0 37%,#F1F5F9 63%);background-size:200% 100%;animation:secShim 1.3s ease-in-out infinite}
+
+.sec-card{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 14px;border:1px solid #E2E8F0;border-radius:14px;background:#fff;margin-bottom:8px;animation:secIn .25s ease;transition:opacity .2s,background .2s}
+.sec-card.is-busy{opacity:.6;pointer-events:none}
+.sec-card.ok{background:linear-gradient(135deg,#F0FDF4,#fff);border-color:#BBF7D0}
+.sec-left{display:flex;align-items:center;gap:12px;min-width:0}
+.sec-ic{width:40px;height:40px;border-radius:12px;background:#FFF7ED;color:#EA580C;display:flex;align-items:center;justify-content:center;font-size:1.05rem;flex-shrink:0}
+.sec-card.ok .sec-ic{background:#DCFCE7;color:#15803D}
+.sec-t{font-weight:700;font-size:.9rem;color:var(--text-primary);line-height:1.25}
+.sec-s{font-size:.76rem;color:var(--text-muted);margin-top:2px}
+
+.sec-empty{text-align:center;padding:22px 16px;border:1.5px dashed #FDBA74;border-radius:16px;background:linear-gradient(180deg,#FFFBF5,#fff);animation:secIn .25s ease}
+.sec-empty .sec-ic{width:56px;height:56px;border-radius:50%;margin:0 auto 10px;font-size:1.5rem;box-shadow:0 0 0 6px rgba(249,115,22,.1)}
+.sec-empty p{font-size:.85rem;color:var(--text-muted);margin:0 0 14px}
+
+.sec-btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:none;cursor:pointer;font-weight:700;font-size:.86rem;padding:11px 20px;border-radius:12px;
+  background:linear-gradient(135deg,#F97316,#EA580C);color:#fff;box-shadow:0 6px 16px rgba(234,88,12,.28);transition:transform .15s,box-shadow .15s,opacity .15s}
+.sec-btn:hover{transform:translateY(-1px);box-shadow:0 8px 20px rgba(234,88,12,.34)}
+.sec-btn:active{transform:scale(.97)}
+.sec-btn:disabled,.sec-btn.is-loading{opacity:.75;cursor:wait;pointer-events:none;transform:none}
+.sec-btn.ghost{background:#fff;color:#EA580C;border:1.5px solid #FDBA74;box-shadow:none}
+.sec-btn.sm{padding:8px 14px;font-size:.8rem;border-radius:10px}
+.sec-link{display:inline-flex;align-items:center;gap:6px;background:#FEF2F2;color:#DC2626;border:1px solid #FECACA;border-radius:10px;padding:7px 12px;font-weight:700;font-size:.78rem;cursor:pointer;flex-shrink:0;transition:background .15s,opacity .15s}
+.sec-link:hover{background:#FEE2E2}
+.sec-link.is-loading{opacity:.7;cursor:wait;pointer-events:none}
+
+.sec-busy{display:flex;align-items:center;gap:12px;padding:14px;border:1px solid #FED7AA;border-radius:14px;background:#FFF7ED;color:#C2410C;animation:secIn .2s ease}
+.sec-busy b{display:block;font-size:.88rem}
+.sec-busy small{display:block;font-size:.76rem;opacity:.85;margin-top:1px}
+.sec-busy .sec-spin{width:20px;height:20px}
+
+.sec-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.sec-err{font-size:.85rem;color:#DC2626;display:flex;align-items:center;gap:8px}
+@media (max-width:480px){.sec-card{flex-wrap:wrap}.sec-link{margin-left:auto}}
+.sec-card .sec-btn{margin-left:auto;flex-shrink:0}
