@@ -40,7 +40,8 @@
 #page-face-recognition .face-guide i.detected{opacity:.55}
 #page-face-recognition .face-guide p{position:absolute;left:50%;bottom:14px;transform:translateX(-50%);white-space:nowrap;margin:0;
   background:rgba(15,23,42,.6);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);color:#fff;font-size:12.5px;font-weight:500;padding:8px 16px;border-radius:99px}
-#page-face-recognition .scanning-line{left:16%;right:16%;height:2px;background:linear-gradient(90deg,transparent,var(--fr-o1),transparent);box-shadow:0 0 12px var(--fr-o1);z-index:6}
+#page-face-recognition .scanning-line{display:block !important;left:6%;right:6%;height:3px;border-radius:3px;background:linear-gradient(90deg,transparent,var(--fr-o1),transparent);box-shadow:0 0 14px 2px rgba(249,115,22,.7);z-index:6;animation:scan 2s linear infinite}
+#page-face-recognition .face-frame.detected ~ .scanning-line,#page-face-recognition .face-overlay:has(.detected) ~ .scanning-line{background:linear-gradient(90deg,transparent,#22C55E,transparent);box-shadow:0 0 14px 2px rgba(34,197,94,.7)}
 #page-face-recognition .verification-status{border-radius:20px;background:rgba(22,163,74,.92);backdrop-filter:blur(6px);padding:22px 30px;z-index:30}
 #page-face-recognition .verification-status .status-icon{font-size:3.2rem;margin-bottom:6px}
 
