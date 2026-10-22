@@ -21,6 +21,10 @@ const cuti = {
         // PDF-nya tidak ikut dimuat diam-diam di background sebelum user
         // benar-benar klik tombolnya.
         iframe.src = `https://drive.google.com/file/d/${this.RINCIAN_PERATURAN_CUTI_FILE_ID}/preview`;
+        // Pindahkan ke <body> supaya tampil DI ATAS modal Form Pengajuan Cuti
+        // (modal form ditempel di <body>; modal ini aslinya ada di dalam
+        // halaman sehingga terjebak di lapisan bawah).
+        if (modal.parentNode !== document.body) document.body.appendChild(modal);
         modal.style.display = 'flex';
     },
 
