@@ -4,7 +4,7 @@
 
 /* ---- Halaman: tombol tambah + ringkasan + riwayat ---- */
 .fm-actionbar { display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap;
-    background: #fff; border: 1px solid #eef0f4; border-radius: 18px; padding: 14px 16px; margin-bottom: 14px; box-shadow: 0 4px 14px rgba(15, 23, 42, .05); }
+    background: #fff; border: 1px solid #eef0f4; border-radius: 18px; padding: 14px 16px; margin: 14px 0; box-shadow: 0 4px 14px rgba(15, 23, 42, .05); }
 .fm-actiontext { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .fm-actiontext b { font-size: 1rem; color: #1e293b; }
 .fm-actiontext span { font-size: .82rem; color: #64748b; }
