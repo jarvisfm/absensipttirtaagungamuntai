@@ -41,6 +41,11 @@ const richNote = {
             .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
     },
 
+    // Catatan teks polos kadang menyimpan entitas spasi ("Acc&nbsp;") - jangan tampil mentah.
+    _noNbsp(s) {
+        return String(s == null ? '' : s).replace(/&nbsp;|&#160;|&#xa0;|\u00a0/gi, ' ');
+    },
+
     _looksLikeHtml(s) {
         return /<\/?(b|strong|i|em|u|ol|ul|li|br|p|div|blockquote|span|font)\b[^>]*>/i.test(s);
     },
@@ -130,7 +135,7 @@ const richNote = {
         if (!s.trim()) return '';
         if (!this._looksLikeHtml(s)) {
             // Catatan lama (teks polos): escape + pertahankan baris baru
-            return this._escape(s).replace(/\r?\n/g, '<br>');
+            return this._escape(this._noNbsp(s).trim()).replace(/\r?\n/g, '<br>');
         }
         return this.sanitize(s);
     },
@@ -139,7 +144,7 @@ const richNote = {
     plain(value) {
         const s = String(value == null ? '' : value);
         if (!s.trim()) return '';
-        if (!this._looksLikeHtml(s)) return this._escape(s);
+        if (!this._looksLikeHtml(s)) return this._escape(this._noNbsp(s).trim());
         const doc = new DOMParser().parseFromString(
             '<body>' + s.replace(/<\/(p|div|li|blockquote)>|<br\s*\/?>/gi, ' $&') + '</body>', 'text/html');
         return this._escape((doc.body.textContent || '').replace(/\s+/g, ' ').trim());
@@ -200,7 +205,10 @@ const richNote = {
         html = html
             .replace(new RegExp('^(?:<(p|div)>' + emptyBlock + '</\\1>|<br>|\\s)+', 'i'), '')
             .replace(new RegExp('(?:<(p|div)>' + emptyBlock + '</\\1>|<br>|\\s)+$', 'i'), '');
-        return html.trim();
+        html = html.trim();
+        // Teks polos tanpa tag: jangan simpan "&nbsp;" mentah (tampil sebagai teks di tempat lain).
+        if (!this._looksLikeHtml(html)) html = this._noNbsp(html).trim();
+        return html;
     },
 
     _exec(cmd) {
