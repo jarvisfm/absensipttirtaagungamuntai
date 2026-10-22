@@ -575,6 +575,7 @@ const cuti = {
                 // Direktur (status 'approved'), jadi sengaja tidak dikurangi di sini
                 // saat submit - lihat _hitungSisaCutiTahunan() di Leave.gs.
                 toast.success('Pengajuan cuti berhasil dikirim!');
+                if (window.formModal) formModal.close('cuti', true); // tutup modal form, tampilkan riwayat
             } else {
                 toast.error(result.error || 'Gagal mengajukan cuti');
             }
