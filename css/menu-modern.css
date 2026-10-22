@@ -258,3 +258,9 @@
 @keyframes tlNow { 0%, 100% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0); } 50% { box-shadow: 0 0 0 6px rgba(245, 158, 11, .22); } }
 .tl-alert-ok { background: #ECFDF5; color: #047857; font-weight: 600; }
 .tl-sukses { animation: tlRise .4s ease both; }
+
+/* Tutup modal dengan transisi halus (setelah persetujuan disposisi berhasil) */
+.tl-overlay.tl-leave { animation: tlOverlayOut .24s ease both; }
+.tl-overlay.tl-leave .tl-modal { animation: tlModalOut .24s ease both; }
+@keyframes tlOverlayOut { to { opacity: 0; } }
+@keyframes tlModalOut { to { opacity: 0; transform: translateY(14px) scale(.98); } }
