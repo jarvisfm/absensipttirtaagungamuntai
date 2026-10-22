@@ -68,6 +68,25 @@
         @media (max-width: 576px) { .aj-card { padding: 16px; } .aj-badges { grid-template-columns: 1fr; } .aj-num { font-size: 1.5rem; } }
         @media (prefers-reduced-motion: reduce) { .aj-seg, .aj-skel { animation: none; } .aj-badge { transition: none; } }
     </style>
+    <style id="admin-stat-style">
+        /* Dashboard Admin: kartu statistik gaya "Komposisi Jenis Karyawan" (tint lembut, ikon gradien, pil persen, batang tipis) */
+        .admin-stat-card.asc { position: relative; padding: 16px 18px; border-radius: 16px; gap: 14px; overflow: hidden;
+            background: linear-gradient(135deg, var(--soft) 0%, #fff 75%); border: 1px solid var(--line); box-shadow: none;
+            transition: transform .18s, box-shadow .18s; }
+        .admin-stat-card.asc:hover { transform: translateY(-3px); box-shadow: 0 10px 22px -8px var(--c); }
+        .asc .stat-icon { width: 48px; height: 48px; flex-shrink: 0; border-radius: 14px; font-size: 1.15rem;
+            background: var(--c); box-shadow: 0 6px 14px -6px var(--c); }
+        .asc .stat-details { flex: 1; min-width: 0; }
+        .asc .stat-label { font-size: .76rem; font-weight: 600; color: var(--text-secondary); padding-right: 64px; }
+        .asc .stat-number { font-size: 1.8rem; font-weight: 800; line-height: 1.15; color: var(--text-primary); }
+        .asc-pct { position: absolute; top: 12px; right: 14px; padding: 3px 10px; border-radius: 99px; background: #fff;
+            border: 1px solid var(--line); color: var(--c); font-size: .72rem; font-weight: 700; white-space: nowrap; }
+        .asc-bar { display: block; height: 5px; margin-top: 8px; border-radius: 99px; background: rgba(15, 23, 42, .07); overflow: hidden; }
+        .asc-bar i { display: block; height: 100%; width: 0; border-radius: 99px; background: var(--c); transition: width .9s cubic-bezier(.2, .8, .2, 1); }
+        @media (max-width: 576px) { .admin-stat-card.asc { padding: 13px 14px; gap: 11px; } .asc .stat-icon { width: 42px; height: 42px; font-size: 1rem; }
+            .asc .stat-number { font-size: 1.5rem; } .asc-pct { top: 9px; right: 10px; font-size: .66rem; padding: 2px 8px; } .asc .stat-label { padding-right: 0; padding-top: 18px; } }
+        @media (prefers-reduced-motion: reduce) { .admin-stat-card.asc, .asc-bar i { transition: none; } }
+    </style>
     <style id="login-v2-style">
         /* ============================================================
            LOGIN V2 - penyesuaian kecil di atas desain login yang ada
@@ -1780,35 +1799,41 @@
                             </div>
                         </div>
                         <div class="admin-stats-grid">
-                            <div class="admin-stat-card">
+                            <div class="admin-stat-card asc" style="--c:#3B82F6;--soft:#EFF6FF;--line:#BFDBFE">
                                 <div class="stat-icon employees"><i class="fas fa-users"></i></div>
-                                <div class="stat-details"><span class="stat-number" id="total-employees">0</span><span
-                                        class="stat-label">Total Karyawan</span></div>
+                                <div class="stat-details"><span class="stat-label">Total Karyawan</span><span class="stat-number" id="total-employees">0</span>
+                                    <span class="asc-bar"><i id="bar-total-employees"></i></span></div>
+                                <span class="asc-pct" id="pct-total-employees">0%</span>
                             </div>
-                            <div class="admin-stat-card">
+                            <div class="admin-stat-card asc" style="--c:#10B981;--soft:#ECFDF5;--line:#A7F3D0">
                                 <div class="stat-icon present"><i class="fas fa-user-check"></i></div>
-                                <div class="stat-details"><span class="stat-number" id="present-today">0</span><span
-                                        class="stat-label">Hadir Hari Ini</span></div>
+                                <div class="stat-details"><span class="stat-label">Hadir Hari Ini</span><span class="stat-number" id="present-today">0</span>
+                                    <span class="asc-bar"><i id="bar-present-today"></i></span></div>
+                                <span class="asc-pct" id="pct-present-today">0%</span>
                             </div>
-                            <div class="admin-stat-card">
+                            <div class="admin-stat-card asc" style="--c:#EF4444;--soft:#FEF2F2;--line:#FECACA">
                                 <div class="stat-icon absent"><i class="fas fa-user-times"></i></div>
-                                <div class="stat-details"><span class="stat-number" id="absent-today">0</span><span
-                                        class="stat-label">Tidak Hadir</span></div>
+                                <div class="stat-details"><span class="stat-label">Tidak Hadir</span><span class="stat-number" id="absent-today">0</span>
+                                    <span class="asc-bar"><i id="bar-absent-today"></i></span></div>
+                                <span class="asc-pct" id="pct-absent-today">0%</span>
                             </div>
-                            <div class="admin-stat-card">
+                            <div class="admin-stat-card asc" style="--c:#F59E0B;--soft:#FFFBEB;--line:#FDE68A">
                                 <div class="stat-icon late"><i class="fas fa-clock"></i></div>
-                                <div class="stat-details"><span class="stat-number" id="late-today">0</span><span
-                                        class="stat-label">Terlambat</span></div>
+                                <div class="stat-details"><span class="stat-label">Terlambat</span><span class="stat-number" id="late-today">0</span>
+                                    <span class="asc-bar"><i id="bar-late-today"></i></span></div>
+                                <span class="asc-pct" id="pct-late-today">0%</span>
                             </div>
-                            <div class="admin-stat-card">
+                            <div class="admin-stat-card asc" style="--c:#8B5CF6;--soft:#F5F3FF;--line:#DDD6FE">
                                 <div class="stat-icon on-leave"><i class="fas fa-umbrella-beach"></i></div>
-                                <div class="stat-details"><span class="stat-number" id="on-leave">0</span><span
-                                        class="stat-label">Sedang Cuti</span></div>
+                                <div class="stat-details"><span class="stat-label">Sedang Cuti</span><span class="stat-number" id="on-leave">0</span>
+                                    <span class="asc-bar"><i id="bar-on-leave"></i></span></div>
+                                <span class="asc-pct" id="pct-on-leave">0%</span>
                             </div>
-                            <div class="admin-stat-card">
+                            <div class="admin-stat-card asc" style="--c:#64748B;--soft:#F8FAFC;--line:#E2E8F0">
                                 <div class="stat-icon pending"><i class="fas fa-hourglass-half"></i></div>
-                                <div class="stat-details"><span class="stat-number" id="pending-requests">0</span><span
-                                        class="stat-label">Menunggu Approval</span></div>
+                                <div class="stat-details"><span class="stat-label">Menunggu Approval</span><span class="stat-number" id="pending-requests">0</span>
+                                    <span class="asc-bar"><i id="bar-pending-requests"></i></span></div>
+                                <span class="asc-pct" id="pct-pending-requests">0%</span>
                             </div>
                         </div>
                         <!-- Komposisi jenis karyawan: Tetap / Kontrak / Outsourcing (js/admin-dashboard.js) -->
