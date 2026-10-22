@@ -53,7 +53,7 @@ const telaahStaf = {
     _nomorPreview(kode) {
         const d = new Date();
         const k = String(kode || '').replace(/[^a-zA-Z0-9\s]/g, '').replace(/\s+/g, '');
-        return `Nomor : …/TS-${k}/PT.TAA/${this.ROMAWI[d.getMonth()]}/${d.getFullYear()}`;
+        return `…/TS-${k}/PT.TAA/${this.ROMAWI[d.getMonth()]}/${d.getFullYear()}`;
     },
     _statusChip(s) {
         const m = {
@@ -921,7 +921,7 @@ const telaahStaf = {
             <div class="isi">${this._kosong(t[k]) ? '-' : richNote.view(t[k])}</div></div>`).join('');
         return `<section class="lembar">
             <div class="j-ts">TELAAHAN STAF</div>
-            <div class="nomor">${e(t.nomor)}</div>
+            <div class="nomor">Nomor : ${e(t.nomor)}</div>
             <table class="hdr">
                 <tr><td>Kepada</td><td>:</td><td>${e(t.kepada)}</td></tr>
                 <tr><td>Dari</td><td>:</td><td>${e(t.dari)}</td></tr>
