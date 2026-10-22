@@ -131,6 +131,133 @@ const pushNotif = {
 
         if (storage.get('pushToken')) {
             el.innerHTML = `
+                <div class="sec-card ok">
+                    <div class="sec-left">
+                        <div class="sec-ic"><i class="fas fa-bell"></i></div>
+                        <div>
+                            <div class="sec-t">Notifikasi aktif</div>
+                            <div class="sec-s">Pengingat absensi dikirim ke perangkat ini</div>
+                        </div>
+                    </div>
+                    <button type="button" class="sec-link" onclick="pushNotif.disableFromUI(this)">
+                        <i class="fas fa-bell-slash"></i> Matikan
+                    </button>
+                </div>
+                <div class="sec-actions">
+                    <button type="button" class="sec-btn ghost sm" onclick="pushNotif.sendTestNotification(this)">
+                        <i class="fas fa-paper-plane"></i> Kirim Notifikasi Uji Coba
+                    </button>
+                </div>`;
+            return;
+        }
+
+        if (!this._configured) return;
+        if (!('Notification' in window) || !('serviceWorker' in navigator)) return;
+        if (typeof firebase === 'undefined') return;
+
+        try {
+            if (!firebase.apps || !firebase.apps.length) {
+                firebase.initializeApp(firebaseConfig);
+            }
+            this.messaging = firebase.messaging();
+
+            // Pesan masuk SAAT aplikasi lagi dibuka (foreground) - Firefox/
+            // Chrome tidak otomatis munculkan notifikasi tray untuk kasus
+            // ini, jadi kita tampilkan manual + refresh panel lonceng.
+            this.messaging.onMessage((payload) => {
+                this._showForegroundNotification(payload);
+                if (window.notifications && typeof notifications.load === 'function') {
+                    notifications.load();
+                }
+            });
+        } catch (e) {
+            console.error('Gagal inisialisasi push notification:', e);
+        }
+    },
+
+    /**
+     * Minta izin notifikasi & daftarkan token ke backend. Dipanggil dari
+     * tombol eksplisit di halaman Settings/Profil (BUKAN otomatis saat
+     * app dibuka) - supaya user yang memutuskan sendiri, bukan dikagetkan
+     * popup izin begitu login.
+     */
+    async requestPermission() {
+        if (!this._configured) {
+            toast.error('Push notification belum dikonfigurasi Admin.');
+            return false;
+        }
+        if (!this.messaging) {
+            toast.error('Push notification tidak didukung di perangkat/browser ini. ' + this._unsupportedReason());
+            return false;
+        }
+
+        try {
+            const permission = await Notification.requestPermission();
+            if (permission !== 'granted') {
+                toast.error('Izin notifikasi ditolak. Aktifkan lewat pengaturan browser kalau berubah pikiran.');
+                return false;
+            }
+
+            const registration = await navigator.serviceWorker.ready;
+            const token = await this.messaging.getToken({
+                vapidKey: VAPID_KEY,
+                serviceWorkerRegistration: registration
+            });
+
+            if (!token) {
+                toast.error('Gagal mendapatkan token notifikasi.');
+                return false;
+            }
+
+            const currentUser = auth.getCurrentUser();
+            const userId = currentUser?.employeeId || currentUser?.id;
+            const device = navigator.userAgent.substring(0, 120);
+
+            const result = await api.savePushToken(userId, token, device);
+            if (result.success) {
+                toast.success('Notifikasi HP berhasil diaktifkan!');
+                storage.set('pushToken', token);
+                return true;
+            } else {
+                toast.error(result.error || 'Gagal menyimpan token notifikasi');
+                return false;
+            }
+        } catch (e) {
+            console.error('Gagal aktifkan push notification:', e);
+            const detail = (e && (e.code || e.name)) ? ' [' + (e.code || e.name) + ']' : '';
+            toast.error('Terjadi kesalahan saat mengaktifkan notifikasi.' + detail);
+            return false;
+        }
+    },
+
+    // Penjelasan singkat KENAPA push tidak tersedia (dipakai di toast supaya
+    // penyebabnya langsung kelihatan di HP tanpa perlu buka console).
+    _unsupportedReason() {
+        if (!('Notification' in window)) return '(Browser ini tidak punya fitur notifikasi. Di iPhone, buka lewat Safari lalu "Tambah ke Layar Utama" dulu. Jangan buka dari dalam WhatsApp/Facebook.)';
+        if (!('serviceWorker' in navigator)) return '(Service worker tidak aktif. Buka lewat Chrome/Safari langsung, bukan dari dalam aplikasi lain.)';
+        if (typeof firebase === 'undefined') return '(Library Firebase gagal dimuat, cek koneksi internet.)';
+        return '(Firebase Messaging tidak bisa dimulai di browser ini.)';
+    },
+
+    /** Dipanggil saat logout - supaya device yang logout tidak terus dapat push. */
+    async unregister() {
+        const token = storage.get('pushToken');
+        if (token) {
+            try { await api.deletePushToken(token); } catch (e) { /* best-effort */ }
+            storage.remove('pushToken');
+        }
+    },
+
+    // ===== UI di Edit Profil > tab Akun (lihat index.html #pf-push-notif-status) =====
+
+    // Dipanggil profileManager.switchTab('akun') tiap kali tab Akun dibuka -
+    // sama seperti pola auth.renderBiometricSettings().
+    renderStatus() {
+        const el = document.getElementById('pf-push-notif-status');
+        if (!el) return;
+
+        if (storage.get('pushToken')) {
+            el.innerHTML = `
                 <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 12px;border:1px solid var(--border-color);border-radius:8px;">
                     <div style="display:flex;align-items:center;gap:10px;">
                         <i class="fas fa-bell" style="color:var(--color-primary);font-size:1.1rem;"></i>
@@ -154,27 +281,46 @@ const pushNotif = {
         }
 
         el.innerHTML = `
-            <button type="button" id="pf-push-notif-enable-btn"
-                style="background:var(--color-primary-gradient);color:#fff;border:none;padding:8px 18px;border-radius:8px;cursor:pointer;font-weight:600;font-size:0.85rem;">
-                <i class="fas fa-bell"></i> Aktifkan Notifikasi HP
-            </button>`;
+            <div class="sec-card">
+                <div class="sec-left">
+                    <div class="sec-ic"><i class="fas fa-bell-slash"></i></div>
+                    <div>
+                        <div class="sec-t">Notifikasi belum aktif</div>
+                        <div class="sec-s">Aktifkan agar pengingat absensi masuk ke HP</div>
+                    </div>
+                </div>
+                <button type="button" id="pf-push-notif-enable-btn" class="sec-btn sm">
+                    <i class="fas fa-bell"></i> Aktifkan
+                </button>
+            </div>`;
         const btn = document.getElementById('pf-push-notif-enable-btn');
         if (btn) btn.addEventListener('click', async () => {
-            await this.requestPermission();
-            this.renderStatus();
+            this._btnLoading(btn, 'Mengaktifkan...');
+            try { await this.requestPermission(); } finally { this.renderStatus(); }
         });
     },
 
-    async disableFromUI() {
-        await this.unregister();
-        this.renderStatus();
+    // Tombol jadi mode loading (spinner + teks) - dipakai aksi di tab Akun.
+    _btnLoading(btn, teks) {
+        if (!btn) return;
+        btn.classList.add('is-loading');
+        btn.disabled = true;
+        btn.innerHTML = '<span class="sec-spin" style="width:13px;height:13px;border-width:2px"></span> ' + teks;
+    },
+
+    async disableFromUI(btnEl) {
+        this._btnLoading(btnEl, 'Mematikan...');
+        try { await this.unregister(); } finally { this.renderStatus(); }
         toast.info('Notifikasi HP dimatikan di perangkat ini');
     },
 
-    async sendTestNotification() {
+    async sendTestNotification(btnEl) {
         const currentUser = auth.getCurrentUser();
         const userId = currentUser?.employeeId || currentUser?.id;
         if (!userId) return;
+        const semula = btnEl ? btnEl.innerHTML : '';
+        this._btnLoading(btnEl, 'Mengirim...');
+        const pulih = () => { if (btnEl) { btnEl.disabled = false; btnEl.classList.remove('is-loading'); btnEl.innerHTML = semula; } };
         try {
             const result = await api.testPush(userId);
             if (result.success) {
@@ -185,7 +331,7 @@ const pushNotif = {
         } catch (e) {
             console.error('Gagal kirim notifikasi uji coba:', e);
             toast.error('Gagal mengirim notifikasi uji coba.');
-        }
+        } finally { pulih(); }
     },
 
     _showForegroundNotification(payload) {
