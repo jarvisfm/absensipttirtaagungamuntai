@@ -1612,6 +1612,12 @@ table.sub td{padding:0 1mm 0 0}
 
 // Initialize auth on DOM ready
 document.addEventListener('DOMContentLoaded', () => {
+    // Modal sidik jari dipindah ke <body> supaya selalu tampil paling atas
+    // (tidak terjebak di bawah halaman/modal lain).
+    ['modal-biometric-enable', 'modal-biometric-confirm-password'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el && el.parentNode !== document.body) document.body.appendChild(el);
+    });
     auth.init();
 });
 
