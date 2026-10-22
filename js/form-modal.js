@@ -8,9 +8,9 @@
  */
 const formModal = {
     cfg: {
-        izin: { page: 'page-izin', card: '.izin-form-card', grid: '.izin-grid', list: 'izin-list', label: 'Tambah Izin',
+        izin: { page: 'page-izin', card: '.izin-form-card', grid: '.izin-grid', hist: '.izin-history-card', list: 'izin-list', label: 'Tambah Izin',
                 title: 'Form Pengajuan Izin', hint: 'Ajukan izin / sakit baru dengan verifikasi wajah', icon: 'fa-file-medical' },
-        cuti: { page: 'page-cuti', card: '.cuti-form-card', grid: '.cuti-grid', list: 'leave-list', label: 'Tambah Cuti',
+        cuti: { page: 'page-cuti', card: '.cuti-form-card', grid: '.cuti-grid', hist: '.cuti-history-card', list: 'leave-list', label: 'Tambah Cuti',
                 title: 'Form Pengajuan Cuti', hint: 'Ajukan cuti baru dan lampirkan dokumen bila perlu', icon: 'fa-umbrella-beach' }
     },
     _ov: {},
@@ -29,7 +29,10 @@ const formModal = {
             bar.innerHTML = `<div class="fm-actiontext"><b>Pengajuan baru</b><span>${c.hint}</span></div>
                 <button type="button" class="fm-add"><i class="fas fa-plus"></i> ${c.label}</button>`;
             bar.querySelector('.fm-add').addEventListener('click', () => this.open(k));
-            grid.parentNode.insertBefore(bar, grid);
+            // Urutan halaman: ringkasan -> riwayat -> tombol pengajuan baru
+            const hist = page.querySelector(c.hist);
+            if (hist) hist.parentNode.insertBefore(bar, hist.nextSibling);
+            else grid.parentNode.insertBefore(bar, grid);
 
             // Overlay + sheet; kartu form dipindah ke sini
             const ov = document.createElement('div');
