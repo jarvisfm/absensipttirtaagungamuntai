@@ -53,7 +53,7 @@ const telaahStaf = {
     _nomorPreview(kode) {
         const d = new Date();
         const k = String(kode || '').replace(/[^a-zA-Z0-9\s]/g, '').replace(/\s+/g, '');
-        return `…/TS-${k}/PT.TAA/${this.ROMAWI[d.getMonth()]}/${d.getFullYear()}`;
+        return `Nomor : …/TS-${k}/PT.TAA/${this.ROMAWI[d.getMonth()]}/${d.getFullYear()}`;
     },
     _statusChip(s) {
         const m = {
