@@ -152,6 +152,7 @@ const adminDashboard = {
 
     // Jadikan 4 kartu bisa diklik (dipasang sekali).
     bindStatPopups() {
+        this._popStyle();
         Object.keys(this.STAT_POPUP).forEach(id => {
             const card = document.getElementById(id) && document.getElementById(id).closest('.admin-stat-card');
             if (!card || card.dataset.popup) return;
@@ -165,11 +166,7 @@ const adminDashboard = {
         });
     },
 
-    lihatStat(id) {
-        const cfg = this.STAT_POPUP[id];
-        if (!cfg) return;
-        const data = this._statLists[cfg.key] || [];
-        this.tutupStat();
+    _popStyle() {
         if (!document.getElementById('adm-pop-style')) {
             const st = document.createElement('style');
             st.id = 'adm-pop-style';
@@ -197,6 +194,18 @@ const adminDashboard = {
                 .adm-pop-empty { padding: 28px 12px; text-align: center; font-size: .84rem; color: #94a3b8; }`;
             document.head.appendChild(st);
         }
+    },
+
+    lihatStat(id) {
+        const cfg = this.STAT_POPUP[id];
+        if (!cfg) return;
+        this.bukaPopupDaftar(cfg, this._statLists[cfg.key] || []);
+    },
+
+    // Popup minimalis daftar karyawan (dipakai kartu statistik & badge jenis karyawan).
+    bukaPopupDaftar(cfg, data) {
+        this.tutupStat();
+        this._popStyle();
         const esc = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
         const ov = document.createElement('div');
         ov.id = 'adm-pop-ov';
@@ -266,12 +275,19 @@ const adminDashboard = {
         const list = this.employees || [];
         const total = list.length;
 
-        const items = this.JENIS_KARYAWAN.map(j => ({ ...j, n: 0, klik: true }));
-        const lain = { label: 'Belum diisi / lainnya', icon: 'fa-circle-question', c: '#94A3B8', soft: '#F8FAFC', line: '#E2E8F0', n: 0, klik: false };
+        const items = this.JENIS_KARYAWAN.map(j => ({ ...j, n: 0, klik: true, orang: [] }));
+        const lain = { label: 'Belum diisi / lainnya', icon: 'fa-circle-question', c: '#94A3B8', soft: '#F8FAFC', line: '#E2E8F0', n: 0, klik: true, orang: [] };
         list.forEach(e => {
             const s = String(e.statusPekerjaan || '').toLowerCase().trim();
             const hit = items.find(j => j.cocok(s));
-            if (hit) hit.n++; else lain.n++;
+            const t = hit || lain;
+            t.n++;
+            t.orang.push({ nama: e.nama || '-', sub: e.jabatan || '', meta: e.bagian || '' });
+        });
+        this._jenisLists = {};
+        items.concat([lain]).forEach(i => {
+            i.orang.sort((a, b) => a.nama.localeCompare(b.nama, 'id', { numeric: true }));
+            this._jenisLists[i.label] = { cfg: { judul: i.label, c: i.c, soft: i.soft }, orang: i.orang };
         });
         if (lain.n > 0) items.push(lain);
 
@@ -288,12 +304,12 @@ const adminDashboard = {
                 `<span class="aj-seg" style="width:${pct(i.n).toFixed(2)}%;background:${i.c}" title="${i.label}: ${i.n}"></span>`).join('');
         }
 
-        const bisaKlik = typeof auth !== 'undefined' && auth.isAdmin && auth.isAdmin();
+        const bisaKlik = true;
         badges.innerHTML = items.map(i => {
             const tag = (i.klik && bisaKlik) ? 'button type="button"' : 'div';
             const end = (i.klik && bisaKlik) ? 'button' : 'div';
             const aksi = (i.klik && bisaKlik)
-                ? ` onclick="adminDashboard.lihatJenis('${i.label}')" title="Lihat daftar ${i.label}"` : '';
+                ? ` onclick="adminDashboard.lihatJenis(this.dataset.jenis)" data-jenis="${i.label}" title="Lihat daftar ${i.label}"` : '';
             return `<${tag} class="aj-badge${i.klik && bisaKlik ? ' aj-click' : ''}" style="--c:${i.c};--soft:${i.soft};--line:${i.line}"${aksi}>
                 <span class="aj-ic"><i class="fas ${i.icon}"></i></span>
                 <span class="aj-body"><span class="aj-label">${i.label}</span><span class="aj-num" data-n="${i.n}">0</span></span>
@@ -304,12 +320,10 @@ const adminDashboard = {
         badges.querySelectorAll('.aj-num').forEach(el => this.animateNumber(el, 0, parseInt(el.dataset.n) || 0));
     },
 
-    // Klik badge: buka Data Karyawan dengan filter jenis yang sesuai.
+    // Klik badge: popup minimalis daftar karyawan untuk jenis tersebut.
     lihatJenis(jenis) {
-        if (!(auth.isAdmin && auth.isAdmin())) return;
-        const sel = document.getElementById('karyawan-jenis-filter');
-        if (sel) sel.value = jenis;
-        router.navigate('karyawan');
+        const d = this._jenisLists && this._jenisLists[jenis];
+        if (d) this.bukaPopupDaftar(d.cfg, d.orang);
     },
 
     animateNumber(element, start, end) {
