@@ -881,6 +881,7 @@ const izin = {
 
         this.currentFile = null;
         toast.success('Pengajuan izin berhasil dikirim!');
+        if (window.formModal) formModal.close('izin', true); // tutup modal form, tampilkan riwayat
 
         const form = document.getElementById('izin-form');
         if (form) form.reset();
