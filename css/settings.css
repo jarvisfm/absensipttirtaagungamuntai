@@ -371,3 +371,6 @@
 .sec-err{font-size:.85rem;color:#DC2626;display:flex;align-items:center;gap:8px}
 @media (max-width:480px){.sec-card{flex-wrap:wrap}.sec-link{margin-left:auto}}
 .sec-card .sec-btn{margin-left:auto;flex-shrink:0}
+
+/* Modal yang harus selalu di atas modal form lain (Peraturan Cuti, aktivasi sidik jari) */
+#modal-rincian-cuti,#modal-biometric-enable,#modal-biometric-confirm-password{z-index:10400}
