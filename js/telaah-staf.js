@@ -723,15 +723,26 @@ const telaahStaf = {
             if (!await this._confirm({ judul: 'Tolak Disposisi', pesan: 'Tolak disposisi ini? Pembuat telaahan akan diberi tahu alasan Anda.', ok: 'Ya, Tolak', icon: 'fa-circle-xmark' })) return;
         }
         const b1 = this._$('tl-btn-setuju'), b2 = this._$('tl-btn-tolak');
+        const setuju = keputusan === 'Disetujui';
         this._busy = true; [b1, b2].forEach(b => { if (b) b.disabled = true; });
+        // Loading screen di atas modal sampai hasilnya keluar (modal tidak bisa ditutup selama proses).
+        this._ajukanBusy = true;
+        this._setBusy('load', setuju ? 'Menyimpan persetujuan...' : 'Menyimpan penolakan...');
         try {
             const res = await api.approveTelaahDisposisi({ telaahId: d.telaahId, key: d.key, keputusan, catatan, paraf, ditunjuk });
             if (!res || !res.success) throw new Error((res && res.error) || 'Gagal memproses');
+            // Berhasil: tampilkan centang + notifikasi sambil memuat ulang daftar, lalu tutup modal dengan transisi.
+            this._setBusy('ok', setuju ? 'Disposisi berhasil disetujui' : 'Disposisi berhasil ditolak');
             toast.success(res.message || 'Berhasil');
+            await Promise.all([this.init(), new Promise(r => setTimeout(r, 1100))]);
+            this._ajukanBusy = false;
+            const ov = this._$('tl-overlay');
+            if (ov) { ov.classList.add('tl-leave'); await new Promise(r => setTimeout(r, 240)); }
             this._closeModal();
             this._busy = false;
-            await this.init();
         } catch (e) {
+            this._ajukanBusy = false;
+            this._setBusy(null);
             toast.error(e.message || 'Gagal memproses');
             this._busy = false;
             [b1, b2].forEach(b => { if (b) b.disabled = false; });
