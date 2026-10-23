@@ -862,10 +862,8 @@ const slipGaji = {
 
         let aksi;
         if (!r.userId) {
-            aksi = `<select class="sg-assign" onchange="slipGaji.assign('${this._e(r.id)}', this.value)">
-                <option value="">Pilih karyawan...</option>
-                ${this.employees.map(e => `<option value="${this._e(e.id)}">${this._e(e.nama || '-')}</option>`).join('')}
-            </select>`;
+            aksi = `<button type="button" class="sg-assign-btn" onclick="slipGaji.openAssign(this, '${this._e(r.id)}')">
+                <i class="fas fa-user-plus"></i><span>Pilih karyawan...</span><i class="fas fa-chevron-down"></i></button>`;
         } else {
             aksi = `<button type="button" class="sg-btn sg-btn-sm" onclick="slipGaji.openSlip('${this._e(r.id)}')"><i class="fas fa-eye"></i></button>
                 <button type="button" class="sg-btn sg-btn-sm" onclick="slipGaji.printOne('${this._e(r.id)}')"><i class="fas fa-print"></i></button>
@@ -875,6 +873,73 @@ const slipGaji = {
         return `<tr data-q="${this._e((String(r.nama) + ' ' + String(r.email)).toLowerCase())}">
             <td>${i + 1}</td><td>${this._e(r.nama)}</td><td>${this._e(r.email || '-')}</td>
             <td class="r"><b>${this.rp(r.gajiBersih)}</b></td><td>${status}</td><td class="nowrap">${aksi}</td></tr>`;
+    },
+
+    // Dropdown pilih karyawan yang bisa dicari (menggantikan <select> biasa
+    // yang harus di-scroll). Memanggil assign() yang sama seperti sebelumnya.
+    openAssign(btn, rowId) {
+        this.closeAssign();
+        const row = (this.rows || []).find(r => String(r.id) === String(rowId));
+        const namaRow = String((row && row.nama) || '').toLowerCase();
+        const toks = namaRow.split(/[\s.,]+/).filter(t => t.length > 2);
+        const list = (this.employees || []).map(e => {
+            const n = String(e.nama || '').toLowerCase();
+            const score = toks.reduce((a, t) => a + (n.indexOf(t) !== -1 ? 1 : 0), 0);
+            return { id: e.id, nama: e.nama || '-', sub: e.jabatan || e.bagian || '', score, low: n };
+        }).sort((x, y) => (y.score - x.score) || String(x.nama).localeCompare(String(y.nama), 'id'));
+
+        const pop = document.createElement('div');
+        pop.className = 'sg-pop';
+        pop.innerHTML = `
+            <div class="sg-pop-head"><i class="fas fa-search"></i><input type="text" placeholder="Cari nama karyawan..." autocomplete="off"></div>
+            <div class="sg-pop-list"></div>`;
+        document.body.appendChild(pop);
+        const listEl = pop.querySelector('.sg-pop-list');
+        const input = pop.querySelector('input');
+
+        const draw = () => {
+            const q = input.value.trim().toLowerCase();
+            const items = list.filter(x => !q || x.low.indexOf(q) !== -1 || String(x.sub).toLowerCase().indexOf(q) !== -1);
+            listEl.innerHTML = items.length ? items.map(x => `
+                <button type="button" class="sg-pop-item" data-id="${this._e(x.id)}">
+                    <span class="sg-pop-name">${this._e(x.nama)}</span>
+                    ${x.score > 0 && !q ? '<span class="sg-pop-tag">Mirip</span>' : ''}
+                    ${x.sub ? `<span class="sg-pop-sub">${this._e(x.sub)}</span>` : ''}
+                </button>`).join('') : '<div class="sg-pop-empty">Tidak ada karyawan yang cocok</div>';
+        };
+        draw();
+        input.addEventListener('input', draw);
+        listEl.addEventListener('click', (e) => {
+            const it = e.target.closest('.sg-pop-item');
+            if (!it) return;
+            this.closeAssign();
+            this.assign(rowId, it.dataset.id);
+        });
+
+        // posisi: di bawah tombol, atau di atasnya kalau ruang bawah sempit
+        const r = btn.getBoundingClientRect();
+        const w = Math.min(320, window.innerWidth - 16);
+        pop.style.width = w + 'px';
+        pop.style.left = Math.max(8, Math.min(r.right - w, window.innerWidth - w - 8)) + 'px';
+        const h = pop.offsetHeight;
+        const below = window.innerHeight - r.bottom;
+        pop.style.top = (below >= Math.min(h, 300) + 8 || below >= r.top ? r.bottom + 6 : Math.max(8, r.top - h - 6)) + 'px';
+
+        this._assignPop = pop;
+        this._assignOut = (e) => { if (!pop.contains(e.target) && !btn.contains(e.target)) this.closeAssign(); };
+        this._assignKey = (e) => { if (e.key === 'Escape') this.closeAssign(); };
+        setTimeout(() => document.addEventListener('mousedown', this._assignOut), 0);
+        document.addEventListener('keydown', this._assignKey);
+        window.addEventListener('scroll', this._assignScroll = () => this.closeAssign(), true);
+        input.focus();
+    },
+
+    closeAssign() {
+        if (this._assignPop) { this._assignPop.remove(); this._assignPop = null; }
+        if (this._assignOut) document.removeEventListener('mousedown', this._assignOut);
+        if (this._assignKey) document.removeEventListener('keydown', this._assignKey);
+        if (this._assignScroll) window.removeEventListener('scroll', this._assignScroll, true);
+        this._assignOut = this._assignKey = this._assignScroll = null;
     },
 
     async assign(id, userId) {
