@@ -951,7 +951,7 @@ const jadwalJagaOperator = {
         wrap.innerHTML = `
           <div class="jjo-layout">
             <aside class="jjo-pool" id="jjo-pool">
-                <div class="jjo-pool-head"><b><i class="fas fa-users"></i> Petugas</b><small><span class="jjo-hint-mouse">Seret nama ke kartu jadwal</span><span class="jjo-hint-touch">Tekan &amp; tahan nama, lalu seret ke jadwal</span></small></div>
+                <div class="jjo-pool-head"><b><i class="fas fa-users"></i> Petugas</b><small><span class="jjo-hint-mouse">Ketuk nama, lalu ketuk sesi tujuan (atau seret)</span><span class="jjo-hint-touch">Ketuk nama, lalu ketuk sesi tujuan (atau tahan &amp; seret)</span></small></div>
                 <div class="jjo-pool-search"><i class="fas fa-search"></i><input type="text" id="jjo-pool-q" placeholder="Cari nama..." autocomplete="off"></div>
                 <div class="jjo-pool-list" id="jjo-pool-list">${poolChips}</div>
             </aside>
@@ -1086,6 +1086,64 @@ const jadwalJagaOperator = {
             });
         };
         wrap.onpointerdown = (e) => this._dndStart(e);
+
+        // Mode "pilih lalu taruh": ketuk nama petugas -> ketuk sesi tujuan.
+        // Dipasang di fase capture supaya ketukan di sesi tidak ikut
+        // mencentang pil nama (aksi bawaan) saat mode ini aktif.
+        if (wrap._pickCapture) wrap.removeEventListener('click', wrap._pickCapture, true);
+        wrap._pickCapture = (e) => this._pickClick(e);
+        wrap.addEventListener('click', wrap._pickCapture, true);
+        this._pickClear(true);
+    },
+
+    _pickClear(silent) {
+        this._pickId = null;
+        document.querySelectorAll('.jjo-pool-chip.is-armed').forEach(c => c.classList.remove('is-armed'));
+        document.body.classList.remove('jjo-armed');
+        const bar = document.getElementById('jjo-armed-bar');
+        if (bar) bar.remove();
+        if (this._pickKey) { document.removeEventListener('keydown', this._pickKey); this._pickKey = null; }
+    },
+
+    _pickSet(chip) {
+        const id = chip.dataset.emp;
+        if (this._pickId === id) { this._pickClear(); return; }
+        this._pickClear();
+        this._pickId = id;
+        chip.classList.add('is-armed');
+        document.body.classList.add('jjo-armed');
+        const nama = chip.querySelector('.jjo-pool-name').textContent;
+        const bar = document.createElement('div');
+        bar.id = 'jjo-armed-bar';
+        bar.className = 'jjo-armed-bar';
+        bar.innerHTML = `<div class="jjo-armed-ic"><i class="fas fa-hand-pointer"></i></div>
+            <div class="jjo-armed-txt"><small>Petugas terpilih</small><b>${this._escAttr(nama)}</b><span>Ketuk sesi (Pagi/Siang/Malam) pada kartu hari tempat petugas ini ditaruh</span></div>
+            <button type="button" id="jjo-armed-done"><i class="fas fa-check"></i> Selesai</button>`;
+        document.body.appendChild(bar);
+        document.getElementById('jjo-armed-done').onclick = () => this._pickClear();
+        this._pickKey = (ev) => { if (ev.key === 'Escape') this._pickClear(); };
+        document.addEventListener('keydown', this._pickKey);
+    },
+
+    _pickClick(e) {
+        const t = e.target;
+        if (!t || !t.closest) return;
+        if (this._suppressClick) return;
+        const chip = t.closest('.jjo-pool-chip');
+        if (chip) { e.stopPropagation(); this._pickSet(chip); return; }
+        if (!this._pickId) return;
+        const sess = t.closest('.jjo-sess');
+        if (!sess) return;
+        e.preventDefault();
+        e.stopPropagation();
+        const dayEl = sess.closest('.jjo-day');
+        const lab = sess.querySelector('.jjo-sess-lab b');
+        const emp = document.querySelector('#jjo-pool .jjo-pool-chip.is-armed .jjo-pool-name');
+        const changed = this._dndDrop(sess, this._pickId, true);
+        if (changed && window.toast && toast.success && dayEl) {
+            const info = this._dayInfo(parseInt(dayEl.dataset.day, 10));
+            toast.success(`${emp ? emp.textContent : 'Petugas'} → ${info.hariName}, ${info.tanggalStr} (${lab ? lab.textContent : ''})`);
+        }
     },
 
     _dndScrollParent(el) {
@@ -1146,9 +1204,11 @@ const jadwalJagaOperator = {
         };
         const blockTouch = (ev) => { if (st.active) ev.preventDefault(); };
         const finish = (ev) => {
+            const wasActive = st.active;
             const hit = st.active ? this._dndTarget(st.x, st.y) : null;
             const id = st.id;
             cleanup();
+            if (wasActive) { this._suppressClick = true; setTimeout(() => { this._suppressClick = false; }, 350); }
             if (hit) this._dndDrop(hit, id);
         };
         const cleanup = () => {
@@ -1192,7 +1252,7 @@ const jadwalJagaOperator = {
         if (t) t.classList.add('jjo-drop-hover');
     },
 
-    _dndDrop(sess, empId) {
+    _dndDrop(sess, empId, fromPick) {
         const cb = Array.from(sess.querySelectorAll('.jjo-petugas-checkbox')).find(c => String(c.value) === String(empId));
         const sel = sess.querySelector('select.jjo-select');
         let changed = false;
@@ -1204,6 +1264,7 @@ const jadwalJagaOperator = {
         sess.classList.add(changed ? 'jjo-drop-ok' : 'jjo-drop-dup');
         setTimeout(() => sess.classList.remove('jjo-drop-ok', 'jjo-drop-dup'), 700);
         if (!changed && window.toast && toast.info) toast.info('Petugas ini sudah ada di sesi tersebut.');
+        return changed;
     },
 
     // Aksi tombol "Salin kemarin" & "Kosongkan" (event delegation).
