@@ -357,3 +357,142 @@
     flex-shrink: 0;
     cursor: pointer;
 }
+
+/* ============================================================
+   TAMPILAN MODERN — Jadwal Jaga Operator (kartu per hari)
+   ============================================================ */
+#page-jadwal-jaga-operator .jjo-container{padding:0;max-width:1280px;margin:0 auto}
+
+/* Hero judul */
+#page-jadwal-jaga-operator .jjo-header{position:relative;overflow:hidden;border-radius:20px;padding:20px 22px;margin-bottom:16px;color:#fff;
+  background:linear-gradient(135deg,#0F766E,#14B8A6);box-shadow:0 12px 28px rgba(15,118,110,.25)}
+#page-jadwal-jaga-operator .jjo-header::after{content:"";position:absolute;right:-40px;top:-50px;width:170px;height:170px;border-radius:50%;background:rgba(255,255,255,.12)}
+#page-jadwal-jaga-operator .jjo-header h2{color:#fff;font-size:1.25rem;font-weight:800;margin:0 0 4px;position:relative}
+#page-jadwal-jaga-operator .jjo-header p{color:rgba(255,255,255,.9);font-size:.85rem;margin:0;position:relative;max-width:640px}
+
+/* Filter */
+#page-jadwal-jaga-operator .jjo-filters{border-radius:18px;padding:16px;gap:12px;border:1px solid #E2E8F0;box-shadow:0 6px 20px rgba(15,23,42,.05)}
+#page-jadwal-jaga-operator .jjo-filter-item{flex:1 1 150px;min-width:0}
+#page-jadwal-jaga-operator .jjo-filter-item label{font-size:.68rem;letter-spacing:.06em;color:#64748B}
+#page-jadwal-jaga-operator .jjo-filter-item select{min-width:0;width:100%;height:42px;border-radius:12px;border:1.5px solid #E2E8F0;background:#F8FAFC;font-weight:600}
+#page-jadwal-jaga-operator .jjo-filter-item select:focus{outline:none;border-color:#14B8A6;background:#fff;box-shadow:0 0 0 3px rgba(20,184,166,.15)}
+#page-jadwal-jaga-operator .jjo-filter-actions{flex:1 1 100%;margin-left:0;display:flex;flex-wrap:wrap;gap:8px;padding-top:4px;border-top:1px dashed #E2E8F0;margin-top:2px}
+#page-jadwal-jaga-operator .jjo-filter-actions .btn{height:42px;border-radius:12px;font-weight:700;font-size:.84rem;display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:0 16px;flex:1 1 auto;white-space:nowrap}
+#page-jadwal-jaga-operator #jjo-btn-simpan{background:linear-gradient(135deg,#F97316,#EA580C);color:#fff;border:none;box-shadow:0 6px 14px rgba(234,88,12,.28)}
+#page-jadwal-jaga-operator #jjo-btn-cetak{background:#0F172A;color:#fff;border:none}
+#page-jadwal-jaga-operator .jjo-upload-hint{background:#F0FDFA;border:1px solid #99F6E4;border-radius:12px;padding:10px 12px;margin:0 0 12px !important}
+#page-jadwal-jaga-operator .jjo-unit-info{display:inline-flex;align-items:center;gap:8px;flex-wrap:wrap;background:#F0FDFA;color:#0F766E;border:1px solid #99F6E4;border-radius:999px;padding:7px 14px;font-size:.82rem;margin-bottom:12px}
+#page-jadwal-jaga-operator .jjo-unit-info:empty{display:none}
+
+/* Wadah */
+#page-jadwal-jaga-operator .jjo-table-wrap{background:transparent;box-shadow:none;padding:0;overflow:visible}
+#page-jadwal-jaga-operator .jjo-empty-msg{background:#fff;border:1.5px dashed #CBD5E1;border-radius:16px}
+
+/* Toolbar progres */
+.jjo-toolbar{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;background:#fff;border:1px solid #E2E8F0;border-radius:16px;padding:12px 16px;margin-bottom:12px;position:sticky;top:8px;z-index:20;box-shadow:0 6px 18px rgba(15,23,42,.06)}
+.jjo-progress{flex:1 1 220px;min-width:0}
+.jjo-progress-text{font-size:.8rem;color:#475569;margin-bottom:6px}
+.jjo-progress-text b{color:#0F766E;font-size:1rem}
+.jjo-progress-text span{color:#94A3B8}
+.jjo-progress-bar{height:7px;background:#E2E8F0;border-radius:99px;overflow:hidden}
+.jjo-progress-bar span{display:block;height:100%;width:0;border-radius:99px;background:linear-gradient(90deg,#14B8A6,#22C55E);transition:width .3s}
+.jjo-switch{display:flex;align-items:center;gap:8px;font-size:.8rem;font-weight:600;color:#475569;cursor:pointer;user-select:none}
+.jjo-switch input{width:18px;height:18px;accent-color:#14B8A6}
+
+/* Grid kartu hari */
+.jjo-days{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:12px}
+.jjo-days.only-empty .jjo-day.is-filled:not(:focus-within){display:none}
+.jjo-day{background:#fff;border:1px solid #E2E8F0;border-radius:18px;overflow:hidden;box-shadow:0 4px 14px rgba(15,23,42,.05);transition:box-shadow .2s,border-color .2s}
+.jjo-day:focus-within{border-color:#5EEAD4;box-shadow:0 8px 22px rgba(20,184,166,.18)}
+.jjo-day.is-today{border-color:#14B8A6;box-shadow:0 0 0 2px rgba(20,184,166,.25)}
+.jjo-day-head{display:flex;align-items:center;gap:10px;padding:10px 12px;background:#F8FAFC;border-bottom:1px solid #E2E8F0;flex-wrap:wrap}
+.jjo-day.is-sabtu .jjo-day-head{background:#FFFBEB}
+.jjo-day.is-minggu .jjo-day-head{background:#FEF2F2}
+.jjo-day-num{width:38px;height:38px;border-radius:12px;background:#0F766E;color:#fff;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.jjo-day.is-sabtu .jjo-day-num{background:#D97706}
+.jjo-day.is-minggu .jjo-day-num{background:#DC2626}
+.jjo-day-title{display:flex;flex-direction:column;min-width:0;flex:1}
+.jjo-day-title b{font-size:.9rem;color:#0F172A;line-height:1.2}
+.jjo-day-title b em{font-style:normal;font-size:.62rem;font-weight:800;background:#14B8A6;color:#fff;padding:2px 7px;border-radius:99px;margin-left:6px;vertical-align:middle}
+.jjo-day-title span{font-size:.74rem;color:#64748B}
+.jjo-day-badge{font-size:.68rem;font-weight:800;padding:4px 9px;border-radius:99px;background:#F1F5F9;color:#94A3B8;white-space:nowrap}
+.jjo-day.is-filled .jjo-day-badge{background:#DCFCE7;color:#15803D}
+.jjo-day-tools{display:flex;gap:6px;width:100%;justify-content:flex-end}
+.jjo-tool{display:inline-flex;align-items:center;gap:6px;border:1px solid #E2E8F0;background:#fff;color:#475569;border-radius:9px;padding:5px 10px;font-size:.72rem;font-weight:700;cursor:pointer;transition:background .15s,color .15s}
+.jjo-tool:hover{background:#F0FDFA;color:#0F766E;border-color:#99F6E4}
+.jjo-tool.danger:hover{background:#FEF2F2;color:#DC2626;border-color:#FECACA}
+
+.jjo-day-body{padding:12px;display:flex;flex-direction:column;gap:12px}
+.jjo-sess{display:flex;flex-direction:column;gap:7px}
+.jjo-sess-lab{display:flex;align-items:baseline;gap:8px}
+.jjo-sess-lab b{font-size:.82rem;color:#0F172A}
+.jjo-sess-lab span{font-size:.72rem;color:#94A3B8}
+
+/* Pil petugas: tinggal diketuk, tanpa scroll kecil */
+#page-jadwal-jaga-operator .jjo-checkbox-group{flex-direction:row;flex-wrap:wrap;gap:6px;max-height:none;overflow:visible;border:none;padding:0;background:transparent}
+#page-jadwal-jaga-operator .jjo-checkbox-item{position:relative;display:inline-flex;align-items:center;gap:6px;padding:7px 12px;border:1.5px solid #E2E8F0;border-radius:999px;background:#fff;
+  font-size:.78rem;font-weight:600;color:#475569;cursor:pointer;transition:all .15s;user-select:none;line-height:1.2}
+#page-jadwal-jaga-operator .jjo-checkbox-item:hover{border-color:#5EEAD4;background:#F0FDFA}
+#page-jadwal-jaga-operator .jjo-checkbox-item input{position:absolute;opacity:0;pointer-events:none;width:1px;height:1px}
+#page-jadwal-jaga-operator .jjo-checkbox-item::before{content:"";width:14px;height:14px;border-radius:50%;border:2px solid #CBD5E1;flex-shrink:0;transition:all .15s}
+#page-jadwal-jaga-operator .jjo-checkbox-item:has(input:checked){background:linear-gradient(135deg,#14B8A6,#0F766E);border-color:#0F766E;color:#fff;box-shadow:0 4px 10px rgba(15,118,110,.25)}
+#page-jadwal-jaga-operator .jjo-checkbox-item:has(input:checked)::before{border-color:#fff;background:#fff radial-gradient(circle,#0F766E 40%,transparent 45%)}
+#page-jadwal-jaga-operator .jjo-checkbox-item:has(input:focus-visible){outline:2px solid #14B8A6;outline-offset:2px}
+
+#page-jadwal-jaga-operator .jjo-select{height:42px;border-radius:12px;border:1.5px solid #E2E8F0;background:#F8FAFC;font-weight:600;padding:0 10px;min-width:0}
+#page-jadwal-jaga-operator .jjo-select:focus{outline:none;border-color:#14B8A6;background:#fff}
+
+.jjo-ket{display:flex;align-items:center;gap:8px;background:#F8FAFC;border:1px solid #E2E8F0;border-radius:12px;padding:0 10px}
+.jjo-ket i{color:#94A3B8;font-size:.78rem}
+#page-jadwal-jaga-operator .jjo-ket .jjo-input{min-width:0;border:none;background:transparent;height:38px;font-size:.82rem}
+.jjo-ket:focus-within{border-color:#14B8A6;background:#fff}
+
+@media (max-width:640px){
+  .jjo-days{grid-template-columns:1fr}
+  .jjo-toolbar{top:0;border-radius:14px}
+  #page-jadwal-jaga-operator .jjo-filter-actions .btn{flex:1 1 calc(50% - 8px)}
+  .jjo-tool span{display:inline}
+}
+
+/* ============================================================
+   Daftar petugas + drag & drop
+   ============================================================ */
+.jjo-layout{display:grid;grid-template-columns:260px minmax(0,1fr);gap:14px;align-items:start}
+.jjo-pool{position:sticky;top:8px;background:#fff;border:1px solid #E2E8F0;border-radius:18px;padding:12px;box-shadow:0 6px 18px rgba(15,23,42,.06);max-height:calc(100vh - 24px);display:flex;flex-direction:column}
+.jjo-pool-head b{display:flex;align-items:center;gap:8px;font-size:.9rem;color:#0F172A}
+.jjo-pool-head b i{color:#14B8A6}
+.jjo-pool-head small{display:block;font-size:.72rem;color:#64748B;margin:3px 0 8px;line-height:1.35}
+.jjo-hint-touch{display:none}
+@media (hover:none){.jjo-hint-mouse{display:none}.jjo-hint-touch{display:inline}}
+.jjo-pool-search{display:flex;align-items:center;gap:8px;background:#F8FAFC;border:1.5px solid #E2E8F0;border-radius:11px;padding:0 10px;margin-bottom:8px}
+.jjo-pool-search:focus-within{border-color:#14B8A6;background:#fff}
+.jjo-pool-search i{color:#94A3B8;font-size:.78rem}
+.jjo-pool-search input{border:none;background:transparent;height:36px;flex:1;min-width:0;font-size:.82rem;outline:none}
+.jjo-pool-list{display:flex;flex-direction:column;gap:6px;overflow-y:auto;padding:2px}
+.jjo-pool-chip{display:flex;align-items:center;gap:9px;padding:7px 9px;border:1.5px solid #E2E8F0;border-radius:12px;background:#fff;cursor:grab;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;transition:border-color .15s,box-shadow .15s,background .15s}
+.jjo-pool-chip:hover{border-color:#5EEAD4;background:#F0FDFA;box-shadow:0 4px 10px rgba(20,184,166,.12)}
+.jjo-pool-chip.is-dragging{opacity:.45;cursor:grabbing}
+.jjo-av{width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,#14B8A6,#0F766E);color:#fff;font-size:.7rem;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.jjo-pool-name{flex:1;min-width:0;font-size:.8rem;font-weight:600;color:#0F172A;line-height:1.25;overflow-wrap:anywhere}
+.jjo-pool-count{min-width:24px;text-align:center;font-size:.68rem;font-weight:800;color:#0F766E;background:#CCFBF1;border-radius:99px;padding:2px 7px;flex-shrink:0}
+
+.jjo-ghost{position:fixed;left:0;top:0;z-index:100000;pointer-events:none;background:linear-gradient(135deg,#14B8A6,#0F766E);color:#fff;font-weight:700;font-size:.82rem;padding:9px 14px;border-radius:12px;box-shadow:0 12px 28px rgba(15,118,110,.4);white-space:nowrap;will-change:transform}
+.jjo-ghost i{opacity:.7;margin-right:4px}
+body.jjo-dragging{cursor:grabbing;user-select:none;-webkit-user-select:none}
+.jjo-sess{border-radius:12px;transition:background .15s,box-shadow .15s;padding:4px;margin:-4px}
+body.jjo-dragging .jjo-sess{background:rgba(20,184,166,.05);box-shadow:inset 0 0 0 1.5px dashed #99F6E4;box-shadow:inset 0 0 0 1.5px rgba(20,184,166,.35)}
+.jjo-sess.jjo-drop-hover{background:rgba(20,184,166,.18) !important;box-shadow:inset 0 0 0 2px #14B8A6 !important}
+.jjo-sess.jjo-drop-ok{animation:jjoOk .7s ease}
+.jjo-sess.jjo-drop-dup{animation:jjoDup .5s ease}
+@keyframes jjoOk{0%{background:rgba(34,197,94,.35)}100%{background:transparent}}
+@keyframes jjoDup{0%,60%{background:rgba(245,158,11,.3)}100%{background:transparent}}
+
+@media (max-width:900px){
+  .jjo-layout{grid-template-columns:1fr;gap:10px}
+  .jjo-pool{position:sticky;top:0;z-index:25;max-height:none;padding:10px;border-radius:14px}
+  .jjo-pool-head small{margin:2px 0 6px}
+  .jjo-pool-search{display:none}
+  .jjo-pool-list{flex-direction:row;overflow-x:auto;overflow-y:hidden;padding-bottom:4px;-webkit-overflow-scrolling:touch}
+  .jjo-pool-chip{flex:0 0 auto;max-width:210px}
+  .jjo-toolbar{position:static}
+}
