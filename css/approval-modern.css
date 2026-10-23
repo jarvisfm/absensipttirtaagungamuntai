@@ -1,0 +1,93 @@
+/* ============================================================
+   Approval Asmen / Manajer / Direktur — tampilan modern
+   Murni tampilan + elemen ringkasan/pencarian yang disisipkan oleh
+   approvalUI.initTabs() (js/izin.js). Dimuat paling akhir.
+   ============================================================ */
+#page-approval-asmen{--ap-h1:#0F766E;--ap-h2:#14B8A6;--ap-ic:"\f0c0"}
+#page-approval-manajer{--ap-h1:#4338CA;--ap-h2:#6366F1;--ap-ic:"\f508"}
+#page-approval-direktur{--ap-h1:#7E22CE;--ap-h2:#A855F7;--ap-ic:"\f5d1"}
+
+/* ---- Banner judul ---- */
+#page-approval-asmen .izin-header,#page-approval-manajer .izin-header,#page-approval-direktur .izin-header{
+  position:relative;overflow:hidden;color:#fff;padding:20px 22px;border-radius:20px;margin-bottom:16px;
+  background:linear-gradient(135deg,var(--ap-h1),var(--ap-h2));box-shadow:0 12px 28px rgba(15,23,42,.18)}
+#page-approval-asmen .izin-header::after,#page-approval-manajer .izin-header::after,#page-approval-direktur .izin-header::after{
+  content:"";position:absolute;right:-40px;top:-50px;width:180px;height:180px;border-radius:50%;background:rgba(255,255,255,.13)}
+#page-approval-asmen .izin-info,#page-approval-manajer .izin-info,#page-approval-direktur .izin-info{
+  position:relative;z-index:1;display:grid;grid-template-columns:52px 1fr;column-gap:14px;align-items:center}
+#page-approval-asmen .izin-info::before,#page-approval-manajer .izin-info::before,#page-approval-direktur .izin-info::before{
+  content:var(--ap-ic);grid-row:1 / span 2;width:52px;height:52px;border-radius:16px;background:rgba(255,255,255,.25);
+  display:flex;align-items:center;justify-content:center;font-family:"Font Awesome 6 Free","Font Awesome 5 Free",sans-serif;font-weight:900;font-size:1.3rem}
+#page-approval-asmen .izin-info h2,#page-approval-manajer .izin-info h2,#page-approval-direktur .izin-info h2{color:#fff;margin:0 0 3px;font-size:1.3rem;font-weight:800}
+#page-approval-asmen .izin-info p,#page-approval-manajer .izin-info p,#page-approval-direktur .izin-info p{color:#fff;opacity:.92;margin:0;font-size:.86rem}
+
+/* ---- Kartu ringkasan ---- */
+.ap-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-bottom:14px}
+.ap-stat{display:flex;align-items:center;gap:12px;text-align:left;background:#fff;border:1.5px solid #E2E8F0;border-radius:16px;padding:14px;cursor:pointer;font-family:inherit;
+  box-shadow:0 4px 14px rgba(15,23,42,.05);transition:transform .15s,box-shadow .15s,border-color .15s}
+.ap-stat:hover{transform:translateY(-2px);box-shadow:0 10px 22px rgba(15,23,42,.1)}
+.ap-stat.has{border-color:var(--sc)}
+.ap-stat-ic{width:44px;height:44px;border-radius:13px;background:color-mix(in srgb,var(--sc) 14%,#fff);color:var(--sc);display:flex;align-items:center;justify-content:center;font-size:1.1rem;flex-shrink:0}
+.ap-stat-num{font-size:1.6rem;font-weight:800;line-height:1;color:#0F172A}
+.ap-stat-lbl{font-size:.76rem;color:#64748B;margin-top:3px;font-weight:600}
+.ap-stat:nth-child(1){--sc:#F59E0B}.ap-stat:nth-child(2){--sc:#3B82F6}.ap-stat:nth-child(3){--sc:#EF4444}
+
+/* ---- Tab + pencarian ---- */
+.ap-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:14px}
+.ap-toolbar .ap-tabs{margin:0;background:#EEF2F7;border-radius:14px;padding:5px}
+.ap-tab{border-radius:10px;padding:9px 16px;font-weight:700}
+.ap-tab.active{background:#fff;color:var(--ap-h1,#B45309);box-shadow:0 3px 10px rgba(15,23,42,.1)}
+.ap-tab-count.has{background:#EF4444}
+.ap-search{display:flex;align-items:center;gap:8px;background:#fff;border:1.5px solid #E2E8F0;border-radius:12px;padding:0 12px;min-width:240px;flex:0 1 320px}
+.ap-search:focus-within{border-color:var(--ap-h2,#F59E0B);box-shadow:0 0 0 3px rgba(99,102,241,.12)}
+.ap-search i{color:#94A3B8;font-size:.82rem}
+.ap-search input{border:none;background:transparent;height:40px;flex:1;min-width:0;outline:none;font-size:.85rem;font-family:inherit}
+
+/* ---- Kartu daftar ---- */
+#page-approval-asmen .izin-history-card,#page-approval-manajer .izin-history-card,#page-approval-direktur .izin-history-card{
+  border-radius:20px;border:1px solid #E2E8F0;box-shadow:0 6px 20px rgba(15,23,42,.06);overflow:hidden}
+#page-approval-asmen .izin-history-card .card-header,#page-approval-manajer .izin-history-card .card-header,#page-approval-direktur .izin-history-card .card-header{
+  padding:16px 20px;border-bottom:none}
+#page-approval-asmen .izin-history-card .card-header h3,#page-approval-manajer .izin-history-card .card-header h3,#page-approval-direktur .izin-history-card .card-header h3{
+  font-size:1rem;font-weight:800;display:flex;align-items:center;gap:10px}
+#page-approval-asmen .izin-history-card .card-header h3::before,#page-approval-manajer .izin-history-card .card-header h3::before,#page-approval-direktur .izin-history-card .card-header h3::before{
+  content:"";width:5px;height:18px;border-radius:4px;background:linear-gradient(var(--ap-h1),var(--ap-h2))}
+.ap-head{background:#F8FAFC;border-color:#EEF2F7;font-size:.66rem;padding-top:11px;padding-bottom:11px}
+.ap-row{padding-top:16px;padding-bottom:16px;border-color:#F1F5F9}
+.ap-row:hover{background:linear-gradient(90deg,rgba(99,102,241,.05),transparent)}
+.ap-row::before{width:4px;top:10px;bottom:10px}
+.ap-avatar{width:42px;height:42px;font-size:.85rem;box-shadow:0 0 0 3px #fff,0 0 0 4.5px color-mix(in srgb,currentColor 0%,#E2E8F0)}
+.ap-name{font-weight:700}
+.ap-chip{padding:6px 12px}
+.ap-pill{background:#F1F5F9}
+.ap-seg{height:7px;border-radius:4px}
+.ap-btn{padding:10px 16px;border-radius:11px;font-weight:700}
+.ap-btn-primary{background:linear-gradient(135deg,var(--ap-h2,#F59E0B),var(--ap-h1,#D97706));box-shadow:0 6px 14px rgba(15,23,42,.18)}
+.ap-btn-primary:hover{filter:brightness(1.08);background:linear-gradient(135deg,var(--ap-h2,#F59E0B),var(--ap-h1,#D97706))}
+.ap-btn-success{box-shadow:0 6px 14px rgba(16,185,129,.28)}
+.ap-btn:active{transform:scale(.97)}
+.ap-empty{padding:52px 16px}
+.ap-empty-ico{width:72px;height:72px;background:linear-gradient(135deg,#F1F5F9,#E2E8F0)}
+
+/* Tombol filter bulan */
+#page-approval-asmen .select-filter,#page-approval-manajer .select-filter,#page-approval-direktur .select-filter{border-radius:11px;height:40px;border:1.5px solid #E2E8F0;font-weight:600}
+
+/* ---- Mode kartu (layar sempit) ---- */
+@container (max-width: 1000px){
+  .izin-list.ap-list{padding:12px;background:#F8FAFC}
+  .ap-row{background:#fff;border:1px solid #E2E8F0 !important;border-radius:16px;margin-bottom:10px;padding:16px 16px 16px 20px;box-shadow:0 4px 12px rgba(15,23,42,.05)}
+  .ap-row::before{top:14px;bottom:14px;left:6px}
+  .ap-row:last-child{margin-bottom:0}
+  .ap-c-act .ap-btn{padding:12px 14px}
+}
+@media (max-width:640px){
+  .ap-stats{grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+  .ap-stat{flex-direction:column;align-items:flex-start;gap:8px;padding:10px}
+  .ap-stat-ic{width:34px;height:34px;font-size:.9rem}
+  .ap-stat-num{font-size:1.25rem}
+  .ap-stat-lbl{font-size:.66rem}
+  .ap-search{flex:1 1 100%;min-width:0}
+  .ap-toolbar .ap-tabs{width:100%}
+  #page-approval-asmen .izin-header,#page-approval-manajer .izin-header,#page-approval-direktur .izin-header{padding:16px}
+}
+@media (max-width:640px){.ap-tab{padding:9px 10px;font-size:.76rem;gap:5px}.ap-toolbar .ap-tabs{gap:2px}}
