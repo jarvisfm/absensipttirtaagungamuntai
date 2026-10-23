@@ -98,7 +98,12 @@ const printLetters = {
             // berkedip di layar approver saat proses kirim email berjalan
             // di belakang layar.
             const container = document.createElement('div');
-            container.style.cssText = 'position:fixed; left:-9999px; top:0; background:#fff; width:800px;';
+            // [PERBAIKAN PDF EMAIL] Lebar A4 (794px, bukan 800px) + class pl-capture:
+            // lihat _ensureCaptureStyle() - meniru aturan @media print (A4, jarak
+            // rapat) dan meniadakan aturan layar HP supaya PDF = hasil Cetak Surat.
+            this._ensureCaptureStyle();
+            container.className = 'pl-capture';
+            container.style.cssText = 'position:fixed; left:-9999px; top:0; background:#fff; width:794px;';
             container.innerHTML = pageHtml;
             document.body.appendChild(container);
             this._captureContainer = container;
@@ -142,6 +147,99 @@ const printLetters = {
      * Dipakai untuk lampiran email - PDF-nya PERSIS sama dengan yang
      * muncul kalau user klik tombol "Cetak Surat" secara manual.
      */
+    // ── [PERBAIKAN PDF EMAIL] Samakan hasil PDF dengan "Cetak Surat" ──────────
+    // Masalah sebelumnya: PDF diambil dari container offscreen 800px dengan
+    // tampilan LAYAR biasa, bukan tampilan CETAK. Akibatnya (1) bukan ukuran A4
+    // (tinggi ikut isi, jarak antar baris lebih renggang dari hasil cetak),
+    // dan (2) kalau persetujuan dilakukan dari HP (lebar layar <= 600px), aturan
+    // tampilan HP (font 12px, label kolom boleh wrap, padding kecil) ikut
+    // terpakai -> tata letak PDF berbeda dari surat di komputer. Style di bawah
+    // hanya berlaku di dalam container .pl-capture (tidak menyentuh preview/cetak).
+    _ensureCaptureStyle() {
+        if (document.getElementById('pl-capture-style')) return;
+        const st = document.createElement('style');
+        st.id = 'pl-capture-style';
+        st.textContent = `
+            .pl-capture .print-letter-page:not(.letter-small) {
+                font-size: 14px; margin: 0; max-width: 100%; box-shadow: none;
+                min-height: 297mm; height: 297mm; overflow: hidden;
+            }
+            .pl-capture .print-letter-page:not(.letter-small) .letter-body { padding: 10px 40px 14px !important; }
+            .pl-capture .cuti-box { padding: 4px 12px !important; }
+            .pl-capture .cuti-field-table td { padding: 1px 2px; }
+            .pl-capture .letter-field-table .lbl { width: 120px !important; white-space: nowrap !important; padding-left: 2px !important; line-height: normal !important; }
+            .pl-capture .cuti-field-table .lbl { width: 190px !important; white-space: nowrap !important; padding-left: 2px !important; line-height: normal !important; }
+            .pl-capture .letter-field-table .sep { width: 16px !important; padding: 4px 2px !important; }
+            .pl-capture .cuti-field-table .sep { width: 14px !important; padding: 1px 2px !important; }
+            .pl-capture .keputusan-lbl { width: 150px !important; display: inline-block !important; }
+            .pl-capture .cuti-checkbox-cols { gap: 40px !important; margin-bottom: 4px; }
+            .pl-capture .cuti-checkbox-cols label { margin-bottom: 3px; }
+            .pl-capture .letter-signoff-table td { padding: 0 8px !important; }
+            .pl-capture .cuti-keputusan-table td { white-space: nowrap !important; }
+            .pl-capture .cuti-sampai-dengan { flex-wrap: nowrap !important; }
+            .pl-capture .signature-space { height: 40px; }
+        `;
+        document.head.appendChild(st);
+    },
+
+    // Lebar/jarak yang ditulis langsung di atribut style (mis. kolom label
+    // style="width:120px; padding-left:1.5rem") DITIMPA aturan layar HP yang
+    // memakai !important. Menandainya !important lewat inline style
+    // mengembalikannya ke nilai aslinya (inline !important menang).
+    _pinInlineStyles(container) {
+        const props = ['width', 'min-width', 'white-space', 'padding', 'padding-left', 'display'];
+        container.querySelectorAll('[style]').forEach(el => {
+            props.forEach(p => {
+                const v = el.style.getPropertyValue(p);
+                if (v) el.style.setProperty(p, v, 'important');
+            });
+        });
+    },
+
+    // Kalau isi surat (catatan panjang) lebih tinggi dari A4, perkecil isinya
+    // seperlunya supaya SEMUA muat 1 halaman - sama dengan _fitPageToA4() untuk
+    // cetak, tapi memakai transform (html2canvas tidak andal membaca CSS zoom).
+    _fitCapturePage(page) {
+        const body = page.querySelector('.letter-body');
+        if (!body) return;
+
+        const probe = document.createElement('div');
+        probe.style.cssText = 'position:absolute; visibility:hidden; height:297mm; width:0;';
+        document.body.appendChild(probe);
+        const a4Height = probe.getBoundingClientRect().height;
+        probe.remove();
+        if (!a4Height) return;
+
+        const kop = page.querySelector('.letter-kop-img-wrap');
+        const footer = page.querySelector('.letter-footer-img-wrap');
+        const kopH = kop ? kop.getBoundingClientRect().height : 0;
+        const footerH = footer ? footer.getBoundingClientRect().height : 0;
+
+        const prevFlex = body.style.flex, prevMin = page.style.minHeight, prevH = page.style.height;
+        body.style.flex = 'none';
+        page.style.minHeight = '0';
+        page.style.height = 'auto';
+        const bodyH = body.getBoundingClientRect().height;
+        page.style.minHeight = prevMin;
+        page.style.height = prevH;
+        body.style.flex = prevFlex;
+
+        const avail = a4Height - kopH - footerH - 6;
+        if (bodyH <= avail || bodyH <= 0) return;
+
+        const ratio = Math.max(0.5, avail / bodyH);
+        page.style.minHeight = '0';
+        body.style.flex = 'none';
+        body.style.boxSizing = 'border-box';
+        body.style.height = 'auto';
+        body.style.width = (100 / ratio) + '%';
+        const naturalH = body.getBoundingClientRect().height; // tinggi setelah dilebarkan (teks wrap lebih longgar)
+        body.style.transformOrigin = 'top left';
+        body.style.transform = 'scale(' + ratio + ')';
+        body.style.height = (naturalH * ratio) + 'px';
+        page.style.minHeight = prevMin;
+    },
+
     // Ganti semua <input>/<textarea> di CONTAINER OFFSCREEN (yang mau
     // di-screenshot) jadi <span> teks biasa. html2canvas terbukti tidak bisa
     // diandalkan untuk merender value input (baik langsung maupun lewat
@@ -156,7 +254,8 @@ const printLetters = {
             const span = document.createElement('span');
             span.textContent = el.value || '';
             span.style.display = 'inline-block';
-            span.style.width = cs.width;
+            span.style.minWidth = cs.width;   // min-width (bukan width) supaya teks yang lebih panjang dari kotaknya tidak terpotong
+            span.style.overflow = 'visible';
             span.style.font = cs.font;
             span.style.color = cs.color;
             span.style.textAlign = cs.textAlign;
@@ -182,8 +281,12 @@ const printLetters = {
 
             await this._waitForImages(container);
             this._replaceInputsWithText(container);
+            this._pinInlineStyles(container);
 
             const pageEl = container.querySelector('.print-letter-page');
+            // Surat kecil (Izin Keluar Kantor) tetap ukuran aslinya; surat A4 dibuat PDF A4.
+            const isSmall = pageEl.classList.contains('letter-small');
+            if (!isSmall) this._fitCapturePage(pageEl);
 
             // Pakai html2canvas + jsPDF LANGSUNG (bukan lewat wrapper
             // html2pdf().set({...}).from(...)). Wrapper-nya kalau dipakai
@@ -200,6 +303,13 @@ const printLetters = {
 
             const jsPDFCtor = (window.jspdf && window.jspdf.jsPDF) || window.jsPDF;
             if (!jsPDFCtor) throw new Error('jsPDF tidak tersedia (cek pemuatan library jspdf.umd.min.js)');
+
+            if (!isSmall) {
+                // Halaman A4 persis (210 x 297 mm) - sama dengan hasil Cetak Surat.
+                const a4 = new jsPDFCtor({ unit: 'mm', format: 'a4', orientation: 'portrait' });
+                a4.addImage(canvas.toDataURL('image/jpeg', 0.98), 'JPEG', 0, 0, 210, 297);
+                return a4.output('blob');
+            }
 
             const pdfWidth = canvas.width / 2;   // balik ke ukuran CSS px (scale 2x tadi -> bagi 2)
             const pdfHeight = canvas.height / 2;
@@ -333,7 +443,12 @@ const printLetters = {
         // ke layar Direktur walau proses lain sudah jalan diam-diam.
         if (this._captureMode) {
             const container = document.createElement('div');
-            container.style.cssText = 'position:fixed; left:-9999px; top:0; background:#fff; width:800px;';
+            // [PERBAIKAN PDF EMAIL] Lebar A4 (794px, bukan 800px) + class pl-capture:
+            // lihat _ensureCaptureStyle() - meniru aturan @media print (A4, jarak
+            // rapat) dan meniadakan aturan layar HP supaya PDF = hasil Cetak Surat.
+            this._ensureCaptureStyle();
+            container.className = 'pl-capture';
+            container.style.cssText = 'position:fixed; left:-9999px; top:0; background:#fff; width:794px;';
             container.innerHTML = pageHtml;
             document.body.appendChild(container);
             this._captureContainer = container;
@@ -850,10 +965,10 @@ const printLetters = {
                             value="${leave.duration || ''}"> hari</td></tr>
                     <tr><td class="lbl">Dari Tanggal</td><td class="sep">:</td>
                         <td style="white-space:nowrap;">    
-                            <input type="text" readonly class="letter-input-inline" style="width:110px"
+                            <input type="text" readonly class="letter-input-inline" style="width:140px"
                                 value="${this._formatTanggalIndo(leave.startDate)}">
                             Sampai dengan tanggal
-                            <input type="text" readonly class="letter-input-inline" style="width:110px"
+                            <input type="text" readonly class="letter-input-inline" style="width:140px"
                                 value="${this._formatTanggalIndo(leave.endDate)}">
                         </td></tr>
                     <tr><td class="lbl" style="vertical-align:top;">Alamat yang dapat dihubungi selama cuti</td><td class="sep" style="vertical-align:top;">:</td>
