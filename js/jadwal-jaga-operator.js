@@ -847,7 +847,7 @@ const jadwalJagaOperator = {
         }
     },
 
-    _markDirty() { this._dirty = true; },
+    _markDirty() { this._dirty = true; if (this._updateSummary) this._updateSummary(); },
 
     _daysInMonth() { return new Date(this.year, this.month + 1, 0).getDate(); },
 
@@ -915,168 +915,361 @@ const jadwalJagaOperator = {
         }
     },
 
+    // ── Tampilan kartu per hari (modern) ──────────────────────────
+    // Data tersimpan TIDAK berubah (days[d].sessions[key] / days[d].petugas /
+    // days[d].keterangan) - yang berubah hanya cara menampilkannya: tiap
+    // hari 1 kartu, petugas dipilih lewat "pil" yang tinggal diketuk.
     _renderMultiSesi(unit) {
-        const wrap = document.getElementById('jjo-table-wrap');
-        if (!wrap) return;
-        const days = this._daysInMonth();
-        const isGrup = unit.pattern === 'multi-grup';
-        const unitEmployees = this._employeesForUnit(this.unitKey);
-
-        let rows = '';
-        for (let d = 1; d <= days; d++) {
-            const info = this._dayInfo(d);
-            const rowClass = this._rowClass(info.dow);
-            const dayData = this.data.days[d] || { sessions: {}, keterangan: '' };
-            // PERBAIKAN BUG (2026-09-01, dari laporan pindah unit "nama
-            // petugas tidak berubah"): kalau dayData UNTUK HARI INI sudah
-            // ada tersimpan dari SEBELUM unit ini "naik kelas" jadi
-            // multi-sesi (mis. masih format lama kontinu {petugas:[],
-            // keterangan:''}, tanpa field "sessions" sama sekali),
-            // dayData.sessions akan undefined - baris di bawah
-            // (dayData.sessions[sess.key]) langsung melempar TypeError
-            // ("Cannot read properties of undefined") dan MENGHENTIKAN
-            // seluruh render di tengah jalan SEBELUM sempat mengganti isi
-            // tabel yang lama. Efeknya persis seperti dilaporkan: pindah ke
-            // unit lain terlihat seperti "tidak berubah", padahal
-            // sebenarnya render-nya GAGAL/error dan tabel LAMA (dari unit
-            // sebelumnya) yang masih nyangkut di layar - _employeesForUnit()
-            // sendiri sebenarnya SUDAH benar dari awal (sudah dikonfirmasi
-            // lewat console: mengembalikan nama yang benar-benar berbeda).
-            // Perbaikannya: pastikan dayData.sessions selalu berupa objek
-            // dulu sebelum dibaca - data lama yang tidak relevan lagi
-            // (petugas dari sebelum unit ini multi-sesi) otomatis diabaikan,
-            // tidak menghalangi render.
-            if (!dayData.sessions) dayData.sessions = {};
-            if (!this.data.days[d]) this.data.days[d] = dayData;
-
-            unit.sessions.forEach((sess, idx) => {
-                const rawVal = dayData.sessions[sess.key];
-                const selectedIds = isGrup
-                    ? (Array.isArray(rawVal) ? rawVal.map(String) : [])
-                    : (rawVal ? [String(rawVal)] : []);
-
-                // Sesi multi-grup (mis. BNA Amuntai) - checkbox biasa (klik
-                // langsung per nama, tanpa perlu tahan Ctrl/Cmd seperti
-                // <select multiple> dulu). Format tersimpan TETAP array ID
-                // karyawan, tidak berubah - lihat _bindInputs() di bawah.
-                const petugasFieldHtml = isGrup
-                    ? `<div class="jjo-checkbox-group" data-day="${d}" data-session="${sess.key}">
-                        ${unitEmployees.map(emp => `
-                            <label class="jjo-checkbox-item">
-                                <input type="checkbox" class="jjo-petugas-checkbox" data-day="${d}" data-session="${sess.key}" value="${emp.id}" ${selectedIds.includes(String(emp.id)) ? 'checked' : ''}>
-                                <span>${this._escAttr(emp.nama)}</span>
-                            </label>
-                        `).join('')}
-                    </div>`
-                    : `<select class="jjo-select" data-day="${d}" data-session="${sess.key}">
-                        <option value="">- Kosong -</option>
-                        ${unitEmployees.map(emp => `
-                            <option value="${emp.id}" ${selectedIds.includes(String(emp.id)) ? 'selected' : ''}>${this._escAttr(emp.nama)}</option>
-                        `).join('')}
-                    </select>`;
-
-                rows += `<tr class="${rowClass}">`;
-                if (idx === 0) {
-                    rows += `<td rowspan="${unit.sessions.length}">${d}</td>`;
-                    rows += `<td rowspan="${unit.sessions.length}">${info.hariName}<br>${info.tanggalStr}</td>`;
-                }
-                rows += `<td>${sess.label}<br><span class="jjo-jam">${sess.time}</span></td>`;
-                rows += `<td>
-                    ${petugasFieldHtml}
-                    ${unitEmployees.length === 0 ? '<div class="jjo-no-emp">Belum ada karyawan Operator di unit ini</div>' : ''}
-                </td>`;
-                if (idx === 0) {
-                    rows += `<td rowspan="${unit.sessions.length}">
-                        <input type="text" class="jjo-input" data-day="${d}" data-field="keterangan"
-                            value="${this._escAttr(dayData.keterangan || '')}" placeholder="Catatan (opsional)">
-                    </td>`;
-                }
-                rows += `</tr>`;
-            });
-        }
-
-        wrap.innerHTML = `
-            <table class="jjo-table">
-                <thead>
-                    <tr>
-                        <th>No</th>
-                        <th>Hari, Tanggal</th>
-                        <th>Jam</th>
-                        <th>Nama Petugas${isGrup ? ' <small>(centang boleh lebih dari 1)</small>' : ''}</th>
-                        <th>Keterangan</th>
-                    </tr>
-                </thead>
-                <tbody>${rows}</tbody>
-            </table>
-        `;
-        this._bindInputs();
+        this._curUnit = unit;
+        this._renderDayCards(unit);
     },
 
     _renderKontinu(unit) {
+        this._curUnit = unit;
+        this._renderDayCards(unit);
+    },
+
+    _renderDayCards(unit) {
         const wrap = document.getElementById('jjo-table-wrap');
         if (!wrap) return;
         const days = this._daysInMonth();
+        for (let d = 1; d <= days; d++) this._normalizeDay(d, unit);
+
+        let cards = '';
+        for (let d = 1; d <= days; d++) cards += this._dayCardHtml(d, unit);
+
         const unitEmployees = this._employeesForUnit(this.unitKey);
-        const isMulti = !!unit.multiPetugas;
-
-        let rows = '';
-        for (let d = 1; d <= days; d++) {
-            const info = this._dayInfo(d);
-            const rowClass = this._rowClass(info.dow);
-            const dayData = this.data.days[d] || { petugas: '', keterangan: '' };
-            if (!this.data.days[d]) this.data.days[d] = dayData;
-
-            // PERBAIKAN (2026-09-01): unit dengan multiPetugas (semua SPAM,
-            // lihat OPERATOR_UNITS di atas) pakai checkbox - dayData.petugas
-            // jadi ARRAY id karyawan (boleh lebih dari 1), bukan 1 id
-            // string lagi. Dukung juga bentuk lama (1 id string, dari
-            // jadwal yang sudah tersimpan sebelum perubahan ini) supaya
-            // tetap kebaca benar - lihat catatan yang sama di
-            // checkOperatorRosterForToday() (Operatorschdule.gs, backend).
-            const selectedIds = Array.isArray(dayData.petugas)
-                ? dayData.petugas.map(String)
-                : (dayData.petugas ? [String(dayData.petugas)] : []);
-
-            const petugasFieldHtml = isMulti
-                ? `<div class="jjo-checkbox-group" data-day="${d}" data-field="petugas">
-                    ${unitEmployees.map(emp => `
-                        <label class="jjo-checkbox-item">
-                            <input type="checkbox" class="jjo-petugas-checkbox" data-day="${d}" data-field="petugas" value="${emp.id}" ${selectedIds.includes(String(emp.id)) ? 'checked' : ''}>
-                            <span>${this._escAttr(emp.nama)}</span>
-                        </label>
-                    `).join('')}
-                </div>`
-                : `<select class="jjo-select" data-day="${d}" data-field="petugas">
-                    <option value="">- Kosong -</option>
-                    ${unitEmployees.map(emp => `
-                        <option value="${emp.id}" ${selectedIds.includes(String(emp.id)) ? 'selected' : ''}>${this._escAttr(emp.nama)}</option>
-                    `).join('')}
-                </select>`;
-
-            rows += `<tr class="${rowClass}">
-                <td>${d}</td>
-                <td>${info.hariName}<br>${info.tanggalStr}</td>
-                <td>${unit.jamLabel}</td>
-                <td>
-                    ${petugasFieldHtml}
-                    ${unitEmployees.length === 0 ? '<div class="jjo-no-emp">Belum ada karyawan Operator di unit ini</div>' : ''}
-                </td>
-                <td><input type="text" class="jjo-input" data-day="${d}" data-field="keterangan"
-                        value="${this._escAttr(dayData.keterangan || '')}" placeholder="Catatan (opsional)"></td>
-            </tr>`;
-        }
+        const initials = n => String(n || '?').trim().split(/\s+/).slice(0, 2).map(w => w.charAt(0)).join('').toUpperCase();
+        const poolChips = unitEmployees.length
+            ? unitEmployees.map(emp => `<div class="jjo-pool-chip" data-emp="${emp.id}" data-nama="${this._escAttr(String(emp.nama || '').toLowerCase())}" title="Seret ke jadwal">
+                    <span class="jjo-av">${this._escAttr(initials(emp.nama))}</span>
+                    <span class="jjo-pool-name">${this._escAttr(emp.nama)}</span>
+                    <span class="jjo-pool-count" title="Jumlah hari terjadwal bulan ini">0</span>
+                </div>`).join('')
+            : '<div class="jjo-no-emp">Belum ada karyawan Operator di unit ini</div>';
 
         wrap.innerHTML = `
-            <table class="jjo-table">
-                <thead>
-                    <tr><th>No</th><th>Hari, Tanggal</th><th>Jam Operasional</th><th>Nama Petugas${isMulti ? ' <small>(centang boleh lebih dari 1)</small>' : ''}</th><th>Keterangan</th></tr>
-                </thead>
-                <tbody>${rows}</tbody>
-            </table>
+          <div class="jjo-layout">
+            <aside class="jjo-pool" id="jjo-pool">
+                <div class="jjo-pool-head"><b><i class="fas fa-users"></i> Petugas</b><small><span class="jjo-hint-mouse">Seret nama ke kartu jadwal</span><span class="jjo-hint-touch">Tekan &amp; tahan nama, lalu seret ke jadwal</span></small></div>
+                <div class="jjo-pool-search"><i class="fas fa-search"></i><input type="text" id="jjo-pool-q" placeholder="Cari nama..." autocomplete="off"></div>
+                <div class="jjo-pool-list" id="jjo-pool-list">${poolChips}</div>
+            </aside>
+            <div class="jjo-main">
+            <div class="jjo-toolbar">
+                <div class="jjo-progress">
+                    <div class="jjo-progress-text"><b id="jjo-prog-num">0</b> dari ${days} hari terisi <span id="jjo-prog-pct"></span></div>
+                    <div class="jjo-progress-bar"><span id="jjo-prog-fill"></span></div>
+                </div>
+                <label class="jjo-switch"><input type="checkbox" id="jjo-only-empty"><span>Tampilkan yang belum terisi saja</span></label>
+            </div>
+            <div class="jjo-days" id="jjo-days">${cards}</div>
+            </div>
+          </div>
         `;
+        wrap.onclick = (e) => this._onWrapClick(e);
+        this._bindDnD(wrap);
+        const only = document.getElementById('jjo-only-empty');
+        if (only) only.onchange = () => {
+            const box = document.getElementById('jjo-days');
+            if (box) box.classList.toggle('only-empty', only.checked);
+        };
         this._bindInputs();
+        this._updateSummary();
     },
 
+    // Pastikan struktur data hari valid (menjaga perbaikan bug lama: data
+    // format lama tanpa "sessions" tidak boleh bikin render gagal).
+    _normalizeDay(d, unit) {
+        const multi = unit.pattern === 'multi-grup' || unit.pattern === 'multi-solo';
+        let dd = this.data.days[d];
+        if (!dd) dd = this.data.days[d] = multi ? { sessions: {}, keterangan: '' } : { petugas: '', keterangan: '' };
+        if (multi && !dd.sessions) dd.sessions = {};
+        return dd;
+    },
+
+    _toIds(v, asArray) {
+        if (Array.isArray(v)) return v.map(String);
+        return v ? [String(v)] : [];
+    },
+
+    _dayIds(d, unit) {
+        const dd = this.data.days[d] || {};
+        if (unit.pattern === 'multi-grup' || unit.pattern === 'multi-solo') {
+            let all = [];
+            (unit.sessions || []).forEach(sess => {
+                all = all.concat(this._toIds((dd.sessions || {})[sess.key]).filter(Boolean));
+            });
+            return all;
+        }
+        return this._toIds(dd.petugas).filter(Boolean);
+    },
+
+    _fieldHtml(d, unit, sessKey, selectedIds, unitEmployees) {
+        const attr = sessKey ? `data-day="${d}" data-session="${sessKey}"` : `data-day="${d}" data-field="petugas"`;
+        const multi = sessKey ? unit.pattern === 'multi-grup' : !!unit.multiPetugas;
+        if (multi) {
+            return `<div class="jjo-checkbox-group" ${attr}>
+                ${unitEmployees.map(emp => `
+                    <label class="jjo-checkbox-item">
+                        <input type="checkbox" class="jjo-petugas-checkbox" ${attr} value="${emp.id}" ${selectedIds.includes(String(emp.id)) ? 'checked' : ''}>
+                        <span>${this._escAttr(emp.nama)}</span>
+                    </label>`).join('')}
+            </div>`;
+        }
+        return `<select class="jjo-select" ${attr}>
+            <option value="">- Kosong -</option>
+            ${unitEmployees.map(emp => `<option value="${emp.id}" ${selectedIds.includes(String(emp.id)) ? 'selected' : ''}>${this._escAttr(emp.nama)}</option>`).join('')}
+        </select>`;
+    },
+
+    _dayCardHtml(d, unit) {
+        const info = this._dayInfo(d);
+        const dayData = this._normalizeDay(d, unit);
+        const unitEmployees = this._employeesForUnit(this.unitKey);
+        const multiSesi = unit.pattern === 'multi-grup' || unit.pattern === 'multi-solo';
+        const isGrup = unit.pattern === 'multi-grup';
+        const now = new Date();
+        const isToday = now.getFullYear() === this.year && now.getMonth() === this.month && now.getDate() === d;
+        const filled = this._dayIds(d, unit).length > 0;
+        const noEmp = unitEmployees.length === 0 ? '<div class="jjo-no-emp">Belum ada karyawan Operator di unit ini</div>' : '';
+
+        let body = '';
+        if (multiSesi) {
+            body = unit.sessions.map(sess => {
+                const raw = dayData.sessions[sess.key];
+                const ids = isGrup ? this._toIds(raw) : (raw ? [String(raw)] : []);
+                return `<div class="jjo-sess">
+                    <div class="jjo-sess-lab"><b>${sess.label}</b><span>${sess.time}</span></div>
+                    <div class="jjo-sess-field">${this._fieldHtml(d, unit, sess.key, ids, unitEmployees)}</div>
+                </div>`;
+            }).join('') + noEmp;
+        } else {
+            const ids = this._toIds(dayData.petugas);
+            body = `<div class="jjo-sess">
+                <div class="jjo-sess-lab"><b>Petugas</b><span>${this._escAttr(unit.jamLabel || '')}</span></div>
+                <div class="jjo-sess-field">${this._fieldHtml(d, unit, null, ids, unitEmployees)}</div>
+            </div>` + noEmp;
+        }
+
+        const dowCls = info.dow === 0 ? ' is-minggu' : (info.dow === 6 ? ' is-sabtu' : '');
+        return `<div class="jjo-day${dowCls}${filled ? ' is-filled' : ''}${isToday ? ' is-today' : ''}" id="jjo-day-${d}" data-day="${d}">
+            <div class="jjo-day-head">
+                <div class="jjo-day-num">${d}</div>
+                <div class="jjo-day-title"><b>${info.hariName}${isToday ? ' <em>Hari ini</em>' : ''}</b><span>${info.tanggalStr}</span></div>
+                <span class="jjo-day-badge">${filled ? '<i class="fas fa-check"></i> Terisi' : 'Kosong'}</span>
+                <div class="jjo-day-tools">
+                    ${d > 1 ? `<button type="button" class="jjo-tool" data-act="copy" data-day="${d}" title="Salin petugas dari hari sebelumnya"><i class="fas fa-copy"></i><span>Salin kemarin</span></button>` : ''}
+                    <button type="button" class="jjo-tool danger" data-act="clear" data-day="${d}" title="Kosongkan petugas hari ini"><i class="fas fa-eraser"></i><span>Kosongkan</span></button>
+                </div>
+            </div>
+            <div class="jjo-day-body">
+                ${body}
+                <div class="jjo-ket"><i class="fas fa-pen"></i><input type="text" class="jjo-input" data-day="${d}" data-field="keterangan" value="${this._escAttr(dayData.keterangan || '')}" placeholder="Catatan (opsional)"></div>
+            </div>
+        </div>`;
+    },
+
+
+    // ── Drag & drop petugas -> jadwal ─────────────────────────────
+    // Berbasis pointer events supaya jalan di mouse DAN layar sentuh (HP):
+    // di HP, nama harus DITAHAN sebentar dulu baru bisa diseret (supaya
+    // tetap bisa scroll biasa). Saat dilepas di kartu/sesi jadwal, kita
+    // cuma "mencentang" petugas itu lewat elemen checkbox/select yang SUDAH
+    // ada, jadi seluruh logika simpan data tetap yang lama (tidak diubah).
+    _bindDnD(wrap) {
+        const q = document.getElementById('jjo-pool-q');
+        if (q) q.oninput = () => {
+            const key = q.value.trim().toLowerCase();
+            document.querySelectorAll('#jjo-pool .jjo-pool-chip').forEach(c => {
+                c.style.display = (!key || c.dataset.nama.indexOf(key) !== -1) ? '' : 'none';
+            });
+        };
+        wrap.onpointerdown = (e) => this._dndStart(e);
+    },
+
+    _dndScrollParent(el) {
+        let n = el && el.parentElement;
+        while (n && n !== document.body) {
+            const oy = getComputedStyle(n).overflowY;
+            if ((oy === 'auto' || oy === 'scroll') && n.scrollHeight > n.clientHeight + 4) return n;
+            n = n.parentElement;
+        }
+        return null;
+    },
+
+    _dndStart(e) {
+        const chip = e.target.closest ? e.target.closest('.jjo-pool-chip') : null;
+        if (!chip || (e.pointerType === 'mouse' && e.button !== 0)) return;
+        const isTouch = e.pointerType !== 'mouse';
+        const st = {
+            chip, id: chip.dataset.emp, name: chip.querySelector('.jjo-pool-name').textContent,
+            x0: e.clientX, y0: e.clientY, x: e.clientX, y: e.clientY,
+            active: false, ghost: null, target: null, raf: 0, timer: null,
+            scroller: this._dndScrollParent(chip) || null
+        };
+        this._dnd = st;
+
+        const begin = () => {
+            st.active = true;
+            chip.classList.add('is-dragging');
+            document.body.classList.add('jjo-dragging');
+            const g = document.createElement('div');
+            g.className = 'jjo-ghost';
+            g.innerHTML = '<i class="fas fa-grip-vertical"></i> ' + this._escAttr(st.name);
+            document.body.appendChild(g);
+            st.ghost = g;
+            if (navigator.vibrate) { try { navigator.vibrate(15); } catch (_) {} }
+            loop();
+        };
+        const loop = () => {
+            if (!st.active) return;
+            if (st.ghost) st.ghost.style.transform = `translate(${st.x + 12}px, ${st.y + 12}px)`;
+            // auto-scroll dekat tepi layar
+            const edge = 70, vh = window.innerHeight;
+            let dy = 0;
+            if (st.y < edge) dy = -Math.ceil((edge - st.y) / 6);
+            else if (st.y > vh - edge) dy = Math.ceil((st.y - (vh - edge)) / 6);
+            if (dy) { if (st.scroller) st.scroller.scrollTop += dy; else window.scrollBy(0, dy); }
+            this._dndHover(st);
+            st.raf = requestAnimationFrame(loop);
+        };
+        const onMove = (ev) => {
+            st.x = ev.clientX; st.y = ev.clientY;
+            if (!st.active) {
+                const moved = Math.hypot(st.x - st.x0, st.y - st.y0);
+                if (isTouch) { if (moved > 10) cleanup(); }      // geser = scroll biasa
+                else if (moved > 5) begin();
+                return;
+            }
+            ev.preventDefault();
+        };
+        const blockTouch = (ev) => { if (st.active) ev.preventDefault(); };
+        const finish = (ev) => {
+            const hit = st.active ? this._dndTarget(st.x, st.y) : null;
+            const id = st.id;
+            cleanup();
+            if (hit) this._dndDrop(hit, id);
+        };
+        const cleanup = () => {
+            clearTimeout(st.timer);
+            cancelAnimationFrame(st.raf);
+            document.removeEventListener('pointermove', onMove);
+            document.removeEventListener('pointerup', finish);
+            document.removeEventListener('pointercancel', cleanup);
+            document.removeEventListener('touchmove', blockTouch);
+            chip.classList.remove('is-dragging');
+            document.body.classList.remove('jjo-dragging');
+            document.querySelectorAll('.jjo-drop-hover').forEach(n => n.classList.remove('jjo-drop-hover'));
+            if (st.ghost) st.ghost.remove();
+            st.active = false;
+            this._dnd = null;
+        };
+        document.addEventListener('pointermove', onMove);
+        document.addEventListener('pointerup', finish);
+        document.addEventListener('pointercancel', cleanup);
+        document.addEventListener('touchmove', blockTouch, { passive: false });
+        if (isTouch) st.timer = setTimeout(begin, 260);
+    },
+
+    // Cari sesi (atau kartu hari) di bawah jari/kursor.
+    _dndTarget(x, y) {
+        const el = document.elementFromPoint(x, y);
+        if (!el || !el.closest) return null;
+        let sess = el.closest('.jjo-sess');
+        if (!sess) {
+            const day = el.closest('.jjo-day');
+            if (day) sess = day.querySelector('.jjo-sess');
+        }
+        return sess || null;
+    },
+
+    _dndHover(st) {
+        const t = this._dndTarget(st.x, st.y);
+        if (t === st.target) return;
+        if (st.target) st.target.classList.remove('jjo-drop-hover');
+        st.target = t;
+        if (t) t.classList.add('jjo-drop-hover');
+    },
+
+    _dndDrop(sess, empId) {
+        const cb = Array.from(sess.querySelectorAll('.jjo-petugas-checkbox')).find(c => String(c.value) === String(empId));
+        const sel = sess.querySelector('select.jjo-select');
+        let changed = false;
+        if (cb) {
+            if (!cb.checked) { cb.checked = true; cb.dispatchEvent(new Event('change')); changed = true; }
+        } else if (sel) {
+            if (sel.value !== String(empId)) { sel.value = String(empId); sel.dispatchEvent(new Event('change')); changed = true; }
+        }
+        sess.classList.add(changed ? 'jjo-drop-ok' : 'jjo-drop-dup');
+        setTimeout(() => sess.classList.remove('jjo-drop-ok', 'jjo-drop-dup'), 700);
+        if (!changed && window.toast && toast.info) toast.info('Petugas ini sudah ada di sesi tersebut.');
+    },
+
+    // Aksi tombol "Salin kemarin" & "Kosongkan" (event delegation).
+    _onWrapClick(e) {
+        const btn = e.target.closest ? e.target.closest('.jjo-tool') : null;
+        if (!btn) return;
+        const unit = this._curUnit;
+        if (!unit) return;
+        const d = parseInt(btn.dataset.day, 10);
+        const multi = unit.pattern === 'multi-grup' || unit.pattern === 'multi-solo';
+        const cur = this._normalizeDay(d, unit);
+        if (btn.dataset.act === 'copy') {
+            const prev = this._normalizeDay(d - 1, unit);
+            if (multi) cur.sessions = JSON.parse(JSON.stringify(prev.sessions || {}));
+            else cur.petugas = JSON.parse(JSON.stringify(prev.petugas || ''));
+        } else if (btn.dataset.act === 'clear') {
+            if (multi) cur.sessions = {};
+            else cur.petugas = Array.isArray(cur.petugas) ? [] : '';
+        } else return;
+        this._markDirty();
+        this._refreshDay(d);
+    },
+
+    _refreshDay(d) {
+        const unit = this._curUnit;
+        const el = document.getElementById('jjo-day-' + d);
+        if (!el || !unit) return;
+        const tmp = document.createElement('div');
+        tmp.innerHTML = this._dayCardHtml(d, unit);
+        el.replaceWith(tmp.firstElementChild);
+        this._bindInputs();
+        this._updateSummary();
+    },
+
+    // Perbarui penanda "Terisi/Kosong" tiap kartu + progres bulan ini.
+    _updateSummary() {
+        const unit = this._curUnit;
+        if (!unit || !document.getElementById('jjo-days')) return;
+        const days = this._daysInMonth();
+        let n = 0;
+        for (let d = 1; d <= days; d++) {
+            const filled = this._dayIds(d, unit).length > 0;
+            if (filled) n++;
+            const el = document.getElementById('jjo-day-' + d);
+            if (!el) continue;
+            el.classList.toggle('is-filled', filled);
+            const badge = el.querySelector('.jjo-day-badge');
+            if (badge) badge.innerHTML = filled ? '<i class="fas fa-check"></i> Terisi' : 'Kosong';
+        }
+        // Hitung jumlah hari terjadwal per petugas (badge di daftar petugas).
+        const cnt = {};
+        for (let d = 1; d <= days; d++) {
+            new Set(this._dayIds(d, unit)).forEach(id => { cnt[id] = (cnt[id] || 0) + 1; });
+        }
+        document.querySelectorAll('#jjo-pool .jjo-pool-chip').forEach(chip => {
+            const c = chip.querySelector('.jjo-pool-count');
+            if (c) c.textContent = cnt[chip.dataset.emp] || 0;
+        });
+        const num = document.getElementById('jjo-prog-num');
+        const fill = document.getElementById('jjo-prog-fill');
+        const pct = document.getElementById('jjo-prog-pct');
+        const p = days ? Math.round((n / days) * 100) : 0;
+        if (num) num.textContent = n;
+        if (fill) fill.style.width = p + '%';
+        if (pct) pct.textContent = '(' + p + '%)';
+    },
 
     _bindInputs() {
         document.querySelectorAll('#jjo-table-wrap .jjo-input').forEach(input => {
