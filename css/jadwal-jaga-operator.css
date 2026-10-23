@@ -496,3 +496,16 @@ body.jjo-dragging .jjo-sess{background:rgba(20,184,166,.05);box-shadow:inset 0 0
   .jjo-pool-chip{flex:0 0 auto;max-width:210px}
   .jjo-toolbar{position:static}
 }
+
+/* ── Perbaikan tampilan sempit (HP): konten tidak boleh melebihi lebar layar ── */
+#page-jadwal-jaga-operator,#page-jadwal-jaga-operator .jjo-container,#page-jadwal-jaga-operator .jjo-table-wrap,.jjo-layout,.jjo-main{min-width:0;max-width:100%}
+.jjo-days{grid-template-columns:repeat(auto-fill,minmax(min(340px,100%),1fr))}
+@media (max-width:640px){.jjo-days{grid-template-columns:minmax(0,1fr)}}
+.jjo-day,.jjo-day-body,.jjo-sess,.jjo-sess-field{min-width:0;max-width:100%}
+#page-jadwal-jaga-operator .jjo-checkbox-group{min-width:0;max-width:100%}
+#page-jadwal-jaga-operator .jjo-checkbox-item{max-width:100%;white-space:normal;overflow-wrap:anywhere;min-width:0;text-align:left}
+#page-jadwal-jaga-operator .jjo-checkbox-item span{min-width:0}
+#page-jadwal-jaga-operator .jjo-select{width:100%;max-width:100%}
+.jjo-toolbar{min-width:0}
+.jjo-day-head{min-width:0}
+@media (max-width:900px){.jjo-layout{grid-template-columns:minmax(0,1fr)}.jjo-pool,.jjo-pool-list{min-width:0;max-width:100%}}
