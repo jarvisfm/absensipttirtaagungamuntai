@@ -2069,9 +2069,28 @@ const approvalUI = {
                 <button type="button" class="ap-tab" data-tab="pending"><i class="fas fa-inbox"></i> Perlu Diproses <span class="ap-tab-count" data-count="pending">0</span></button>
                 <button type="button" class="ap-tab" data-tab="history"><i class="fas fa-clock-rotate-left"></i> Riwayat</button>
                 <button type="button" class="ap-tab" data-tab="radius"><i class="fas fa-location-crosshairs"></i> Absen Luar Radius <span class="ap-tab-count" data-count="radius">0</span></button>`;
+            // Tampilan modern: kartu ringkasan + (tab & kolom cari) dalam 1 baris.
+            const stats = document.createElement('div');
+            stats.className = 'ap-stats';
+            stats.innerHTML = `
+                <button type="button" class="ap-stat" data-go="pending"><span class="ap-stat-ic"><i class="fas fa-inbox"></i></span><span><div class="ap-stat-num" data-stat="pending">0</div><div class="ap-stat-lbl">Perlu diproses</div></span></button>
+                <button type="button" class="ap-stat" data-go="pending"><span class="ap-stat-ic"><i class="fas fa-umbrella-beach"></i></span><span><div class="ap-stat-num" data-stat="cuti">0</div><div class="ap-stat-lbl">Pengajuan cuti</div></span></button>
+                <button type="button" class="ap-stat" data-go="radius"><span class="ap-stat-ic"><i class="fas fa-location-crosshairs"></i></span><span><div class="ap-stat-num" data-stat="oor">0</div><div class="ap-stat-lbl">Luar radius</div></span></button>`;
+            stats.addEventListener('click', (e) => {
+                const b = e.target.closest('.ap-stat');
+                if (b) this.showTab(role, b.dataset.go);
+            });
+            const bar2 = document.createElement('div');
+            bar2.className = 'ap-toolbar';
+            const search = document.createElement('label');
+            search.className = 'ap-search';
+            search.innerHTML = '<i class="fas fa-search"></i><input type="search" placeholder="Cari nama, jenis, keterangan..." autocomplete="off">';
+            search.querySelector('input').addEventListener('input', () => this._applySearch(role));
+            bar2.appendChild(bar);
+            bar2.appendChild(search);
             const header = container.querySelector('.izin-header');
-            if (header) header.insertAdjacentElement('afterend', bar);
-            else container.insertBefore(bar, container.firstChild);
+            if (header) { header.insertAdjacentElement('afterend', bar2); bar2.insertAdjacentElement('beforebegin', stats); }
+            else { container.insertBefore(bar2, container.firstChild); container.insertBefore(stats, container.firstChild); }
             bar.addEventListener('click', (e) => {
                 const btn = e.target.closest('.ap-tab');
                 if (btn) this.showTab(role, btn.dataset.tab);
@@ -2123,6 +2142,30 @@ const approvalUI = {
         };
         set('pending', (c.izin || 0) + (c.cuti || 0));
         set('radius', c.oor || 0);
+        // kartu ringkasan modern
+        const pg = document.getElementById(`page-approval-${role}`);
+        const stat = (k, n) => {
+            const el = pg && pg.querySelector(`.ap-stat-num[data-stat="${k}"]`);
+            if (!el) return;
+            el.textContent = n;
+            const card = el.closest('.ap-stat');
+            if (card) card.classList.toggle('has', n > 0);
+        };
+        stat('pending', (c.izin || 0) + (c.cuti || 0));
+        stat('cuti', c.cuti || 0);
+        stat('oor', c.oor || 0);
+        this._applySearch(role);
+    },
+
+    // Kolom cari: menyaring baris (nama/jenis/keterangan) yang sedang tampil.
+    _applySearch(role) {
+        const pg = document.getElementById(`page-approval-${role}`);
+        const inp = pg && pg.querySelector('.ap-search input');
+        if (!pg) return;
+        const key = inp ? inp.value.trim().toLowerCase() : '';
+        pg.querySelectorAll('.ap-row').forEach(r => {
+            r.style.display = (!key || r.textContent.toLowerCase().indexOf(key) !== -1) ? '' : 'none';
+        });
     }
 };
 
