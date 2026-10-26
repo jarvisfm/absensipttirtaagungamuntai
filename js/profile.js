@@ -295,7 +295,6 @@ const profileManager = {
             document.getElementById('pf-role').value            = p.role || 'staff';
             document.getElementById('pf-pangkat').value         = p.pangkat || '';
             document.getElementById('pf-golongan').value        = p.golongan || '';
-            document.getElementById('pf-gajiPokok').value       = p.gajiPokok || '';
             document.getElementById('pf-terhitungMulai').value  = p.terhitungMulai || '';
             this.autoHitungMasaKerja();
             document.getElementById('pf-tahunPensiun').value    = p.tahunPensiun || '';
@@ -743,7 +742,6 @@ const profileManager = {
             data.role            = document.getElementById('pf-role').value;
             data.pangkat         = document.getElementById('pf-pangkat').value.trim();
             data.golongan        = document.getElementById('pf-golongan').value.trim();
-            data.gajiPokok       = document.getElementById('pf-gajiPokok').value;
             data.terhitungMulai  = document.getElementById('pf-terhitungMulai').value;
             data.masaKerja       = document.getElementById('pf-masaKerja').value.trim();
             data.tahunPensiun    = document.getElementById('pf-tahunPensiun').value.trim();
@@ -1126,7 +1124,7 @@ const profileManager = {
         if (!tbody) return;
 
         if (this.riwayatKgb.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:2rem;color:var(--text-muted);">Belum ada riwayat Kenaikan Gaji Berkala yang disimpan.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:2rem;color:var(--text-muted);">Belum ada riwayat Kenaikan Gaji Berkala yang dicatat oleh Admin.</td></tr>';
             return;
         }
 
@@ -1135,14 +1133,11 @@ const profileManager = {
                 <td style="padding:10px 12px;">${this._esc(r.nomorSurat || '-')}</td>
                 <td style="padding:10px 12px;">${this._esc(this._formatTanggalID(r.tmtKgb) || '-')}</td>
                 <td style="padding:10px 12px;">${this._esc(this._formatMasaKerja(r.masaKerjaTahun, r.masaKerjaBulan))}</td>
+                <td style="padding:10px 12px;white-space:nowrap;">${r.gajiPokokBaru ? this._esc(/^\s*rp/i.test(r.gajiPokokBaru) ? r.gajiPokokBaru : 'Rp ' + r.gajiPokokBaru) : '-'}</td>
                 <td style="padding:10px 12px;">
                     ${r.fileDokumenUrl
                         ? `<button type="button" onclick="window.open('${r.fileDokumenUrl}', '_blank')" style="background:none;border:1px solid var(--border-color);color:var(--text-muted);padding:6px 12px;border-radius:6px;cursor:pointer;font-size:0.8rem;white-space:nowrap;"><i class="fas fa-download"></i> Unduh</button>`
                         : `<span style="color:var(--text-muted);font-size:0.8rem;font-style:italic;">Belum ada</span>`}
-                </td>
-                <td style="padding:10px 12px;">
-                    <button type="button" onclick="profileManager.editRiwayatKgb('${r.id}')" style="background:none;border:1px solid var(--border-color);color:var(--text-muted);padding:6px 10px;border-radius:6px;cursor:pointer;font-size:0.8rem;margin-right:4px;"><i class="fas fa-pen"></i></button>
-                    <button type="button" onclick="profileManager.deleteRiwayatKgb('${r.id}')" style="background:#EF4444;color:#fff;border:none;padding:6px 10px;border-radius:6px;cursor:pointer;font-size:0.8rem;"><i class="fas fa-trash"></i></button>
                 </td>
             </tr>
         `).join('');
