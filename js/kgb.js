@@ -171,6 +171,39 @@ const kgb = {
         if (ov) ov.remove();
         document.body.classList.remove('kg-lock');
     },
+    // Dialog konfirmasi bergaya modal (pengganti confirm() bawaan browser).
+    // opsi: { judul, teks, icon, tone: 'ok'|'no'|'info', okLabel, batalLabel }
+    _confirm(o) {
+        return new Promise(resolve => {
+            const old = this._$('kg-confirm');
+            if (old) old.remove();
+            const ov = document.createElement('div');
+            ov.className = 'kg-confirm';
+            ov.id = 'kg-confirm';
+            const tone = o.tone || 'info';
+            ov.innerHTML = `<div class="kg-cf kg-cf-${tone}" role="alertdialog">
+                <div class="kg-cf-ic"><i class="fas ${o.icon || 'fa-circle-question'}"></i></div>
+                <h4>${this._e(o.judul)}</h4>
+                <p>${this._e(o.teks || '')}</p>
+                ${o.catatan ? `<div class="kg-cf-note"><small>Catatan</small>${this._e(o.catatan)}</div>` : ''}
+                <div class="kg-cf-btn">
+                    <button type="button" class="kg-btn" data-r="0">${this._e(o.batalLabel || 'Batal')}</button>
+                    <button type="button" class="kg-btn ${tone === 'no' ? 'kg-btn-dangersolid' : 'kg-btn-ok'}" data-r="1"><i class="fas ${o.okIcon || 'fa-check'}"></i> ${this._e(o.okLabel || 'Ya')}</button>
+                </div></div>`;
+            const done = (v) => { document.removeEventListener('keydown', onKey); ov.remove(); resolve(v); };
+            const onKey = (e) => { if (e.key === 'Escape') done(false); };
+            ov.addEventListener('click', (e) => {
+                const b = e.target.closest('button[data-r]');
+                if (b) done(b.dataset.r === '1');
+                else if (e.target === ov) done(false);
+            });
+            document.addEventListener('keydown', onKey);
+            document.body.appendChild(ov);
+            const okBtn = ov.querySelector('[data-r="1"]');
+            if (okBtn) okBtn.focus();
+        });
+    },
+
     _busyShow(teks, sub) {
         this._busy = true;
         let b = this._$('kg-busy');
@@ -381,8 +414,15 @@ const kgb = {
         if (this._busy) return;
         const catatan = this._$('kg-catatan') ? this._$('kg-catatan').value.trim() : '';
         if (tindakan === 'tolak' && !catatan) { toast.error('Catatan alasan penolakan wajib diisi.'); this._$('kg-catatan').focus(); return; }
-        const tanya = { setuju: 'Setujui pengajuan KGB ini?', tolak: 'Tolak pengajuan KGB ini?', tinjau: 'Tandai pengajuan ini sudah Anda tinjau?' }[tindakan];
-        if (!confirm(tanya)) return;
+        const x = this._find(id);
+        const nama = x ? x.pemohonNama : 'pemohon';
+        const cfgs = {
+            setuju: { judul: 'Setujui pengajuan KGB?', teks: `Pengajuan KGB ${nama} akan disetujui dan diteruskan ke tahap peninjauan berikutnya.`, icon: 'fa-circle-check', tone: 'ok', okLabel: 'Ya, Setujui', okIcon: 'fa-check' },
+            tolak: { judul: 'Tolak pengajuan KGB?', teks: `Pengajuan KGB ${nama} akan ditolak dan proses dihentikan. Pemohon akan menerima catatan Anda.`, icon: 'fa-circle-xmark', tone: 'no', okLabel: 'Ya, Tolak', okIcon: 'fa-xmark' },
+            tinjau: { judul: 'Tandai sudah ditinjau?', teks: `Anda menyatakan telah meninjau pengajuan KGB ${nama}. Pengajuan akan diteruskan ke tahap berikutnya.`, icon: 'fa-clipboard-check', tone: 'ok', okLabel: 'Ya, Sudah Ditinjau', okIcon: 'fa-clipboard-check' }
+        };
+        const cf = Object.assign({}, cfgs[tindakan], catatan ? { catatan } : {});
+        if (!(await this._confirm(cf))) return;
         this._busyShow('Memproses...', 'Mohon tunggu');
         try {
             const res = await api.prosesKgb({ id, tindakan, catatan });
@@ -400,7 +440,7 @@ const kgb = {
 
     async hapus(id, btn) {
         if (this._busy) return;
-        if (!confirm('Hapus pengajuan KGB ini beserta berkasnya?')) return;
+        if (!(await this._confirm({ judul: 'Hapus pengajuan KGB?', teks: 'Pengajuan beserta seluruh berkas yang diunggah akan dihapus dan tidak bisa dikembalikan.', icon: 'fa-trash', tone: 'no', okLabel: 'Ya, Hapus', okIcon: 'fa-trash' }))) return;
         const old = btn ? btn.innerHTML : '';
         if (btn) { btn.disabled = true; btn.innerHTML = '<span class="kg-spin sm"></span> Menghapus...'; }
         try {
