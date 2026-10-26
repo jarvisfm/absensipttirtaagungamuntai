@@ -187,8 +187,8 @@ const kgb = {
                 <p>${this._e(o.teks || '')}</p>
                 ${o.catatan ? `<div class="kg-cf-note"><small>Catatan</small>${this._e(o.catatan)}</div>` : ''}
                 <div class="kg-cf-btn">
-                    <button type="button" class="kg-btn" data-r="0">${this._e(o.batalLabel || 'Batal')}</button>
-                    <button type="button" class="kg-btn ${tone === 'no' ? 'kg-btn-dangersolid' : 'kg-btn-ok'}" data-r="1"><i class="fas ${o.okIcon || 'fa-check'}"></i> ${this._e(o.okLabel || 'Ya')}</button>
+                    ${o.hanyaOk ? '' : `<button type="button" class="kg-btn" data-r="0">${this._e(o.batalLabel || 'Batal')}</button>`}
+                    <button type="button" class="kg-btn ${tone === 'no' ? 'kg-btn-dangersolid' : (tone === 'warn' ? 'kg-btn-warn' : 'kg-btn-ok')}" data-r="1"><i class="fas ${o.okIcon || 'fa-check'}"></i> ${this._e(o.okLabel || 'Ya')}</button>
                 </div></div>`;
             const done = (v) => { document.removeEventListener('keydown', onKey); ov.remove(); resolve(v); };
             const onKey = (e) => { if (e.key === 'Escape') done(false); };
@@ -202,6 +202,11 @@ const kgb = {
             const okBtn = ov.querySelector('[data-r="1"]');
             if (okBtn) okBtn.focus();
         });
+    },
+
+    // Peringatan 1 tombol (mis. ukuran/format berkas tidak sesuai).
+    _alert(judul, teks) {
+        return this._confirm({ judul, teks, icon: 'fa-triangle-exclamation', tone: 'warn', hanyaOk: true, okLabel: 'Mengerti', okIcon: 'fa-check' });
     },
 
     _busyShow(teks, sub) {
@@ -272,10 +277,13 @@ const kgb = {
         input.value = '';
         if (!f) return;
         const okType = /^(application\/pdf|image\/jpeg|image\/png)$/i.test(f.type);
-        if (!okType) { toast.error('Format berkas harus PDF, JPG, atau PNG.'); return; }
+        if (!okType) { this._alert('Format berkas tidak didukung', `"${f.name}" bukan PDF, JPG, atau PNG. Silakan pilih berkas dengan format yang sesuai.`); return; }
         // PDF tidak bisa dikompres di browser -> ditolak kalau > 1 MB.
         // Foto/gambar dikompres otomatis ke bawah 1 MB saat diunggah (lihat _readBase64).
-        if (/pdf/i.test(f.type) && f.size > this.MAX_BYTES) { toast.error(`PDF terlalu besar (${this._ukuran(f.size)}). Maksimal 1 MB, kecilkan dulu ukurannya.`); return; }
+        if (/pdf/i.test(f.type) && f.size > this.MAX_BYTES) {
+            this._alert('File lebih dari 1 MB', `"${f.name}" berukuran ${this._ukuran(f.size)}. Ukuran maksimal tiap berkas adalah 1 MB. Silakan kecilkan ukuran PDF terlebih dahulu (mis. kompres PDF atau scan dengan resolusi lebih rendah), lalu unggah kembali.`);
+            return;
+        }
         this._slots[key] = { file: f, fileId: '', nama: f.name, status: 'pending' };
         this._paintSlot(key);
     },
