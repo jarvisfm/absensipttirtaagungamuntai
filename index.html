@@ -2689,6 +2689,11 @@
         </div>
         <div style="padding:0 1.25rem 1.25rem;">
             <input type="hidden" id="k-kgb-id">
+            <input type="hidden" id="k-kgb-pengajuanId">
+            <div class="form-group" id="k-kgb-pengajuan-wrap" style="display:none;">
+                <label>Isi dari Pengajuan KGB <small style="color:var(--text-muted);">(pengajuan yang sudah disetujui)</small></label>
+                <select id="k-kgb-pengajuan" onchange="kgb.riwayatPilih('k-kgb')"><option value="">-- Isi manual (tanpa pengajuan) --</option></select>
+            </div>
             <div class="form-row two-col">
                 <div class="form-group">
                     <label>Nomor Surat *</label>
@@ -2696,7 +2701,7 @@
                 </div>
                 <div class="form-group">
                     <label>TMT Kenaikan Gaji Berkala</label>
-                    <input type="date" id="k-kgb-tmtKgb">
+                    <input type="date" id="k-kgb-tmtKgb" onchange="kgb.riwayatHitung('k-kgb', karyawanManager.editingId)">
                 </div>
             </div>
             <div class="form-row two-col">
@@ -2706,13 +2711,15 @@
                 </div>
                 <div class="form-group">
                     <label>Gaji Pokok Baru</label>
-                    <input type="text" id="k-kgb-gajiPokokBaru" placeholder="Contoh: 3.500.000">
+                    <input type="text" id="k-kgb-gajiPokokBaru" placeholder="Contoh: 3.500.000" data-auto="1" oninput="this.dataset.auto='0'">
+                        <small id="k-kgb-gaji-hint" style="color:var(--text-muted);display:block;margin-top:4px;"></small>
+                        <button type="button" class="btn-secondary" style="margin-top:6px;padding:4px 10px;font-size:0.75rem;" onclick="kgb.riwayatHitung('k-kgb', karyawanManager.editingId, true)"><i class="fas fa-calculator"></i> Hitung dari tabel gaji</button>
                 </div>
             </div>
             <div class="form-row two-col">
                 <div class="form-group">
                     <label>Masa Kerja (Tahun)</label>
-                    <input type="number" id="k-kgb-masaKerjaTahun" min="0" placeholder="0">
+                    <input type="number" id="k-kgb-masaKerjaTahun" min="0" placeholder="0" onchange="kgb.riwayatHitung('k-kgb', karyawanManager.editingId)">
                 </div>
                 <div class="form-group">
                     <label>Masa Kerja (Bulan)</label>
@@ -4648,6 +4655,11 @@
             </div>
             <div style="padding:0 1.25rem 1.25rem;">
                 <input type="hidden" id="pf-kgb-id">
+                <input type="hidden" id="pf-kgb-pengajuanId">
+                <div class="form-group" id="pf-kgb-pengajuan-wrap" style="display:none;">
+                    <label>Isi dari Pengajuan KGB <small style="color:var(--text-muted);">(pengajuan yang sudah disetujui)</small></label>
+                    <select id="pf-kgb-pengajuan" onchange="kgb.riwayatPilih('pf-kgb')"><option value="">-- Isi manual (tanpa pengajuan) --</option></select>
+                </div>
                 <div class="form-row two-col">
                     <div class="form-group">
                         <label>Nomor Surat *</label>
@@ -4655,7 +4667,7 @@
                     </div>
                     <div class="form-group">
                         <label>TMT Kenaikan Gaji Berkala</label>
-                        <input type="date" id="pf-kgb-tmtKgb">
+                        <input type="date" id="pf-kgb-tmtKgb" onchange="kgb.riwayatHitung('pf-kgb', profileManager.myId)">
                     </div>
                 </div>
                 <div class="form-row two-col">
@@ -4665,13 +4677,15 @@
                     </div>
                     <div class="form-group">
                         <label>Gaji Pokok Baru</label>
-                        <input type="text" id="pf-kgb-gajiPokokBaru" placeholder="Contoh: 3.500.000">
+                        <input type="text" id="pf-kgb-gajiPokokBaru" placeholder="Contoh: 3.500.000" data-auto="1" oninput="this.dataset.auto='0'">
+                        <small id="pf-kgb-gaji-hint" style="color:var(--text-muted);display:block;margin-top:4px;"></small>
+                        <button type="button" class="btn-secondary" style="margin-top:6px;padding:4px 10px;font-size:0.75rem;" onclick="kgb.riwayatHitung('pf-kgb', profileManager.myId, true)"><i class="fas fa-calculator"></i> Hitung dari tabel gaji</button>
                     </div>
                 </div>
                 <div class="form-row two-col">
                     <div class="form-group">
                         <label>Masa Kerja (Tahun)</label>
-                        <input type="number" id="pf-kgb-masaKerjaTahun" min="0" placeholder="0">
+                        <input type="number" id="pf-kgb-masaKerjaTahun" min="0" placeholder="0" onchange="kgb.riwayatHitung('pf-kgb', profileManager.myId)">
                     </div>
                     <div class="form-group">
                         <label>Masa Kerja (Bulan)</label>
