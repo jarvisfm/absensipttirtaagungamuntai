@@ -133,6 +133,20 @@ const kgb = {
             '<div class="kg-empty"><i class="fas fa-file-circle-plus"></i><p>Belum ada pengajuan KGB. Tekan "Ajukan KGB Baru" untuk memulai.</p></div>');
     },
 
+    // Baris ringkas gaji + status pencatatan di Riwayat KGB (detail=true: hanya status riwayat).
+    _gajiBaris(x, detail) {
+        let h = '';
+        if (!detail && x.gajiBaru) {
+            h += `<div class="kg-gaji-line"><i class="fas fa-calculator"></i> Gaji pokok baru (tabel): <b>Rp ${this._e(x.gajiBaruText)}</b>${x.golongan ? ' · Gol ' + this._e(x.golongan) : ''}${x.mkgTahun !== '' ? ' · MKG ' + this._e(x.mkgTahun) + ' th' : ''}</div>`;
+        }
+        if (x.status === 'Disetujui') {
+            h += x.masukRiwayat
+                ? `<div class="kg-gaji-line kg-gaji-ok"><i class="fas fa-link"></i> Sudah tercatat di Riwayat KGB</div>`
+                : `<div class="kg-gaji-line kg-gaji-todo"><i class="fas fa-circle-info"></i> Belum tercatat di Riwayat KGB. Tambahkan lewat Edit Profil &rsaquo; Riwayat KGB (pilih "Isi dari Pengajuan") setelah SK KGB terbit.</div>`;
+        }
+        return h;
+    },
+
     _card(x, mode) {
         const catAsmen = (x.steps.filter(s => s.aksi === 'putusan' && s.catatan)[0] || {}).catatan;
         return `<div class="kg-card kg-s-${x.status === 'Disetujui' ? 'ok' : (x.status === 'Ditolak' ? 'no' : 'wait')}">
@@ -146,6 +160,7 @@ const kgb = {
                 <div><small>TMT KGB diajukan</small><b>${this._tgl(x.tmtKgb)}</b></div>
                 <div><small>Diajukan</small><b>${this._tgl(x.createdAt)}</b></div>
             </div>
+            ${this._gajiBaris(x)}
             ${this._stepper(x.steps)}
             ${catAsmen ? `<div class="kg-cat"><i class="fas fa-comment-dots"></i><div><small>Catatan Asmen</small>${this._e(catAsmen)}</div></div>` : ''}
             <div class="kg-actions">
@@ -225,9 +240,124 @@ const kgb = {
         if (b) b.remove();
     },
 
+    // ── Perhitungan gaji pokok dari tabel gaji (backend: Gajipokok.gs) ─────────
+    _rp(n) { return 'Rp ' + String(Math.round(Number(n) || 0)).replace(/\B(?=(\d{3})+(?!\d))/g, '.'); },
+
+    // Kotak ringkasan perhitungan. o: { golongan, mkg, sumber, gajiLamaText, gajiBaruText, selisih, pesan, ok }
+    _gajiHtml(o) {
+        if (!o || !o.ok) {
+            return `<div class="kg-gaji kg-gaji-warn"><div class="kg-gaji-h"><i class="fas fa-calculator"></i> Perhitungan Gaji Pokok</div>
+                <p class="kg-gaji-n">${this._e((o && o.pesan) || 'Belum bisa dihitung.')}</p></div>`;
+        }
+        const naik = Number(o.selisih) > 0 ? `<em>+${this._rp(o.selisih).replace('Rp ', '')}</em>` : '';
+        return `<div class="kg-gaji">
+            <div class="kg-gaji-h"><i class="fas fa-calculator"></i> Perhitungan Gaji Pokok (Tabel Gaji)</div>
+            <div class="kg-gaji-g">
+                <div><small>Golongan</small><b>${this._e(o.golongan || '-')}</b></div>
+                <div><small>MKG</small><b>${o.mkg === null || o.mkg === '' || o.mkg === undefined ? '-' : this._e(o.mkg) + ' th'}</b></div>
+                <div><small>Gaji saat ini</small><b>${o.gajiLamaText ? 'Rp ' + this._e(o.gajiLamaText) : '-'}</b></div>
+                <div class="kg-gaji-new"><small>Gaji pokok baru</small><b>Rp ${this._e(o.gajiBaruText || '-')} ${naik}</b></div>
+            </div>
+            ${(o.sumber || o.pesan) ? `<p class="kg-gaji-n">${o.sumber ? 'MKG dari: ' + this._e(o.sumber) + '. ' : ''}${this._e(o.pesan || '')}</p>` : ''}
+        </div>`;
+    },
+
+    async _hitungApi(tmt, mkg, targetId) {
+        const res = await api.hitungGajiKgb({ tmtKgb: tmt, mkg: mkg === undefined || mkg === null ? '' : String(mkg), targetId: targetId || '' });
+        if (!res || !res.success) throw new Error((res && res.error) || 'Gagal menghitung gaji');
+        return res.data;
+    },
+
+    // Form pengajuan: hitung ulang saat TMT / MKG berubah.
+    hitungForm() {
+        clearTimeout(this._tHitung);
+        this._tHitung = setTimeout(async () => {
+            const box = this._$('kg-gaji-box'), tmt = this._$('kg-f-tmt');
+            if (!box || !tmt) return;
+            if (!tmt.value) { box.innerHTML = '<p class="kg-hint"><i class="fas fa-circle-info"></i> Isi TMT KGB untuk melihat perkiraan gaji pokok baru dari tabel gaji.</p>'; return; }
+            const mkgEl = this._$('kg-f-mkg');
+            const manual = this._mkgManual && mkgEl.value !== '';
+            box.innerHTML = '<p class="kg-hint"><span class="kg-spin sm"></span> Menghitung...</p>';
+            try {
+                const h = await this._hitungApi(tmt.value, manual ? mkgEl.value : '');
+                if (!this._$('kg-gaji-box')) return;
+                if (!manual && h.mkg !== null && h.mkg !== undefined) mkgEl.value = h.mkg;
+                this._$('kg-gaji-box').innerHTML = this._gajiHtml(h);
+            } catch (e) {
+                if (this._$('kg-gaji-box')) this._$('kg-gaji-box').innerHTML = `<p class="kg-hint kg-hint-err"><i class="fas fa-triangle-exclamation"></i> ${this._e(e.message)}</p>`;
+            }
+        }, 350);
+    },
+
+    // ── Form Riwayat KGB (Edit Profil & Edit Karyawan admin) ─────────────────
+    // p = awalan id elemen: 'pf-kgb' (Edit Profil) atau 'k-kgb' (admin). targetId = id karyawan.
+    // Elemen: {p}-pengajuan-wrap/-pengajuan/-pengajuanId, {p}-gaji-hint, {p}-gajiPokokBaru, dst.
+    _rk(p, s) { return document.getElementById(p + '-' + s); },
+
+    async riwayatReset(p, targetId) {
+        const g = this._rk(p, 'gajiPokokBaru'), h = this._rk(p, 'gaji-hint'), pid = this._rk(p, 'pengajuanId');
+        if (g) g.dataset.auto = '1';
+        if (h) h.innerHTML = '';
+        if (pid) pid.value = '';
+        const wrap = this._rk(p, 'pengajuan-wrap'), sel = this._rk(p, 'pengajuan');
+        if (!wrap || !sel) return;
+        wrap.style.display = 'none';
+        sel.innerHTML = '<option value="">-- Isi manual (tanpa pengajuan) --</option>';
+        try {
+            const res = await api.getKgbPengajuanRiwayat(targetId);
+            const list = (res && res.success && res.data) || [];
+            this._pengajuanRiwayat = list;
+            if (!list.length) return;
+            sel.innerHTML += list.map(x => `<option value="${this._e(x.id)}">TMT ${this._e(this._tgl(x.tmtKgb))}${x.golongan ? ' · Gol ' + this._e(x.golongan) : ''}${x.gajiBaruText ? ' · Rp ' + this._e(x.gajiBaruText) : ''}</option>`).join('');
+            wrap.style.display = '';
+        } catch (e) { /* tanpa pilihan pengajuan, form tetap bisa diisi manual */ }
+    },
+
+    // Form dibuka untuk MENGEDIT: jangan menimpa gaji yang sudah tersimpan & sembunyikan pilihan pengajuan.
+    riwayatMuatEdit(p, pengajuanId) {
+        const g = this._rk(p, 'gajiPokokBaru'), h = this._rk(p, 'gaji-hint'), pid = this._rk(p, 'pengajuanId'), wrap = this._rk(p, 'pengajuan-wrap');
+        if (g) g.dataset.auto = '0';
+        if (h) h.innerHTML = pengajuanId ? '<i class="fas fa-link"></i> Terhubung ke Pengajuan KGB.' : '';
+        if (pid) pid.value = pengajuanId || '';
+        if (wrap) wrap.style.display = 'none';
+    },
+
+    riwayatPilih(p) {
+        const sel = this._rk(p, 'pengajuan');
+        const x = (this._pengajuanRiwayat || []).filter(r => String(r.id) === String(sel.value))[0];
+        const pid = this._rk(p, 'pengajuanId'), g = this._rk(p, 'gajiPokokBaru'), h = this._rk(p, 'gaji-hint');
+        if (pid) pid.value = x ? x.id : '';
+        if (!x) { if (g) g.dataset.auto = '1'; if (h) h.innerHTML = ''; return; }
+        if (x.tmtKgb) this._rk(p, 'tmtKgb').value = x.tmtKgb;
+        if (x.mkgTahun !== '' && x.mkgTahun !== undefined) {
+            this._rk(p, 'masaKerjaTahun').value = x.mkgTahun;
+            if (!this._rk(p, 'masaKerjaBulan').value) this._rk(p, 'masaKerjaBulan').value = '0';
+        }
+        if (g) { g.value = x.gajiBaruText || ''; g.dataset.auto = '0'; }
+        if (h) h.innerHTML = `<i class="fas fa-link"></i> Terisi dari Pengajuan KGB (SK terakhir: ${this._e(x.nomorSuratLama || '-')}). Isi nomor &amp; tanggal SK KGB yang baru terbit.`;
+    },
+
+    // force=true: tombol "Hitung dari tabel" (menimpa gaji & mengisi masa kerja kalau kosong).
+    async riwayatHitung(p, targetId, force) {
+        const tmt = this._rk(p, 'tmtKgb').value;
+        const g = this._rk(p, 'gajiPokokBaru'), h = this._rk(p, 'gaji-hint'), mk = this._rk(p, 'masaKerjaTahun');
+        if (!tmt) { if (force) toast.error('Isi TMT Kenaikan Gaji Berkala terlebih dahulu.'); return; }
+        if (!force && g.dataset.auto === '0' && g.value) return;   // gaji sudah diisi/diubah manual
+        try {
+            const d = await this._hitungApi(tmt, mk.value, targetId);
+            if (!d.ok) { if (h) h.innerHTML = `<i class="fas fa-triangle-exclamation"></i> ${this._e(d.pesan || 'Belum bisa dihitung dari tabel gaji.')}`; return; }
+            if (force && mk.value === '' && d.mkg !== null) mk.value = d.mkg;
+            g.value = d.gajiBaruText; g.dataset.auto = '1';
+            if (h) h.innerHTML = `<i class="fas fa-calculator"></i> Dari tabel gaji: Golongan ${this._e(d.golongan)}, MKG ${this._e(d.mkg)} th${d.mkgTabel !== undefined && d.mkgTabel !== d.mkg ? ' (baris tabel ' + this._e(d.mkgTabel) + ')' : ''}. ${d.sumber ? 'MKG dari: ' + this._e(d.sumber) + '.' : ''}`;
+        } catch (e) {
+            if (force) toast.error(e.message || 'Gagal menghitung gaji');
+        }
+    },
+
     // ── Form pengajuan ─────────────────────────────────────
     openForm() {
         this._slots = {};
+        this._mkgManual = false;
         const rows = this.ctx.berkas.map((b, i) => `
             <div class="kg-slot" id="kg-slot-${b.key}">
                 <div class="kg-slot-lab"><span class="kg-num">${i + 1}</span><div><b>${this._e(b.label)}</b><small>PDF / JPG / PNG, maks. 1 MB</small></div></div>
@@ -240,7 +370,10 @@ const kgb = {
             <div class="kg-mb">
                 <div class="kg-form">
                     <label>No. SK KGB Terakhir<input type="text" id="kg-f-nomor" maxlength="120" placeholder="Contoh: 11/PDAM.HSU/VII/2022"></label>
-                    <label>TMT KGB yang Diajukan<input type="date" id="kg-f-tmt"></label>
+                    <label>TMT KGB yang Diajukan<input type="date" id="kg-f-tmt" onchange="kgb.hitungForm()"></label>
+                    <label>Masa Kerja Golongan / MKG (tahun)<input type="number" id="kg-f-mkg" min="0" max="60" inputmode="numeric" placeholder="Otomatis" oninput="kgb._mkgManual = true; kgb.hitungForm()"></label>
+                    <div class="kg-hint kg-mkg-hint"><i class="fas fa-circle-info"></i> MKG dihitung otomatis dari riwayat KGB/golongan Anda. Boleh diubah kalau tidak sesuai SK.</div>
+                    <div class="kg-full" id="kg-gaji-box"><p class="kg-hint"><i class="fas fa-circle-info"></i> Isi TMT KGB untuk melihat perkiraan gaji pokok baru dari tabel gaji.</p></div>
                     <label class="kg-full">Keterangan (opsional)<textarea id="kg-f-ket" rows="2" maxlength="1000" placeholder="Catatan tambahan untuk pemroses"></textarea></label>
                 </div>
                 <h4 class="kg-h4"><i class="fas fa-paperclip"></i> Berkas Persyaratan <small>(semua wajib)</small></h4>
@@ -401,6 +534,7 @@ const kgb = {
             this._busyShow('Mengirim pengajuan...', 'Mohon tunggu');
             const res = await api.ajukanKgb({
                 nomorSuratLama: nomor, tmtKgb: tmt, keterangan: ket,
+                mkgTahun: (this._$('kg-f-mkg').value || '').trim(),
                 berkas: this.ctx.berkas.map(b => ({ key: b.key, fileId: this._slots[b.key].fileId, nama: this._slots[b.key].nama }))
             });
             if (!res || !res.success) throw new Error((res && res.error) || 'Gagal mengajukan KGB');
@@ -460,6 +594,8 @@ const kgb = {
                     <div><small>TMT KGB diajukan</small><b>${this._tgl(x.tmtKgb)}</b></div>
                     <div><small>Diajukan</small><b>${this._tgl(x.createdAt)}</b></div>
                 </div>
+                ${x.gajiBaru ? this._gajiHtml({ ok: true, golongan: x.golongan, mkg: x.mkgTahun, gajiLamaText: x.gajiLamaText, gajiBaruText: x.gajiBaruText, selisih: x.gajiBaru - x.gajiLama }) : ''}
+                ${this._gajiBaris(x, true)}
                 ${x.keterangan ? `<div class="kg-cat"><i class="fas fa-align-left"></i><div><small>Keterangan pemohon</small>${this._e(x.keterangan)}</div></div>` : ''}
                 <h4 class="kg-h4"><i class="fas fa-paperclip"></i> Berkas</h4>
                 <div class="kg-docs">${files}</div>
