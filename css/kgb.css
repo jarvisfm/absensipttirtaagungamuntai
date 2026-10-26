@@ -170,3 +170,26 @@ body.kg-lock{overflow:hidden}
 .kg-cf-warn .kg-cf-ic{background:#FEF3C7;color:#D97706;box-shadow:0 0 0 7px rgba(245,158,11,.14)}
 .kg-btn-warn{background:linear-gradient(135deg,#FBBF24,#D97706);color:#fff;border-color:transparent;box-shadow:0 6px 14px rgba(217,119,6,.3)}
 .kg-btn-warn:hover{background:linear-gradient(135deg,#FBBF24,#D97706);filter:brightness(1.07)}
+
+/* Perhitungan gaji pokok dari tabel gaji (pengajuan KGB & form Riwayat KGB) */
+.kg-hint{display:flex;gap:8px;align-items:flex-start;font-size:.76rem;color:#64748B;margin:0}
+.kg-hint-err{color:#B91C1C}
+.kg-mkg-hint{align-self:end;padding-bottom:10px}
+.kg-gaji{background:#F0FDF4;border:1px solid #BBF7D0;border-radius:12px;padding:10px 12px;margin-bottom:10px}
+.kg-gaji-warn{background:#FFFBEB;border-color:#FDE68A}
+.kg-gaji-h{font-size:.74rem;font-weight:800;color:#166534;text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px}
+.kg-gaji-warn .kg-gaji-h{color:#92400E}
+.kg-gaji-g{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.kg-gaji-g>div{background:#fff;border:1px solid #DCFCE7;border-radius:10px;padding:7px 9px;min-width:0}
+.kg-gaji-g small{display:block;font-size:.62rem;font-weight:700;color:#94A3B8;text-transform:uppercase;letter-spacing:.04em}
+.kg-gaji-g b{font-size:.84rem;color:#0F172A;overflow-wrap:anywhere}
+.kg-gaji-g em{font-style:normal;font-size:.7rem;color:#16A34A;margin-left:4px}
+.kg-gaji-new{border-color:#86EFAC !important;background:#F0FDF4 !important}
+.kg-gaji-n{margin:8px 0 0;font-size:.74rem;color:#475569}
+.kg-gaji-line{display:flex;gap:8px;align-items:flex-start;font-size:.78rem;color:#334155;background:#F8FAFC;border:1px solid #E2E8F0;border-radius:10px;padding:7px 10px;margin-bottom:10px}
+.kg-gaji-line>i{margin-top:2px;color:#64748B}
+.kg-gaji-ok{background:#F0FDF4;border-color:#BBF7D0;color:#166534}
+.kg-gaji-ok>i{color:#16A34A}
+.kg-gaji-todo{background:#FFFBEB;border-color:#FDE68A;color:#92400E}
+.kg-gaji-todo>i{color:#D97706}
+@media (max-width:560px){.kg-gaji-g{grid-template-columns:repeat(2,minmax(0,1fr))}}
