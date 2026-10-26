@@ -4165,10 +4165,6 @@
                                 </div>
                                 <div class="form-row two-col">
                                     <div class="form-group">
-                                        <label>Gaji Pokok</label>
-                                        <input type="number" id="pf-gajiPokok" placeholder="0">
-                                    </div>
-                                    <div class="form-group">
                                         <label>Terhitung Mulai</label>
                                         <input type="date" id="pf-terhitungMulai" onchange="profileManager.autoHitungMasaKerja()">
                                     </div>
@@ -4302,13 +4298,10 @@
                             <div id="pf-tabcontent-kgb" style="display:none;">
                                 <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:1.5rem;flex-wrap:wrap;">
                                     <p style="font-size:0.85rem;color:var(--text-muted);margin:0;max-width:640px;">
-                                        Simpan riwayat Kenaikan Gaji Berkala (KGB) Anda beserta link Google Drive
-                                        dokumennya. Upload file ke Google Drive Anda sendiri, atur akses "Siapa saja
-                                        memiliki link", lalu tempel link-nya di sini.
+                                        <i class="fas fa-lock"></i> Riwayat Kenaikan Gaji Berkala (KGB) Anda beserta gaji pokoknya.
+                                        Data ini bersifat rahasia dan hanya bisa dilihat oleh Anda. Perubahan hanya dapat
+                                        dilakukan oleh Admin (menu Data Karyawan).
                                     </p>
-                                    <button type="button" class="btn-primary" style="white-space:nowrap;flex-shrink:0;" onclick="profileManager.openKgbModal()">
-                                        <i class="fas fa-plus"></i> Tambah Kenaikan Gaji Berkala
-                                    </button>
                                 </div>
 
                                 <div class="employees-table-card">
@@ -4319,8 +4312,8 @@
                                                     <th>Nomor Surat</th>
                                                     <th>TMT KGB</th>
                                                     <th>Masa Kerja</th>
+                                                    <th>Gaji Pokok</th>
                                                     <th>Dokumen</th>
-                                                    <th>Aksi</th>
                                                 </tr>
                                             </thead>
                                             <tbody id="pf-kgb-list"></tbody>
