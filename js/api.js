@@ -1401,13 +1401,13 @@ const api = {
 
     // ========== RIWAYAT KGB / KENAIKAN GAJI BERKALA ==========
     async getRiwayatKgb(userId) {
-        return this.request('getRiwayatKgb', { userId });
+        return this.request('getRiwayatKgb', { userId, ...this._pbAuth() });
     },
     async saveRiwayatKgb(data) {
-        return this.request('saveRiwayatKgb', data);
+        return this.request('saveRiwayatKgb', { ...data, ...this._pbAuth() });
     },
     async deleteRiwayatKgb(id) {
-        return this.request('deleteRiwayatKgb', { id });
+        return this.request('deleteRiwayatKgb', { id, ...this._pbAuth() });
     },
 
     // ========== RIWAYAT GOLONGAN ==========
