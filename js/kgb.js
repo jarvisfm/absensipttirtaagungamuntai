@@ -17,7 +17,7 @@ const kgb = {
     _slots: {},      // key -> { file, fileId, nama, status }
 
     BULAN: ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'],
-    MAX_PDF: 4 * 1024 * 1024,
+    MAX_BYTES: 1024 * 1024,   // batas ukuran tiap berkas: 1 MB
 
     // ── Util ───────────────────────────────────────────────
     _e(s) {
@@ -225,7 +225,7 @@ const kgb = {
         this._slots = {};
         const rows = this.ctx.berkas.map((b, i) => `
             <div class="kg-slot" id="kg-slot-${b.key}">
-                <div class="kg-slot-lab"><span class="kg-num">${i + 1}</span><div><b>${this._e(b.label)}</b><small>PDF / JPG / PNG, maks. 4 MB</small></div></div>
+                <div class="kg-slot-lab"><span class="kg-num">${i + 1}</span><div><b>${this._e(b.label)}</b><small>PDF / JPG / PNG, maks. 1 MB</small></div></div>
                 <div class="kg-slot-act" id="kg-slot-act-${b.key}"></div>
                 <input type="file" id="kg-file-${b.key}" accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png" hidden onchange="kgb.pickFile('${b.key}', this)">
             </div>`).join('');
@@ -273,7 +273,9 @@ const kgb = {
         if (!f) return;
         const okType = /^(application\/pdf|image\/jpeg|image\/png)$/i.test(f.type);
         if (!okType) { toast.error('Format berkas harus PDF, JPG, atau PNG.'); return; }
-        if (/pdf/i.test(f.type) && f.size > this.MAX_PDF) { toast.error('PDF terlalu besar (maksimal 4 MB).'); return; }
+        // PDF tidak bisa dikompres di browser -> ditolak kalau > 1 MB.
+        // Foto/gambar dikompres otomatis ke bawah 1 MB saat diunggah (lihat _readBase64).
+        if (/pdf/i.test(f.type) && f.size > this.MAX_BYTES) { toast.error(`PDF terlalu besar (${this._ukuran(f.size)}). Maksimal 1 MB, kecilkan dulu ukurannya.`); return; }
         this._slots[key] = { file: f, fileId: '', nama: f.name, status: 'pending' };
         this._paintSlot(key);
     },
@@ -293,14 +295,22 @@ const kgb = {
             const img = new Image();
             const url = URL.createObjectURL(file);
             img.onload = () => {
-                const max = 1800, sc = Math.min(1, max / Math.max(img.width, img.height));
-                const cv = document.createElement('canvas');
-                cv.width = Math.round(img.width * sc); cv.height = Math.round(img.height * sc);
-                const ctx = cv.getContext('2d');
-                ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, cv.width, cv.height);
-                ctx.drawImage(img, 0, 0, cv.width, cv.height);
                 URL.revokeObjectURL(url);
-                resolve({ base64: cv.toDataURL('image/jpeg', 0.82).split(',')[1], mime: 'image/jpeg' });
+                // Kecilkan bertahap (dimensi & kualitas) sampai di bawah 1 MB.
+                let max = 1800, q = 0.82, out = '';
+                for (let i = 0; i < 12; i++) {
+                    const sc = Math.min(1, max / Math.max(img.width, img.height));
+                    const cv = document.createElement('canvas');
+                    cv.width = Math.max(1, Math.round(img.width * sc)); cv.height = Math.max(1, Math.round(img.height * sc));
+                    const ctx = cv.getContext('2d');
+                    ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, cv.width, cv.height);
+                    ctx.drawImage(img, 0, 0, cv.width, cv.height);
+                    out = cv.toDataURL('image/jpeg', q).split(',')[1];
+                    if (out.length * 0.75 <= this.MAX_BYTES * 0.95) break;
+                    if (q > 0.5) q -= 0.1; else max = Math.round(max * 0.8);
+                }
+                if (out.length * 0.75 > this.MAX_BYTES) { reject(new Error('Gambar terlalu besar, gunakan foto yang lebih kecil.')); return; }
+                resolve({ base64: out, mime: 'image/jpeg' });
             };
             img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Gambar tidak bisa dibaca')); };
             img.src = url;
