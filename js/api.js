@@ -1310,6 +1310,13 @@ const api = {
     async hapusKgb(id) {
         return this.request('hapusKgb', { id, ...this._pbAuth() });
     },
+    // Tabel gaji pokok untuk KGB (backend: Gajipokok.gs)
+    async hitungGajiKgb(data) {
+        return this.request('hitungGajiKgb', { ...data, ...this._pbAuth() });
+    },
+    async getKgbPengajuanRiwayat(targetId) {
+        return this.request('getKgbPengajuanRiwayat', { targetId: targetId || '', ...this._pbAuth() });
+    },
 
     // ========== TELAAHAN STAF (js/telaah-staf.js, backend: Telaah.gs) ==========
     // Memakai identitas sesi yang sama dengan Permintaan Barang (_pbAuth).
