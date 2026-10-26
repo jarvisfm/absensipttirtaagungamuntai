@@ -267,8 +267,13 @@ const kgb = {
         const st = s.status === 'upload' ? '<span class="kg-up"><span class="kg-spin sm"></span> Mengunggah...</span>' :
             (s.status === 'done' ? '<span class="kg-upok"><i class="fas fa-circle-check"></i> Terunggah</span>' :
                 (s.status === 'err' ? '<span class="kg-uperr"><i class="fas fa-circle-exclamation"></i> Gagal</span>' : ''));
+        // Foto: tampilkan "ukuran asli -> ukuran setelah dikecilkan" (hasil nyata yang akan diunggah).
+        const pk = s.packing ? '<span class="kg-up"><span class="kg-spin sm"></span> Mengecilkan...</span>' : '';
+        const ukr = (s.packed && s.packed.size < s.file.size)
+            ? `${this._ukuran(s.file.size)} &rarr; <b>${this._ukuran(s.packed.size)}</b>`
+            : this._ukuran(s.file.size);
         el.innerHTML = `<div class="kg-file"><i class="fas ${/pdf/i.test(s.file.type) ? 'fa-file-pdf' : 'fa-file-image'}"></i>
-            <div><b>${this._e(s.file.name)}</b><small>${this._ukuran(s.file.size)} ${st}</small></div>
+            <div><b>${this._e(s.file.name)}</b><small>${ukr} ${st}${pk}</small></div>
             ${s.status === 'upload' ? '' : `<button type="button" class="kg-rm" onclick="kgb.removeFile('${key}')" aria-label="Hapus"><i class="fas fa-xmark"></i></button>`}</div>`;
     },
 
@@ -297,6 +302,32 @@ const kgb = {
         }
         this._slots[key] = { file: f, fileId: '', nama: f.name, status: 'pending' };
         this._paintSlot(key);
+        if (!/pdf/i.test(f.type)) this._pack(key);
+    },
+
+    // Kecilkan foto SEKARANG (bukan menunggu tombol Ajukan) supaya ukuran hasilnya bisa
+    // ditampilkan. Hasilnya disimpan di slot (s.packed) dan dipakai ulang saat submit().
+    async _pack(key) {
+        const s = this._slots[key];
+        if (!s) return;
+        s.packing = true;
+        this._paintSlot(key);
+        s.packPromise = this._readBase64(s.file);
+        try {
+            const rd = await s.packPromise;
+            if (this._slots[key] !== s) return; // sudah dihapus/diganti user
+            s.packed = { base64: rd.base64, mime: rd.mime, size: Math.round(rd.base64.length * 0.75) };
+        } catch (e) {
+            if (this._slots[key] === s) {
+                delete this._slots[key];
+                this._paintSlot(key);
+                this._alert('Gambar tidak bisa diproses', `"${s.file.name}": ${e.message || 'gagal dikecilkan'} Silakan pilih foto lain.`);
+            }
+            return;
+        } finally {
+            s.packing = false;
+            if (this._slots[key] === s) this._paintSlot(key);
+        }
     },
 
     removeFile(key) { delete this._slots[key]; this._paintSlot(key); },
@@ -359,7 +390,7 @@ const kgb = {
                 const s = this._slots[b.key];
                 if (!s.fileId) {
                     s.status = 'upload'; this._paintSlot(b.key);
-                    const rd = await this._readBase64(s.file);
+                    const rd = s.packed || await (s.packPromise || this._readBase64(s.file));
                     const res = await api.uploadKgbFile({ key: b.key, base64: rd.base64, mimeType: rd.mime, fileName: s.file.name });
                     if (!res || !res.success) { s.status = 'err'; this._paintSlot(b.key); throw new Error((res && res.error) || `Gagal mengunggah "${b.label}"`); }
                     s.fileId = res.fileId; s.nama = res.nama || s.file.name; s.status = 'done'; this._paintSlot(b.key);
