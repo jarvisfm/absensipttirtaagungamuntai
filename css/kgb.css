@@ -167,3 +167,6 @@ body.kg-lock{overflow:hidden}
 .kg-btn-dangersolid{background:linear-gradient(135deg,#F87171,#DC2626);color:#fff;border-color:transparent;box-shadow:0 6px 14px rgba(220,38,38,.28)}
 .kg-btn-dangersolid:hover{background:linear-gradient(135deg,#F87171,#DC2626);filter:brightness(1.07)}
 @media (max-width:640px){.kg-confirm{align-items:flex-end;padding:0}.kg-cf{max-width:none;border-radius:22px 22px 0 0;padding-bottom:calc(18px + env(safe-area-inset-bottom,0px))}}
+.kg-cf-warn .kg-cf-ic{background:#FEF3C7;color:#D97706;box-shadow:0 0 0 7px rgba(245,158,11,.14)}
+.kg-btn-warn{background:linear-gradient(135deg,#FBBF24,#D97706);color:#fff;border-color:transparent;box-shadow:0 6px 14px rgba(217,119,6,.3)}
+.kg-btn-warn:hover{background:linear-gradient(135deg,#FBBF24,#D97706);filter:brightness(1.07)}
