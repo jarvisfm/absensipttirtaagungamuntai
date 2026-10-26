@@ -1291,6 +1291,26 @@ const api = {
         return this.request('getKatalogBarangPermintaan', { ...this._pbAuth() });
     },
 
+    // ========== PENGAJUAN KGB (js/kgb.js, backend: Kgbpengajuan.gs) ==========
+    async getKgbContext() {
+        return this.request('getKgbContext', { ...this._pbAuth() });
+    },
+    async getKgbList() {
+        return this.request('getKgbList', { ...this._pbAuth() });
+    },
+    async uploadKgbFile(data) {
+        return this.request('uploadKgbFile', { ...data, ...this._pbAuth() });
+    },
+    async ajukanKgb(data) {
+        return this.request('ajukanKgb', { ...data, ...this._pbAuth() });
+    },
+    async prosesKgb(data) {
+        return this.request('prosesKgb', { ...data, ...this._pbAuth() });
+    },
+    async hapusKgb(id) {
+        return this.request('hapusKgb', { id, ...this._pbAuth() });
+    },
+
     // ========== TELAAHAN STAF (js/telaah-staf.js, backend: Telaah.gs) ==========
     // Memakai identitas sesi yang sama dengan Permintaan Barang (_pbAuth).
     async getTelaahContext() {
