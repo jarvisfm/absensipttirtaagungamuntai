@@ -272,7 +272,7 @@ const kgb = {
             ${s.status === 'upload' ? '' : `<button type="button" class="kg-rm" onclick="kgb.removeFile('${key}')" aria-label="Hapus"><i class="fas fa-xmark"></i></button>`}</div>`;
     },
 
-    pickFile(key, input) {
+    async pickFile(key, input) {
         const f = input.files && input.files[0];
         input.value = '';
         if (!f) return;
@@ -283,6 +283,17 @@ const kgb = {
         if (/pdf/i.test(f.type) && f.size > this.MAX_BYTES) {
             this._alert('File lebih dari 1 MB', `"${f.name}" berukuran ${this._ukuran(f.size)}. Ukuran maksimal tiap berkas adalah 1 MB. Silakan kecilkan ukuran PDF terlebih dahulu (mis. kompres PDF atau scan dengan resolusi lebih rendah), lalu unggah kembali.`);
             return;
+        }
+        // Foto/gambar > 1 MB: beri peringatan dulu. Boleh dilanjutkan (nanti dikecilkan
+        // otomatis saat diunggah) atau pilih file lain. PDF > 1 MB sudah ditolak di atas.
+        if (!/pdf/i.test(f.type) && f.size > this.MAX_BYTES) {
+            const lanjut = await this._confirm({
+                judul: 'File lebih dari 1 MB',
+                teks: `"${f.name}" berukuran ${this._ukuran(f.size)}. Ukuran maksimal tiap berkas adalah 1 MB. Foto ini akan dikecilkan otomatis saat diunggah (kualitas bisa sedikit menurun). Lanjutkan?`,
+                icon: 'fa-triangle-exclamation', tone: 'warn',
+                okLabel: 'Kecilkan & Pakai', okIcon: 'fa-compress', batalLabel: 'Pilih File Lain'
+            });
+            if (!lanjut) return;
         }
         this._slots[key] = { file: f, fileId: '', nama: f.name, status: 'pending' };
         this._paintSlot(key);
