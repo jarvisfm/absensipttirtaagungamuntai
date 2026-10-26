@@ -1180,6 +1180,7 @@ const profileManager = {
         document.getElementById('pf-kgb-masaKerjaBulan').value  = r.masaKerjaBulan || '';
         document.getElementById('pf-kgb-gajiPokokBaru').value   = r.gajiPokokBaru || '';
         document.getElementById('pf-kgb-dokumen-url').value     = r.fileDokumenUrl || '';
+        if (window.kgb) kgb.riwayatMuatEdit('pf-kgb', r.pengajuanId);
 
         document.getElementById('pf-kgb-form-title').innerHTML = '<i class="fas fa-money-bill-trend-up"></i> Edit Kenaikan Gaji Berkala';
         document.getElementById('pf-kgb-btn-batal').style.display = 'inline-flex';
@@ -1197,6 +1198,7 @@ const profileManager = {
         document.getElementById('pf-kgb-masaKerjaBulan').value = '';
         document.getElementById('pf-kgb-gajiPokokBaru').value = '';
         document.getElementById('pf-kgb-dokumen-url').value = '';
+        if (window.kgb) kgb.riwayatReset('pf-kgb', this.myId);
 
         document.getElementById('pf-kgb-form-title').innerHTML = '<i class="fas fa-money-bill-trend-up"></i> Tambah Kenaikan Gaji Berkala';
         document.getElementById('pf-kgb-btn-batal').style.display = 'none';
@@ -1236,6 +1238,7 @@ const profileManager = {
             masaKerjaTahun: document.getElementById('pf-kgb-masaKerjaTahun').value.trim(),
             masaKerjaBulan: document.getElementById('pf-kgb-masaKerjaBulan').value.trim(),
             gajiPokokBaru:  document.getElementById('pf-kgb-gajiPokokBaru').value.trim(),
+            pengajuanId:    document.getElementById('pf-kgb-pengajuanId').value,
             fileDokumenUrl
         };
 
