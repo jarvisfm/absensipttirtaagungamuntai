@@ -56,6 +56,11 @@ const settings = {
                 const el = document.getElementById('setting-cuti-tahunan');
                 if (el) el.checked = String(allSettings.cuti_tahunan_aktif).toLowerCase() !== 'false';
             }
+            // Kunci Jadwal Jaga Operator - belum pernah diatur = tidak dikunci (OFF).
+            {
+                const el = document.getElementById('setting-jjo-lock');
+                if (el) el.checked = String(allSettings.jadwal_jaga_operator_lock).toLowerCase() === 'true';
+            }
             if (allSettings.location_radius !== undefined) {
                 const el = document.getElementById('setting-location-radius');
                 if (el) el.value = allSettings.location_radius;
@@ -111,6 +116,7 @@ const settings = {
         const locationTracking = document.getElementById('setting-location-tracking');
         const locationRadius   = document.getElementById('setting-location-radius');
         const cutiTahunan      = document.getElementById('setting-cuti-tahunan');
+        const jjoLock          = document.getElementById('setting-jjo-lock');
 
         this._syncOfficeLocationsFromDOM();
 
@@ -140,6 +146,7 @@ const settings = {
                 face_recognition_mode: (document.getElementById('setting-face-mode-static') || {}).checked ? 'static' : 'video',
                 location_tracking: locationTracking ? String(locationTracking.checked) : 'true',
                 cuti_tahunan_aktif: cutiTahunan     ? String(cutiTahunan.checked)      : 'true',
+                jadwal_jaga_operator_lock: jjoLock ? String(jjoLock.checked) : 'false',
                 location_radius:   locationRadius   ? locationRadius.value             : '100',
                 office_locations:  JSON.stringify(validLocations),
             });
