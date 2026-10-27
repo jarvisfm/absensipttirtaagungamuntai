@@ -60,6 +60,7 @@ const settings = {
             {
                 const el = document.getElementById('setting-jjo-lock');
                 if (el) el.checked = String(allSettings.jadwal_jaga_operator_lock).toLowerCase() === 'true';
+                this._jjoLockPrev = !!(el && el.checked);
             }
             if (allSettings.location_radius !== undefined) {
                 const el = document.getElementById('setting-location-radius');
@@ -117,6 +118,9 @@ const settings = {
         const locationRadius   = document.getElementById('setting-location-radius');
         const cutiTahunan      = document.getElementById('setting-cuti-tahunan');
         const jjoLock          = document.getElementById('setting-jjo-lock');
+        // Catat KAPAN kunci Jadwal Jaga Operator dinyalakan (supaya jatah "upload 1x saat
+        // dikunci" user mulai dari awal tiap kunci baru dinyalakan).
+        const jjoLockBaru = !!(jjoLock && jjoLock.checked && !this._jjoLockPrev);
 
         this._syncOfficeLocationsFromDOM();
 
@@ -147,9 +151,11 @@ const settings = {
                 location_tracking: locationTracking ? String(locationTracking.checked) : 'true',
                 cuti_tahunan_aktif: cutiTahunan     ? String(cutiTahunan.checked)      : 'true',
                 jadwal_jaga_operator_lock: jjoLock ? String(jjoLock.checked) : 'false',
+                ...(jjoLockBaru ? { jadwal_jaga_operator_lock_at: String(Date.now()) } : {}),
                 location_radius:   locationRadius   ? locationRadius.value             : '100',
                 office_locations:  JSON.stringify(validLocations),
             });
+            this._jjoLockPrev = !!(jjoLock && jjoLock.checked);
             toast.success('Pengaturan sistem berhasil disimpan!');
         } catch (error) {
             console.error('Error saving system settings:', error);
