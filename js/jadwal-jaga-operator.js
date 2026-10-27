@@ -223,15 +223,29 @@ const jadwalJagaOperator = {
     // Settings). Admin tidak pernah terkunci. Kalau gagal dibaca, dianggap
     // tidak terkunci supaya halaman tidak macet.
     _locked: false,
+    _lockAt: 0, // kapan kunci terakhir dinyalakan Admin (ms) - lihat settings.js
 
     async _loadLockState() {
         if (auth.isAdmin()) { this._locked = false; return; }
         try {
-            const res = await api.getSettingByKey('jadwal_jaga_operator_lock');
+            const [res, resAt] = await Promise.all([
+                api.getSettingByKey('jadwal_jaga_operator_lock'),
+                api.getSettingByKey('jadwal_jaga_operator_lock_at')
+            ]);
             if (res && res.success) this._locked = String(res.data).toLowerCase() === 'true';
+            this._lockAt = (resAt && resAt.success && Number(resAt.data)) || 0;
         } catch (e) {
             console.error('Gagal membaca status kunci jadwal:', e);
         }
+    },
+
+    // Saat dikunci, user diberi jatah 1x "Upload Jadwal + Simpan" per unit/bulan.
+    // Begitu tersimpan, data jadwal dicap lockedUploadAt; selama cap itu lebih
+    // baru dari saat kunci dinyalakan, upload & simpan ditutup lagi.
+    _uploadJatahHabis() {
+        if (!this._locked) return false;
+        const at = Number(this.data && this.data.lockedUploadAt) || 0;
+        return at > 0 && at >= (this._lockAt || 0);
     },
 
     _notifyLocked() {
@@ -247,6 +261,15 @@ const jadwalJagaOperator = {
         wrap.classList.toggle('jjo-locked', !!this._locked);
         const banner = document.getElementById('jjo-lock-banner');
         if (banner) banner.remove();
+        const habis = this._uploadJatahHabis();
+        const btnUp = document.getElementById('jjo-btn-upload');
+        const btnSv = document.getElementById('jjo-btn-simpan');
+        [btnUp, btnSv].forEach(b => {
+            if (!b) return;
+            b.disabled = habis;
+            b.style.opacity = habis ? '0.5' : '';
+            b.style.cursor = habis ? 'not-allowed' : '';
+        });
         if (!this._locked) return;
         wrap.querySelectorAll('#jjo-days input, #jjo-days select, #jjo-days textarea, #jjo-days .jjo-tool')
             .forEach(el => { el.disabled = true; });
@@ -255,7 +278,9 @@ const jadwalJagaOperator = {
             const b = document.createElement('div');
             b.id = 'jjo-lock-banner';
             b.className = 'jjo-lock-banner';
-            b.innerHTML = '<i class="fas fa-lock"></i> Jadwal dikunci Admin. Tabel tidak bisa diedit. Anda masih bisa melihat, mencetak, export, dan upload jadwal. Hubungi Admin untuk membuka kunci.';
+            b.innerHTML = '<i class="fas fa-lock"></i> ' + (habis
+                ? 'Jadwal dikunci Admin. Upload jadwal sudah dipakai & tersimpan, jadwal terkunci lagi. Anda masih bisa melihat, mencetak, dan export. Hubungi Admin untuk membuka kunci.'
+                : 'Jadwal dikunci Admin. Tabel tidak bisa diedit manual, tetapi Anda bisa Upload Jadwal lalu Simpan (1x). Setelah tersimpan, jadwal terkunci lagi.');
             info.parentNode.insertBefore(b, info);
         }
     },
@@ -485,6 +510,7 @@ const jadwalJagaOperator = {
      * permanen).
      */
     async _handleUploadJadwal(file) {
+        if (this._uploadJatahHabis()) { this._notifyLocked(); return; }
         const unit = this._getEffectiveUnit(this.unitKey);
         const supportedPatterns = ['multi-grup', 'multi-solo', 'kontinu', 'kontinu-split'];
         if (!unit || supportedPatterns.indexOf(unit.pattern) === -1) {
@@ -799,6 +825,7 @@ const jadwalJagaOperator = {
         // mengganggu tampilan default.
         if (btnUpload && uploadInput) {
             btnUpload.onclick = () => {
+                if (this._uploadJatahHabis()) { this._notifyLocked(); return; }
                 const hint = document.getElementById('jjo-upload-hint');
                 if (hint) hint.style.display = '';
                 uploadInput.value = ''; // reset supaya bisa upload file yg sama 2x berturut-turut
@@ -915,10 +942,15 @@ const jadwalJagaOperator = {
         // sampai request sebelumnya selesai, supaya tidak memicu beberapa
         // request tersimpan bertumpuk.
         if (this._isSavingJadwal) return;
+        if (this._uploadJatahHabis()) { this._notifyLocked(); return; }
         this._isSavingJadwal = true;
         this._setSimpanJadwalLoading(true);
+        const stampLama = this.data.lockedUploadAt;
         try {
             const saveKey = this._settingKey();
+            // Dikunci + simpan oleh user = jatah upload dipakai (cap waktu); Admin menyimpan = cap dihapus.
+            if (this._locked) this.data.lockedUploadAt = Date.now();
+            else delete this.data.lockedUploadAt;
             const savePayload = JSON.stringify(this.data);
             const result = await api.saveSetting(saveKey, savePayload);
             if (result && result.success) {
@@ -930,14 +962,17 @@ const jadwalJagaOperator = {
                 this._dirty = false;
                 toast.success('Jadwal jaga berhasil disimpan.');
             } else {
+                if (stampLama === undefined) delete this.data.lockedUploadAt; else this.data.lockedUploadAt = stampLama;
                 toast.error('Gagal menyimpan jadwal jaga.');
             }
         } catch (e) {
+            if (stampLama === undefined) delete this.data.lockedUploadAt; else this.data.lockedUploadAt = stampLama;
             console.error('Gagal menyimpan jadwal jaga operator:', e);
             toast.error('Gagal menyimpan jadwal jaga. Periksa koneksi internet Anda.');
         } finally {
             this._isSavingJadwal = false;
             this._setSimpanJadwalLoading(false);
+            this._applyLock();
         }
     },
 
