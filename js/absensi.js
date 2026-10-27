@@ -2313,6 +2313,30 @@ const absensi = {
             }
         }
 
+        // Tombol "Sanggahan Absensi": saat hari ini LIBUR (tanggal merah /
+        // libur jadwal / tidak terjadwal jaga) tombol dinonaktifkan + badge
+        // kecil di tombolnya. Di luar libur dikembalikan normal.
+        const sanggahanBtn = document.getElementById('btn-sanggahan-absensi-trigger');
+        if (sanggahanBtn) {
+            const liburSekarang = this.currentState === 'libur';
+            sanggahanBtn.disabled = liburSekarang;
+            sanggahanBtn.style.opacity = liburSekarang ? '0.6' : '';
+            sanggahanBtn.style.cursor = liburSekarang ? 'not-allowed' : '';
+            let liburBadge = document.getElementById('sanggahan-libur-badge');
+            if (liburSekarang) {
+                if (!liburBadge) {
+                    liburBadge = document.createElement('span');
+                    liburBadge.id = 'sanggahan-libur-badge';
+                    liburBadge.style.cssText = 'display:inline-block;margin-left:6px;padding:1px 8px;border-radius:999px;background:#FEF2F2;border:1px solid #FECACA;color:#B91C1C;font-size:0.65rem;font-weight:700;vertical-align:middle;white-space:nowrap;';
+                    const strongEl = sanggahanBtn.querySelector('strong');
+                    if (strongEl) strongEl.appendChild(liburBadge);
+                }
+                liburBadge.textContent = 'Libur - tidak bisa mengajukan';
+            } else if (liburBadge) {
+                liburBadge.remove();
+            }
+        }
+
         // PERBAIKAN (2026-09-14): tombol absen tetap dikunci untuk state baru
         // 'access-error' juga (sama seperti 'libur' sebelumnya) - PERILAKU
         // AMAN ini SENGAJA TIDAK diubah, karena selama jadwal hari ini belum
