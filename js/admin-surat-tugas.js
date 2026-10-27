@@ -405,6 +405,50 @@ const adminSuratTugas = {
         return `<img src="${sanggahanAbsensi.buktiThumbUrl(id)}" alt="Bukti" loading="lazy" onclick="adminSuratTugas.lihatBukti('${id}')" style="width:${px}px;height:${px}px;object-fit:cover;border-radius:8px;border:1px solid var(--border-color);cursor:zoom-in;display:block;" onerror="this.outerHTML='<a href=&quot;${sanggahanAbsensi.buktiViewUrl(id)}&quot; target=&quot;_blank&quot; rel=&quot;noopener&quot;>Lihat</a>'">`;
     },
 
+    // Data pembanding untuk admin: riwayat sanggahan karyawan & kewajaran bukti.
+    // Dihitung dari sanggahanRawData (semua sanggahan) - tanpa panggilan server tambahan.
+    BATAS_SERING: 3, // lebih dari ini dalam 1 bulan -> peringatan
+    _riwayatKaryawan(row) {
+        const uid = String(row.userId || '');
+        const bln = String(row.date || '').substring(0, 7);
+        const semua = this.sanggahanRawData.filter(r => String(r.userId || '') === uid);
+        const bulanIni = semua.filter(r => String(r.date || '').substring(0, 7) === bln).length;
+        const d = new Date(String(row.date || '') + 'T00:00:00');
+        let tiga = semua.length;
+        if (!isNaN(d.getTime())) {
+            const batas = new Date(d); batas.setMonth(batas.getMonth() - 3);
+            tiga = semua.filter(r => { const x = new Date(String(r.date || '') + 'T00:00:00'); return !isNaN(x.getTime()) && x >= batas && x <= d; }).length;
+        }
+        const ditolak = semua.filter(r => r.status === 'rejected').length;
+        return { bulanIni, tiga, ditolak, sering: bulanIni > this.BATAS_SERING };
+    },
+
+    _infoRiwayatHtml(row) {
+        const h = this._riwayatKaryawan(row);
+        const warna = h.sering ? 'var(--color-warning,#d97706)' : 'var(--text-muted)';
+        return `<div style="font-size:0.72rem;color:${warna};margin-top:3px;">${h.sering ? '<i class="fas fa-triangle-exclamation"></i> ' : ''}Bulan ini ${h.bulanIni}x &middot; 3 bln ${h.tiga}x${h.ditolak ? ' &middot; ditolak ' + h.ditolak + 'x' : ''}</div>`;
+    },
+
+    _alasanHtml(row) {
+        const a = sanggahanAbsensi.ALASAN[row.alasanKendala];
+        return a ? `<div style="font-size:0.74rem;font-weight:600;color:var(--color-primary);margin-bottom:2px;"><i class="fas fa-circle-info"></i> ${a}</div>` : '';
+    },
+
+    // Info di bawah thumbnail: asal foto, waktu foto diambil, & peringatan kalau tidak sesuai tanggal absensi.
+    _infoBuktiHtml(row) {
+        if (!row.buktiFileId) return '';
+        const sumber = row.buktiSumber === 'kamera' ? 'Kamera' : (row.buktiSumber ? 'Galeri' : '');
+        const waktu = String(row.buktiDiambil || '').replace(/ \((EXIF|file)\)$/, '');
+        let warn = '';
+        const m = waktu.match(/^(\d{4}-\d{2}-\d{2})/);
+        if (m && row.date) {
+            const selisih = Math.abs(Math.round((new Date(m[1] + 'T00:00:00') - new Date(String(row.date) + 'T00:00:00')) / 86400000));
+            if (selisih > 1) warn = `<div style="font-size:0.7rem;color:var(--color-danger);"><i class="fas fa-triangle-exclamation"></i> Foto diambil ${selisih} hari dari tanggal absensi</div>`;
+        }
+        if (!sumber && !waktu) return '';
+        return `<div style="font-size:0.7rem;color:var(--text-muted);margin-top:3px;">${sumber}${waktu ? (sumber ? ' &middot; ' : '') + waktu : ''}</div>${warn}`;
+    },
+
     lihatBukti(fileId) {
         const old = document.getElementById('sa-bukti-lightbox');
         if (old) old.remove();
@@ -439,11 +483,11 @@ const adminSuratTugas = {
             const needsAction = status === 'pending';
             return `
             <tr>
-                <td>${row.userName || row.nama || '-'}</td>
+                <td>${row.userName || row.nama || '-'}${this._infoRiwayatHtml(row)}</td>
                 <td>${row.date || '-'}</td>
                 <td>${row.sessionLabels || '-'}</td>
-                <td>${row.keterangan || '-'}</td>
-                <td>${this._buktiThumb(row)}</td>
+                <td>${this._alasanHtml(row)}${row.keterangan || '-'}</td>
+                <td>${this._buktiThumb(row)}${this._infoBuktiHtml(row)}</td>
                 <td><span class="status-badge ${status}">${this._statusLabel(status)}</span></td>
                 <td style="white-space:nowrap;">
                     ${needsAction ? `
@@ -479,12 +523,14 @@ const adminSuratTugas = {
                     <div>
                         <div style="font-weight:600;">${row.userName || row.nama || '-'}</div>
                         <div style="font-size:0.8rem;color:var(--text-muted);">${row.date || '-'}</div>
+                        ${this._infoRiwayatHtml(row)}
                     </div>
                     <span class="status-badge ${status}">${this._statusLabel(status)}</span>
                 </div>
+                ${this._alasanHtml(row)}
                 <div style="font-size:0.85rem;margin-bottom:4px;"><strong>Sesi Bermasalah:</strong> ${row.sessionLabels || '-'}</div>
                 ${row.keterangan ? `<div style="font-size:0.85rem;margin-bottom:8px;"><strong>Keterangan:</strong> ${row.keterangan}</div>` : ''}
-                ${row.buktiFileId ? `<div style="margin-bottom:8px;"><div style="font-size:0.85rem;margin-bottom:4px;"><strong>Bukti:</strong></div>${this._buktiThumb(row, 120)}</div>` : ''}
+                ${row.buktiFileId ? `<div style="margin-bottom:8px;"><div style="font-size:0.85rem;margin-bottom:4px;"><strong>Bukti:</strong></div>${this._buktiThumb(row, 120)}${this._infoBuktiHtml(row)}</div>` : ''}
                 <div style="display:flex;gap:8px;margin-top:8px;">
                     ${needsAction ? `
                         <button class="btn-action" style="flex:1;background:var(--color-success);color:#fff;" onclick="adminSuratTugas.approveSanggahan('${row.id}')">
