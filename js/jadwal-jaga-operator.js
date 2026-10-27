@@ -160,6 +160,10 @@ const jadwalJagaOperator = {
         }
         this._restrictedUnits = assignedUnits;
 
+        // Kunci jadwal (Settings > Kunci Jadwal Jaga Operator): kalau ON, tabel
+        // jadwal tidak bisa diedit user selain Admin. Dibaca ulang tiap halaman dibuka.
+        await this._loadLockState();
+
         // Cache jadwal per unit/bulan dikosongkan tiap halaman ini dibuka
         // ulang (lihat loadAndRender()) supaya data selalu segar saat masuk.
         this._rosterCache = {};
@@ -214,6 +218,51 @@ const jadwalJagaOperator = {
     // yang sama dengan yang dipakai loadAndRender()). _allSettings tetap
     // berbentuk { shift_types_config: '...' } sehingga pembacanya tidak
     // perlu diubah.
+    // ── Kunci jadwal ──────────────────────────────────────────────
+    // Setting "jadwal_jaga_operator_lock" ('true'/'false', diatur Admin di
+    // Settings). Admin tidak pernah terkunci. Kalau gagal dibaca, dianggap
+    // tidak terkunci supaya halaman tidak macet.
+    _locked: false,
+
+    async _loadLockState() {
+        this._locked = false;
+        if (auth.isAdmin()) return;
+        try {
+            const res = await api.getSettingByKey('jadwal_jaga_operator_lock');
+            this._locked = !!(res && res.success && String(res.data).toLowerCase() === 'true');
+        } catch (e) {
+            console.error('Gagal membaca status kunci jadwal:', e);
+        }
+    },
+
+    _notifyLocked() {
+        if (window.toast && toast.warning) toast.warning('Jadwal dikunci Admin, tidak bisa diedit.');
+    },
+
+    // Matikan semua kontrol EDIT di tabel jadwal (centang/pilihan petugas,
+    // catatan, Salin kemarin, Kosongkan, daftar petugas). Filter ("Tampilkan
+    // yang belum terisi saja", cari nama) & tombol di atas tabel tetap aktif.
+    _applyLock() {
+        const wrap = document.getElementById('jjo-table-wrap');
+        if (!wrap) return;
+        wrap.classList.toggle('jjo-locked', !!this._locked);
+        const upload = document.getElementById('jjo-btn-upload');
+        if (upload) upload.disabled = !!this._locked;
+        const banner = document.getElementById('jjo-lock-banner');
+        if (banner) banner.remove();
+        if (!this._locked) return;
+        wrap.querySelectorAll('#jjo-days input, #jjo-days select, #jjo-days textarea, #jjo-days .jjo-tool')
+            .forEach(el => { el.disabled = true; });
+        const info = document.getElementById('jjo-unit-info');
+        if (info) {
+            const b = document.createElement('div');
+            b.id = 'jjo-lock-banner';
+            b.className = 'jjo-lock-banner';
+            b.innerHTML = '<i class="fas fa-lock"></i> Jadwal dikunci Admin. Anda hanya bisa melihat, mencetak, dan export. Hubungi Admin untuk membuka kunci.';
+            info.parentNode.insertBefore(b, info);
+        }
+    },
+
     async _loadShiftTypesConfig() {
         try {
             const res = await api.getSettingByKey(JJO_SHIFT_TYPES_SETTING_KEY);
@@ -397,6 +446,7 @@ const jadwalJagaOperator = {
      * permanen).
      */
     async _handleUploadJadwal(file) {
+        if (this._locked) { this._notifyLocked(); return; }
         const unit = this._getEffectiveUnit(this.unitKey);
         const supportedPatterns = ['multi-grup', 'multi-solo', 'kontinu', 'kontinu-split'];
         if (!unit || supportedPatterns.indexOf(unit.pattern) === -1) {
@@ -740,6 +790,11 @@ const jadwalJagaOperator = {
             this._renderNeedCabang();
             return;
         }
+        // Segarkan status kunci (maks. 1x per 30 detik) supaya perubahan dari Admin cepat berlaku.
+        if (!this._lockAt || (Date.now() - this._lockAt) > 30000) {
+            await this._loadLockState();
+            this._lockAt = Date.now();
+        }
         try {
             // PERBAIKAN PERFORMA (2026-09-01, keluhan: pindah Unit terasa
             // lambat): SEBELUMNYA di sini manggil api.getSettings() PENUH
@@ -814,6 +869,7 @@ const jadwalJagaOperator = {
 
     async saveData() {
         if (!this.unitKey) return;
+        if (this._locked) { this._notifyLocked(); return; }
         if (this.unitKey === 'TRD' && !this.cabangTrd) {
             toast.warning('Isi dulu nama cabang TRD-nya.');
             return;
@@ -977,6 +1033,7 @@ const jadwalJagaOperator = {
         };
         this._bindInputs();
         this._updateSummary();
+        this._applyLock();
     },
 
     // Pastikan struktur data hari valid (menjaga perbaikan bug lama: data
@@ -1107,6 +1164,7 @@ const jadwalJagaOperator = {
     },
 
     _pickSet(chip) {
+        if (this._locked) return;
         const id = chip.dataset.emp;
         if (this._pickId === id) { this._pickClear(); return; }
         this._pickClear();
@@ -1127,6 +1185,7 @@ const jadwalJagaOperator = {
     },
 
     _pickClick(e) {
+        if (this._locked) return;
         const t = e.target;
         if (!t || !t.closest) return;
         if (this._suppressClick) return;
@@ -1158,6 +1217,7 @@ const jadwalJagaOperator = {
     },
 
     _dndStart(e) {
+        if (this._locked) return;
         const chip = e.target.closest ? e.target.closest('.jjo-pool-chip') : null;
         if (!chip || (e.pointerType === 'mouse' && e.button !== 0)) return;
         const isTouch = e.pointerType !== 'mouse';
@@ -1270,6 +1330,7 @@ const jadwalJagaOperator = {
 
     // Aksi tombol "Salin kemarin" & "Kosongkan" (event delegation).
     _onWrapClick(e) {
+        if (this._locked) return;
         const btn = e.target.closest ? e.target.closest('.jjo-tool') : null;
         if (!btn) return;
         const unit = this._curUnit;
