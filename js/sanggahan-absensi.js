@@ -337,6 +337,13 @@ const sanggahanAbsensi = {
                 return;
             }
 
+            // Hari libur (tanggal merah / libur di jadwal) - sanggahan tidak boleh diajukan.
+            if (result.data && result.data.libur) {
+                this._sessionsForDate = [];
+                list.innerHTML = `<span style="font-size:0.8rem;color:var(--color-danger);"><i class="fas fa-ban"></i> ${result.data.message || 'Hari libur tidak bisa mengajukan sanggahan absensi.'}</span>`;
+                return;
+            }
+
             const sessions = (result.data && result.data.sessions) || [];
             this._sessionsForDate = sessions;
             const disputable = sessions.filter(s => s.disputable);
