@@ -210,13 +210,13 @@
 }
 
 .jjo-print-title h3 {
-    font-size: 19px;
+    font-size: 24px;
     font-weight: 700;
     margin: 0;
 }
 
 .jjo-print-title h4 {
-    font-size: 16px;
+    font-size: 20px;
     font-weight: 600;
     margin: 2px 0 0 0;
     color: #d97706;
@@ -225,7 +225,7 @@
 .jjo-print-table {
     width: 100%;
     border-collapse: collapse;
-    font-size: 14px;
+    font-size: 18px;
     line-height: 1.35;
     margin-bottom: var(--spacing-md);
 }
@@ -233,7 +233,7 @@
 .jjo-print-table th,
 .jjo-print-table td {
     border: 1px solid #333;
-    padding: 5px 7px;
+    padding: 7px 9px;
     text-align: center;
     vertical-align: middle;
 }
@@ -245,14 +245,14 @@
 
 .jjo-print-legend p {
     margin: 2px 0;
-    font-size: 14px;
+    font-size: 17px;
 }
 
 .jjo-print-signature {
     display: flex;
     justify-content: space-between;
     margin-top: var(--spacing-xl);
-    font-size: 15px;
+    font-size: 18px;
 }
 
 .jjo-sig-left,
@@ -308,6 +308,10 @@
     .jjo-print-page .jjo-print-signature {
         page-break-inside: avoid;
     }
+    /* Ruang kiri-kanan dilebarkan sedikit supaya tabel dengan huruf besar tetap lega. */
+    .jjo-print-page .jjo-print-body { padding-left: 24px !important; padding-right: 24px !important; }
+    /* Kolom No & Jam dipersempit agar kolom Nama Petugas mendapat tempat terbanyak. */
+    .jjo-print-page .jjo-print-table th, .jjo-print-page .jjo-print-table td { padding: 6px 7px; }
 }
 
 /* ── Dropdown pilih petugas (Fase 2b - menggantikan teks bebas) ── */
