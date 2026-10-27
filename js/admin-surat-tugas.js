@@ -200,6 +200,7 @@ const adminSuratTugas = {
                    <th>Tanggal Absensi</th>
                    <th>Sesi Bermasalah</th>
                    <th>Keterangan</th>
+                   <th>Bukti</th>
                    <th>Status</th>
                    <th>Aksi</th>
                </tr>`;
@@ -396,6 +397,30 @@ const adminSuratTugas = {
     },
 
     // ---- Sanggahan Absensi - BARU ----
+    // Thumbnail bukti foto (klik untuk memperbesar). Sanggahan lama tanpa bukti tampil "-".
+    _buktiThumb(row, size) {
+        if (!row.buktiFileId) return '<span style="color:var(--text-muted);">-</span>';
+        const px = size || 56;
+        const id = String(row.buktiFileId).replace(/'/g, '');
+        return `<img src="${sanggahanAbsensi.buktiThumbUrl(id)}" alt="Bukti" loading="lazy" onclick="adminSuratTugas.lihatBukti('${id}')" style="width:${px}px;height:${px}px;object-fit:cover;border-radius:8px;border:1px solid var(--border-color);cursor:zoom-in;display:block;" onerror="this.outerHTML='<a href=&quot;${sanggahanAbsensi.buktiViewUrl(id)}&quot; target=&quot;_blank&quot; rel=&quot;noopener&quot;>Lihat</a>'">`;
+    },
+
+    lihatBukti(fileId) {
+        const old = document.getElementById('sa-bukti-lightbox');
+        if (old) old.remove();
+        const ov = document.createElement('div');
+        ov.id = 'sa-bukti-lightbox';
+        ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.82);z-index:10500;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:16px;gap:12px;';
+        ov.innerHTML = `
+            <img src="https://drive.google.com/thumbnail?id=${encodeURIComponent(fileId)}&sz=w1600" alt="Bukti" style="max-width:100%;max-height:80vh;border-radius:10px;background:#fff;">
+            <div style="display:flex;gap:10px;">
+                <a href="${sanggahanAbsensi.buktiViewUrl(fileId)}" target="_blank" rel="noopener" style="background:#fff;color:#111;padding:8px 14px;border-radius:8px;text-decoration:none;font-size:0.85rem;font-weight:600;"><i class="fas fa-up-right-from-square"></i> Buka ukuran penuh</a>
+                <button type="button" id="sa-bukti-close" style="background:rgba(255,255,255,.18);color:#fff;border:none;padding:8px 14px;border-radius:8px;cursor:pointer;font-size:0.85rem;font-weight:600;">Tutup</button>
+            </div>`;
+        ov.addEventListener('click', e => { if (e.target === ov || e.target.id === 'sa-bukti-close') ov.remove(); });
+        document.body.appendChild(ov);
+    },
+
     renderSanggahan() {
         const tbody = document.getElementById('surat-tugas-approval-body');
         const cardsContainer = document.getElementById('surat-tugas-approval-mobile-cards');
@@ -404,7 +429,7 @@ const adminSuratTugas = {
         if (!tbody) return;
 
         if (data.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:2rem;color:var(--text-muted);">Tidak ada data</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:2rem;color:var(--text-muted);">Tidak ada data</td></tr>';
             if (cardsContainer) cardsContainer.innerHTML = '<div style="text-align:center;padding:2rem;color:var(--text-muted);">Tidak ada data</div>';
             return;
         }
@@ -418,6 +443,7 @@ const adminSuratTugas = {
                 <td>${row.date || '-'}</td>
                 <td>${row.sessionLabels || '-'}</td>
                 <td>${row.keterangan || '-'}</td>
+                <td>${this._buktiThumb(row)}</td>
                 <td><span class="status-badge ${status}">${this._statusLabel(status)}</span></td>
                 <td style="white-space:nowrap;">
                     ${needsAction ? `
@@ -458,6 +484,7 @@ const adminSuratTugas = {
                 </div>
                 <div style="font-size:0.85rem;margin-bottom:4px;"><strong>Sesi Bermasalah:</strong> ${row.sessionLabels || '-'}</div>
                 ${row.keterangan ? `<div style="font-size:0.85rem;margin-bottom:8px;"><strong>Keterangan:</strong> ${row.keterangan}</div>` : ''}
+                ${row.buktiFileId ? `<div style="margin-bottom:8px;"><div style="font-size:0.85rem;margin-bottom:4px;"><strong>Bukti:</strong></div>${this._buktiThumb(row, 120)}</div>` : ''}
                 <div style="display:flex;gap:8px;margin-top:8px;">
                     ${needsAction ? `
                         <button class="btn-action" style="flex:1;background:var(--color-success);color:#fff;" onclick="adminSuratTugas.approveSanggahan('${row.id}')">
