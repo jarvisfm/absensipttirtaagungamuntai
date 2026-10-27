@@ -1540,7 +1540,7 @@ const jadwalJagaOperator = {
                 else throw new Error('data tanggal merah kosong');
             } catch (e) {
                 console.error('Gagal memuat tanggal merah untuk tab Konsolidasi:', e);
-                toast.warning('Tanggal merah gagal dimuat - kolom Libur di tab Konsolidasi hanya menghitung Sabtu & Minggu.');
+                toast.warning('Tanggal merah gagal dimuat - kolom Libur di tab Konsolidasi untuk BNA Amuntai & SPAM akan 0, dan untuk SATPAM/TRD hanya menghitung Sabtu & Minggu.');
             }
             const kons = this._buildKonsolidasiRows(konsolidasi, holidays);
             if (kons.rows.length > 1) {
@@ -1619,8 +1619,11 @@ const jadwalJagaOperator = {
     // daftar petugas yang dijadwalkan bulan itu + 2 angka:
     //   Hari  = jumlah HARI petugas dijadwalkan (sama dengan angka di samping nama pada
     //           daftar Petugas di layar: 1 hari dihitung 1 walau ikut >1 sesi di hari itu)
-    //   Libur = dari hari-hari itu, berapa yang jatuh di Sabtu/Minggu atau tanggal merah
-    //           nasional (holidays = { 'yyyy-MM-dd': 'Nama Libur' } dari api.getHolidayDates).
+    //   Libur = dari hari-hari itu, berapa yang jatuh di hari libur. Aturannya beda per unit:
+    //           - BNA Amuntai & semua unit SPAM : HANYA tanggal merah nasional (Sabtu/Minggu
+    //             di unit ini hari kerja biasa, jadi tidak dihitung libur)
+    //           - SATPAM & TRD (semua cabang)   : Sabtu, Minggu, ATAU tanggal merah nasional
+    //           (holidays = { 'yyyy-MM-dd': 'Nama Libur' } dari api.getHolidayDates).
     // Unit tanpa petugas terjadwal dilewati. Ubah KONSOLIDASI_TAMPILKAN_NOL jadi true kalau
     // ingin petugas unit yang belum dijadwalkan sama sekali (Hari 0) tetap ikut dicantumkan.
     _buildKonsolidasiRows(items, holidays) {
@@ -1631,6 +1634,8 @@ const jadwalJagaOperator = {
         const merges = [];
 
         items.forEach(({ key, unit, data }) => {
+            // BNA Amuntai (kode persis, BUKAN "TRD - BNA Amuntai") & unit SPAM: libur = tanggal merah saja.
+            const hanyaTanggalMerah = key === 'BNA Amuntai' || /^SPAM /.test(key);
             const stat = {}; // id -> { hari, libur }
             for (let d = 1; d <= days; d++) {
                 const dd = (data.days && data.days[d]) || {};
@@ -1645,7 +1650,7 @@ const jadwalJagaOperator = {
                 if (!ids.length) continue;
                 const dow = new Date(this.year, this.month, d).getDay();
                 const dateStr = `${this.year}-${mm}-${String(d).padStart(2, '0')}`;
-                const isLibur = dow === 0 || dow === 6 || !!(holidays && holidays[dateStr]);
+                const isLibur = (!hanyaTanggalMerah && (dow === 0 || dow === 6)) || !!(holidays && holidays[dateStr]);
                 new Set(ids.map(String)).forEach(id => {
                     if (!stat[id]) stat[id] = { hari: 0, libur: 0 };
                     stat[id].hari++;
