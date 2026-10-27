@@ -1269,6 +1269,12 @@
                                 <label style="font-weight:600;font-size:0.85rem;">Keterangan</label>
                                 <textarea id="sa-keterangan" rows="3" placeholder="mis. Jaringan internet mati sejak jam 23:30, baru pulih pagi hari" style="width:100%;padding:8px 10px;border:1px solid var(--border-color);border-radius:8px;font-family:inherit;"></textarea>
                             </div>
+                            <div class="form-group" style="margin-top:10px;">
+                                <label style="font-weight:600;font-size:0.85rem;">Bukti Foto <span style="color:var(--color-danger);">*</span></label>
+                                <p style="font-size:0.75rem;color:var(--text-muted);margin:2px 0 6px;">Wajib. Lampirkan foto/screenshot yang menunjukkan kendala (mis. sinyal hilang, layar tanpa koneksi, listrik padam). Format JPG/PNG, maks 1 MB.</p>
+                                <input type="file" id="sa-bukti-input" accept="image/jpeg,image/png" style="display:none;" onchange="sanggahanAbsensi.pickBukti(this)">
+                                <div id="sa-bukti-box"></div>
+                            </div>
                             <div style="display:flex;gap:8px;margin-top:1.25rem;">
                                 <button type="button" onclick="document.getElementById('modal-sanggahan-absensi').style.display='none'" style="flex:1;background:none;border:1px solid var(--border-color);color:var(--text-muted);padding:10px;border-radius:8px;cursor:pointer;">Batal</button>
                                 <button type="button" id="sa-btn-simpan" onclick="sanggahanAbsensi.submit()" style="flex:1;background:var(--color-primary);color:#fff;border:none;padding:10px;border-radius:8px;cursor:pointer;font-weight:600;">Kirim Sanggahan</button>
