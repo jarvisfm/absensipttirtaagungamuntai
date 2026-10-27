@@ -210,13 +210,13 @@
 }
 
 .jjo-print-title h3 {
-    font-size: 16px;
+    font-size: 19px;
     font-weight: 700;
     margin: 0;
 }
 
 .jjo-print-title h4 {
-    font-size: 14px;
+    font-size: 16px;
     font-weight: 600;
     margin: 2px 0 0 0;
     color: #d97706;
@@ -225,14 +225,15 @@
 .jjo-print-table {
     width: 100%;
     border-collapse: collapse;
-    font-size: 12px;
+    font-size: 14px;
+    line-height: 1.35;
     margin-bottom: var(--spacing-md);
 }
 
 .jjo-print-table th,
 .jjo-print-table td {
     border: 1px solid #333;
-    padding: 4px 6px;
+    padding: 5px 7px;
     text-align: center;
     vertical-align: middle;
 }
@@ -244,14 +245,14 @@
 
 .jjo-print-legend p {
     margin: 2px 0;
-    font-size: 12px;
+    font-size: 14px;
 }
 
 .jjo-print-signature {
     display: flex;
     justify-content: space-between;
     margin-top: var(--spacing-xl);
-    font-size: 13px;
+    font-size: 15px;
 }
 
 .jjo-sig-left,
