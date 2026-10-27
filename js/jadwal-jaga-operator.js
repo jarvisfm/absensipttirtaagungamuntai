@@ -225,11 +225,10 @@ const jadwalJagaOperator = {
     _locked: false,
 
     async _loadLockState() {
-        this._locked = false;
-        if (auth.isAdmin()) return;
+        if (auth.isAdmin()) { this._locked = false; return; }
         try {
             const res = await api.getSettingByKey('jadwal_jaga_operator_lock');
-            this._locked = !!(res && res.success && String(res.data).toLowerCase() === 'true');
+            if (res && res.success) this._locked = String(res.data).toLowerCase() === 'true';
         } catch (e) {
             console.error('Gagal membaca status kunci jadwal:', e);
         }
@@ -246,8 +245,6 @@ const jadwalJagaOperator = {
         const wrap = document.getElementById('jjo-table-wrap');
         if (!wrap) return;
         wrap.classList.toggle('jjo-locked', !!this._locked);
-        const upload = document.getElementById('jjo-btn-upload');
-        if (upload) upload.disabled = !!this._locked;
         const banner = document.getElementById('jjo-lock-banner');
         if (banner) banner.remove();
         if (!this._locked) return;
@@ -258,7 +255,7 @@ const jadwalJagaOperator = {
             const b = document.createElement('div');
             b.id = 'jjo-lock-banner';
             b.className = 'jjo-lock-banner';
-            b.innerHTML = '<i class="fas fa-lock"></i> Jadwal dikunci Admin. Anda hanya bisa melihat, mencetak, dan export. Hubungi Admin untuk membuka kunci.';
+            b.innerHTML = '<i class="fas fa-lock"></i> Jadwal dikunci Admin. Tabel tidak bisa diedit. Anda masih bisa melihat, mencetak, export, dan upload jadwal. Hubungi Admin untuk membuka kunci.';
             info.parentNode.insertBefore(b, info);
         }
     },
@@ -488,7 +485,6 @@ const jadwalJagaOperator = {
      * permanen).
      */
     async _handleUploadJadwal(file) {
-        if (this._locked) { this._notifyLocked(); return; }
         const unit = this._getEffectiveUnit(this.unitKey);
         const supportedPatterns = ['multi-grup', 'multi-solo', 'kontinu', 'kontinu-split'];
         if (!unit || supportedPatterns.indexOf(unit.pattern) === -1) {
@@ -911,7 +907,6 @@ const jadwalJagaOperator = {
 
     async saveData() {
         if (!this.unitKey) return;
-        if (this._locked) { this._notifyLocked(); return; }
         if (this.unitKey === 'TRD' && !this.cabangTrd) {
             toast.warning('Isi dulu nama cabang TRD-nya.');
             return;
