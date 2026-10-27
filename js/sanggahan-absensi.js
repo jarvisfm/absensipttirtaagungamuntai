@@ -10,6 +10,8 @@
  * konsisten.
  */
 const sanggahanAbsensi = {
+    MAX_HARI: 3,                  // batas pengajuan ke belakang (hari) - samakan dengan SANGGAHAN_MAX_HARI di server
+    ALASAN: { jaringan: 'Tidak ada jaringan / sinyal', listrik: 'Listrik padam', server: 'Server / aplikasi error' },
     MAX_BUKTI_BYTES: 1024 * 1024, // batas ukuran bukti: 1 MB
     _bukti: null,                 // { nama, base64, mime, size, previewUrl } - bukti foto yang dipilih
     _sessionsForDate: [], // hasil terakhir dari getAttendanceSessionsForDate(), dipakai submit() buat tau label sesi yang dicentang
@@ -25,6 +27,10 @@ const sanggahanAbsensi = {
             : new Date().toISOString().split('T')[0];
         tanggalInput.value = todayStr;
         tanggalInput.max = todayStr; // tidak boleh pilih tanggal masa depan
+        const minD = new Date(todayStr + 'T00:00:00');
+        minD.setDate(minD.getDate() - this.MAX_HARI);
+        tanggalInput.min = `${minD.getFullYear()}-${String(minD.getMonth() + 1).padStart(2, '0')}-${String(minD.getDate()).padStart(2, '0')}`;
+        document.querySelectorAll('input[name="sa-alasan"]').forEach(r => { r.checked = false; });
 
         tanggalInput.onchange = () => this._loadSessionsForDate(tanggalInput.value);
 
@@ -43,11 +49,18 @@ const sanggahanAbsensi = {
         const b = this._bukti;
         if (!b) {
             box.innerHTML = `
-                <button type="button" onclick="document.getElementById('sa-bukti-input').click()" style="width:100%;display:flex;flex-direction:column;align-items:center;gap:4px;padding:16px 10px;border:2px dashed var(--border-color);border-radius:10px;background:none;color:var(--text-muted);cursor:pointer;font-family:inherit;">
-                    <i class="fas fa-camera" style="font-size:1.4rem;color:var(--color-primary);"></i>
-                    <span style="font-size:0.85rem;font-weight:600;color:var(--text-main,inherit);">Pilih / ambil foto bukti</span>
-                    <span style="font-size:0.72rem;">JPG atau PNG, maks 1 MB</span>
-                </button>`;
+                <div style="display:flex;gap:8px;">
+                    <button type="button" onclick="document.getElementById('sa-bukti-camera').click()" style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;padding:14px 8px;border:2px dashed var(--color-primary);border-radius:10px;background:none;color:var(--text-muted);cursor:pointer;font-family:inherit;">
+                        <i class="fas fa-camera" style="font-size:1.3rem;color:var(--color-primary);"></i>
+                        <span style="font-size:0.82rem;font-weight:600;color:var(--text-main,inherit);">Ambil Foto</span>
+                        <span style="font-size:0.7rem;">Langsung dari kamera</span>
+                    </button>
+                    <button type="button" onclick="document.getElementById('sa-bukti-input').click()" style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;padding:14px 8px;border:2px dashed var(--border-color);border-radius:10px;background:none;color:var(--text-muted);cursor:pointer;font-family:inherit;">
+                        <i class="fas fa-image" style="font-size:1.3rem;color:var(--text-muted);"></i>
+                        <span style="font-size:0.82rem;font-weight:600;color:var(--text-main,inherit);">Dari Galeri</span>
+                        <span style="font-size:0.7rem;">Foto / screenshot</span>
+                    </button>
+                </div>`;
             return;
         }
         if (b.loading) {
@@ -59,9 +72,9 @@ const sanggahanAbsensi = {
                 <img src="${b.previewUrl}" alt="Bukti" style="width:56px;height:56px;object-fit:cover;border-radius:8px;flex-shrink:0;">
                 <div style="min-width:0;flex:1;">
                     <div style="font-size:0.82rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${String(b.nama).replace(/</g, '&lt;')}</div>
-                    <div style="font-size:0.74rem;color:var(--text-muted);">${this._ukuran(b.size)}</div>
+                    <div style="font-size:0.74rem;color:var(--text-muted);">${this._ukuran(b.size)} &middot; ${b.sumber === 'kamera' ? 'Kamera' : 'Galeri'}${b.diambil ? ' &middot; diambil ' + String(b.diambil).replace(/ \((EXIF|file)\)$/, '') : ''}</div>
                 </div>
-                <button type="button" onclick="document.getElementById('sa-bukti-input').click()" title="Ganti foto" style="background:none;border:1px solid var(--border-color);border-radius:8px;padding:6px 9px;cursor:pointer;color:var(--text-muted);"><i class="fas fa-rotate"></i></button>
+                <button type="button" onclick="document.getElementById('sa-bukti-' + (sanggahanAbsensi._bukti.sumber === 'kamera' ? 'camera' : 'input')).click()" title="Ganti foto" style="background:none;border:1px solid var(--border-color);border-radius:8px;padding:6px 9px;cursor:pointer;color:var(--text-muted);"><i class="fas fa-rotate"></i></button>
                 <button type="button" onclick="sanggahanAbsensi.removeBukti()" title="Hapus" style="background:none;border:1px solid var(--border-color);border-radius:8px;padding:6px 9px;cursor:pointer;color:var(--color-danger);"><i class="fas fa-trash"></i></button>
             </div>`;
     },
@@ -72,7 +85,61 @@ const sanggahanAbsensi = {
         this._paintBukti();
     },
 
-    async pickBukti(input) {
+    // Waktu foto diambil: dari EXIF (DateTimeOriginal) kalau ada, kalau tidak
+    // dari waktu file terakhir diubah. Hasil: "YYYY-MM-DD HH:mm (EXIF)" / "(file)".
+    async _waktuFoto(file) {
+        const pad = n => String(n).padStart(2, '0');
+        try {
+            const buf = await file.slice(0, 131072).arrayBuffer();
+            const v = new DataView(buf);
+            if (v.getUint16(0) === 0xFFD8) {
+                let off = 2;
+                while (off + 4 < v.byteLength) {
+                    const marker = v.getUint16(off); const len = v.getUint16(off + 2);
+                    if (marker === 0xFFE1 && v.getUint32(off + 4) === 0x45786966) { // "Exif"
+                        const t = off + 10; const le = v.getUint16(t) === 0x4949;
+                        const g16 = o => v.getUint16(t + o, le), g32 = o => v.getUint32(t + o, le);
+                        const readStr = (o, n) => { let s = ''; for (let i = 0; i < n - 1; i++) s += String.fromCharCode(v.getUint8(t + o + i)); return s; };
+                        const findTag = (ifd, tag) => {
+                            const n = g16(ifd);
+                            for (let i = 0; i < n; i++) { const e = ifd + 2 + i * 12; if (g16(e) === tag) return e; }
+                            return -1;
+                        };
+                        const ifd0 = g32(4);
+                        const ep = findTag(ifd0, 0x8769);
+                        let str = '';
+                        if (ep > -1) {
+                            const sub = g32(ep + 8);
+                            const e = findTag(sub, 0x9003);
+                            if (e > -1) str = readStr(g32(e + 8), g32(e + 4));
+                        }
+                        if (!str) { const e = findTag(ifd0, 0x0132); if (e > -1) str = readStr(g32(e + 8), g32(e + 4)); }
+                        const m = str.match(/^(\d{4}):(\d{2}):(\d{2}) (\d{2}):(\d{2})/);
+                        if (m) return `${m[1]}-${m[2]}-${m[3]} ${m[4]}:${m[5]} (EXIF)`;
+                        break;
+                    }
+                    if ((marker & 0xFF00) !== 0xFF00) break;
+                    off += 2 + len;
+                }
+            }
+        } catch (e) { /* lanjut ke waktu file */ }
+        if (file.lastModified) {
+            const d = new Date(file.lastModified);
+            return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())} (file)`;
+        }
+        return '';
+    },
+
+    // Sidik jari (SHA-256) file ASLI - dipakai server untuk mendeteksi foto yang sama dipakai ulang.
+    async _hashFile(file) {
+        try {
+            if (!(window.crypto && crypto.subtle)) return '';
+            const d = await crypto.subtle.digest('SHA-256', await file.arrayBuffer());
+            return Array.from(new Uint8Array(d)).map(b => b.toString(16).padStart(2, '0')).join('');
+        } catch (e) { return ''; }
+    },
+
+    async pickBukti(input, sumber) {
         const f = input.files && input.files[0];
         input.value = '';
         if (!f) return;
@@ -87,7 +154,10 @@ const sanggahanAbsensi = {
         this._paintBukti();
         try {
             const rd = await this._compress(f);
+            const diambil = await this._waktuFoto(f);
+            const hashAsli = await this._hashFile(f);
             this._bukti = {
+                sumber: sumber === 'kamera' ? 'kamera' : 'galeri', diambil, hashAsli,
                 nama: f.name, base64: rd.base64, mime: rd.mime,
                 size: Math.round(rd.base64.length * 0.75),
                 previewUrl: URL.createObjectURL(f)
@@ -243,7 +313,7 @@ const sanggahanAbsensi = {
                         <strong style="font-size:0.85rem;">${this._formatTanggalSingkat(r.date)}</strong>
                         <span class="status-badge ${status}" style="font-size:0.7rem;">${label}</span>
                     </div>
-                    <div style="font-size:0.8rem;color:var(--text-muted);margin-top:4px;">${r.sessionLabels || '-'}</div>
+                    <div style="font-size:0.8rem;color:var(--text-muted);margin-top:4px;">${r.sessionLabels || '-'}${r.alasanKendala && this.ALASAN[r.alasanKendala] ? ' &middot; ' + this.ALASAN[r.alasanKendala] : ''}</div>
                     ${r.buktiFileId ? `<a href="${this.buktiViewUrl(r.buktiFileId)}" target="_blank" rel="noopener" style="display:inline-block;font-size:0.78rem;margin-top:6px;color:var(--color-primary);"><i class="fas fa-image"></i> Lihat bukti</a>` : ''}
                     ${rejectedNoteHtml}
                 </div>`;
@@ -323,6 +393,8 @@ const sanggahanAbsensi = {
 
         if (!tanggal) { toast.error('Tanggal absensi wajib diisi!'); return; }
         if (!sessionFields.length) { toast.error('Pilih minimal 1 sesi yang bermasalah!'); return; }
+        const alasanEl = document.querySelector('input[name="sa-alasan"]:checked');
+        if (!alasanEl) { toast.error('Pilih alasan kendala terlebih dahulu!'); return; }
         if (!keterangan) { toast.error('Keterangan wajib diisi!'); return; }
         if (this._bukti && this._bukti.loading) { toast.error('Foto bukti masih diproses, tunggu sebentar.'); return; }
         if (!this._bukti || !this._bukti.base64) { toast.error('Bukti foto wajib diunggah!'); return; }
@@ -334,6 +406,10 @@ const sanggahanAbsensi = {
             date: tanggal,
             sessionFields: sessionFields,
             keterangan: keterangan,
+            alasanKendala: alasanEl.value,
+            buktiSumber: this._bukti.sumber,
+            buktiDiambil: this._bukti.diambil || '',
+            buktiHashAsli: this._bukti.hashAsli || '',
             buktiBase64: this._bukti.base64,
             buktiMime: this._bukti.mime,
             buktiNamaAsli: this._bukti.nama
