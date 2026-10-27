@@ -531,3 +531,11 @@ body.jjo-armed .jjo-sess *{cursor:copy}
 .jjo-armed-txt span{font-size:.72rem;color:#CBD5E1}
 .jjo-armed-bar button{border:none;background:#14B8A6;color:#fff;font-weight:800;font-size:.8rem;padding:9px 14px;border-radius:11px;cursor:pointer;flex-shrink:0}
 @media (max-width:900px){.jjo-armed-bar{bottom:82px}}
+
+/* Jadwal dikunci Admin (Settings > Kunci Jadwal Jaga Operator) */
+.jjo-lock-banner{display:flex;align-items:center;gap:8px;background:#FEF3C7;border:1px solid #FCD34D;color:#92400E;border-radius:12px;padding:10px 14px;margin-bottom:12px;font-size:.82rem;font-weight:600}
+.jjo-locked .jjo-pool-chip{cursor:not-allowed;opacity:.6}
+.jjo-locked .jjo-pool-chip:hover{border-color:#E2E8F0;background:#fff;box-shadow:none}
+.jjo-locked .jjo-days .jjo-checkbox-item,.jjo-locked .jjo-days .jjo-select,.jjo-locked .jjo-days .jjo-input{cursor:not-allowed;opacity:.75}
+.jjo-locked .jjo-tool{opacity:.45;cursor:not-allowed}
+.jjo-locked .jjo-tool:hover{background:#fff;color:#475569;border-color:#E2E8F0}
