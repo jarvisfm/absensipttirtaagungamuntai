@@ -217,6 +217,9 @@ const profileManager = {
                 btn.style.borderBottom = t === tab ? '2px solid var(--color-primary)' : '2px solid transparent';
             }
         });
+        // Tab Riwayat KGB hanya untuk dilihat (diubah Admin lewat Data Karyawan) -> tombol Simpan disembunyikan.
+        const btnSimpan = document.getElementById('btn-save-profile');
+        if (btnSimpan && btnSimpan.parentElement) btnSimpan.parentElement.style.display = tab === 'kgb' ? 'none' : '';
         // NEW: muat status & daftar Login Sidik Jari tiap kali tab Akun dibuka
         if (tab === 'akun' && window.auth && auth.renderBiometricSettings) {
             auth.renderBiometricSettings();
