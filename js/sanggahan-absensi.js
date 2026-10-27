@@ -10,10 +10,14 @@
  * konsisten.
  */
 const sanggahanAbsensi = {
+    MAX_BUKTI_BYTES: 1024 * 1024, // batas ukuran bukti: 1 MB
+    _bukti: null,                 // { nama, base64, mime, size, previewUrl } - bukti foto yang dipilih
     _sessionsForDate: [], // hasil terakhir dari getAttendanceSessionsForDate(), dipakai submit() buat tau label sesi yang dicentang
 
     openModal() {
         document.getElementById('sa-keterangan').value = '';
+        this._bukti = null;
+        this._paintBukti();
 
         const tanggalInput = document.getElementById('sa-tanggal');
         const todayStr = (typeof dateTime !== 'undefined' && dateTime.getLocalDate)
@@ -29,6 +33,103 @@ const sanggahanAbsensi = {
         this._loadSessionsForDate(todayStr);
         this._renderHistory();
     },
+
+    // ---------- Bukti foto (wajib) ----------
+    _ukuran(b) { return b >= 1048576 ? (b / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(b / 1024)) + ' KB'; },
+
+    _paintBukti() {
+        const box = document.getElementById('sa-bukti-box');
+        if (!box) return;
+        const b = this._bukti;
+        if (!b) {
+            box.innerHTML = `
+                <button type="button" onclick="document.getElementById('sa-bukti-input').click()" style="width:100%;display:flex;flex-direction:column;align-items:center;gap:4px;padding:16px 10px;border:2px dashed var(--border-color);border-radius:10px;background:none;color:var(--text-muted);cursor:pointer;font-family:inherit;">
+                    <i class="fas fa-camera" style="font-size:1.4rem;color:var(--color-primary);"></i>
+                    <span style="font-size:0.85rem;font-weight:600;color:var(--text-main,inherit);">Pilih / ambil foto bukti</span>
+                    <span style="font-size:0.72rem;">JPG atau PNG, maks 1 MB</span>
+                </button>`;
+            return;
+        }
+        if (b.loading) {
+            box.innerHTML = '<div style="padding:14px;border:1px solid var(--border-color);border-radius:10px;font-size:0.82rem;color:var(--text-muted);"><i class="fas fa-spinner fa-spin"></i> Memproses foto...</div>';
+            return;
+        }
+        box.innerHTML = `
+            <div style="display:flex;align-items:center;gap:10px;padding:8px;border:1px solid var(--border-color);border-radius:10px;">
+                <img src="${b.previewUrl}" alt="Bukti" style="width:56px;height:56px;object-fit:cover;border-radius:8px;flex-shrink:0;">
+                <div style="min-width:0;flex:1;">
+                    <div style="font-size:0.82rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${String(b.nama).replace(/</g, '&lt;')}</div>
+                    <div style="font-size:0.74rem;color:var(--text-muted);">${this._ukuran(b.size)}</div>
+                </div>
+                <button type="button" onclick="document.getElementById('sa-bukti-input').click()" title="Ganti foto" style="background:none;border:1px solid var(--border-color);border-radius:8px;padding:6px 9px;cursor:pointer;color:var(--text-muted);"><i class="fas fa-rotate"></i></button>
+                <button type="button" onclick="sanggahanAbsensi.removeBukti()" title="Hapus" style="background:none;border:1px solid var(--border-color);border-radius:8px;padding:6px 9px;cursor:pointer;color:var(--color-danger);"><i class="fas fa-trash"></i></button>
+            </div>`;
+    },
+
+    removeBukti() {
+        if (this._bukti && this._bukti.previewUrl) { try { URL.revokeObjectURL(this._bukti.previewUrl); } catch (e) {} }
+        this._bukti = null;
+        this._paintBukti();
+    },
+
+    async pickBukti(input) {
+        const f = input.files && input.files[0];
+        input.value = '';
+        if (!f) return;
+        if (!/^image\/(jpeg|png)$/i.test(f.type)) {
+            toast.error('Bukti harus berupa foto JPG atau PNG.');
+            return;
+        }
+        if (f.size > this.MAX_BUKTI_BYTES) {
+            toast.info(`Foto ${this._ukuran(f.size)} (lebih dari 1 MB) - dikecilkan otomatis.`);
+        }
+        this._bukti = { loading: true, nama: f.name };
+        this._paintBukti();
+        try {
+            const rd = await this._compress(f);
+            this._bukti = {
+                nama: f.name, base64: rd.base64, mime: rd.mime,
+                size: Math.round(rd.base64.length * 0.75),
+                previewUrl: URL.createObjectURL(f)
+            };
+        } catch (e) {
+            this._bukti = null;
+            toast.error(e.message || 'Foto tidak bisa diproses, pilih foto lain.');
+        }
+        this._paintBukti();
+    },
+
+    // Kecilkan foto bertahap (dimensi & kualitas) sampai di bawah 1 MB.
+    _compress(file) {
+        return new Promise((resolve, reject) => {
+            const img = new Image();
+            const url = URL.createObjectURL(file);
+            img.onload = () => {
+                URL.revokeObjectURL(url);
+                let max = 1800, q = 0.82, out = '';
+                for (let i = 0; i < 12; i++) {
+                    const sc = Math.min(1, max / Math.max(img.width, img.height));
+                    const cv = document.createElement('canvas');
+                    cv.width = Math.max(1, Math.round(img.width * sc));
+                    cv.height = Math.max(1, Math.round(img.height * sc));
+                    const ctx = cv.getContext('2d');
+                    ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, cv.width, cv.height);
+                    ctx.drawImage(img, 0, 0, cv.width, cv.height);
+                    out = cv.toDataURL('image/jpeg', q).split(',')[1];
+                    if (out.length * 0.75 <= this.MAX_BUKTI_BYTES * 0.95) break;
+                    if (q > 0.5) q -= 0.1; else max = Math.round(max * 0.8);
+                }
+                if (out.length * 0.75 > this.MAX_BUKTI_BYTES) { reject(new Error('Foto terlalu besar, gunakan foto yang lebih kecil.')); return; }
+                resolve({ base64: out, mime: 'image/jpeg' });
+            };
+            img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Foto tidak bisa dibaca.')); };
+            img.src = url;
+        });
+    },
+
+    // Link foto bukti (Google Drive) - thumbnail untuk tampilan, view untuk buka penuh.
+    buktiThumbUrl(fileId) { return `https://drive.google.com/thumbnail?id=${encodeURIComponent(fileId)}&sz=w800`; },
+    buktiViewUrl(fileId) { return `https://drive.google.com/file/d/${encodeURIComponent(fileId)}/view`; },
 
     // Format tanggal "YYYY-MM-DD" jadi "11 Sep 2026" - dipakai riwayat di
     // bawah, biar konsisten dengan format tanggal lain di aplikasi ini.
@@ -143,6 +244,7 @@ const sanggahanAbsensi = {
                         <span class="status-badge ${status}" style="font-size:0.7rem;">${label}</span>
                     </div>
                     <div style="font-size:0.8rem;color:var(--text-muted);margin-top:4px;">${r.sessionLabels || '-'}</div>
+                    ${r.buktiFileId ? `<a href="${this.buktiViewUrl(r.buktiFileId)}" target="_blank" rel="noopener" style="display:inline-block;font-size:0.78rem;margin-top:6px;color:var(--color-primary);"><i class="fas fa-image"></i> Lihat bukti</a>` : ''}
                     ${rejectedNoteHtml}
                 </div>`;
         }).join('');
@@ -222,6 +324,8 @@ const sanggahanAbsensi = {
         if (!tanggal) { toast.error('Tanggal absensi wajib diisi!'); return; }
         if (!sessionFields.length) { toast.error('Pilih minimal 1 sesi yang bermasalah!'); return; }
         if (!keterangan) { toast.error('Keterangan wajib diisi!'); return; }
+        if (this._bukti && this._bukti.loading) { toast.error('Foto bukti masih diproses, tunggu sebentar.'); return; }
+        if (!this._bukti || !this._bukti.base64) { toast.error('Bukti foto wajib diunggah!'); return; }
 
         const currentUser = auth.getCurrentUser();
         const data = {
@@ -229,7 +333,10 @@ const sanggahanAbsensi = {
             userName: currentUser?.name || '',
             date: tanggal,
             sessionFields: sessionFields,
-            keterangan: keterangan
+            keterangan: keterangan,
+            buktiBase64: this._bukti.base64,
+            buktiMime: this._bukti.mime,
+            buktiNamaAsli: this._bukti.nama
         };
 
         this._isSubmitting = true;
