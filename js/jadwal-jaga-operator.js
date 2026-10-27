@@ -1593,7 +1593,7 @@ const jadwalJagaOperator = {
                 (unit.sessions || []).forEach(sess => {
                     const rawVal = dayData.sessions && dayData.sessions[sess.key];
                     const ids = Array.isArray(rawVal) ? rawVal : (rawVal ? [rawVal] : []);
-                    const nama = ids.map(id => this._employeeName(id)).filter(Boolean).join(', ') || '-';
+                    const nama = ids.map(id => this._employeeName(id)).filter(Boolean).join('; ') || '-';
                     rows.push([d, info.hariName, info.tanggalStr, sess.time, nama, dayData.keterangan || '']);
                 });
             }
@@ -1606,7 +1606,7 @@ const jadwalJagaOperator = {
                 const info = this._dayInfo(d);
                 const dayData = (data.days && data.days[d]) || { petugas: '', keterangan: '' };
                 const petugasIds = Array.isArray(dayData.petugas) ? dayData.petugas : (dayData.petugas ? [dayData.petugas] : []);
-                const nama = petugasIds.map(id => this._employeeName(id)).filter(Boolean).join(', ') || '-';
+                const nama = petugasIds.map(id => this._employeeName(id)).filter(Boolean).join('; ') || '-';
                 rows.push([d, info.hariName, info.tanggalStr, unit.jamLabel, nama, dayData.keterangan || '']);
             }
             return rows;
