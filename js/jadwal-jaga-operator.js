@@ -147,7 +147,8 @@ const jadwalJagaOperator = {
         // Mode Karyawan admin rangkap) YANG DITUNJUK admin sebagai
         // pemegang jadwal 1/lebih unit (operatorScheduleUnit di Data
         // Karyawan tidak kosong) - dikunci cuma ke unit-unit itu saja.
-        const isAdminUser = auth.isAdmin();
+        // Karyawan yang diberi menu ini lewat "Bagikan Menu Admin" (Data Karyawan) diperlakukan seperti Admin: semua unit.
+        const isAdminUser = auth.isAdmin() || auth.hasSharedMenu('jadwal-jaga-operator');
         const assignedUnits = (!isAdminUser && auth.isAsmen() && auth.currentUser)
             ? String(auth.currentUser.operatorScheduleUnit || '').split(',').map(s => s.trim()).filter(Boolean)
             : [];
