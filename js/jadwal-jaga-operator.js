@@ -412,17 +412,59 @@ const jadwalJagaOperator = {
      * dilewati (lihat pemanggilnya). Format yang didukung: "DD/MM/YYYY"
      * dan "YYYY-MM-DD" (dua format tanggal paling umum dari Excel/CSV).
      */
+    // Membaca tanggal dari file upload. Format yang dikenali:
+    //   08/10/2026, 8-10-2026, 08.10.2026, 08/10/26   (tgl/bln/thn)
+    //   2026-10-08                                    (thn-bln-tgl, boleh diikuti jam)
+    //   08 Oktober 2026, 8 Okt 2026, 08-Okt-2026, Kamis, 08 Oktober 2026
+    //   (nama bulan Indonesia/Inggris, lengkap atau singkatan)
+    //   angka serial Excel (mis. 46303)
+    // Hasilnya nomor hari (1-31) kalau tanggalnya cocok dengan bulan/tahun
+    // yang sedang dipilih, selain itu null.
     _parseUploadedDate(raw) {
-        const s = String(raw || '').trim();
-        let m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+        let s = String(raw == null ? '' : raw).trim();
+        if (!s) return null;
+        const cocok = (y, mo, d) => (y === this.year && mo === this.month && d >= 1 && d <= 31) ? d : null;
+        const thn = (v) => { let y = parseInt(v, 10); if (String(v).length <= 2) y += 2000; return y; };
+
+        // buang nama hari di depan ("Kamis, 08 Oktober 2026") & bagian jam di belakang
+        s = s.replace(/^(senin|selasa|rabu|kamis|jumat|jum'at|sabtu|minggu|ahad|mon|tue|wed|thu|fri|sat|sun)[a-z]*\.?,?\s+/i, '');
+        s = s.replace(/[T\s]+\d{1,2}:\d{2}(:\d{2})?.*$/, '').trim();
+
+        // tgl/bln/thn (pemisah / - .)
+        let m = s.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2,4})$/);
+        if (m) return cocok(thn(m[3]), parseInt(m[2], 10) - 1, parseInt(m[1], 10));
+
+        // thn-bln-tgl
+        m = s.match(/^(\d{4})[\/\-.](\d{1,2})[\/\-.](\d{1,2})$/);
+        if (m) return cocok(parseInt(m[1], 10), parseInt(m[2], 10) - 1, parseInt(m[3], 10));
+
+        // tgl NamaBulan thn
+        const BLN = {
+            januari: 0, jan: 0, january: 0, februari: 1, feb: 1, pebruari: 1, february: 1, maret: 2, mar: 2, march: 2,
+            april: 3, apr: 3, mei: 4, may: 4, juni: 5, jun: 5, june: 5, juli: 6, jul: 6, july: 6,
+            agustus: 7, agu: 7, agt: 7, ags: 7, aug: 7, august: 7, september: 8, sep: 8, sept: 8,
+            oktober: 9, okt: 9, oct: 9, october: 9, november: 10, nov: 10, nopember: 10,
+            desember: 11, des: 11, dec: 11, december: 11
+        };
+        m = s.match(/^(\d{1,2})(?:st|nd|rd|th)?[\s\-\/.]+([A-Za-z]+)\.?[\s\-\/.,]+(\d{2,4})$/);
         if (m) {
-            const d = parseInt(m[1], 10), mo = parseInt(m[2], 10) - 1, y = parseInt(m[3], 10);
-            return (y === this.year && mo === this.month) ? d : null;
+            const mo = BLN[m[2].toLowerCase()];
+            if (mo !== undefined) return cocok(thn(m[3]), mo, parseInt(m[1], 10));
         }
-        m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+        // NamaBulan tgl, thn  (mis. "October 8, 2026")
+        m = s.match(/^([A-Za-z]+)\.?\s+(\d{1,2})(?:st|nd|rd|th)?,?\s+(\d{2,4})$/);
         if (m) {
-            const y = parseInt(m[1], 10), mo = parseInt(m[2], 10) - 1, d = parseInt(m[3], 10);
-            return (y === this.year && mo === this.month) ? d : null;
+            const mo = BLN[m[1].toLowerCase()];
+            if (mo !== undefined) return cocok(thn(m[3]), mo, parseInt(m[2], 10));
+        }
+
+        // angka serial Excel
+        if (/^\d{5}(\.\d+)?$/.test(s)) {
+            const n = parseFloat(s);
+            if (n > 30000 && n < 80000) {
+                const dt = new Date(Math.round((n - 25569) * 86400000));
+                return cocok(dt.getUTCFullYear(), dt.getUTCMonth(), dt.getUTCDate());
+            }
         }
         return null;
     },
