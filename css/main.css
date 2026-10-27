@@ -1270,6 +1270,26 @@ img {
     flex-shrink: 0;
 }
 
+/* PERBAIKAN: pilihan "Alasan Kendala" (radio) di modal Sanggahan Absensi
+   juga kena ".form-group input" (width:100% + padding + border), sehingga
+   bulatannya terlempar ke tengah dan teksnya mepet kanan. Reset khusus
+   radio di modal ini saja - input lain tidak terpengaruh. */
+#sa-alasan-list input[type="radio"] {
+    width: 16px !important;
+    height: 16px;
+    padding: 0 !important;
+    margin: 0;
+    border: none !important;
+    box-shadow: none !important;
+    flex-shrink: 0;
+    accent-color: var(--color-primary);
+}
+
+#sa-alasan-list label {
+    text-align: left;
+    line-height: 1.35;
+}
+
 .form-row {
     display: flex;
     gap: var(--spacing-md);
