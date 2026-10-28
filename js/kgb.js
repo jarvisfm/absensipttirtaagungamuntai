@@ -4,7 +4,7 @@
  *
  * Karyawan mengunggah 5 berkas lalu mengajukan. Alur persetujuan:
  *   Asmen Umum & Kepegawaian (satu-satunya yang menyetujui/menolak + catatan)
- *   -> Manajer Umum & Kepegawaian (meninjau) -> Manajer Keuangan (meninjau) -> Direktur (meninjau).
+ *   -> Manajer Umum & Kepegawaian (meninjau) -> Direktur (meninjau).
  * Riwayat KGB di Edit Profil & hitungan gaji TIDAK diubah di sini.
  */
 const kgb = {
@@ -374,7 +374,7 @@ const kgb = {
                 </div>
                 <h4 class="kg-h4"><i class="fas fa-paperclip"></i> Berkas Persyaratan <small>(semua wajib)</small></h4>
                 <div class="kg-slots">${rows}</div>
-                <div class="kg-flow"><i class="fas fa-route"></i><span>Alur: Asmen Umum &amp; Kepegawaian (setuju/tolak) → Manajer Umum &amp; Kepegawaian → Manajer Keuangan → Direktur (meninjau)</span></div>
+                <div class="kg-flow"><i class="fas fa-route"></i><span>Alur: Asmen Umum &amp; Kepegawaian (setuju/tolak) → Manajer Umum &amp; Kepegawaian → Direktur (meninjau)</span></div>
             </div>
             <div class="kg-mf">
                 <button type="button" class="kg-btn" onclick="kgb._closeModal()">Batal</button>
