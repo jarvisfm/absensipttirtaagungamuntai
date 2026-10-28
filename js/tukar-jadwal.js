@@ -159,21 +159,27 @@ const tukarJadwal = {
     },
 
     // ── Form ajukan ────────────────────────────────────────
+    // Daftar <option> dikelompokkan per tanggal (optgroup), tiap tanggal menampilkan SEMUA sesi yang terisi.
+    _slotOptions(slots, placeholder) {
+        if (!slots.length) return '';
+        const byDate = {};
+        slots.forEach((s, i) => { (byDate[s.date] = byDate[s.date] || []).push([s, i]); });
+        const opts = Object.keys(byDate).sort().map(d =>
+            `<optgroup label="${this._e(this._tgl(d))}">${byDate[d].map(([s, i]) => `<option value="${i}">${this._e(this._tgl(d))} · ${this._e(s.label)}</option>`).join('')}</optgroup>`).join('');
+        return (slots.length > 1 ? `<option value="">${placeholder}</option>` : '') + opts;
+    },
+
     async openForm() {
-        const c = this.ctx;
         this._mySlots = []; this._partnerSlots = [];
         this._openModal(`
             <div class="tj-mh"><h3><i class="fas fa-right-left"></i> Ajukan Tukar Jadwal</h3>
                 <button type="button" class="tj-x" onclick="tukarJadwal._closeModal()"><i class="fas fa-xmark"></i></button></div>
             <div class="tj-mb">
-                <div class="tj-fg"><label>Unit</label><input type="text" value="${this._e(c.unit)}" disabled></div>
+                <div class="tj-fg"><label>Unit</label><input type="text" value="${this._e(this.ctx.unit)}" disabled></div>
                 <div class="tj-fg"><label>Jadwal jaga saya yang ditukar <span class="tj-req">*</span></label>
-                    <select id="tj-slot-a"><option value="">Memuat jadwal Anda...</option></select></div>
+                    <select id="tj-slot-a" onchange="tukarJadwal.pilihJadwalSaya()"><option value="">Memuat jadwal Anda...</option></select></div>
                 <div class="tj-fg"><label>Tukar dengan petugas <span class="tj-req">*</span></label>
-                    <select id="tj-partner" onchange="tukarJadwal.pilihRekan()">
-                        <option value="">${c.partners.length ? '-- Pilih petugas --' : 'Tidak ada petugas lain yang terjadwal'}</option>
-                        ${c.partners.map(p => `<option value="${this._e(p.id)}">${this._e(p.nama)}</option>`).join('')}
-                    </select></div>
+                    <select id="tj-partner" onchange="tukarJadwal.pilihRekan()" disabled><option value="">Pilih jadwal Anda dulu</option></select></div>
                 <div class="tj-fg"><label>Jadwal jaga rekan yang ditukar <span class="tj-req">*</span></label>
                     <select id="tj-slot-b" disabled><option value="">Pilih petugas dulu</option></select></div>
                 <div class="tj-fg"><label>Alasan <span class="tj-req">*</span></label>
@@ -184,40 +190,53 @@ const tukarJadwal = {
                 <button type="button" class="tj-btn" onclick="tukarJadwal._closeModal()">Batal</button>
                 <button type="button" class="tj-btn tj-btn-primary" id="tj-submit" onclick="tukarJadwal.submit()"><i class="fas fa-paper-plane"></i> Kirim Pengajuan</button>
             </div>`);
+        const sel = this._$('tj-slot-a');
         try {
-            const r = await api.getTukarJadwalSlots(c.me.id);
-            if (!r || !r.success) throw new Error((r && r.error) || 'Gagal memuat jadwal');
-            this._mySlots = r.data.slots || [];
-            const sel = this._$('tj-slot-a');
+            // Muat ulang konteks supaya jadwal & daftar petugas selalu terbaru.
+            const c = await api.getTukarJadwalContext();
+            if (!c || !c.success) throw new Error((c && c.error) || 'Gagal memuat jadwal');
+            this.ctx = c.data;
+            this._mySlots = c.data.mySlots || [];
             if (!sel) return;
             sel.innerHTML = this._mySlots.length
-                ? (this._mySlots.length > 1 ? '<option value="">-- Pilih jadwal Anda --</option>' : '') + this._mySlots.map((s, i) => `<option value="${i}">${this._e(this._slotText(s.date, s.label))}</option>`).join('')
+                ? this._slotOptions(this._mySlots, '-- Pilih jadwal Anda --')
                 : '<option value="">Anda tidak punya jadwal jaga hari ini s/d 2 hari ke depan</option>';
+            if (this._mySlots.length === 1) this.pilihJadwalSaya();
         } catch (e) {
-            const sel = this._$('tj-slot-a');
             if (sel) sel.innerHTML = `<option value="">${this._e(e.message || 'Gagal memuat jadwal')}</option>`;
         }
     },
 
-    async pilihRekan() {
+    _sama(a, b) { return a.date === b.date && a.sess === b.sess; },
+
+    // Setelah jadwal saya dipilih: tampilkan hanya petugas yang punya jadwal yang BISA ditukar
+    // (bukan sesi yang sama dengan jadwal saya, dan bukan slot yang sudah saya isi sendiri).
+    pilihJadwalSaya() {
+        const mine = this._mySlots[parseInt((this._$('tj-slot-a') || {}).value, 10)];
+        const psel = this._$('tj-partner'), bsel = this._$('tj-slot-b');
+        if (!psel || !bsel) return;
+        this._partnerSlots = [];
+        bsel.disabled = true; bsel.innerHTML = '<option value="">Pilih petugas dulu</option>';
+        if (!mine) { psel.disabled = true; psel.innerHTML = '<option value="">Pilih jadwal Anda dulu</option>'; return; }
+        this._eligible = (this.ctx.partners || []).map(p => ({
+            id: p.id, nama: p.nama,
+            slots: (p.slots || []).filter(s => !this._sama(s, mine) && !this._mySlots.some(m => this._sama(m, s)))
+        })).filter(p => p.slots.length);
+        psel.innerHTML = this._eligible.length
+            ? '<option value="">-- Pilih petugas --</option>' + this._eligible.map(p => `<option value="${this._e(p.id)}">${this._e(p.nama)}</option>`).join('')
+            : '<option value="">Tidak ada petugas lain yang bisa ditukar</option>';
+        psel.disabled = !this._eligible.length;
+    },
+
+    pilihRekan() {
         const pid = (this._$('tj-partner') || {}).value;
         const sel = this._$('tj-slot-b');
         if (!sel) return;
-        this._partnerSlots = [];
-        if (!pid) { sel.disabled = true; sel.innerHTML = '<option value="">Pilih petugas dulu</option>'; return; }
-        sel.disabled = true; sel.innerHTML = '<option value="">Memuat jadwal rekan...</option>';
-        try {
-            const r = await api.getTukarJadwalSlots(pid);
-            if (!r || !r.success) throw new Error((r && r.error) || 'Gagal memuat jadwal rekan');
-            if ((this._$('tj-partner') || {}).value !== pid) return;
-            this._partnerSlots = r.data.slots || [];
-            sel.innerHTML = this._partnerSlots.length
-                ? (this._partnerSlots.length > 1 ? '<option value="">-- Pilih jadwal rekan --</option>' : '') + this._partnerSlots.map((s, i) => `<option value="${i}">${this._e(this._slotText(s.date, s.label))}</option>`).join('')
-                : '<option value="">Rekan tidak punya jadwal jaga hari ini s/d 2 hari ke depan</option>';
-            sel.disabled = !this._partnerSlots.length;
-        } catch (e) {
-            sel.innerHTML = `<option value="">${this._e(e.message || 'Gagal memuat jadwal rekan')}</option>`;
-        }
+        const p = (this._eligible || []).filter(x => x.id === pid)[0];
+        this._partnerSlots = p ? p.slots : [];
+        if (!p) { sel.disabled = true; sel.innerHTML = '<option value="">Pilih petugas dulu</option>'; return; }
+        sel.innerHTML = this._slotOptions(this._partnerSlots, '-- Pilih jadwal rekan --');
+        sel.disabled = false;
     },
 
     async submit() {
