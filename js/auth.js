@@ -926,6 +926,15 @@ table.sub td{padding:0 1mm 0 0}
             navJadwalOperatorAsmen.classList.toggle('hidden', !showForAsmen);
         }
 
+        // Menu "Tukar Jadwal Jaga": petugas operator (Jenis Jadwal Operator/SATPAM/TRD) dan
+        // manajer (calon approver - Manajer Operasi dan Jaringan). Di menu admin selalu tampil.
+        const navTukarJadwal = document.getElementById('nav-tukar-jadwal');
+        if (navTukarJadwal) {
+            const sh = String((this.currentUser && this.currentUser.shift) || '').trim().toLowerCase();
+            const isOperatorUser = sh.startsWith('operator') || sh === 'satpam' || sh === 'trd';
+            navTukarJadwal.classList.toggle('hidden', !(isOperatorUser || this.isManajer()));
+        }
+
         this.updateSharedMenuNav();
     },
 
