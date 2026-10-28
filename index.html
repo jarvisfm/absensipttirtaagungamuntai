@@ -37,6 +37,7 @@
     <link rel="stylesheet" href="css/permintaan-barang.css">
     <link rel="stylesheet" href="css/telaah-staf.css">
     <link rel="stylesheet" href="css/kgb.css">
+    <link rel="stylesheet" href="css/tukar-jadwal.css">
     <link rel="stylesheet" href="css/page-hero.css">
     <link rel="stylesheet" href="css/menu-modern.css">
     <link rel="stylesheet" href="css/form-modal.css">
@@ -305,6 +306,13 @@
                                 <span>Pengajuan KGB</span>
                             </a>
                         </li>
+                        <!-- Tukar Jadwal Jaga (petugas operator & manajer; js/tukar-jadwal.js) -->
+                        <li class="nav-item hidden" id="nav-tukar-jadwal" data-page="tukar-jadwal">
+                            <a href="#" class="nav-link">
+                                <i class="fas fa-right-left"></i>
+                                <span>Tukar Jadwal Jaga</span>
+                            </a>
+                        </li>
                         <li class="nav-item" data-page="izin">
                             <a href="#" class="nav-link">
                                 <i class="fas fa-user-clock"></i>
@@ -450,6 +458,13 @@
                             <a href="#" class="nav-link">
                                 <i class="fas fa-money-bill-trend-up"></i>
                                 <span>Pengajuan KGB</span>
+                            </a>
+                        </li>
+                        <!-- Tukar Jadwal Jaga (petugas operator & manajer; js/tukar-jadwal.js) -->
+                        <li class="nav-item" id="nav-tukar-jadwal-admin" data-page="tukar-jadwal">
+                            <a href="#" class="nav-link">
+                                <i class="fas fa-right-left"></i>
+                                <span>Tukar Jadwal Jaga</span>
                             </a>
                         </li>
                         <li class="nav-item" data-page="attendance-reports">
@@ -3443,6 +3458,11 @@
                     <div id="tl-root"></div>
                 </div>
 
+                <!-- Tukar Jadwal Jaga Operator (js/tukar-jadwal.js) -->
+                <div class="page" id="page-tukar-jadwal">
+                    <div id="tukar-jadwal-root"></div>
+                </div>
+
                 <!-- Pengajuan KGB (js/kgb.js) -->
                 <div class="page" id="page-kgb">
                     <div id="kgb-root"></div>
@@ -4558,6 +4578,7 @@
     <script src="js/permintaan-barang.js"></script>
     <script src="js/telaah-staf.js"></script>
     <script src="js/kgb.js"></script>
+    <script src="js/tukar-jadwal.js"></script>
     <script src="js/paraf.js"></script>
     <script src="js/izin.js"></script>
     <script src="js/cuti.js"></script>
