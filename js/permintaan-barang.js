@@ -168,6 +168,8 @@ const permintaanBarang = {
             const giliran = r.status === 'Menunggu' && r.giliran
                 ? `<small class="pb-giliran"><i class="fas fa-hourglass-half"></i> Menunggu: ${this._e(r.giliran)}</small>` : '';
             const rev = r.revisi ? ` <small class="pb-rev">revisi ke-${this._e(r.revisi)}</small>` : '';
+            const deleg = r.delegasi
+                ? `<small class="pb-deleg-line"><i class="fas fa-cart-shopping"></i> Pengadaan: ${r.delegasi.status === 'Selesai' ? 'semua barang sudah dibelikan' : (r.delegasi.status === 'Sebagian' ? `${this._e(r.delegasi.dibeli)} dari ${this._e(r.delegasi.total)} barang sudah dibelikan` : 'menunggu dibelikan Manajer Umum dan Kepegawaian')}</small>` : '';
             const tombol = own && r.status === 'Ditolak' ? `<div class="pb-row-act" onclick="event.stopPropagation()">
                     <button type="button" class="pb-btn pb-btn-sm pb-btn-primary" onclick="permintaanBarang.perbaiki('${this._e(r.id)}')"><i class="fas fa-pen"></i> Perbaiki</button>
                     <button type="button" class="pb-btn pb-btn-sm pb-btn-danger" onclick="permintaanBarang.hapus('${this._e(r.id)}')"><i class="fas fa-trash"></i> Hapus</button></div>` : '';
@@ -177,6 +179,7 @@ const permintaanBarang = {
                     <span>${this._e(r.pemohonNama)} &middot; ${this._e(r.tanggal)}</span>
                     <small>${ringkas || '-'}</small>
                     ${giliran}
+                    ${deleg}
                     ${tombol}
                 </div>
                 ${this._statusChip(r.status)}
@@ -438,6 +441,7 @@ const permintaanBarang = {
             ? `<div class="pb-alert"><i class="fas fa-clock-rotate-left"></i> <span><b>Riwayat penolakan sebelumnya:</b><br>${p.riwayatPenolakan.map(x => `${this._e(x.tanggal)} - ${this._e(x.jabatan)}${x.oleh ? ' (' + this._e(x.oleh) + ')' : ''}: ${this._e(x.catatan || '-')}`).join('<br>')}</span></div>` : '';
         const aksi = p.bisaApprove ? this._approvePanel(p) : '';
         const revisi = p.bisaRevisi ? `<button class="pb-btn pb-btn-primary" onclick="permintaanBarang.perbaiki('${this._e(p.id)}')"><i class="fas fa-pen"></i> Perbaiki &amp; Ajukan Ulang</button>` : '';
+        const delegasiBtn = p.bisaDelegasi ? `<button class="pb-btn pb-btn-ok" onclick="permintaanBarang.delegasi('${this._e(p.id)}')"><i class="fas fa-share-nodes"></i> Delegasi</button>` : '';
         const hapus = p.bisaHapus ? `<button class="pb-btn pb-btn-danger" onclick="permintaanBarang.hapus('${this._e(p.id)}')"><i class="fas fa-trash"></i> Hapus</button>` : '';
         ov.innerHTML = `<div class="pb-modal">
             <div class="pb-modal-head"><div><b>${this._e(p.nomor)}</b><small>${this._e(this._tglIndo(p.tanggal))}</small></div>
@@ -457,10 +461,72 @@ const permintaanBarang = {
                 <h4 class="pb-h4">Persetujuan</h4>
                 ${this._stepTable(p)}
                 ${aksi}
+                ${this._delegasiPanel(p)}
             </div>
-            <div class="pb-modal-foot">${hapus}${revisi}<button class="pb-btn pb-btn-primary" onclick="permintaanBarang.cetak()"><i class="fas fa-print"></i> Cetak Form</button></div>
+            <div class="pb-modal-foot">${hapus}${revisi}${delegasiBtn}<button class="pb-btn pb-btn-primary" onclick="permintaanBarang.cetak()"><i class="fas fa-print"></i> Cetak Form</button></div>
         </div>`;
         if (p.bisaApprove) { this._initSignature(); this._cekSetuju(); }
+    },
+
+    // ── Delegasi pengadaan (Pejabat Pengadaan -> Manajer Umum & Kepegawaian) ──
+    _delegasiPanel(p) {
+        const d = p.delegasi;
+        if (!d) return '';
+        const label = { Menunggu: 'Menunggu dibelikan', Sebagian: 'Sebagian sudah dibelikan', Selesai: 'Semua sudah dibelikan' }[d.status] || d.status;
+        const head = `<h4 class="pb-h4"><i class="fas fa-cart-shopping"></i> Pengadaan Barang</h4>
+            <div class="pb-note">Didelegasikan oleh ${this._e(d.olehNama)} (${this._e(this._tglIndo(d.tanggal))}) kepada ${this._e(d.mgrNama)}. Status: <b>${this._e(label)}</b>${d.diprosesOleh ? ` &middot; diperbarui ${this._e(d.diprosesOleh)} (${this._e(this._tglIndo(d.tglProses))})` : ''}</div>`;
+        if (p.bisaProsesPengadaan) {
+            const rows = p.items.map((it, i) => `<label class="pb-deleg-item">
+                <input type="checkbox" class="pb-beli" data-i="${i}" ${(d.beli || [])[i] ? 'checked' : ''}>
+                <span><b>${this._e(it.nama)}</b> <small>${this._e(it.jumlah)} ${this._e(it.satuan)}${it.spesifikasi ? ' &middot; ' + this._e(it.spesifikasi) : ''}</small></span></label>`).join('');
+            return `<div class="pb-approve pb-deleg">${head}
+                <p class="pb-note">Centang barang yang sudah dibeli. Jika ada yang belum dibeli (mis. stok di toko habis), isi catatannya. Pemohon akan menerima notifikasi dan bisa melihat daftar ini.</p>
+                <div class="pb-deleg-list">${rows}</div>
+                <label class="pb-lbl">Catatan Manajer <small>(wajib jika ada barang yang belum dibeli)</small></label>
+                <textarea id="pb-catatan-pengadaan" rows="2" placeholder="mis. Printer habis stok di toko, menunggu restock">${this._e(d.catatan || '')}</textarea>
+                <div class="pb-actions"><button type="button" class="pb-btn pb-btn-ok" id="pb-btn-pengadaan" onclick="permintaanBarang.simpanPengadaan()"><i class="fas fa-paper-plane"></i> Kirim ke Pemohon</button></div></div>`;
+        }
+        const rows = p.items.map((it, i) => {
+            const ok = (d.beli || [])[i];
+            return `<div class="pb-deleg-row ${ok ? 'ok' : 'wait'}"><i class="fas ${ok ? 'fa-circle-check' : 'fa-hourglass-half'}"></i>
+                <span><b>${this._e(it.nama)}</b> <small>${this._e(it.jumlah)} ${this._e(it.satuan)}</small></span>
+                <em>${ok ? 'Sudah dibelikan' : 'Belum dibeli'}</em></div>`;
+        }).join('');
+        return `<div class="pb-deleg">${head}<div class="pb-deleg-list">${rows}</div>
+            ${d.catatan ? `<div class="pb-alert"><i class="fas fa-comment-dots"></i> <span><b>Catatan Manajer:</b> ${this._e(d.catatan)}</span></div>` : ''}</div>`;
+    },
+
+    async delegasi(id) {
+        if (!await this._confirm({ judul: 'Delegasi Pengadaan', pesan: 'Delegasikan pembelian barang ini kepada Manajer Umum dan Kepegawaian? Beliau akan memeriksa, membeli, dan melaporkan barang yang sudah dibelikan kepada pemohon.', ok: 'Ya, Delegasikan', icon: 'fa-share-nodes' })) return;
+        try {
+            const res = await api.delegasiPermintaanBarang(id);
+            if (!res || !res.success) throw new Error((res && res.error) || 'Gagal mendelegasikan');
+            toast.success(res.message || 'Berhasil didelegasikan');
+            this._closeDetail();
+            await this.init();
+        } catch (e) {
+            toast.error(e.message || 'Gagal mendelegasikan');
+        }
+    },
+
+    async simpanPengadaan() {
+        const p = this.detail;
+        const beli = p.items.map(() => false);
+        document.querySelectorAll('#pb-overlay .pb-beli').forEach(cb => { beli[parseInt(cb.dataset.i, 10)] = cb.checked; });
+        const catatan = ((document.getElementById('pb-catatan-pengadaan') || {}).value || '').trim();
+        if (beli.some(b => !b) && !catatan) { toast.error('Ada barang yang belum dibeli - isi catatan alasannya (mis. stok toko habis).'); return; }
+        const btn = document.getElementById('pb-btn-pengadaan');
+        if (btn) btn.disabled = true;
+        try {
+            const res = await api.prosesPengadaanPermintaanBarang({ id: p.id, beli, catatan });
+            if (!res || !res.success) throw new Error((res && res.error) || 'Gagal menyimpan');
+            toast.success(res.message || 'Terkirim ke pemohon');
+            this._closeDetail();
+            await this.init();
+        } catch (e) {
+            toast.error(e.message || 'Gagal menyimpan');
+            if (btn) btn.disabled = false;
+        }
     },
 
     _approvePanel(p) {
