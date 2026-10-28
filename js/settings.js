@@ -112,7 +112,28 @@ const settings = {
         if (wrap) wrap.style.display = (toggle && toggle.checked) ? 'flex' : 'none';
     },
 
+    // Layar loading saat menyimpan Pengaturan (menutup halaman + mencegah klik ganda).
+    _showSaveLoading() {
+        if (document.getElementById('settings-save-loading')) return;
+        const el = document.createElement('div');
+        el.id = 'settings-save-loading';
+        el.style.cssText = 'position:fixed;inset:0;z-index:10060;display:flex;align-items:center;justify-content:center;background:rgba(15,23,42,.5);';
+        el.innerHTML = `
+            <div style="background:var(--bg-secondary,#fff);color:var(--text-primary,#111827);border-radius:16px;padding:28px 36px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.3);">
+                <i class="fas fa-spinner fa-spin" style="font-size:2rem;color:var(--color-primary,#F59E0B);"></i>
+                <div style="margin-top:12px;font-weight:600;">Menyimpan pengaturan...</div>
+                <div style="margin-top:4px;font-size:.8rem;color:var(--text-muted,#6b7280);">Mohon tunggu, jangan tutup halaman ini.</div>
+            </div>`;
+        document.body.appendChild(el);
+    },
+
+    _hideSaveLoading() {
+        const el = document.getElementById('settings-save-loading');
+        if (el) el.remove();
+    },
+
     async saveSystemSettings() {
+        if (this._savingSystem) return; // cegah klik ganda saat simpan masih berjalan
         const faceRecognition  = document.getElementById('setting-face-recognition');
         const locationTracking = document.getElementById('setting-location-tracking');
         const locationRadius   = document.getElementById('setting-location-radius');
@@ -144,6 +165,8 @@ const settings = {
             validLocations.push({ nama: String(loc.nama).trim(), lat, lng });
         }
 
+        this._savingSystem = true;
+        this._showSaveLoading();
         try {
             await api.saveSettingsBulk({
                 face_recognition:  faceRecognition  ? String(faceRecognition.checked)  : 'false',
@@ -160,6 +183,9 @@ const settings = {
         } catch (error) {
             console.error('Error saving system settings:', error);
             toast.error('Gagal menyimpan pengaturan sistem');
+        } finally {
+            this._savingSystem = false;
+            this._hideSaveLoading();
         }
     },
 
