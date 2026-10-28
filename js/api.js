@@ -1278,8 +1278,11 @@ const api = {
     async buatPermintaanBarang(data) {
         return this.request('buatPermintaanBarang', { ...data, ...this._pbAuth() });
     },
-    async delegasiPermintaanBarang(id) {
-        return this.request('delegasiPermintaanBarang', { id, ...this._pbAuth() });
+    async delegasiPermintaanBarang(id, kirim) {
+        return this.request('delegasiPermintaanBarang', { id, kirim, ...this._pbAuth() });
+    },
+    async setujuSyaratPermintaanBarang(data) {
+        return this.request('setujuSyaratPermintaanBarang', { ...data, ...this._pbAuth() });
     },
     async prosesPengadaanPermintaanBarang(data) {
         return this.request('prosesPengadaanPermintaanBarang', { ...data, ...this._pbAuth() });
