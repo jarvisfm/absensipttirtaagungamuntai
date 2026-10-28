@@ -1339,6 +1339,10 @@ const api = {
     async hapusKgb(id) {
         return this.request('hapusKgb', { id, ...this._pbAuth() });
     },
+    // Asmen/Admin: unggah SK KGB + catat ke Riwayat KGB pemohon
+    async catatSkKgb(data) {
+        return this.request('catatSkKgb', { ...data, ...this._pbAuth() });
+    },
     // Tabel gaji pokok untuk KGB (backend: Gajipokok.gs)
     async hitungGajiKgb(data) {
         return this.request('hitungGajiKgb', { ...data, ...this._pbAuth() });
