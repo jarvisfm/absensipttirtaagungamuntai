@@ -219,7 +219,7 @@ const permintaanBarang = {
                 <div><label>Bagian</label><input type="text" value="${this._e(me.bagian || '-')}" readonly></div>
                 <div><label>Sub Bidang / Seksi <small>(opsional, dipakai di nomor surat)</small></label>
                     <input type="text" id="pb-subBidang" value="${this._e(ed ? ed.subBidang : '')}" placeholder="Contoh: Pergudangan"></div>
-                <div><label>Unit Wilayah</label><input type="text" id="pb-wilayah" value="${this._e(ed ? ed.wilayah : (me.unitWilayah || ''))}" placeholder="Contoh: BNA Amuntai"></div>
+                <div><label>Unit Wilayah</label><input type="text" id="pb-wilayah" value="${this._e(ed ? ed.wilayah : (me.unitWilayah || ''))}" placeholder="-" readonly></div>
             </div>
             <label class="pb-lbl">Keperluan / Alasan Kebutuhan</label>
             <textarea id="pb-keperluan" rows="3" placeholder="Jelaskan keperluan permintaan ini...">${this._e(ed ? ed.keperluan : '')}</textarea>
