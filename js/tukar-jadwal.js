@@ -133,8 +133,8 @@ const tukarJadwal = {
                 <div class="tj-side"><small>${this._e(x.partnerNama)} menjaga</small><b>${this._e(this._slotText(x.dateB, x.labelB))}</b></div>
             </div>
             <div class="tj-info"><i class="fas fa-comment"></i> ${this._e(x.alasan)}</div>
-            ${x.status === 'Disetujui' ? `<div class="tj-res tj-res-ok"><i class="fas fa-circle-check"></i> Disetujui ${this._e(x.approverNama)} - jadwal sudah berubah.</div>` : ''}
-            ${x.status === 'Ditolak' ? `<div class="tj-res tj-res-no"><i class="fas fa-circle-xmark"></i> Ditolak ${this._e(x.approverNama)}${x.catatan ? ' - ' + this._e(x.catatan) : ''}. Jadwal tidak berubah.</div>` : ''}
+            ${x.status === 'Disetujui' ? `<div class="tj-res tj-res-ok"><i class="fas fa-circle-check"></i> <span>Disetujui ${this._e(x.approverNama)} - jadwal sudah berubah.${x.catatan ? `<br><b>Catatan:</b> ${this._e(x.catatan)}` : ''}</span></div>` : ''}
+            ${x.status === 'Ditolak' ? `<div class="tj-res tj-res-no"><i class="fas fa-circle-xmark"></i> <span>Ditolak ${this._e(x.approverNama)}. Jadwal tidak berubah.${x.catatan ? `<br><b>Catatan:</b> ${this._e(x.catatan)}` : ''}</span></div>` : ''}
             ${x.status === 'Menunggu' ? '<div class="tj-res tj-res-wait"><i class="fas fa-hourglass-half"></i> Menunggu persetujuan Manajer Operasi dan Jaringan.</div>' : ''}
             <div class="tj-actions">
                 ${x.bisaAct ? `<button type="button" class="tj-btn tj-btn-primary" onclick="tukarJadwal.openProses('${this._e(x.id)}')"><i class="fas fa-clipboard-check"></i> Buka & Proses</button>` : ''}
@@ -171,14 +171,14 @@ const tukarJadwal = {
                     <select id="tj-slot-a"><option value="">Memuat jadwal Anda...</option></select></div>
                 <div class="tj-fg"><label>Tukar dengan petugas <span class="tj-req">*</span></label>
                     <select id="tj-partner" onchange="tukarJadwal.pilihRekan()">
-                        <option value="">-- Pilih petugas --</option>
+                        <option value="">${c.partners.length ? '-- Pilih petugas --' : 'Tidak ada petugas lain yang terjadwal'}</option>
                         ${c.partners.map(p => `<option value="${this._e(p.id)}">${this._e(p.nama)}</option>`).join('')}
                     </select></div>
                 <div class="tj-fg"><label>Jadwal jaga rekan yang ditukar <span class="tj-req">*</span></label>
                     <select id="tj-slot-b" disabled><option value="">Pilih petugas dulu</option></select></div>
                 <div class="tj-fg"><label>Alasan <span class="tj-req">*</span></label>
                     <textarea id="tj-alasan" rows="3" maxlength="500" placeholder="mis. Ada keperluan keluarga di tanggal tersebut"></textarea></div>
-                <div class="tj-note"><i class="fas fa-circle-info"></i> Pengajuan menunggu persetujuan Manajer Operasi dan Jaringan. Jadwal baru berubah setelah disetujui.</div>
+                <div class="tj-note"><i class="fas fa-circle-info"></i> Hanya jadwal hari ini sampai 2 hari ke depan yang bisa ditukar. Pengajuan menunggu persetujuan Manajer Operasi dan Jaringan; jadwal baru berubah setelah disetujui.</div>
             </div>
             <div class="tj-mf">
                 <button type="button" class="tj-btn" onclick="tukarJadwal._closeModal()">Batal</button>
@@ -191,8 +191,8 @@ const tukarJadwal = {
             const sel = this._$('tj-slot-a');
             if (!sel) return;
             sel.innerHTML = this._mySlots.length
-                ? '<option value="">-- Pilih jadwal Anda --</option>' + this._mySlots.map((s, i) => `<option value="${i}">${this._e(this._slotText(s.date, s.label))}</option>`).join('')
-                : '<option value="">Anda belum punya jadwal jaga mendatang</option>';
+                ? (this._mySlots.length > 1 ? '<option value="">-- Pilih jadwal Anda --</option>' : '') + this._mySlots.map((s, i) => `<option value="${i}">${this._e(this._slotText(s.date, s.label))}</option>`).join('')
+                : '<option value="">Anda tidak punya jadwal jaga hari ini s/d 2 hari ke depan</option>';
         } catch (e) {
             const sel = this._$('tj-slot-a');
             if (sel) sel.innerHTML = `<option value="">${this._e(e.message || 'Gagal memuat jadwal')}</option>`;
@@ -212,8 +212,8 @@ const tukarJadwal = {
             if ((this._$('tj-partner') || {}).value !== pid) return;
             this._partnerSlots = r.data.slots || [];
             sel.innerHTML = this._partnerSlots.length
-                ? '<option value="">-- Pilih jadwal rekan --</option>' + this._partnerSlots.map((s, i) => `<option value="${i}">${this._e(this._slotText(s.date, s.label))}</option>`).join('')
-                : '<option value="">Rekan belum punya jadwal jaga mendatang</option>';
+                ? (this._partnerSlots.length > 1 ? '<option value="">-- Pilih jadwal rekan --</option>' : '') + this._partnerSlots.map((s, i) => `<option value="${i}">${this._e(this._slotText(s.date, s.label))}</option>`).join('')
+                : '<option value="">Rekan tidak punya jadwal jaga hari ini s/d 2 hari ke depan</option>';
             sel.disabled = !this._partnerSlots.length;
         } catch (e) {
             sel.innerHTML = `<option value="">${this._e(e.message || 'Gagal memuat jadwal rekan')}</option>`;
