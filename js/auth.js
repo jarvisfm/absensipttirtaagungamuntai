@@ -932,10 +932,34 @@ table.sub td{padding:0 1mm 0 0}
         if (navTukarJadwal) {
             const sh = String((this.currentUser && this.currentUser.shift) || '').trim().toLowerCase();
             const isOperatorUser = sh.startsWith('operator') || sh === 'satpam' || sh === 'trd';
-            navTukarJadwal.classList.toggle('hidden', !(isOperatorUser || this.isManajer()));
+            // Manajer hanya melihat menu ini kalau memang calon approver (Manajer Operasi dan
+            // Jaringan, atau manajer yang ditunjuk Asmen unit) - manajer lain (mis. Keuangan) tidak.
+            const mgrApprover = this.isManajer() && this._isTukarJadwalApprover(navTukarJadwal);
+            navTukarJadwal.classList.toggle('hidden', !(isOperatorUser || mgrApprover));
         }
 
         this.updateSharedMenuNav();
+    },
+
+    // Apakah manajer ini approver Tukar Jadwal Jaga? Jabatan/bagian memuat OPERASI/JARINGAN -> ya
+    // (sama dengan aturan server). Manajer lain ditanyakan ke server SEKALI (hasil di-cache),
+    // lalu menu ditampilkan kalau ternyata ditunjuk sebagai approver.
+    _isTukarJadwalApprover(navEl) {
+        const u = this.currentUser || {};
+        const t = (String(u.jabatan || '') + ' ' + String(u.bagian || '')).toUpperCase();
+        if (t.indexOf('OPERASI') !== -1 || t.indexOf('JARINGAN') !== -1) return true;
+        const key = String(u.employeeId || u.id || '');
+        if (!this._tjApproverCache) this._tjApproverCache = {};
+        if (key in this._tjApproverCache) return this._tjApproverCache[key];
+        if (!this._tjApproverAsking && typeof api !== 'undefined' && api.getTukarJadwalContext) {
+            this._tjApproverAsking = true;
+            api.getTukarJadwalContext().then(res => {
+                const ok = !!(res && res.success && res.data && res.data.isApprover);
+                this._tjApproverCache[key] = ok;
+                if (ok && navEl) navEl.classList.remove('hidden');
+            }).catch(() => { this._tjApproverCache[key] = false; /* menu tetap tersembunyi */ }).finally(() => { this._tjApproverAsking = false; });
+        }
+        return false;
     },
 
     // Menu Admin yang DIBAGIKAN Admin ke karyawan ini (Data Karyawan > Edit >
