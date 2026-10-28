@@ -433,7 +433,6 @@ const karyawanManager = {
             document.getElementById('p-role').value            = p.role || 'staff';
             document.getElementById('p-pangkat').value         = p.pangkat || '';
             document.getElementById('p-golongan').value        = p.golongan || '';
-            document.getElementById('p-gajiPokok').value       = p.gajiPokok || '';
             document.getElementById('p-terhitungMulai').value  = p.terhitungMulai || '';
             this.autoHitungMasaKerja();
             document.getElementById('p-tahunPensiun').value    = p.tahunPensiun || '';
@@ -520,7 +519,7 @@ const karyawanManager = {
         const fields = ['karyawan-id','p-nik','p-nama','p-jenisKelamin','p-statusPernikahan',
             'p-tempatLahir','p-tanggalLahir','p-golonganDarah','p-noTelp','p-npwp','p-ktp',
             'p-email','p-agama','p-alamatRumah','p-statusPekerjaan','p-statusKaryawan','p-pendidikan','p-jabatan',
-            'p-unitWilayah','p-unitJaga','p-bagian','p-pangkat','p-golongan','p-gajiPokok',
+            'p-unitWilayah','p-unitJaga','p-bagian','p-pangkat','p-golongan',
             'p-terhitungMulai','p-masaKerja','p-tahunPensiun','p-shift','p-fileKTP',
             'p-namaPasangan','p-namaAyah','p-namaIbu','p-username','p-password'];
 
@@ -809,7 +808,6 @@ const karyawanManager = {
             role:             document.getElementById('p-role').value,
             pangkat:          document.getElementById('p-pangkat').value.trim(),
             golongan:         document.getElementById('p-golongan').value.trim(),
-            gajiPokok:        document.getElementById('p-gajiPokok').value,
             terhitungMulai:   document.getElementById('p-terhitungMulai').value,
             masaKerja:        document.getElementById('p-masaKerja').value.trim(),
             tahunPensiun:     document.getElementById('p-tahunPensiun').value.trim(),
@@ -1194,7 +1192,6 @@ const karyawanManager = {
                     ${field('Unit Wilayah', p.unitWilayah)}
                     ${field('Pangkat', p.pangkat)}
                     ${field('Golongan', p.golongan)}
-                    ${field('Gaji Pokok', p.gajiPokok ? 'Rp ' + Number(p.gajiPokok).toLocaleString('id-ID') : '')}
                     ${field('Terhitung Mulai', p.terhitungMulai)}
                     ${field('Masa Kerja', p.masaKerja)}
                     ${field('Tahun Pensiun', p.tahunPensiun)}
