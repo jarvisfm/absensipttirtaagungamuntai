@@ -143,6 +143,20 @@
 .pb-deleg-row em { font-style: normal; font-weight: 700; font-size: .75rem; white-space: nowrap; }
 .pb-deleg-row.ok { background: #ECFDF5; color: #065F46; }
 .pb-deleg-row.wait { background: #FFFBEB; color: #92400E; }
+.pb-deleg-row.part { background: #EFF6FF; color: #1E40AF; }
+.pb-deleg-row.no { background: #F3F4F6; color: #6B7280; }
+.pb-deleg-row > i { flex-shrink: 0; }
+.pb-qty-row { align-items: center; justify-content: space-between; flex-wrap: wrap; cursor: default; }
+.pb-qty-name { display: flex; align-items: flex-start; gap: 10px; flex: 1 1 200px; min-width: 0; cursor: pointer; margin: 0; }
+.pb-qty-name input { width: 18px; height: 18px; margin-top: 2px; flex-shrink: 0; accent-color: #10B981; }
+.pb-qty-name span { min-width: 0; overflow-wrap: anywhere; }
+.pb-qty-hint { display: block; color: #0369A1 !important; }
+.pb-qty-box { display: flex; align-items: center; gap: 6px; font-size: .78rem; color: var(--text-muted, #6b7280); white-space: nowrap; }
+.pb-qty-box input { width: 70px; padding: 6px 8px; text-align: center; border: 1px solid var(--border-color, #cbd5e1); border-radius: 8px; font-family: inherit; font-weight: 700; }
+.pb-qty-box input:disabled { opacity: .45; background: #F3F4F6; }
+.pb-syarat { display: flex; align-items: center; gap: 6px; margin-top: 6px; font-size: .8rem; font-weight: 600; cursor: pointer; }
+.pb-syarat input { width: 16px; height: 16px; margin: 0; flex-shrink: 0; accent-color: #2563EB; }
+.pb-syarat-on { display: block; margin-top: 4px; font-size: .75rem; font-weight: 600; color: #1D4ED8; }
 
 @media (max-width: 600px) {
     .pb-hero { padding: 16px; }
