@@ -91,6 +91,7 @@ body.kg-lock{overflow:hidden}
 .kg-form label{display:flex;flex-direction:column;gap:6px;font-size:.78rem;font-weight:700;color:#475569}
 .kg-form .kg-full{grid-column:1/-1}
 .kg-form input,.kg-form textarea,.kg-proc textarea{border:1.5px solid #E2E8F0;border-radius:12px;padding:10px 12px;font-size:.88rem;font-family:inherit;background:#F8FAFC;width:100%;box-sizing:border-box}
+.kg-form input[readonly]{background:#EEF2F7;color:#475569;cursor:not-allowed}
 .kg-form input:focus,.kg-form textarea:focus,.kg-proc textarea:focus{outline:none;border-color:#10B981;background:#fff;box-shadow:0 0 0 3px rgba(16,185,129,.15)}
 
 .kg-slots{display:flex;flex-direction:column;gap:8px}
