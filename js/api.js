@@ -1291,6 +1291,26 @@ const api = {
         return this.request('getKatalogBarangPermintaan', { ...this._pbAuth() });
     },
 
+    // ========== TUKAR JADWAL JAGA OPERATOR (js/tukar-jadwal.js, backend: Tukarjadwal.gs) ==========
+    async getTukarJadwalContext() {
+        return this.request('getTukarJadwalContext', { ...this._pbAuth() });
+    },
+    async getTukarJadwalSlots(targetId) {
+        return this.request('getTukarJadwalSlots', { targetId, ...this._pbAuth() });
+    },
+    async getTukarJadwalList() {
+        return this.request('getTukarJadwalList', { ...this._pbAuth() });
+    },
+    async ajukanTukarJadwal(data) {
+        return this.request('ajukanTukarJadwal', { ...data, ...this._pbAuth() });
+    },
+    async prosesTukarJadwal(data) {
+        return this.request('prosesTukarJadwal', { ...data, ...this._pbAuth() });
+    },
+    async batalTukarJadwal(id) {
+        return this.request('batalTukarJadwal', { id, ...this._pbAuth() });
+    },
+
     // ========== PENGAJUAN KGB (js/kgb.js, backend: Kgbpengajuan.gs) ==========
     async getKgbContext() {
         return this.request('getKgbContext', { ...this._pbAuth() });
