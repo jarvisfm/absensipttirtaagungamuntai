@@ -364,6 +364,7 @@ const karyawanManager = {
     // berubah berarti Asmen lama kemungkinan sudah tidak relevan).
     onBagianChange() {
         const bagian = document.getElementById('p-bagian')?.value || '';
+        if (window.SubBidang) SubBidang.onBagianChange(document.getElementById('p-subBidang'), document.getElementById('p-subBidang-list'), bagian);
         this._populateAsmenDropdown(bagian, '');
         // NEW: Approver Absen Luar Radius juga mengikuti Bagian (untuk
         // Staff/Asmen) - muat ulang juga tiap kali Bagian berubah, sama
@@ -430,6 +431,8 @@ const karyawanManager = {
             document.getElementById('p-unitWilayah').value = unitJagaValues.includes(p.unitWilayah) ? '' : (p.unitWilayah || '');
             document.getElementById('p-unitJaga').value    = unitJagaValues.includes(p.unitWilayah) ? p.unitWilayah : '';
             document.getElementById('p-bagian').value          = p.bagian || '';
+            document.getElementById('p-subBidang').value       = p.subBidang || '';
+            if (window.SubBidang) SubBidang.fillList(document.getElementById('p-subBidang-list'), p.bagian);
             document.getElementById('p-role').value            = p.role || 'staff';
             document.getElementById('p-pangkat').value         = p.pangkat || '';
             document.getElementById('p-golongan').value        = p.golongan || '';
@@ -519,7 +522,7 @@ const karyawanManager = {
         const fields = ['karyawan-id','p-nik','p-nama','p-jenisKelamin','p-statusPernikahan',
             'p-tempatLahir','p-tanggalLahir','p-golonganDarah','p-noTelp','p-npwp','p-ktp',
             'p-email','p-agama','p-alamatRumah','p-statusPekerjaan','p-statusKaryawan','p-pendidikan','p-jabatan',
-            'p-unitWilayah','p-unitJaga','p-bagian','p-pangkat','p-golongan',
+            'p-unitWilayah','p-unitJaga','p-bagian','p-subBidang','p-pangkat','p-golongan',
             'p-terhitungMulai','p-masaKerja','p-tahunPensiun','p-shift','p-fileKTP',
             'p-namaPasangan','p-namaAyah','p-namaIbu','p-username','p-password'];
 
@@ -527,6 +530,7 @@ const karyawanManager = {
             const el = document.getElementById(id);
             if (el) el.value = '';
         });
+        if (window.SubBidang) SubBidang.fillList(document.getElementById('p-subBidang-list'), '');
 
         // Select tidak punya opsi kosong, jadi default-kan manual ke 'staff'
         const roleEl = document.getElementById('p-role');
@@ -805,6 +809,7 @@ const karyawanManager = {
             // dropdown ini yang terisi).
             unitWilayah:      document.getElementById('p-unitJaga').value.trim() || document.getElementById('p-unitWilayah').value.trim(),
             bagian:           document.getElementById('p-bagian').value.trim(),
+            subBidang:        (document.getElementById('p-subBidang')?.value || '').trim(),
             role:             document.getElementById('p-role').value,
             pangkat:          document.getElementById('p-pangkat').value.trim(),
             golongan:         document.getElementById('p-golongan').value.trim(),
@@ -1190,6 +1195,7 @@ const karyawanManager = {
                     ${field('Pendidikan', p.pendidikan)}
                     ${field('Jabatan', p.jabatan)}
                     ${field('Unit Wilayah', p.unitWilayah)}
+                    ${field('Sub Bidang / Seksi', p.subBidang)}
                     ${field('Pangkat', p.pangkat)}
                     ${field('Golongan', p.golongan)}
                     ${field('Terhitung Mulai', p.terhitungMulai)}
