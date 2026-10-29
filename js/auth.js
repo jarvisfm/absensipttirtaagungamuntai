@@ -741,6 +741,8 @@ const auth = {
     // [DIUBAH 2026-10-19] Format CV dibuat POLOS (tanpa logo, foto, warna
     // maupun kolom samping) - hanya Curriculum Vitae bernomor 1-9 seperti
     // format baku di kantor, ditutup tanda tangan "Karyawan/ti PDAM".
+    // [DIUBAH 2026-10-29] Ditambah baris Bagian & Sub Bidang / Seksi tepat di bawah Jabatan
+    // (penomoran baris otomatis mengikuti urutan, jadi sekarang 1-11).
     _cvHtml(p, pendidikan, mutasi, riwayatKaryawan) {
         const e = v => String(v == null ? '' : v).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
         const BULAN = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
@@ -794,6 +796,8 @@ const auth = {
             ['Nama Lengkap', e(p.nama)],
             ['Tempat/tgl lahir', e(ttl)],
             ['Jabatan', e(p.jabatan)],
+            ['Bagian', e(p.bagian)],
+            ['Sub Bidang / Seksi', e(p.subBidang)],
             ['Pangkat/Golongan', e(gol)],
             ['Alamat Kantor', alamatKantor],
             ['Alamat rumah', rumah],
