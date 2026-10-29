@@ -594,9 +594,8 @@ const kgb = {
                     <div class="kg-form" style="margin-top:12px">
                         <label>No. SK KGB Terakhir<input type="text" id="kg-c-nomor" maxlength="120" placeholder="Contoh: 11/PDAM.HSU/VII/2022"></label>
                         <label>TMT KGB Diajukan<input type="date" id="kg-c-tmt"></label>
-                        <label>Masa Kerja (Tahun) <small>(kosongkan = otomatis)</small><input type="number" id="kg-c-mkt" min="0" max="60" placeholder="Otomatis"></label>
-                        <label>Masa Kerja (Bulan)<input type="number" id="kg-c-mkb" min="0" max="11" placeholder="0"></label>
-                        <label class="kg-full">Gaji Pokok Baru (Rp)<input type="text" id="kg-c-gaji" inputmode="numeric" placeholder="Contoh: 3.500.000" oninput="this.value=this.value.replace(/\D/g,'').replace(/\B(?=(\d{3})+(?!\d))/g,'.')"></label>
+                        <label>Masa Kerja (Tahun/Bulan) <small>(otomatis dari profil)</small><input type="text" id="kg-c-mk" value="${this._e(x.masaKerjaProfil || '')}" placeholder="-" readonly></label>
+                        <label>Gaji Pokok Baru (Rp)<input type="text" id="kg-c-gaji" inputmode="numeric" placeholder="Contoh: 3.500.000" oninput="this.value=this.value.replace(/\D/g,'').replace(/\B(?=(\d{3})+(?!\d))/g,'.')"></label>
                     </div>
                     <div class="kg-slots" style="margin-top:12px">
                         <div class="kg-slot" id="kg-slot-sk">
@@ -662,11 +661,10 @@ const kgb = {
     async catat(id) {
         if (this._busy) return;
         const v = (k) => (this._$(k) ? this._$(k).value.trim() : '');
-        const nomor = v('kg-c-nomor'), tmt = v('kg-c-tmt'), mkt = v('kg-c-mkt'), mkb = v('kg-c-mkb'), gaji = v('kg-c-gaji');
+        const nomor = v('kg-c-nomor'), tmt = v('kg-c-tmt'), gaji = v('kg-c-gaji');
         const s = this._slots.sk;
         if (!nomor) { toast.error('No. SK KGB terakhir wajib diisi.'); this._$('kg-c-nomor').focus(); return; }
         if (!tmt) { toast.error('TMT KGB wajib diisi.'); this._$('kg-c-tmt').focus(); return; }
-        if (mkb !== '' && (Number(mkb) < 0 || Number(mkb) > 11)) { toast.error('Masa kerja (bulan) harus 0-11.'); this._$('kg-c-mkb').focus(); return; }
         if (!gaji) { toast.error('Gaji pokok wajib diisi.'); this._$('kg-c-gaji').focus(); return; }
         if (!s) { toast.error('Berkas SK KGB wajib diunggah.'); return; }
         const x = this._find(id);
@@ -676,7 +674,7 @@ const kgb = {
         try {
             const rd = s.packed || await (s.packPromise || this._readBase64(s.file));
             const res = await api.catatSkKgb({
-                id, nomorSurat: nomor, tmtKgb: tmt, masaKerjaTahun: mkt, masaKerjaBulan: mkb, gajiPokokBaru: gaji,
+                id, nomorSurat: nomor, tmtKgb: tmt, gajiPokokBaru: gaji,
                 base64: rd.base64, mimeType: rd.mime, fileName: s.file.name
             });
             if (!res || !res.success) throw new Error((res && res.error) || 'Gagal menyimpan SK KGB');
