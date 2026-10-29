@@ -594,7 +594,7 @@ const kgb = {
                     <div class="kg-form" style="margin-top:12px">
                         <label>No. SK KGB Terakhir<input type="text" id="kg-c-nomor" maxlength="120" placeholder="Contoh: 11/PDAM.HSU/VII/2022"></label>
                         <label>TMT KGB Diajukan<input type="date" id="kg-c-tmt"></label>
-                        <label>Masa Kerja (Tahun/Bulan) <small>(otomatis dari profil)</small><input type="text" id="kg-c-mk" value="${this._e(x.masaKerjaProfil || '')}" placeholder="-" readonly></label>
+                        <label>Masa Kerja (Tahun/Bulan) <input type="text" id="kg-c-mk" value="${this._e(x.masaKerjaProfil || '')}" placeholder="-" readonly></label>
                         <label>Gaji Pokok Baru (Rp) <small>(isi manual)</small><input type="text" id="kg-c-gaji" inputmode="numeric" placeholder="Contoh: 3.500.000" oninput="this.value=this.value.replace(/\D/g,'').replace(/\B(?=(\d{3})+(?!\d))/g,'.')"></label>
                     </div>
                     <div class="kg-slots" style="margin-top:12px">
