@@ -2309,6 +2309,13 @@
                 </div>
                 <div class="form-row two-col">
                     <div class="form-group">
+                        <label for="p-subBidang">Sub Bidang / Seksi</label>
+                        <input type="text" id="p-subBidang" list="p-subBidang-list" maxlength="80" placeholder="Pilih atau ketik sub bidang" autocomplete="off">
+                        <datalist id="p-subBidang-list"></datalist>
+                    </div>
+                </div>
+                <div class="form-row two-col">
+                    <div class="form-group">
                         <label>Pangkat</label>
                         <select id="p-pangkat">
                             <option value="">-- Pilih Pangkat --</option>
@@ -4142,7 +4149,7 @@
                                 <div class="form-row two-col">
                                     <div class="form-group">
                                         <label for="pf-bagian">Bagian</label>
-                                        <select id="pf-bagian">
+                                        <select id="pf-bagian" onchange="window.SubBidang && SubBidang.onBagianChange(document.getElementById('pf-subBidang'), document.getElementById('pf-subBidang-list'), this.value)">
                                             <option value="">-- Pilih Bagian --</option>
                                             <option value="SPI">SPI</option>
                                             <option value="UMUM DAN KEPEGAWAIAN">UMUM DAN KEPEGAWAIAN</option>
@@ -4160,6 +4167,13 @@
                                             <option value="manajer">Manajer</option>
                                             <option value="direktur">Direktur</option>
                                         </select>
+                                    </div>
+                                </div>
+                                <div class="form-row two-col">
+                                    <div class="form-group">
+                                        <label for="pf-subBidang">Sub Bidang / Seksi</label>
+                                        <input type="text" id="pf-subBidang" list="pf-subBidang-list" maxlength="80" placeholder="Pilih atau ketik sub bidang" autocomplete="off">
+                                        <datalist id="pf-subBidang-list"></datalist>
                                     </div>
                                 </div>
                                 <div class="form-row two-col">
@@ -4533,7 +4547,9 @@
          (berbasis geometri/landmark wajah, model TinyFaceDetector) - supaya
          absen wajah tidak bisa lolos kalau wajah tidak benar-benar
          terdeteksi di kamera. -->
-    <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+    <script src="js/vendor/face-api.min.js"></script>
+    <!-- Cadangan: kalau berkas lokal di atas tidak termuat, pakai CDN seperti sebelumnya. -->
+    <script>window.faceapi || document.write('<script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"><\/script>');</script>
     <!-- Firebase (compat build) - dipakai push-notifications.js untuk Cloud
          Messaging (notifikasi HP). Compat build dipilih (bukan modular v9+)
          supaya sintaks firebase.initializeApp()/firebase.messaging() di
@@ -4551,6 +4567,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/flatpickr.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/flatpickr.min.js"></script>
     <script src="js/api.js"></script>
+    <script src="js/sub-bidang.js"></script>
     <!-- [TAMBAHAN - Absensi Offline] Urutan penting: offline-db.js (wrapper
          IndexedDB) HARUS dimuat SEBELUM offline-queue.js (pakai offlineDB),
          dan keduanya SEBELUM absensi.js (memanggil offlineQueue saat absen
