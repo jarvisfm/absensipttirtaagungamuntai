@@ -295,6 +295,8 @@ const profileManager = {
             document.getElementById('pf-jabatan').value         = p.jabatan || '';
             document.getElementById('pf-unitWilayah').value     = p.unitWilayah || '';
             document.getElementById('pf-bagian').value          = p.bagian || '';
+            document.getElementById('pf-subBidang').value       = p.subBidang || '';
+            if (window.SubBidang) SubBidang.fillList(document.getElementById('pf-subBidang-list'), p.bagian);
             document.getElementById('pf-role').value            = p.role || 'staff';
             document.getElementById('pf-pangkat').value         = p.pangkat || '';
             document.getElementById('pf-golongan').value        = p.golongan || '';
@@ -742,6 +744,7 @@ const profileManager = {
             data.jabatan         = document.getElementById('pf-jabatan').value.trim();
             data.unitWilayah     = document.getElementById('pf-unitWilayah').value.trim();
             data.bagian          = document.getElementById('pf-bagian').value.trim();
+            data.subBidang       = document.getElementById('pf-subBidang').value.trim();
             data.role            = document.getElementById('pf-role').value;
             data.pangkat         = document.getElementById('pf-pangkat').value.trim();
             data.golongan        = document.getElementById('pf-golongan').value.trim();
