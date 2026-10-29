@@ -4,8 +4,8 @@
  */
 window.SubBidang = {
     MAP: {
-        'SPI': ['Tata Kelola dan Pelaporan'],
-        'UMUM DAN KEPEGAWAIAN': ['Kepegawaian', 'Pergudangan', 'Administrasi Umum', 'Administrasi Umum (Security)'],
+        'SPI': ['Tata Kelola dan Pelaporan', 'Auditor'],
+        'UMUM DAN KEPEGAWAIAN': ['Kepegawaian', 'Pergudangan', 'Umum & Persediaan'],
         'KEUANGAN': ['Pengelolaan Kas', 'Penganggaran dan Akuntansi'],
         'HUBUNGAN LANGGANAN': ['Baca Meter dan Rekening', 'Pelayanan dan Pemasaran', 'Penagihan dan Penertiban'],
         'TEKNIK DAN PENGAWASAN': ['Laboratorium', 'Perencanaan dan Pengawasan', 'Meter dan Peralatan Teknik'],
@@ -18,9 +18,13 @@ window.SubBidang = {
         return Object.keys(this.MAP).reduce((acc, k) => acc.concat(this.MAP[k]), []);
     },
 
-    /** Pilihan untuk sebuah Bagian; kalau Bagian kosong/tidak dikenal, tampilkan semua. */
+    /**
+     * Daftar pilihan: SEMUA sub bidang, dengan milik Bagian yang diberikan ditaruh paling atas
+     * (sisanya menyusul di bawah, bisa di-scroll). Kalau Bagian kosong/tidak dikenal, urutan standar.
+     */
     optionsFor(bagian) {
-        return this.MAP[this._key(bagian)] || this.all();
+        const own = this.MAP[this._key(bagian)] || [];
+        return own.concat(this.all().filter(name => own.indexOf(name) === -1));
     },
 
     /** Isi ulang <datalist> sesuai Bagian. */
