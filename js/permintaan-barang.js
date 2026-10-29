@@ -217,8 +217,9 @@ const permintaanBarang = {
                 <div><label>Nama Pemohon</label><input type="text" value="${this._e(me.nama)}" readonly></div>
                 <div><label>Jabatan</label><input type="text" value="${this._e(me.jabatan || '-')}" readonly></div>
                 <div><label>Bagian</label><input type="text" value="${this._e(me.bagian || '-')}" readonly></div>
-                <div><label>Sub Bidang / Seksi <small>(opsional, dipakai di nomor surat)</small></label>
-                    <input type="text" id="pb-subBidang" value="${this._e(ed ? ed.subBidang : '')}" placeholder="Contoh: Pergudangan"></div>
+                <div><label>Sub Bidang / Seksi <small>(otomatis dari profil, bisa diubah; dipakai di nomor surat)</small></label>
+                    <input type="text" id="pb-subBidang" value="${this._e(ed ? ed.subBidang : (me.subBidang || ''))}" list="pb-subBidang-list" maxlength="80" autocomplete="off" placeholder="Pilih atau ketik sub bidang">
+                    <datalist id="pb-subBidang-list">${(window.SubBidang ? SubBidang.optionsFor(me.bagian) : []).map(o => `<option value="${this._e(o)}">`).join('')}</datalist></div>
                 <div><label>Unit Wilayah</label><input type="text" id="pb-wilayah" value="${this._e(ed ? ed.wilayah : (me.unitWilayah || ''))}" placeholder="-" readonly></div>
             </div>
             <label class="pb-lbl">Keperluan / Alasan Kebutuhan</label>
