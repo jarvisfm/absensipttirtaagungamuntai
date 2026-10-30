@@ -397,15 +397,33 @@ const faceRecognition = {
         this._setVerifyProgress('camera');
 
         try {
-            // Request camera access
-            this.stream = await navigator.mediaDevices.getUserMedia({
-                video: {
-                    facingMode: 'user',
-                    width: { ideal: 1280 },
-                    height: { ideal: 720 }
-                },
-                audio: false
-            });
+            // PERBAIKAN KAMERA HITAM (HP/PWA): matikan sisa stream lama dulu
+            // (kamera yang masih "dipegang" stream sebelumnya membuat stream
+            // baru kosong/hitam di sebagian HP), lalu coba beberapa
+            // constraint dari yang paling tinggi ke paling longgar - sebagian
+            // HP gagal/hitam di resolusi 1280x720.
+            if (this.stream) {
+                try { this.stream.getTracks().forEach(t => t.stop()); } catch (e) { /* abaikan */ }
+                this.stream = null;
+            }
+            const _camTries = [
+                { video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false },
+                { video: { facingMode: 'user' }, audio: false },
+                { video: true, audio: false }
+            ];
+            let _camStream = null, _camErr = null;
+            for (const c of _camTries) {
+                try {
+                    _camStream = await navigator.mediaDevices.getUserMedia(c);
+                    break;
+                } catch (e) {
+                    _camErr = e;
+                    if (isStale()) return;
+                    if (e && (e.name === 'NotAllowedError' || e.name === 'PermissionDeniedError' || e.name === 'SecurityError')) break;
+                }
+            }
+            if (!_camStream) throw (_camErr || new Error('Kamera tidak tersedia'));
+            this.stream = _camStream;
 
             // [TAMBAHAN] Halaman sudah ditinggalkan SELAGI menunggu izin
             // kamera - langsung matikan lagi stream yang baru saja didapat
@@ -418,11 +436,55 @@ const faceRecognition = {
 
             this.video.srcObject = this.stream;
 
+            // PERBAIKAN KAMERA HITAM: paksa play() (autoplay saja tidak
+            // cukup di sebagian HP/PWA), dan pulihkan kalau track kamera
+            // diputus sistem selagi halaman masih tampil.
+            this.video.muted = true;
+            this.video.setAttribute('playsinline', '');
+            this.video.setAttribute('webkit-playsinline', '');
+            this.video.autoplay = true;
+            try {
+                const pl = this.video.play();
+                if (pl && pl.catch) pl.catch(() => {});
+            } catch (e) { /* abaikan */ }
+            this.stream.getVideoTracks().forEach(t => {
+                t.onended = () => {
+                    if (isStale() || document.hidden || this.photoCaptured) return;
+                    this.stopCamera();
+                    setTimeout(() => this.initCamera(), 300);
+                };
+            });
+            // Pemantau (khusus iPhone/PWA: stream sering "ada" tapi tidak
+            // pernah mengirim gambar = layar hitam). Tiap 1,5 detik cek
+            // apakah video benar-benar punya gambar & sedang jalan. Kalau
+            // video terhenti, dicoba play() lagi; kalau tetap tanpa gambar
+            // 3 kali berturut-turut, kamera diulang dari awal (maks 3x).
+            clearInterval(this._camWatch);
+            let _bad = 0;
+            this._camWatch = setInterval(() => {
+                if (isStale() || this.photoCaptured || document.hidden) return;
+                const v = this.video;
+                if (!v) return;
+                const tr = this.stream && this.stream.getVideoTracks()[0];
+                const ok = tr && tr.readyState === 'live' && !tr.muted &&
+                    v.videoWidth > 0 && v.readyState >= 2 && !v.paused;
+                if (ok) { _bad = 0; this._camRetries = 0; return; }
+                _bad++;
+                if (v.paused && v.srcObject) {
+                    try { const pl2 = v.play(); if (pl2 && pl2.catch) pl2.catch(() => {}); } catch (e) { /* abaikan */ }
+                }
+                if (_bad >= 3 && (this._camRetries = (this._camRetries || 0) + 1) <= 3) {
+                    this.stopCamera();
+                    setTimeout(() => this.initCamera(), 300);
+                }
+            }, 1500);
+
             // Dulu: tombol capture langsung di-enable begitu kamera nyala,
             // tanpa peduli ada wajah atau tidak. Sekarang: tunggu model
             // deteksi wajah siap, lalu tombol capture cuma aktif selama
             // wajah BENAR-BENAR terdeteksi di frame (lihat _startFaceDetectionLoop).
             this.video.onloadedmetadata = async () => {
+                this._camRetried = false;
                 // [TAMBAHAN] Ditinggalkan tepat di celah antara srcObject
                 // di-set & metadata video siap - lihat catatan isStale() di atas.
                 if (isStale()) return;
@@ -2055,6 +2117,7 @@ const faceRecognition = {
 
     stopCamera() {
         this._stopFaceDetectionLoop();
+        clearInterval(this._camWatch);
 
         // [TAMBAHAN] Naikkan token sesi kamera - membatalkan initCamera()
         // yang mungkin masih berjalan di background (getUserMedia/pemuatan
@@ -2332,7 +2395,21 @@ window.initFaceRecognition = (action) => {
 // Cleanup on page change
 document.addEventListener('visibilitychange', () => {
     if (document.hidden) {
+        // PERBAIKAN KAMERA HITAM: ingat bahwa kamera dimatikan karena app
+        // ke latar belakang (bukan karena pindah menu), supaya bisa
+        // dinyalakan lagi saat app kembali tampil.
+        const v = document.getElementById('camera-video');
+        // Hanya kalau kamera MEMANG sedang menyala/sedang dibuka DAN
+        // halaman kamera sedang tampil (bukan sudah pindah menu lain).
+        const camLive = !!(faceRecognition.stream && faceRecognition.stream.getVideoTracks().some(t => t.readyState === 'live'));
+        faceRecognition._camSuspended = !!(camLive && v && v.offsetParent !== null && !faceRecognition.photoCaptured);
         faceRecognition.cleanup();
+    } else if (faceRecognition._camSuspended) {
+        faceRecognition._camSuspended = false;
+        const v = document.getElementById('camera-video');
+        if (v && v.offsetParent !== null && !faceRecognition.stream && !faceRecognition.photoCaptured && !faceRecognition._captureInFlight) {
+            setTimeout(() => faceRecognition.initCamera(), 300);
+        }
     }
 });
 
