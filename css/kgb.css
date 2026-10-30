@@ -194,3 +194,57 @@ body.kg-lock{overflow:hidden}
 .kg-gaji-todo{background:#FFFBEB;border-color:#FDE68A;color:#92400E}
 .kg-gaji-todo>i{color:#D97706}
 @media (max-width:560px){.kg-gaji-g{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+/* ============================================================
+   Switch KGB | Pangkat + tema jenis "Pangkat"
+   ============================================================ */
+.kg-switch{position:relative;display:grid;grid-template-columns:1fr 1fr;padding:5px;margin-bottom:14px;background:#EEF2F7;border-radius:18px;isolation:isolate}
+.kg-sw-thumb{position:absolute;z-index:0;top:5px;bottom:5px;left:5px;width:calc(50% - 5px);border-radius:14px;background:#fff;
+  box-shadow:0 6px 16px rgba(15,23,42,.12),0 0 0 1.5px rgba(15,23,42,.04);transition:transform .34s cubic-bezier(.3,1.25,.4,1)}
+.kg-switch[data-j="pangkat"] .kg-sw-thumb{transform:translateX(100%)}
+.kg-sw-opt{position:relative;z-index:1;display:flex;align-items:center;justify-content:center;gap:10px;border:none;background:transparent;padding:10px 14px;border-radius:14px;
+  cursor:pointer;font-family:inherit;color:#64748B;min-width:0;transition:color .2s}
+.kg-sw-opt:focus-visible{outline:2px solid #6366F1;outline-offset:-2px}
+.kg-sw-ic{width:36px;height:36px;border-radius:12px;background:#E2E8F0;color:#64748B;display:flex;align-items:center;justify-content:center;font-size:.95rem;flex-shrink:0;
+  transition:background .25s,color .25s,transform .3s cubic-bezier(.3,1.5,.4,1),box-shadow .25s}
+.kg-sw-tx{display:flex;flex-direction:column;align-items:flex-start;text-align:left;min-width:0;line-height:1.2}
+.kg-sw-tx b{font-size:.94rem;font-weight:800}
+.kg-sw-tx small{font-size:.68rem;font-weight:600;opacity:.85;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.kg-sw-opt.active{color:#0F172A}
+.kg-sw-opt.active .kg-sw-ic{color:#fff;transform:scale(1.06)}
+.kg-sw-opt[data-j="kgb"].active .kg-sw-ic{background:linear-gradient(135deg,#10B981,#047857);box-shadow:0 6px 12px rgba(4,120,87,.3)}
+.kg-sw-opt[data-j="pangkat"].active .kg-sw-ic{background:linear-gradient(135deg,#818CF8,#4338CA);box-shadow:0 6px 12px rgba(67,56,202,.3)}
+.kg-sw-opt .kg-badge{position:absolute;top:5px;right:8px;min-width:18px;height:18px;font-size:.66rem}
+@media (max-width:640px){
+  .kg-sw-opt{padding:9px 8px;gap:8px}
+  .kg-sw-ic{width:32px;height:32px;border-radius:10px}
+  .kg-sw-tx b{font-size:.88rem}
+  .kg-sw-tx small{display:none}
+}
+
+.kg-hero{animation:kgHeroIn .35s ease}
+@keyframes kgHeroIn{from{opacity:.35;transform:translateY(-6px)}}
+
+/* Label jenis di dalam modal pengajuan */
+.kg-jenis-tag{display:inline-flex;align-items:center;gap:8px;padding:6px 12px;border-radius:99px;font-size:.76rem;font-weight:800;margin-bottom:12px;background:#ECFDF5;color:#047857}
+.kg-form select{border:1.5px solid #E2E8F0;border-radius:12px;padding:10px 12px;font-size:.88rem;font-family:inherit;background:#F8FAFC;width:100%;box-sizing:border-box}
+.kg-form select:focus{outline:none;border-color:#10B981;background:#fff;box-shadow:0 0 0 3px rgba(16,185,129,.15)}
+
+/* Tema "Pangkat" (indigo) — berlaku di halaman (#kgb-root) dan modalnya (.kg-overlay) */
+.kg-j-pangkat{--kg1:#4338CA;--kg2:#818CF8}
+.kg-j-pangkat .kg-hero{box-shadow:0 12px 28px rgba(67,56,202,.25)}
+.kg-j-pangkat .kg-btn-primary{box-shadow:0 6px 14px rgba(67,56,202,.28)}
+.kg-j-pangkat .kg-cat>i{color:#6366F1}
+.kg-j-pangkat .kg-num{background:#E0E7FF;color:#4338CA}
+.kg-j-pangkat .kg-slot.has{border-color:#C7D2FE;background:#EEF2FF}
+.kg-j-pangkat .kg-pick{border-color:#A5B4FC;color:#4338CA}
+.kg-j-pangkat .kg-pick:hover{background:#EEF2FF}
+.kg-j-pangkat .kg-file>i{color:#6366F1}
+.kg-j-pangkat .kg-doc:hover{border-color:#A5B4FC;background:#EEF2FF}
+.kg-j-pangkat .kg-doc>i:first-child{color:#6366F1}
+.kg-j-pangkat .kg-flow{background:#EEF2FF;border-color:#C7D2FE;color:#4338CA}
+.kg-j-pangkat .kg-note{background:#EEF2FF;border-color:#C7D2FE;color:#3730A3}
+.kg-j-pangkat .kg-jenis-tag{background:#EEF2FF;color:#4338CA}
+.kg-j-pangkat .kg-form input:focus,.kg-j-pangkat .kg-form select:focus,.kg-j-pangkat .kg-form textarea:focus,.kg-j-pangkat .kg-proc textarea:focus{border-color:#6366F1;box-shadow:0 0 0 3px rgba(99,102,241,.16)}
+.kg-j-pangkat .kg-spin{border-color:#E0E7FF;border-top-color:#6366F1}
+.kg-j-pangkat .kg-empty>i{color:#C7D2FE}
