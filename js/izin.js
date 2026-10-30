@@ -274,7 +274,8 @@ const izin = {
     // Izin ini, bukan cuma sesama Izin.
     async _checkActiveBlock() {
         const currentUser = auth.getCurrentUser();
-        const userId = currentUser?.employeeId || currentUser?.id || 'demo-user';
+        const userId = currentUser?.employeeId || currentUser?.id;
+        if (!userId) return; // sesi login hilang - jangan pakai ID cadangan
         const todayStr = (typeof dateTime !== 'undefined' && dateTime.getLocalDate)
             ? dateTime.getLocalDate()
             : new Date().toISOString().split('T')[0];
@@ -405,7 +406,8 @@ const izin = {
         const currentUser = auth.getCurrentUser();
         // Konsisten dengan userId yang dikirim saat submit (lihat submitIzinForm):
         // admin dual-role (mis. M. Azemi) pakai employeeId, karyawan biasa pakai id.
-        const userId = currentUser?.employeeId || currentUser?.id || 'demo-user';
+        const userId = currentUser?.employeeId || currentUser?.id;
+        if (!userId) return; // sesi login hilang - jangan pakai ID cadangan
         try {
             // PENTING: ini riwayat MILIK SENDIRI di halaman "Izin/Sakit", jadi selalu
             // getIzin(userId) - jangan pakai isApprover() di sini. Kalau Asmen/Manajer/
@@ -810,6 +812,7 @@ const izin = {
         }
 
         const currentUser = auth.getCurrentUser();
+        if (!(currentUser?.employeeId || currentUser?.id)) { toast.error('Sesi Anda sudah berakhir. Silakan login ulang.'); if (typeof auth.showLogin === 'function') auth.showLogin(); return; }
 
         // NOTE: dulu di sini ada validasi "wajib pilih Asmen penyetuju" -
         // sekarang tidak perlu lagi karena Asmen sudah diatur Admin per-
@@ -838,7 +841,7 @@ const izin = {
             // data pemohon dari tabel Employees berdasarkan userId — pakai
             // employeeId (kalau ada) supaya izin yang diajukan lewat "Mode
             // Karyawan" tetap tercatat sebagai identitas karyawan yang benar.
-            userId:        currentUser?.employeeId || currentUser?.id || 'demo-user',
+            userId:        currentUser.employeeId || currentUser.id,
             type:          type,
             typeLabel:     typeLabels[type] || type,
             date:          usesDateRange ? dateStart : date,
@@ -1133,7 +1136,8 @@ const izin = {
 
         try {
             const currentUser = auth.getCurrentUser();
-            const userId = currentUser?.employeeId || currentUser?.id || 'demo-user';
+            const userId = currentUser?.employeeId || currentUser?.id;
+            if (!userId) { toast.error('Sesi Anda sudah berakhir. Silakan login ulang.'); if (typeof auth.showLogin === 'function') auth.showLogin(); return; }
             const result = await api.cancelIzin(id, userId, catatan);
             if (!result.success) {
                 toast.error(result.error || 'Gagal membatalkan pengajuan izin');
