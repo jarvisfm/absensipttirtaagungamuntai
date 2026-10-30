@@ -52,7 +52,8 @@ const cuti = {
     // Cuti ini, bukan cuma sesama Cuti. (Cerminan logika di izin.js.)
     async _checkActiveBlock() {
         const currentUser = auth.getCurrentUser();
-        const userId = currentUser?.employeeId || currentUser?.id || 'demo-user';
+        const userId = currentUser?.employeeId || currentUser?.id;
+        if (!userId) return; // sesi login hilang - jangan pakai ID cadangan
         const todayStr = (typeof dateTime !== 'undefined' && dateTime.getLocalDate)
             ? dateTime.getLocalDate()
             : new Date().toISOString().split('T')[0];
@@ -137,7 +138,8 @@ const cuti = {
         // login dengan id dari tabel Users, sedangkan seluruh logika approval
         // mencari data pemohon dari tabel Employees berdasarkan userId - pakai
         // employeeId (kalau ada) supaya konsisten.
-        const userId = currentUser?.employeeId || currentUser?.id || 'demo-user';
+        const userId = currentUser?.employeeId || currentUser?.id;
+        if (!userId) return; // sesi login hilang - jangan pakai ID cadangan
         try {
             // PENTING: ini riwayat MILIK SENDIRI di halaman "Request Cuti", jadi harus
             // selalu getLeaves(userId) - jangan pakai isApprover() di sini, karena kalau
@@ -156,7 +158,8 @@ const cuti = {
     // semua device, dan otomatis reset tiap tahun (lihat Leave.gs).
     async loadLeaveBalance() {
         const currentUser = auth.getCurrentUser();
-        const userId = currentUser?.employeeId || currentUser?.id || 'demo-user';
+        const userId = currentUser?.employeeId || currentUser?.id;
+        if (!userId) return; // sesi login hilang - jangan pakai ID cadangan
         try {
             const result = await api.getLeaveBalance(userId);
             this.leaveBalance = result.data ? result.data.sisa : 12;
@@ -531,6 +534,7 @@ const cuti = {
         };
 
         const currentUser = auth.getCurrentUser();
+        if (!(currentUser?.employeeId || currentUser?.id)) { toast.error('Sesi Anda sudah berakhir. Silakan login ulang.'); if (typeof auth.showLogin === 'function') auth.showLogin(); return; }
 
         // NOTE: dulu di sini ada validasi "wajib pilih Asmen penyetuju" -
         // sekarang tidak perlu lagi karena Asmen sudah diatur Admin per-
@@ -539,7 +543,7 @@ const cuti = {
 
         const leaveData = {
             // Admin dual-role (mis. M. Azemi) pakai employeeId, karyawan biasa pakai id
-            userId: currentUser?.employeeId || currentUser?.id || 'demo-user',
+            userId: currentUser.employeeId || currentUser.id,
             type: type.value,
             typeLabel: typeLabels[type.value],
             startDate: startDate.value,
@@ -833,7 +837,8 @@ const cuti = {
 
         try {
             const currentUser = auth.getCurrentUser();
-            const userId = currentUser?.employeeId || currentUser?.id || 'demo-user';
+            const userId = currentUser?.employeeId || currentUser?.id;
+            if (!userId) { toast.error('Sesi Anda sudah berakhir. Silakan login ulang.'); if (typeof auth.showLogin === 'function') auth.showLogin(); return; }
             const result = await api.cancelLeave(id, userId, catatan);
             if (!result.success) {
                 toast.error(result.error || 'Gagal membatalkan pengajuan cuti');
