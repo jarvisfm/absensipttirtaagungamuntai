@@ -594,7 +594,7 @@ const kgb = {
                     <div class="kg-form" style="margin-top:12px">
                         <label>No. SK KGB Terakhir<input type="text" id="kg-c-nomor" maxlength="120" placeholder="Contoh: 11/PDAM.HSU/VII/2022"></label>
                         <label>TMT KGB Diajukan<input type="date" id="kg-c-tmt"></label>
-                        <label>Masa Kerja (Tahun/Bulan) <input type="text" id="kg-c-mk" value="${this._e(x.masaKerjaProfil || '')}" placeholder="-" readonly></label>
+                        <label>Masa Kerja (Tahun/Bulan) <input type="text" id="kg-c-mk" maxlength="5" inputmode="text" autocomplete="off" placeholder="Contoh: 6/9" oninput="this.value=this.value.replace(/[^0-9\/]/g,'')"></label>
                         <label>Gaji Pokok Baru (Rp) <input type="text" id="kg-c-gaji" inputmode="numeric" placeholder="Contoh: 3.500.000" oninput="this.value=this.value.replace(/\D/g,'').replace(/\B(?=(\d{3})+(?!\d))/g,'.')"></label>
                     </div>
                     <div class="kg-slots" style="margin-top:12px">
@@ -661,10 +661,12 @@ const kgb = {
     async catat(id) {
         if (this._busy) return;
         const v = (k) => (this._$(k) ? this._$(k).value.trim() : '');
-        const nomor = v('kg-c-nomor'), tmt = v('kg-c-tmt'), gaji = v('kg-c-gaji');
+        const nomor = v('kg-c-nomor'), tmt = v('kg-c-tmt'), mk = v('kg-c-mk'), gaji = v('kg-c-gaji');
         const s = this._slots.sk;
         if (!nomor) { toast.error('No. SK KGB terakhir wajib diisi.'); this._$('kg-c-nomor').focus(); return; }
         if (!tmt) { toast.error('TMT KGB wajib diisi.'); this._$('kg-c-tmt').focus(); return; }
+        const mkm = /^(\d{1,2})\/(\d{1,2})$/.exec(mk);
+        if (!mkm || Number(mkm[2]) > 11) { toast.error('Masa kerja wajib diisi format tahun/bulan, contoh 6/9 (bulan 0-11).'); this._$('kg-c-mk').focus(); return; }
         if (!gaji) { toast.error('Gaji pokok wajib diisi.'); this._$('kg-c-gaji').focus(); return; }
         if (!s) { toast.error('Berkas SK KGB wajib diunggah.'); return; }
         const x = this._find(id);
@@ -674,7 +676,7 @@ const kgb = {
         try {
             const rd = s.packed || await (s.packPromise || this._readBase64(s.file));
             const res = await api.catatSkKgb({
-                id, nomorSurat: nomor, tmtKgb: tmt, gajiPokokBaru: gaji,
+                id, nomorSurat: nomor, tmtKgb: tmt, masaKerja: mk, gajiPokokBaru: gaji,
                 base64: rd.base64, mimeType: rd.mime, fileName: s.file.name
             });
             if (!res || !res.success) throw new Error((res && res.error) || 'Gagal menyimpan SK KGB');
