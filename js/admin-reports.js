@@ -777,7 +777,10 @@ const adminReports = {
         const nameFilter = document.getElementById('attendance-name-filter');
         if (nameFilter) nameFilter.addEventListener('input', (e) => {
             this.filters.attendance.name = e.target.value.trim();
-            this.renderAttendanceReports();
+            // PERBAIKAN PERFORMA: tunda render sampai berhenti mengetik,
+            // supaya tidak membangun ulang seluruh tabel di tiap ketukan.
+            clearTimeout(this._attNameTimer);
+            this._attNameTimer = setTimeout(() => this.renderAttendanceReports(), 300);
         });
 
         const monthFilter = document.getElementById('attendance-month-filter');
@@ -1116,7 +1119,24 @@ const adminReports = {
         return filtered;
     },
 
+    // PERBAIKAN PERFORMA: kelompokkan rawAttendance per userId SEKALI (bukan
+    // menyaring seluruh array untuk tiap karyawan = O(karyawan x absensi)).
+    _attendanceIndex() {
+        const src = this.rawAttendance || [];
+        if (this._attIdxSrc === src && this._attIdxLen === src.length && this._attIdx) return this._attIdx;
+        const m = new Map();
+        src.forEach(r => {
+            const k = String(r.userId);
+            let a = m.get(k);
+            if (!a) { a = []; m.set(k, a); }
+            a.push(r);
+        });
+        this._attIdx = m; this._attIdxSrc = src; this._attIdxLen = src.length;
+        return m;
+    },
+
     renderAttendanceReports() {
+        const attIdx = this._attendanceIndex();
         const container = document.getElementById('attendance-reports-body');
         if (!container) return;
 
@@ -1141,7 +1161,7 @@ const adminReports = {
 
         let html = '';
         employees.forEach(emp => {
-            let rows = (this.rawAttendance || []).filter(r => String(r.userId) === String(emp.id));
+            let rows = [...(attIdx.get(String(emp.id)) || [])];
             rows = this._applyAttendanceDateFilters(rows, month, dateFrom, dateTo);
 
             const initials = (emp.name || 'K').split(' ').map(w => w[0]).join('').substring(0, 2).toUpperCase();
@@ -1333,7 +1353,7 @@ const adminReports = {
                         ? `<span id="loc-t-${row.id}" style="font-size:0.75rem;"><i class="fas fa-spinner fa-spin" style="color:var(--text-muted);font-size:0.7rem;"></i><small style="color:var(--text-muted);">${coordLabel}</small></span>`
                         : '<span style="color:var(--text-muted)">–</span>';
                     const fotoHtml = row.verificationPhoto
-                        ? `<img src="${row.verificationPhoto}" style="width:32px;height:32px;border-radius:50%;object-fit:cover;cursor:pointer;" onclick="adminReports.viewPhoto('${row.verificationPhoto}')">`
+                        ? `<img src="${row.verificationPhoto}" loading="lazy" decoding="async" style="width:32px;height:32px;border-radius:50%;object-fit:cover;cursor:pointer;" onclick="adminReports.viewPhoto('${row.verificationPhoto}')">`
                         : '<span style="color:var(--text-muted)">–</span>';
 
                     // Tandai absen yang skor kecocokan wajahnya "kurang yakin"
@@ -1420,27 +1440,48 @@ const adminReports = {
         container.innerHTML = html;
         this.renderAttendanceMobileCards(employees, month, months, dateFrom, dateTo);
 
+        // PERBAIKAN PERFORMA: alamat (reverse geocoding) diambil bertahap
+        // (maks 3 sekaligus), hanya untuk baris yang masih ada di layar, dan
+        // dibatalkan kalau tabel sudah dirender ulang (token).
+        const tok = (this._geoToken = (this._geoToken || 0) + 1);
+        const jobs = [];
         employees.forEach(emp => {
-            let rows = (this.rawAttendance || []).filter(r => String(r.userId) === String(emp.id));
+            let rows = [...(attIdx.get(String(emp.id)) || [])];
             rows = this._applyAttendanceDateFilters(rows, month, dateFrom, dateTo);
-            rows.forEach(async (row) => {
+            rows.forEach(row => {
                 const coords = this._parseLatLng(row.verificationLocation);
-                if (!coords) return;
-                const address = await this._getAddressFromCoords(coords.lat, coords.lng);
+                if (coords) jobs.push({ row, coords });
+            });
+        });
+        let next = 0;
+        const worker = async () => {
+            while (next < jobs.length && tok === this._geoToken) {
+                const { row, coords } = jobs[next++];
                 const elTable = document.getElementById(`loc-t-${row.id}`);
                 const elCard = document.getElementById(`loc-m-${row.id}`);
+                if (!elTable && !elCard) continue;
+                const address = await this._getAddressFromCoords(coords.lat, coords.lng);
+                if (tok !== this._geoToken) return;
                 const html = address
                     ? `<span style="font-size:0.75rem;">${address}</span><br><small style="color:var(--text-muted);font-size:0.7rem;">${coords.lat.toFixed(5)}, ${coords.lng.toFixed(5)}</small>`
                     : `<small style="color:var(--text-muted);">${coords.lat.toFixed(5)}, ${coords.lng.toFixed(5)}</small>`;
                 if (elTable) elTable.innerHTML = html;
                 if (elCard) elCard.innerHTML = html;
-            });
-        });
+            }
+        };
+        for (let i = 0; i < 3; i++) worker();
     },
 
     renderAttendanceMobileCards(employees, month, months, dateFrom, dateTo) {
         const container = document.getElementById('attendance-mobile-cards');
         if (!container) return;
+        const attIdx = this._attendanceIndex();
+        // PERBAIKAN PERFORMA: kartu mobile disembunyikan (display:none) di
+        // layar lebar - tidak perlu dibangun sama sekali di sana. Kalau
+        // ukuran layar berubah, dirender ulang (lihat _bindAttResize).
+        this._attMobileShown = !!(window.matchMedia && window.matchMedia('(max-width: 576px)').matches);
+        if (!this._attMobileShown) { container.innerHTML = ''; this._bindAttResize(); return; }
+        this._bindAttResize();
 
         if (employees.length === 0) {
             container.innerHTML = '<div style="text-align:center;padding:2rem;color:var(--text-muted);">Tidak ada data karyawan</div>';
@@ -1449,7 +1490,7 @@ const adminReports = {
 
         let html = '';
         employees.forEach(emp => {
-            let rows = (this.rawAttendance || []).filter(r => String(r.userId) === String(emp.id));
+            let rows = [...(attIdx.get(String(emp.id)) || [])];
             rows = this._applyAttendanceDateFilters(rows, month, dateFrom, dateTo);
 
             const initials = (emp.name || 'K').split(' ').map(w => w[0]).join('').substring(0, 2).toUpperCase();
@@ -1585,7 +1626,7 @@ const adminReports = {
                         ? `<span id="loc-m-${row.id}" style="font-size:0.75rem;"><i class="fas fa-spinner fa-spin" style="color:var(--text-muted);font-size:0.7rem;"></i><small style="color:var(--text-muted);">${coordLabel}</small></span>`
                         : '<span style="color:var(--text-muted)">–</span>';
                     const fotoHtml = row.verificationPhoto
-                        ? `<img src="${row.verificationPhoto}" style="width:32px;height:32px;border-radius:50%;object-fit:cover;cursor:pointer;" onclick="adminReports.viewPhoto('${row.verificationPhoto}')">`
+                        ? `<img src="${row.verificationPhoto}" loading="lazy" decoding="async" style="width:32px;height:32px;border-radius:50%;object-fit:cover;cursor:pointer;" onclick="adminReports.viewPhoto('${row.verificationPhoto}')">`
                         : '<span style="color:var(--text-muted)">–</span>';
 
                     // Sama seperti versi tabel desktop - tandai kalau skor
@@ -1667,7 +1708,35 @@ const adminReports = {
         container.innerHTML = html;
     },
 
+    _bindAttResize() {
+        if (this._attResizeBound) return;
+        this._attResizeBound = true;
+        window.addEventListener('resize', () => {
+            clearTimeout(this._attResizeTimer);
+            this._attResizeTimer = setTimeout(() => {
+                const c = document.getElementById('attendance-mobile-cards');
+                if (!c || !document.getElementById('attendance-reports-body')) return;
+                const shown = !!(window.matchMedia && window.matchMedia('(max-width: 576px)').matches);
+                if (shown !== this._attMobileShown) this.renderAttendanceReports();
+            }, 250);
+        });
+    },
+
     async _getAddressFromCoords(lat, lng) {
+        // PERBAIKAN PERFORMA: cache alamat per koordinat (dan permintaan yang
+        // sedang berjalan dipakai bersama), supaya koordinat yang sama tidak
+        // dikirim ulang ke server geocoding tiap render/ketik.
+        this._addrCache = this._addrCache || new Map();
+        const key = lat.toFixed(5) + ',' + lng.toFixed(5);
+        if (this._addrCache.has(key)) return this._addrCache.get(key);
+        const pr = this._getAddressFromCoordsRaw(lat, lng);
+        this._addrCache.set(key, pr);
+        const val = await pr;
+        if (val === null) this._addrCache.delete(key);
+        return val;
+    },
+
+    async _getAddressFromCoordsRaw(lat, lng) {
         try {
             const res = await fetch(
                 `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&accept-language=id`,
