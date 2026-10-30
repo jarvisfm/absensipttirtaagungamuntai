@@ -1674,6 +1674,68 @@ const absensi = {
         });
     },
 
+    // [TAMBAHAN 2026-10-30] Badge info sesi berikutnya di kartu Shift. Sebelum jam buka: "<Sesi> baru
+    // bisa dimulai pukul HH:MM" + hitung mundur; setelah buka: hijau "<Sesi> sudah bisa dimulai".
+    // Dipanggil dari updateUI() dan tiap detik dari jam live (isi hanya diganti kalau teksnya berubah).
+    _renderNextSessionChip(force) {
+        const el = document.getElementById('shift-next-session');
+        if (!el) return;
+        const sesi = this._nextSessionInfo;
+        if (!sesi) {
+            if (el.style.display !== 'none') { el.style.display = 'none'; el.innerHTML = ''; }
+            this._nextChipKey = '';
+            return;
+        }
+
+        const isOpen = this._isSessionOpen(sesi.opensAt);
+        let sub;
+        if (isOpen) {
+            sub = `Sejak pukul ${sesi.opensAt}`;
+        } else {
+            let diff = this._toMinutes(sesi.opensAt) - this._getWitaMinutesOfDay(dateTime.now());
+            if (diff < 0) diff += 24 * 60; // dibuka setelah lewat tengah malam
+            const jam = Math.floor(diff / 60), mnt = diff % 60;
+            if (diff <= 0) sub = 'Sebentar lagi';
+            else if (jam === 0) sub = `${mnt} menit lagi`;
+            else sub = mnt ? `${jam} jam ${mnt} menit lagi` : `${jam} jam lagi`;
+        }
+
+        const key = [sesi.label, sesi.opensAt, isOpen ? 1 : 0, sub].join('|');
+        if (!force && key === this._nextChipKey && el.style.display !== 'none') return;
+        this._nextChipKey = key;
+
+        el.innerHTML = '';
+        el.classList.toggle('is-open', isOpen);
+
+        const ic = document.createElement('span');
+        ic.className = 'sn-ic';
+        ic.innerHTML = `<i class="fas ${isOpen ? 'fa-lock-open' : 'fa-lock'}"></i>`;
+
+        const txt = document.createElement('span');
+        txt.className = 'sn-txt';
+        const title = document.createElement('span');
+        title.className = 'sn-title';
+        const strong = document.createElement('b');
+        if (isOpen) {
+            strong.textContent = sesi.label;
+            title.appendChild(strong);
+            title.appendChild(document.createTextNode(' sudah bisa dimulai'));
+        } else {
+            title.appendChild(document.createTextNode(`${sesi.label} baru bisa dimulai pukul `));
+            strong.textContent = sesi.opensAt;
+            title.appendChild(strong);
+        }
+        const subEl = document.createElement('span');
+        subEl.className = 'sn-sub';
+        subEl.textContent = sub;
+        txt.appendChild(title);
+        txt.appendChild(subEl);
+
+        el.appendChild(ic);
+        el.appendChild(txt);
+        el.style.display = 'inline-flex';
+    },
+
     initLiveClock() {
         if (this.liveClockInterval) clearInterval(this.liveClockInterval);
 
@@ -1683,6 +1745,7 @@ const absensi = {
             if (clockEl) clockEl.innerHTML = dateTime.getCurrentTime() +
                 ' <span style="font-size:.38em;font-weight:700;letter-spacing:.05em;opacity:.7;vertical-align:middle">' + dateTime.TZ_LABEL + '</span>';
             if (dateEl)  dateEl.textContent  = dateTime.getCurrentDate();
+            if (this._nextSessionInfo) this._renderNextSessionChip();
         };
         update();
         this.liveClockInterval = setInterval(update, 1000);
@@ -2206,22 +2269,19 @@ const absensi = {
         // maupun shift multi-sesi Operator spt BNA Amuntai/SATPAM) karena
         // sama-sama lewat _getSessions(); label barisnya pakai label sesi
         // PERSIS seperti yang diatur Admin di menu Jadwal Shift.
+        // [DIUBAH 2026-10-30] Info sesi berikutnya dipindah dari kartu status ke badge kartu Shift
+        // di atas (lebih terlihat) + hitung mundur - lihat _renderNextSessionChip(). Elemen lama
+        // status-sessions-info dibiarkan tersembunyi (tidak dihapus supaya referensi lain aman).
         const sessionsInfoEl = document.getElementById('status-sessions-info');
         if (sessionsInfoEl) {
             sessionsInfoEl.innerHTML = '';
-            const showSessionsInfo = ['clocked-in', 'on-break'].includes(this.currentState);
-            const nextSession = showSessionsInfo
-                ? this._getSessions().find(sesi => sesi.opensAt && !this.attendanceData[sesi.field])
-                : null;
-            if (nextSession) {
-                const line = document.createElement('div');
-                line.textContent = `${nextSession.label} baru bisa dimulai pukul ${nextSession.opensAt}`;
-                sessionsInfoEl.appendChild(line);
-                sessionsInfoEl.style.display = 'block';
-            } else {
-                sessionsInfoEl.style.display = 'none';
-            }
+            sessionsInfoEl.style.display = 'none';
         }
+        const showSessionsInfo = ['clocked-in', 'on-break'].includes(this.currentState);
+        this._nextSessionInfo = showSessionsInfo
+            ? (this._getSessions().find(sesi => sesi.opensAt && !this.attendanceData[sesi.field]) || null)
+            : null;
+        this._renderNextSessionChip(true);
 
         // Banner info Dinas Luar (SPPD)
         const dinasInfo = document.getElementById('dinas-luar-info');
