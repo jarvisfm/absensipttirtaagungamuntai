@@ -92,7 +92,7 @@ const router = {
             'slip-gaji': 'Slip Gaji',
             'permintaan-barang': 'Permintaan Barang',
             'telaah-staf': 'Telaahan Staf',
-            'kgb': 'Pengajuan KGB',
+            'kgb': 'KGB dan Pangkat',
             'tukar-jadwal': 'Tukar Jadwal Jaga',
             profile: 'Edit Profil'
         };
