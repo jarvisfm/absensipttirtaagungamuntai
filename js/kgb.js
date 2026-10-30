@@ -6,11 +6,16 @@
  *   Asmen Umum & Kepegawaian (satu-satunya yang menyetujui/menolak + catatan)
  *   -> Manajer Umum & Kepegawaian (meninjau) -> Direktur (meninjau).
  * Riwayat KGB di Edit Profil & hitungan gaji TIDAK diubah di sini.
+ *
+ * Halaman ini melayani 2 jenis pengajuan lewat switch KGB | Pangkat (alur persetujuan sama):
+ *   - KGB    -> SK dicatat ke Riwayat KGB
+ *   - Pangkat -> SK Golongan dicatat ke Riwayat Pangkat (Riwayat Golongan di Edit Profil)
  */
 const kgb = {
     ctx: null,       // { me, rekap, berkas, langkah, saya, asmenAda }
     list: null,      // { saya, masuk, semua, menungguCount }
     tab: 'saya',
+    jenis: 'kgb',    // 'kgb' | 'pangkat' (switch di atas halaman)
     loading: false,
     error: '',
     _busy: false,
@@ -18,6 +23,26 @@ const kgb = {
 
     BULAN: ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'],
     MAX_BYTES: 1024 * 1024,   // batas ukuran tiap berkas: 1 MB
+
+    // Teks per jenis pengajuan. kata = dipakai di kalimat; catat = nama SK; riwayat = tujuan pencatatan.
+    JENIS: {
+        kgb: {
+            label: 'KGB', kata: 'KGB', full: 'Kenaikan Gaji Berkala', icon: 'fa-money-bill-trend-up',
+            hero: 'Kenaikan Gaji Berkala (KGB)', heroDesc: 'Ajukan KGB dengan melampirkan berkas, lalu pantau tahap persetujuannya.',
+            ajukan: 'Ajukan KGB Baru', formJudul: 'Ajukan KGB', catat: 'SK KGB', riwayat: 'Riwayat KGB'
+        },
+        pangkat: {
+            label: 'Pangkat', kata: 'Kenaikan Pangkat', full: 'Kenaikan Pangkat', icon: 'fa-layer-group',
+            hero: 'Kenaikan Pangkat', heroDesc: 'Ajukan kenaikan pangkat dengan melampirkan berkas, lalu pantau tahap persetujuannya.',
+            ajukan: 'Ajukan Kenaikan Pangkat Baru', formJudul: 'Ajukan Kenaikan Pangkat', catat: 'SK Pangkat', riwayat: 'Riwayat Pangkat'
+        }
+    },
+    JENIS_KENAIKAN: ['Reguler', 'Jabatan Struktural', 'Jabatan Fungsional Tertentu', 'Penyesuaian Ijazah'],
+    _j() { return this.JENIS[this.jenis]; },
+    _jenisOf(x) { return x && x.jenis === 'pangkat' ? 'pangkat' : 'kgb'; },   // data lama tanpa jenis = KGB
+    _byJenis(arr) { return (arr || []).filter(x => this._jenisOf(x) === this.jenis); },
+    _pending(j) { return this.list ? (this.list.masuk || []).filter(x => this._jenisOf(x) === j && (x.bisaAct || x.bisaCatat)).length : 0; },
+    _kata(id) { const x = this._find(id); return this.JENIS[this._jenisOf(x)].kata; },
 
     // ── Util ───────────────────────────────────────────────
     _e(s) {
@@ -88,49 +113,93 @@ const kgb = {
         const root = this._root();
         if (!root) return;
         if (this.error) {
+            root.className = '';
             root.innerHTML = `<div class="kg-empty"><i class="fas fa-triangle-exclamation"></i><p>${this._e(this.error)}</p>
                 <button type="button" class="kg-btn" onclick="kgb.init()"><i class="fas fa-rotate"></i> Coba lagi</button></div>`;
             return;
         }
         if (!this.ctx || !this.list) return;
+        root.className = 'kg-j-' + this.jenis;
+        root.innerHTML = `<div id="kg-hero-wrap">${this._heroHtml()}</div>${this._switchHtml()}<div id="kg-main">${this._mainHtml()}</div>`;
+    },
+
+    _heroHtml() {
+        const J = this._j();
+        return `<div class="kg-hero">
+            <div class="kg-hero-ic"><i class="fas ${J.icon}"></i></div>
+            <div><h2>${this._e(J.hero)}</h2><p>${this._e(J.heroDesc)}</p></div>
+        </div>`;
+    },
+
+    // Switch KGB | Pangkat: kapsul geser dengan badge jumlah pengajuan yang menunggu Anda.
+    _switchHtml() {
+        const opt = (k) => {
+            const J = this.JENIS[k], n = this._pending(k), on = this.jenis === k;
+            return `<button type="button" class="kg-sw-opt${on ? ' active' : ''}" data-j="${k}" role="tab" aria-selected="${on}" onclick="kgb.setJenis('${k}')">
+                <span class="kg-sw-ic"><i class="fas ${J.icon}"></i></span>
+                <span class="kg-sw-tx"><b>${this._e(J.label)}</b><small>${this._e(J.full)}</small></span>
+                ${n ? `<span class="kg-badge">${n}</span>` : ''}
+            </button>`;
+        };
+        return `<div class="kg-switch" id="kg-switch" data-j="${this.jenis}" role="tablist" aria-label="Jenis pengajuan">
+            <span class="kg-sw-thumb"></span>${opt('kgb')}${opt('pangkat')}
+        </div>`;
+    },
+
+    // Ganti jenis: switch diperbarui di tempat (supaya kapsulnya bergeser halus), isi halaman dimuat ulang.
+    setJenis(k) {
+        if (k === this.jenis || !this.JENIS[k]) return;
+        this.jenis = k;
+        const root = this._root(), sw = this._$('kg-switch');
+        if (!root || !sw || !this.ctx || !this.list) { this.render(); return; }
+        root.className = 'kg-j-' + k;
+        sw.dataset.j = k;
+        sw.querySelectorAll('.kg-sw-opt').forEach(b => {
+            const on = b.dataset.j === k;
+            b.classList.toggle('active', on);
+            b.setAttribute('aria-selected', on ? 'true' : 'false');
+        });
+        this._$('kg-hero-wrap').innerHTML = this._heroHtml();
+        this._$('kg-main').innerHTML = this._mainHtml();
+    },
+
+    _mainHtml() {
         const c = this.ctx, l = this.list;
         const isApprover = (c.saya || []).length > 0;
         const tabs = [['saya', 'fa-file-circle-plus', 'Pengajuan Saya', 0]];
-        if (isApprover) tabs.push(['masuk', 'fa-clipboard-check', 'Perlu Ditinjau', l.menungguCount]);
+        if (isApprover) tabs.push(['masuk', 'fa-clipboard-check', 'Perlu Ditinjau', this._pending(this.jenis)]);
         if (c.rekap) tabs.push(['semua', 'fa-table-list', 'Semua Pengajuan', 0]);
         if (!tabs.some(t => t[0] === this.tab)) this.tab = tabs[0][0];
-
-        root.innerHTML = `
-        <div class="kg-hero">
-            <div class="kg-hero-ic"><i class="fas fa-money-bill-trend-up"></i></div>
-            <div><h2>Kenaikan Gaji Berkala (KGB)</h2>
-            <p>Ajukan KGB dengan melampirkan berkas, lalu pantau tahap persetujuannya.</p></div>
-        </div>
-        <div class="kg-tabs">${tabs.map(t => `
+        return `<div class="kg-tabs">${tabs.map(t => `
             <button type="button" class="kg-tab${this.tab === t[0] ? ' active' : ''}" onclick="kgb.setTab('${t[0]}')">
                 <i class="fas ${t[1]}"></i> ${t[2]}${t[3] ? `<span class="kg-badge">${t[3]}</span>` : ''}</button>`).join('')}
         </div>
         <div id="kg-body">${this._tabHtml()}</div>`;
     },
 
-    setTab(t) { this.tab = t; this.render(); },
+    setTab(t) {
+        this.tab = t;
+        const m = this._$('kg-main');
+        if (m && this.ctx && this.list) m.innerHTML = this._mainHtml(); else this.render();
+    },
 
     _tabHtml() {
-        const l = this.list, c = this.ctx;
+        const c = this.ctx, J = this._j();
+        const masuk = this._byJenis(this.list.masuk), semua = this._byJenis(this.list.semua), saya = this._byJenis(this.list.saya);
         if (this.tab === 'masuk') {
-            const pend = l.masuk.filter(x => x.bisaAct || x.bisaCatat), done = l.masuk.filter(x => !(x.bisaAct || x.bisaCatat));
+            const pend = masuk.filter(x => x.bisaAct || x.bisaCatat), done = masuk.filter(x => !(x.bisaAct || x.bisaCatat));
             return (pend.length ? `<h3 class="kg-sec">Menunggu Anda <span>${pend.length}</span></h3><div class="kg-list">${pend.map(x => this._card(x, 'masuk')).join('')}</div>` :
-                `<div class="kg-empty"><i class="fas fa-circle-check"></i><p>Tidak ada pengajuan yang menunggu Anda.</p></div>`) +
+                `<div class="kg-empty"><i class="fas fa-circle-check"></i><p>Tidak ada pengajuan ${this._e(J.kata)} yang menunggu Anda.</p></div>`) +
                 (done.length ? `<h3 class="kg-sec">Riwayat <span>${done.length}</span></h3><div class="kg-list">${done.map(x => this._card(x, 'masuk')).join('')}</div>` : '');
         }
         if (this.tab === 'semua') {
-            return l.semua.length ? `<div class="kg-list">${l.semua.map(x => this._card(x, 'semua')).join('')}</div>` :
-                '<div class="kg-empty"><i class="fas fa-folder-open"></i><p>Belum ada pengajuan KGB.</p></div>';
+            return semua.length ? `<div class="kg-list">${semua.map(x => this._card(x, 'semua')).join('')}</div>` :
+                `<div class="kg-empty"><i class="fas fa-folder-open"></i><p>Belum ada pengajuan ${this._e(J.kata)}.</p></div>`;
         }
-        const ajukan = c.me ? `<button type="button" class="kg-btn kg-btn-primary kg-new" onclick="kgb.openForm()"><i class="fas fa-plus"></i> Ajukan KGB Baru</button>` :
-            '<div class="kg-note"><i class="fas fa-circle-info"></i> Akun admin tidak terhubung ke data karyawan, jadi tidak bisa mengajukan KGB.</div>';
-        return ajukan + (l.saya.length ? `<div class="kg-list">${l.saya.map(x => this._card(x, 'saya')).join('')}</div>` :
-            '<div class="kg-empty"><i class="fas fa-file-circle-plus"></i><p>Belum ada pengajuan KGB. Tekan "Ajukan KGB Baru" untuk memulai.</p></div>');
+        const ajukan = c.me ? `<button type="button" class="kg-btn kg-btn-primary kg-new" onclick="kgb.openForm()"><i class="fas fa-plus"></i> ${this._e(J.ajukan)}</button>` :
+            `<div class="kg-note"><i class="fas fa-circle-info"></i> Akun admin tidak terhubung ke data karyawan, jadi tidak bisa mengajukan ${this._e(J.kata)}.</div>`;
+        return ajukan + (saya.length ? `<div class="kg-list">${saya.map(x => this._card(x, 'saya')).join('')}</div>` :
+            `<div class="kg-empty"><i class="fas ${J.icon}"></i><p>Belum ada pengajuan ${this._e(J.kata)}. Tekan "${this._e(J.ajukan)}" untuk memulai.</p></div>`);
     },
 
     // Baris ringkas gaji + status pencatatan di Riwayat KGB (detail=true: hanya status riwayat).
@@ -139,15 +208,24 @@ const kgb = {
         if (!detail && x.gajiBaru) {
         }
         if (x.status === 'Disetujui') {
+            const J = this.JENIS[this._jenisOf(x)];
             h += x.masukRiwayat
-                ? `<div class="kg-gaji-line kg-gaji-ok"><i class="fas fa-link"></i> Sudah tercatat di Riwayat KGB</div>`
-                : `<div class="kg-gaji-line kg-gaji-todo"><i class="fas fa-circle-info"></i> ${x.bisaCatat ? 'Silakan unggah SK KGB dan isi datanya agar tercatat di Riwayat KGB.' : 'Menunggu Asmen mengunggah SK KGB dan mencatatnya di Riwayat KGB.'}</div>`;
+                ? `<div class="kg-gaji-line kg-gaji-ok"><i class="fas fa-link"></i> Sudah tercatat di ${J.riwayat}</div>`
+                : `<div class="kg-gaji-line kg-gaji-todo"><i class="fas fa-circle-info"></i> ${x.bisaCatat ? `Silakan unggah ${J.catat} dan isi datanya agar tercatat di ${J.riwayat}.` : `Menunggu Asmen mengunggah ${J.catat} dan mencatatnya di ${J.riwayat}.`}</div>`;
         }
         return h;
     },
 
     // No. SK & TMT baru terisi setelah Asmen/Admin mencatat SK KGB; sebelumnya hanya tanggal pengajuan.
     _meta(x) {
+        if (this._jenisOf(x) === 'pangkat') {
+            const sk = x.nomorSuratLama
+                ? `<div><small>No. SK Pangkat</small><b>${this._e(x.nomorSuratLama)}</b></div>
+                    <div><small>TMT Golongan</small><b>${this._tgl(x.tmtKgb)}</b></div>
+                    <div><small>Golongan Baru</small><b>${this._e(x.golongan || '-')}</b></div>` : '';
+            return `<div class="kg-meta" style="grid-template-columns:${sk ? 'repeat(2,minmax(0,1fr))' : '1fr'}">${sk}
+                    <div><small>Diajukan tanggal</small><b>${this._tgl(x.createdAt)}</b></div></div>`;
+        }
         const sk = x.nomorSuratLama
             ? `<div><small>No. SK KGB terakhir</small><b>${this._e(x.nomorSuratLama)}</b></div>
                 <div><small>TMT KGB diajukan</small><b>${this._tgl(x.tmtKgb)}</b></div>` : '';
@@ -168,7 +246,7 @@ const kgb = {
             ${this._stepper(x.steps)}
             ${catAsmen ? `<div class="kg-cat"><i class="fas fa-comment-dots"></i><div><small>Catatan Asmen</small>${this._e(catAsmen)}</div></div>` : ''}
             <div class="kg-actions">
-                <button type="button" class="kg-btn" onclick="kgb.openDetail('${this._e(x.id)}','${mode}')"><i class="fas fa-eye"></i> ${x.bisaAct ? 'Buka & Proses' : (x.bisaCatat ? 'Catat SK KGB' : 'Lihat Detail')}</button>
+                <button type="button" class="kg-btn" onclick="kgb.openDetail('${this._e(x.id)}','${mode}')"><i class="fas fa-eye"></i> ${x.bisaAct ? 'Buka & Proses' : (x.bisaCatat ? 'Catat ' + this.JENIS[this._jenisOf(x)].catat : 'Lihat Detail')}</button>
                 ${x.bisaHapus ? `<button type="button" class="kg-btn kg-btn-danger" onclick="kgb.hapus('${this._e(x.id)}', this)"><i class="fas fa-trash"></i> Hapus</button>` : ''}
             </div>
         </div>`;
@@ -178,7 +256,7 @@ const kgb = {
     _openModal(html) {
         this._closeModal();
         const ov = document.createElement('div');
-        ov.className = 'kg-overlay';
+        ov.className = 'kg-overlay kg-j-' + this.jenis;
         ov.id = 'kg-overlay';
         ov.innerHTML = `<div class="kg-modal" role="dialog">${html}</div>`;
         ov.addEventListener('mousedown', (e) => { if (e.target === ov && !this._busy) this._closeModal(); });
@@ -365,6 +443,7 @@ const kgb = {
     },
 
     openForm() {
+        const J = this._j();
         this._slots = {};
         this._mkgManual = false;
         const rows = this.ctx.berkas.map((b, i) => `
@@ -374,16 +453,17 @@ const kgb = {
                 <input type="file" id="kg-file-${b.key}" accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png" hidden onchange="kgb.pickFile('${b.key}', this)">
             </div>`).join('');
         this._openModal(`
-            <div class="kg-mh"><div class="kg-mh-ic"><i class="fas fa-file-circle-plus"></i></div><h3>Ajukan KGB</h3>
+            <div class="kg-mh"><div class="kg-mh-ic"><i class="fas fa-file-circle-plus"></i></div><h3>${this._e(J.formJudul)}</h3>
                 <button type="button" class="kg-x" onclick="kgb._closeModal()" aria-label="Tutup"><i class="fas fa-xmark"></i></button></div>
             <div class="kg-mb">
+                <div class="kg-jenis-tag"><i class="fas ${J.icon}"></i> ${this._e(J.full)}</div>
                 <div class="kg-form">
                     <label class="kg-full">Diajukan Tanggal<input type="text" id="kg-f-tgl" value="${this._e(this._tgl(this._hariIni()))}" readonly></label>
                     <label class="kg-full">Keterangan (opsional)<textarea id="kg-f-ket" rows="2" maxlength="1000" placeholder="Catatan tambahan untuk pemroses"></textarea></label>
                 </div>
                 <h4 class="kg-h4"><i class="fas fa-paperclip"></i> Berkas Persyaratan <small>(semua wajib)</small></h4>
                 <div class="kg-slots">${rows}</div>
-                <div class="kg-flow"><i class="fas fa-route"></i><span>Alur: Asmen Umum &amp; Kepegawaian (setuju/tolak) → Manajer Umum &amp; Kepegawaian → Direktur (meninjau) → Asmen mengunggah SK KGB</span></div>
+                <div class="kg-flow"><i class="fas fa-route"></i><span>Alur: Asmen Umum &amp; Kepegawaian (setuju/tolak) → Manajer Umum &amp; Kepegawaian → Direktur (meninjau) → Asmen mengunggah ${this._e(J.catat)}</span></div>
             </div>
             <div class="kg-mf">
                 <button type="button" class="kg-btn" onclick="kgb._closeModal()">Batal</button>
@@ -534,20 +614,21 @@ const kgb = {
             }
             this._busyShow('Mengirim pengajuan...', 'Mohon tunggu');
             const res = await api.ajukanKgb({
+                jenis: this.jenis,
                 keterangan: ket,
                 berkas: this.ctx.berkas.map(b => ({ key: b.key, fileId: this._slots[b.key].fileId, nama: this._slots[b.key].nama }))
             });
-            if (!res || !res.success) throw new Error((res && res.error) || 'Gagal mengajukan KGB');
-            this._busyOk('Pengajuan KGB terkirim');
+            if (!res || !res.success) throw new Error((res && res.error) || ('Gagal mengajukan ' + this._j().kata));
+            this._busyOk('Pengajuan ' + this._j().kata + ' terkirim');
             await new Promise(r => setTimeout(r, 900));
             this._busyHide();
             this._closeModal();
             this.tab = 'saya';
             await this.refresh();
-            toast.success('Pengajuan KGB berhasil dikirim.');
+            toast.success('Pengajuan ' + this._j().kata + ' berhasil dikirim.');
         } catch (e) {
             this._busyHide();
-            toast.error(e.message || 'Gagal mengajukan KGB');
+            toast.error(e.message || ('Gagal mengajukan ' + this._j().kata));
         }
     },
 
@@ -560,6 +641,7 @@ const kgb = {
     openDetail(id) {
         const x = this._find(id);
         if (!x) return;
+        this._detailId = x.id;
         const cfg = (this.ctx.langkah || []).filter(s => s.key === x.langkahSaya)[0];
         const files = x.berkas.map(b => `
             <a class="kg-doc" href="${this._e(b.url)}" target="_blank" rel="noopener">
@@ -585,7 +667,10 @@ const kgb = {
         }
         // Setelah semua tahap selesai: Asmen/Admin mengunggah SK KGB & mengisi datanya (otomatis masuk Riwayat KGB pemohon).
         let catat = '';
-        if (x.bisaCatat) {
+        if (x.bisaCatat && this._jenisOf(x) === 'pangkat') {
+            delete this._slots.sk;
+            catat = this._catatPangkatHtml();
+        } else if (x.bisaCatat) {
             delete this._slots.sk;
             catat = `
                 <div class="kg-proc" id="kg-catat">
@@ -610,7 +695,7 @@ const kgb = {
                 </div>`;
         }
         this._openModal(`
-            <div class="kg-mh"><div class="kg-mh-ic"><i class="fas fa-file-lines"></i></div><h3>Detail Pengajuan KGB</h3>
+            <div class="kg-mh"><div class="kg-mh-ic"><i class="fas fa-file-lines"></i></div><h3>Detail Pengajuan ${this._e(this.JENIS[this._jenisOf(x)].kata)}</h3>
                 <button type="button" class="kg-x" onclick="kgb._closeModal()" aria-label="Tutup"><i class="fas fa-xmark"></i></button></div>
             <div class="kg-mb">
                 <div class="kg-card-top"><div class="kg-who"><div class="kg-av">${this._e((x.pemohonNama || '?').trim().split(/\s+/).slice(0, 2).map(w => w[0]).join('').toUpperCase())}</div>
@@ -635,10 +720,11 @@ const kgb = {
         if (tindakan === 'tolak' && !catatan) { toast.error('Catatan alasan penolakan wajib diisi.'); this._$('kg-catatan').focus(); return; }
         const x = this._find(id);
         const nama = x ? x.pemohonNama : 'pemohon';
+        const jn = this.JENIS[this._jenisOf(x)].kata;
         const cfgs = {
-            setuju: { judul: 'Setujui pengajuan KGB?', teks: `Pengajuan KGB ${nama} akan disetujui dan diteruskan ke tahap peninjauan berikutnya.`, icon: 'fa-circle-check', tone: 'ok', okLabel: 'Ya, Setujui', okIcon: 'fa-check' },
-            tolak: { judul: 'Tolak pengajuan KGB?', teks: `Pengajuan KGB ${nama} akan ditolak dan proses dihentikan. Pemohon akan menerima catatan Anda.`, icon: 'fa-circle-xmark', tone: 'no', okLabel: 'Ya, Tolak', okIcon: 'fa-xmark' },
-            tinjau: { judul: 'Tandai sudah ditinjau?', teks: `Anda menyatakan telah meninjau pengajuan KGB ${nama}. Pengajuan akan diteruskan ke tahap berikutnya.`, icon: 'fa-clipboard-check', tone: 'ok', okLabel: 'Ya, Sudah Ditinjau', okIcon: 'fa-clipboard-check' }
+            setuju: { judul: `Setujui pengajuan ${jn}?`, teks: `Pengajuan ${jn} ${nama} akan disetujui dan diteruskan ke tahap peninjauan berikutnya.`, icon: 'fa-circle-check', tone: 'ok', okLabel: 'Ya, Setujui', okIcon: 'fa-check' },
+            tolak: { judul: `Tolak pengajuan ${jn}?`, teks: `Pengajuan ${jn} ${nama} akan ditolak dan proses dihentikan. Pemohon akan menerima catatan Anda.`, icon: 'fa-circle-xmark', tone: 'no', okLabel: 'Ya, Tolak', okIcon: 'fa-xmark' },
+            tinjau: { judul: 'Tandai sudah ditinjau?', teks: `Anda menyatakan telah meninjau pengajuan ${jn} ${nama}. Pengajuan akan diteruskan ke tahap berikutnya.`, icon: 'fa-clipboard-check', tone: 'ok', okLabel: 'Ya, Sudah Ditinjau', okIcon: 'fa-clipboard-check' }
         };
         const cf = Object.assign({}, cfgs[tindakan], catatan ? { catatan } : {});
         if (!(await this._confirm(cf))) return;
@@ -660,6 +746,7 @@ const kgb = {
     // Asmen/Admin: unggah SK KGB + isi datanya -> otomatis tercatat di Riwayat KGB pemohon.
     async catat(id) {
         if (this._busy) return;
+        if (this._jenisOf(this._find(id)) === 'pangkat') return this.catatPangkat(id);
         const v = (k) => (this._$(k) ? this._$(k).value.trim() : '');
         const nomor = v('kg-c-nomor'), tmt = v('kg-c-tmt'), mk = v('kg-c-mk'), gaji = v('kg-c-gaji');
         const s = this._slots.sk;
@@ -692,9 +779,75 @@ const kgb = {
         }
     },
 
+    // Form Catat SK Pangkat -> otomatis jadi Riwayat Golongan (Riwayat Pangkat) pemohon.
+    _catatPangkatHtml() {
+        return `
+                <div class="kg-proc" id="kg-catat">
+                    <h4 class="kg-h4"><i class="fas fa-file-signature"></i> Catat SK Pangkat</h4>
+                    <div class="kg-note"><i class="fas fa-circle-info"></i> Pengajuan sudah selesai ditinjau. Unggah SK Golongan dan isi data berikut; hasilnya otomatis tampil di Riwayat Pangkat pemohon.</div>
+                    <div class="kg-form" style="margin-top:12px">
+                        <label>Golongan<input type="text" id="kg-p-gol" maxlength="20" autocomplete="off" placeholder="Contoh: III/b"></label>
+                        <label>TMT Golongan<input type="date" id="kg-p-tmt"></label>
+                        <label>Jenis Kenaikan<select id="kg-p-jenis"><option value="">-- Pilih Jenis Kenaikan --</option>${this.JENIS_KENAIKAN.map(o => `<option value="${this._e(o)}">${this._e(o)}</option>`).join('')}</select></label>
+                        <label>Nomor SK<input type="text" id="kg-p-nomor" maxlength="120" autocomplete="off" placeholder="Contoh: 824/038-SI/BKPSDM/2022"></label>
+                        <label>Masa Kerja Golongan (Tahun)<input type="number" id="kg-p-mkt" min="0" max="60" inputmode="numeric" placeholder="Contoh: 2"></label>
+                        <label>Masa Kerja Golongan (Bulan)<input type="number" id="kg-p-mkb" min="0" max="11" inputmode="numeric" placeholder="Contoh: 0"></label>
+                        <label class="kg-full">Tanggal SK<input type="date" id="kg-p-tglsk"></label>
+                    </div>
+                    <div class="kg-slots" style="margin-top:12px">
+                        <div class="kg-slot" id="kg-slot-sk">
+                            <div class="kg-slot-lab"><span class="kg-num"><i class="fas fa-file-signature"></i></span><div><b>Berkas SK Golongan</b><small>PDF / JPG / PNG, maks. 1 MB</small></div></div>
+                            <div class="kg-slot-act" id="kg-slot-act-sk"></div>
+                            <input type="file" id="kg-file-sk" accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png" hidden onchange="kgb.pickFile('sk', this)">
+                        </div>
+                    </div>
+                    <div class="kg-proc-btn">
+                        <button type="button" class="kg-btn kg-btn-ok kg-wide" onclick="kgb.catat('${this._e(this._detailId)}')"><i class="fas fa-floppy-disk"></i> Simpan ke Riwayat Pangkat</button>
+                    </div>
+                </div>`;
+    },
+
+    // Asmen/Admin: unggah SK Golongan + isi datanya -> otomatis tercatat di Riwayat Pangkat pemohon.
+    async catatPangkat(id) {
+        const v = (k) => (this._$(k) ? this._$(k).value.trim() : '');
+        const f = { gol: v('kg-p-gol'), tmt: v('kg-p-tmt'), jenis: v('kg-p-jenis'), nomor: v('kg-p-nomor'), mkt: v('kg-p-mkt'), mkb: v('kg-p-mkb'), tglsk: v('kg-p-tglsk') };
+        const s = this._slots.sk;
+        const salah = (msg, el) => { toast.error(msg); if (this._$(el)) this._$(el).focus(); };
+        if (!f.gol) return salah('Golongan wajib diisi.', 'kg-p-gol');
+        if (!f.tmt) return salah('TMT Golongan wajib diisi.', 'kg-p-tmt');
+        if (!f.jenis) return salah('Jenis Kenaikan wajib dipilih.', 'kg-p-jenis');
+        if (!f.nomor) return salah('Nomor SK wajib diisi.', 'kg-p-nomor');
+        if (!/^\d{1,2}$/.test(f.mkt)) return salah('Masa Kerja Golongan (Tahun) wajib diisi.', 'kg-p-mkt');
+        if (!/^\d{1,2}$/.test(f.mkb) || Number(f.mkb) > 11) return salah('Masa Kerja Golongan (Bulan) wajib diisi (0-11).', 'kg-p-mkb');
+        if (!f.tglsk) return salah('Tanggal SK wajib diisi.', 'kg-p-tglsk');
+        if (!s) { toast.error('Berkas SK Golongan wajib diunggah.'); return; }
+        const x = this._find(id);
+        const nama = x ? x.pemohonNama : 'pemohon';
+        if (!(await this._confirm({ judul: 'Simpan SK Pangkat?', teks: `SK Pangkat ${nama} akan dicatat dan langsung tampil di Riwayat Pangkat pemohon.`, icon: 'fa-file-signature', tone: 'ok', okLabel: 'Ya, Simpan', okIcon: 'fa-floppy-disk' }))) return;
+        this._busyShow('Menyimpan SK Pangkat...', 'Mengunggah berkas');
+        try {
+            const rd = s.packed || await (s.packPromise || this._readBase64(s.file));
+            const res = await api.catatSkKgb({
+                id, golongan: f.gol, tmtGolongan: f.tmt, jenisKenaikan: f.jenis, nomorSK: f.nomor,
+                masaKerjaTahun: f.mkt, masaKerjaBulan: f.mkb, tanggalSK: f.tglsk,
+                base64: rd.base64, mimeType: rd.mime, fileName: s.file.name
+            });
+            if (!res || !res.success) throw new Error((res && res.error) || 'Gagal menyimpan SK Pangkat');
+            this._busyOk(res.message || 'SK Pangkat tersimpan');
+            await new Promise(r => setTimeout(r, 900));
+            this._busyHide();
+            this._closeModal();
+            delete this._slots.sk;
+            await this.refresh();
+        } catch (e) {
+            this._busyHide();
+            toast.error(e.message || 'Gagal menyimpan SK Pangkat');
+        }
+    },
+
     async hapus(id, btn) {
         if (this._busy) return;
-        if (!(await this._confirm({ judul: 'Hapus pengajuan KGB?', teks: 'Pengajuan beserta seluruh berkas yang diunggah akan dihapus dan tidak bisa dikembalikan.', icon: 'fa-trash', tone: 'no', okLabel: 'Ya, Hapus', okIcon: 'fa-trash' }))) return;
+        if (!(await this._confirm({ judul: 'Hapus pengajuan ' + this._kata(id) + '?', teks: 'Pengajuan beserta seluruh berkas yang diunggah akan dihapus dan tidak bisa dikembalikan.', icon: 'fa-trash', tone: 'no', okLabel: 'Ya, Hapus', okIcon: 'fa-trash' }))) return;
         const old = btn ? btn.innerHTML : '';
         if (btn) { btn.disabled = true; btn.innerHTML = '<span class="kg-spin sm"></span> Menghapus...'; }
         try {
