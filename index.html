@@ -755,6 +755,9 @@
                                 <span class="shift-label">Shift Anda</span>
                                 <h2 class="shift-name is-loading" id="current-shift-name">Memuat jadwal...</h2>
                                 <p class="shift-time is-loading" id="current-shift-time">Mengecek jam kerja Anda</p>
+                                <!-- Info sesi berikutnya (mis. "Pulang baru bisa dimulai pukul 10:45" + hitung mundur),
+                                     diisi absensi._renderNextSessionChip() di js/absensi.js. -->
+                                <div class="shift-next" id="shift-next-session" style="display:none;" aria-live="polite"></div>
                                 <!-- Badge kecil "Menunggu Approval" - muncul kalau ada Surat
                                      Tugas/SPPD yang masih pending, lihat
                                      absensi.refreshSuratTugasBadge() di js/absensi.js. -->
