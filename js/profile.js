@@ -32,7 +32,7 @@ const profileManager = {
         // Loading screen (skeleton) setiap kali halaman Edit Profil dibuka -
         // diganti tampilan asli oleh refreshView() di akhir init().
         const _vc = document.getElementById('pf-view-content');
-        if (_vc) _vc.innerHTML = this._loadingHtml();
+        if (_vc) { _vc.innerHTML = this._loadingHtml(); _vc._pfHtml = null; }
 
         if (!this.myId) {
             const vc = document.getElementById('pf-view-content');
@@ -40,6 +40,18 @@ const profileManager = {
             toast.error('Akun Admin ini belum terhubung ke data karyawan di menu Data Karyawan, jadi belum ada profil untuk diedit di sini.');
             return;
         }
+
+        // [OPTIMASI 2 Nov 2026] Reset status muat. Tampilan profil (kartu menu)
+        // cukup butuh nama/jabatan/unit/status/foto - itu dilayani Cloudflare
+        // Worker dari D1 (~detik pertama) TANPA menunggu Apps Script. Data
+        // lengkap untuk form tetap dari Apps Script (di bawah) dan menjadi
+        // sumber kebenaran; kalau Worker gagal, perilaku sama seperti dulu.
+        this._detailCache = null;
+        this._authDone = false;
+        this._quickShown = false;
+        this._riwayatLoaded = {};
+        const _run = this._initRun = (this._initRun || 0) + 1;
+        this._quickPaint(_run);
 
         this.switchTab('profil');
         // FIX: loadMyProfile() di bawah ASYNC (menunggu respons server)
@@ -54,12 +66,77 @@ const profileManager = {
         if (saveBtn) { saveBtn.disabled = true; saveBtn.dataset.origText = saveBtn.innerHTML; saveBtn.innerHTML = 'Memuat data...'; }
         await this.loadMyProfile();
         if (saveBtn) { saveBtn.disabled = false; if (saveBtn.dataset.origText) saveBtn.innerHTML = saveBtn.dataset.origText; }
-        await this.loadRiwayatPendidikan();
-        await this.loadRiwayatKgb();
-        await this.loadRiwayatGolongan();
-        await this.loadRiwayatMutasi();
-        await this.loadRiwayatKaryawan();
-        this.refreshView();
+        // [OPTIMASI 2 Nov 2026] 5 riwayat (Pendidikan/KGB/Pangkat/Mutasi/
+        // Karyawan) TIDAK dimuat lagi di sini - kartu menu tidak memakainya.
+        // Dimuat otomatis saat tabnya dibuka (lihat _ensureRiwayat()).
+        // Data detail yang sama juga dipakai ulang untuk tampilan (tidak
+        // memanggil getKaryawanDetail kedua kali).
+        this._authDone = true;
+        if (this._detailCache) this.refreshView(this._detailCache);
+        else if (!this._quickShown) this.refreshView();
+    },
+
+    // [OPTIMASI 2 Nov 2026] Tampilan awal cepat dari Cloudflare Worker (D1).
+    // FAIL-OPEN: gagal/lambat/tidak ada -> diam saja, tampilan tetap datang
+    // dari Apps Script seperti sebelumnya. Tidak pernah menimpa data Apps Script.
+    async _quickPaint(run) {
+        try {
+            if (typeof SESSION_WORKER_URL === 'undefined' || !SESSION_WORKER_URL) return;
+            const u = (window.auth && auth.getCurrentUser) ? auth.getCurrentUser() : null;
+            if (!u || !u.sessionToken || !this.myId) return;
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 4000);
+            let json = null;
+            try {
+                const res = await fetch(SESSION_WORKER_URL.replace(/\/+$/, '') + '/profile-quick', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'text/plain' },
+                    body: JSON.stringify({ userId: this.myId, authUserId: u.id, authRole: u.role, sessionToken: u.sessionToken }),
+                    signal: controller.signal
+                });
+                json = await res.json();
+            } finally {
+                clearTimeout(timeoutId);
+            }
+            if (!json || json.success !== true || !json.data) return;
+            if (run !== this._initRun || this._authDone) return; // sudah ada data Apps Script / halaman dibuka ulang
+            const el = document.getElementById('pf-view-content');
+            if (!el) return;
+            this._quickShown = true;
+            this._setViewHtml(el, this.renderViewHtml(Object.assign({}, json.data, { _quick: true })));
+        } catch (e) {
+            // diam - lanjut jalur Apps Script
+        }
+    },
+
+    // Ganti isi tampilan hanya kalau HTML-nya memang beda (hindari kedip foto).
+    _setViewHtml(el, html) {
+        if (el._pfHtml === html) return;
+        el.innerHTML = html;
+        el._pfHtml = html;
+    },
+
+    // [OPTIMASI 2 Nov 2026] Muat riwayat sebuah tab HANYA saat tab itu dibuka.
+    _ensureRiwayat(tab) {
+        const cfg = {
+            pendidikan:      { load: 'loadRiwayatPendidikan', id: 'pf-pendidikan-list',       cols: 0 },
+            kgb:             { load: 'loadRiwayatKgb',        id: 'pf-kgb-list',              cols: 5 },
+            golongan:        { load: 'loadRiwayatGolongan',   id: 'pf-golongan-list',         cols: 5 },
+            mutasi:          { load: 'loadRiwayatMutasi',     id: 'pf-mutasi-list',           cols: 6 },
+            riwayatkaryawan: { load: 'loadRiwayatKaryawan',   id: 'pf-riwayatkaryawan-list',  cols: 6 }
+        }[tab];
+        if (!cfg || !this.myId) return;
+        this._riwayatLoaded = this._riwayatLoaded || {};
+        if (this._riwayatLoaded[tab]) return;
+        this._riwayatLoaded[tab] = true;
+        const el = document.getElementById(cfg.id);
+        if (el) {
+            const msg = '<i class="fas fa-spinner fa-spin"></i> Memuat riwayat...';
+            el.innerHTML = cfg.cols
+                ? '<tr><td colspan="' + cfg.cols + '" style="text-align:center;padding:2rem;color:var(--text-muted);">' + msg + '</td></tr>'
+                : '<p style="color:var(--text-muted);font-size:0.85rem;">' + msg + '</p>';
+        }
+        this[cfg.load]();
     },
 
     // ===== [TAMBAHAN 2026-10-19] Kartu "Profil Saya" (tampilan baca) =====
@@ -100,18 +177,20 @@ const profileManager = {
         </div>`;
     },
 
-    async refreshView() {
+    async refreshView(cached) {
         const el = document.getElementById('pf-view-content');
         if (!el || !this.myId) return;
         try {
-            const result = await api.getKaryawanDetail(this.myId);
+            const result = (cached && cached.id !== undefined) ? { success: true, data: cached } : await api.getKaryawanDetail(this.myId);
             if (result.success && result.data) {
-                el.innerHTML = this.renderViewHtml(result.data);
+                this._setViewHtml(el, this.renderViewHtml(result.data));
             } else {
+                el._pfHtml = null;
                 el.innerHTML = '<p style="text-align:center;color:var(--text-muted);">Gagal memuat data profil.</p>';
             }
         } catch (e) {
             console.error('Error refresh tampilan profil:', e);
+            el._pfHtml = null;
             el.innerHTML = '<p style="text-align:center;color:var(--text-muted);">Terjadi kesalahan saat memuat profil.</p>';
         }
     },
@@ -150,7 +229,7 @@ const profileManager = {
         const statusColor = p.statusKaryawan === 'AKTIF' ? '#10B981' : '#F59E0B';
 
         // dipakai auth.printCV()
-        if (window.auth) auth._profileData = p;
+        if (window.auth && !p._quick) auth._profileData = p;
 
         const ket = (r, ...keys) => keys.map(k => r[k]).filter(Boolean).map(esc).join(' &bull; ');
         const pendidikan = list(this.riwayatPendidikan, r =>
@@ -220,6 +299,8 @@ const profileManager = {
         // Tab Riwayat KGB hanya untuk dilihat (diubah Admin lewat Data Karyawan) -> tombol Simpan disembunyikan.
         const btnSimpan = document.getElementById('btn-save-profile');
         if (btnSimpan && btnSimpan.parentElement) btnSimpan.parentElement.style.display = tab === 'kgb' ? 'none' : '';
+        // [OPTIMASI 2 Nov 2026] riwayat dimuat saat tabnya dibuka
+        this._ensureRiwayat(tab);
         // NEW: muat status & daftar Login Sidik Jari tiap kali tab Akun dibuka
         if (tab === 'akun' && window.auth && auth.renderBiometricSettings) {
             auth.renderBiometricSettings();
@@ -257,6 +338,7 @@ const profileManager = {
                 return;
             }
             const p = result.data;
+            this._detailCache = p;
 
             // Tab Profil
             document.getElementById('pf-id').value               = p.id || '';
