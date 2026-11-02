@@ -849,13 +849,18 @@ const kgb = {
         if (this._busy) return;
         if (!(await this._confirm({ judul: 'Hapus pengajuan ' + this._kata(id) + '?', teks: 'Pengajuan beserta seluruh berkas yang diunggah akan dihapus dan tidak bisa dikembalikan.', icon: 'fa-trash', tone: 'no', okLabel: 'Ya, Hapus', okIcon: 'fa-trash' }))) return;
         const old = btn ? btn.innerHTML : '';
+        const kata = this._kata(id);
         if (btn) { btn.disabled = true; btn.innerHTML = '<span class="kg-spin sm"></span> Menghapus...'; }
+        this._busyShow('Menghapus pengajuan...', 'Berkas di Drive ikut dihapus, mohon tunggu');
         try {
             const res = await api.hapusKgb(id);
             if (!res || !res.success) throw new Error((res && res.error) || 'Gagal menghapus');
-            toast.success('Pengajuan dihapus.');
+            this._busyOk('Pengajuan ' + kata + ' dihapus');
+            await new Promise(r => setTimeout(r, 800));
+            this._busyHide();
             await this.refresh();
         } catch (e) {
+            this._busyHide();
             if (btn) { btn.disabled = false; btn.innerHTML = old; }
             toast.error(e.message || 'Gagal menghapus pengajuan');
         }
