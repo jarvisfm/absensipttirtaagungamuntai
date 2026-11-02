@@ -74,6 +74,35 @@ const berkasUpload = {
         document.body.appendChild(ov);
     },
 
+    /**
+     * Pastikan `file` tidak melebihi `maxBytes` (dipakai menu yang unggahannya dibatasi,
+     * mis. 500 KB untuk Lampiran Cuti, Surat Keterangan Izin, foto profil).
+     *  - Gambar yang lebih besar dikecilkan otomatis (jadi JPEG) dan pengguna diberi tahu.
+     *  - PDF yang lebih besar tidak bisa dikecilkan di browser -> modal peringatan, hasil null.
+     * Mengembalikan File yang boleh dipakai, atau null kalau berkas ditolak.
+     */
+    async fit(file, maxBytes) {
+        if (!file || file.size <= maxBytes) return file;
+        const batas = this._ukuran(maxBytes);
+        if (!/^image\/(jpeg|jpg|png)$/i.test(file.type)) {
+            this._alert(`File lebih dari ${batas}`, `"${file.name}" berukuran ${this._ukuran(file.size)}. Ukuran maksimal berkas adalah ${batas}. Silakan kecilkan ukuran berkas terlebih dahulu (mis. kompres PDF atau scan dengan resolusi lebih rendah), lalu unggah kembali.`);
+            return null;
+        }
+        try {
+            const rd = await this._baca(file, maxBytes);
+            const bin = atob(rd.base64);
+            const buf = new Uint8Array(bin.length);
+            for (let i = 0; i < bin.length; i++) buf[i] = bin.charCodeAt(i);
+            const nama = file.name.replace(/\.[^.]+$/, '') + '.jpg';
+            const out = new File([buf], nama, { type: 'image/jpeg' });
+            if (typeof toast !== 'undefined') toast.info(`Gambar ${this._ukuran(file.size)} (lebih dari ${batas}) dikecilkan otomatis menjadi ${this._ukuran(out.size)}.`);
+            return out;
+        } catch (e) {
+            this._alert('Berkas tidak bisa diproses', `"${file.name}": ${e.message || 'gagal dikecilkan'} Silakan pilih berkas lain.`);
+            return null;
+        }
+    },
+
     async pick(boxId, input) {
         const f = input.files && input.files[0];
         input.value = '';
@@ -107,7 +136,8 @@ const berkasUpload = {
     },
 
     // PDF dikirim apa adanya; gambar dikecilkan bertahap (dimensi & kualitas) sampai di bawah 1 MB.
-    _baca(file) {
+    _baca(file, maxBytes) {
+        maxBytes = maxBytes || this.MAX_BYTES;
         return new Promise((resolve, reject) => {
             if (/pdf/i.test(file.type)) {
                 const r = new FileReader();
@@ -130,10 +160,10 @@ const berkasUpload = {
                     ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, cv.width, cv.height);
                     ctx.drawImage(img, 0, 0, cv.width, cv.height);
                     out = cv.toDataURL('image/jpeg', q).split(',')[1];
-                    if (out.length * 0.75 <= this.MAX_BYTES * 0.95) break;
+                    if (out.length * 0.75 <= maxBytes * 0.95) break;
                     if (q > 0.5) q -= 0.1; else max = Math.round(max * 0.8);
                 }
-                if (out.length * 0.75 > this.MAX_BYTES) { reject(new Error('Gambar terlalu besar, gunakan foto yang lebih kecil.')); return; }
+                if (out.length * 0.75 > maxBytes) { reject(new Error('Gambar terlalu besar, gunakan foto yang lebih kecil.')); return; }
                 resolve({ base64: out, mime: 'image/jpeg' });
             };
             img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Gambar tidak bisa dibaca.')); };
