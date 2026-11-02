@@ -1236,8 +1236,8 @@
                                 <textarea id="st-keterangan" rows="2" placeholder="Uraian tugas singkat" style="width:100%;padding:8px 10px;border:1px solid var(--border-color);border-radius:8px;font-family:inherit;"></textarea>
                             </div>
                             <div class="form-group" style="margin-top:10px;">
-                                <label style="font-weight:600;font-size:0.85rem;">Link Surat Tugas - Google Drive (opsional)</label>
-                                <input type="url" id="st-fileUrl" placeholder="https://drive.google.com/file/d/..." style="width:100%;padding:8px 10px;border:1px solid var(--border-color);border-radius:8px;">
+                                <label style="font-weight:600;font-size:0.85rem;">Berkas Surat Tugas (opsional)</label>
+                                <div id="st-berkas" style="margin-top:6px;"></div>
                             </div>
                             <div style="display:flex;gap:8px;margin-top:1.25rem;">
                                 <button type="button" onclick="document.getElementById('modal-surat-tugas').style.display='none'" style="flex:1;background:none;border:1px solid var(--border-color);color:var(--text-muted);padding:10px;border-radius:8px;cursor:pointer;">Batal</button>
@@ -1365,8 +1365,8 @@
                                 <textarea id="spk-keterangan" rows="2" placeholder="mis. Perbaikan pipa bocor area Kuripan" style="width:100%;padding:8px 10px;border:1px solid var(--border-color);border-radius:8px;font-family:inherit;"></textarea>
                             </div>
                             <div class="form-group" style="margin-top:10px;">
-                                <label style="font-weight:600;font-size:0.85rem;">Link Surat Perintah Kerja - Google Drive (opsional)</label>
-                                <input type="url" id="spk-fileUrl" placeholder="https://drive.google.com/file/d/..." style="width:100%;padding:8px 10px;border:1px solid var(--border-color);border-radius:8px;">
+                                <label style="font-weight:600;font-size:0.85rem;">Berkas Surat Perintah Kerja (opsional)</label>
+                                <div id="spk-berkas" style="margin-top:6px;"></div>
                             </div>
                             <div style="display:flex;gap:8px;margin-top:1.25rem;">
                                 <button type="button" onclick="document.getElementById('modal-spk').style.display='none'" style="flex:1;background:none;border:1px solid var(--border-color);color:var(--text-muted);padding:10px;border-radius:8px;cursor:pointer;">Batal</button>
@@ -4600,6 +4600,7 @@
     <script src="js/cuti.js"></script>
     <script src="js/form-modal.js"></script>
     <script src="js/outofradius.js"></script>
+    <script src="js/berkas-upload.js"></script>
     <script src="js/surat-tugas.js"></script>
     <script src="js/sanggahan-absensi.js"></script>
     <script src="js/spk.js"></script>
