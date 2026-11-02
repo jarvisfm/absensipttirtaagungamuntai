@@ -2019,7 +2019,7 @@ const faceRecognition = {
             // tapi masih cukup jelas untuk kebutuhan absensi/tinjauan admin.
             // Dihitung SEKALI di sini lalu dipakai juga di confirmAttendance()
             // (this._capturedPhotoDataUrl) supaya tidak di-encode dua kali.
-            this._capturedPhotoDataUrl = this.canvas.toDataURL('image/jpeg', 0.85);
+            this._capturedPhotoDataUrl = this._jpegMaks(this.canvas, 0.85);
 
             // Show captured photo
             const preview = document.getElementById('camera-preview');
@@ -2162,6 +2162,30 @@ const faceRecognition = {
         return map[action] || action;
     },
 
+    /**
+     * Foto verifikasi absensi dibatasi MAKSIMAL 500 KB (yang disimpan ke Google Drive):
+     * kualitas JPEG diturunkan bertahap, kalau masih besar ukuran gambar ikut diperkecil.
+     * Biasanya sudah di bawah 500 KB pada percobaan pertama, jadi tidak ada perubahan tampilan.
+     */
+    _jpegMaks(canvas, kualitas) {
+        const MAKS = 500 * 1024;
+        const ukuran = u => (u.length - u.indexOf(',') - 1) * 0.75;
+        let q = kualitas || 0.85;
+        let out = canvas.toDataURL('image/jpeg', q);
+        let src = canvas;
+        for (let i = 0; i < 10 && ukuran(out) > MAKS; i++) {
+            if (q > 0.5) { q = Math.round((q - 0.1) * 100) / 100; }
+            else {
+                const c = document.createElement('canvas');
+                c.width = Math.max(1, Math.round(src.width * 0.8)); c.height = Math.max(1, Math.round(src.height * 0.8));
+                c.getContext('2d').drawImage(src, 0, 0, c.width, c.height);
+                src = c;
+            }
+            out = src.toDataURL('image/jpeg', q);
+        }
+        return out;
+    },
+
     confirmAttendance() {
         if (!this.photoCaptured || !this.locationVerified) {
             toast.error('Harap verifikasi wajah dan lokasi terlebih dahulu!');
@@ -2177,7 +2201,7 @@ const faceRecognition = {
                 longitude: this.position.coords.longitude,
                 accuracy: this.position.coords.accuracy
             },
-            photo: this._capturedPhotoDataUrl || (this.canvas ? this.canvas.toDataURL('image/jpeg', 0.85) : null),
+            photo: this._capturedPhotoDataUrl || (this.canvas ? this._jpegMaks(this.canvas, 0.85) : null),
             // Skor kecocokan wajah (jarak Euclidean, makin kecil makin mirip)
             // - dikosongkan kalau pencocokan tidak sempat dilakukan sama
             // sekali (fail-open, lihat _getReferenceDescriptor). Penanda
