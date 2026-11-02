@@ -73,7 +73,7 @@ const kgb = {
         const txt = { Disetujui: 'Disetujui', Ditinjau: 'Sudah ditinjau', Menunggu: 'Menunggu', Ditolak: 'Ditolak', Dilewati: 'Dilewati', Belum: 'Belum giliran' };
         const cls = { Disetujui: 'ok', Ditinjau: 'ok', Menunggu: 'wait', Ditolak: 'no', Dilewati: 'skip', Belum: 'idle' };
         const ic = { ok: 'fa-check', wait: 'fa-hourglass-half', no: 'fa-xmark', skip: 'fa-forward', idle: 'fa-circle' };
-        return `<div class="kg-steps">${steps.map(s => {
+        return `<div class="kg-steps" style="grid-template-columns:repeat(${steps.length || 1},minmax(0,1fr))">${steps.map(s => {
             const c = cls[s.status] || 'idle';
             return `<div class="kg-step kg-st-${c}">
                 <div class="kg-dot"><i class="fas ${ic[c]}"></i></div>
