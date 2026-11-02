@@ -817,14 +817,22 @@ const telaahStaf = {
                 const img = new Image();
                 img.onerror = () => reject(new Error('File bukan gambar yang valid.'));
                 img.onload = () => {
-                    const k = Math.min(1, maxSide / Math.max(img.width, img.height));
-                    const w = Math.round(img.width * k), h = Math.round(img.height * k);
-                    const c = document.createElement('canvas');
-                    c.width = w; c.height = h;
-                    const ctx = c.getContext('2d');
-                    ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, w, h);
-                    ctx.drawImage(img, 0, 0, w, h);
-                    resolve(c.toDataURL('image/jpeg', kualitas));
+                    // Setiap foto dijamin maksimal 500 KB: kualitas lalu dimensi diturunkan bertahap.
+                    const MAKS = 500 * 1024;
+                    let side = maxSide, q = kualitas, out = '';
+                    for (let i = 0; i < 12; i++) {
+                        const k = Math.min(1, side / Math.max(img.width, img.height));
+                        const w = Math.max(1, Math.round(img.width * k)), h = Math.max(1, Math.round(img.height * k));
+                        const c = document.createElement('canvas');
+                        c.width = w; c.height = h;
+                        const ctx = c.getContext('2d');
+                        ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, w, h);
+                        ctx.drawImage(img, 0, 0, w, h);
+                        out = c.toDataURL('image/jpeg', q);
+                        if ((out.length - out.indexOf(',') - 1) * 0.75 <= MAKS) break;
+                        if (q > 0.5) q -= 0.1; else side = Math.round(side * 0.8);
+                    }
+                    resolve(out);
                 };
                 img.src = fr.result;
             };
