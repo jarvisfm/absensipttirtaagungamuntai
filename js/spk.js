@@ -40,7 +40,7 @@ const spk = {
         tglEl.onchange = () => this._loadSesiForDate(tglEl.value);
         this._loadSesiForDate(todayStr);
         document.getElementById('spk-keterangan').value = '';
-        document.getElementById('spk-fileUrl').value = '';
+        berkasUpload.mount('spk-berkas');
 
         document.getElementById('modal-spk').style.display = 'flex';
         this._resetSimpanButton();
@@ -141,6 +141,9 @@ const spk = {
         if (sesi.length === 0) { toast.error('Pilih minimal 1 sesi yang akan digantikan SPK!'); return; }
         if (!keterangan) { toast.error('Keterangan wajib diisi!'); return; }
 
+        if (berkasUpload.isBusy('spk-berkas')) { toast.error('Berkas masih diproses, tunggu sebentar.'); return; }
+        const berkas = berkasUpload.get('spk-berkas');
+
         const currentUser = auth.getCurrentUser();
         const data = {
             userId: currentUser?.employeeId || currentUser?.id,
@@ -148,7 +151,9 @@ const spk = {
             tanggal,
             sesi,
             keterangan,
-            fileUrl: document.getElementById('spk-fileUrl').value.trim()
+            berkasBase64: berkas ? berkas.base64 : '',
+            berkasMime: berkas ? berkas.mime : '',
+            berkasNama: berkas ? berkas.nama : ''
         };
 
         this._isSubmitting = true;
