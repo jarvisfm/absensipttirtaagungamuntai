@@ -1237,9 +1237,15 @@ const faceRecognition = {
     // Foto dokumentasi bersifat OPSIONAL (beda dengan catatan yang wajib) -
     // dikonversi ke base64 di browser, lalu ditumpangkan ke laporan yang
     // sama seperti catatan alasan.
-    previewOutOfRadiusPhoto(input) {
-        const file = input.files && input.files[0];
+    async previewOutOfRadiusPhoto(input) {
+        let file = input.files && input.files[0];
         if (!file) return;
+        // Foto dokumentasi luar radius dibatasi MAKS 500 KB (yang tersimpan di Google Drive):
+        // foto kamera HP yang lebih besar dikecilkan otomatis sebelum dikirim.
+        if (typeof berkasUpload !== 'undefined' && berkasUpload.fit) {
+            file = await berkasUpload.fit(file, 500 * 1024);
+            if (!file) { input.value = ''; return; }
+        }
         const reader = new FileReader();
         reader.onload = (e) => {
             this._outOfRadiusPhoto = e.target.result; // base64 data URL
