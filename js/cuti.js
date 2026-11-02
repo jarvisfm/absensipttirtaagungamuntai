@@ -281,7 +281,7 @@ const cuti = {
     // pengajuan (submitLeave) supaya backend bisa menolak pengajuan yang
     // lampirannya tidak lengkap - tidak ada pengajuan "menggantung" tanpa
     // lampiran kalau upload gagal di tengah jalan.
-    LAMPIRAN_MAX_BYTES: 1 * 1024 * 1024, // 1MB
+    LAMPIRAN_MAX_BYTES: 500 * 1024, // 500 KB (gambar lebih besar dikecilkan otomatis, lihat berkasUpload.fit)
     currentLampiran: null,
 
     _initLampiran() {
@@ -348,19 +348,17 @@ const cuti = {
         return mime;
     },
 
-    handleLampiran(file) {
+    async handleLampiran(file) {
         const allowedTypes = ['application/pdf', 'image/jpeg', 'image/png'];
 
-        if (file.size > this.LAMPIRAN_MAX_BYTES) {
-            toast.error('File terlalu besar. Maksimum 1MB');
-            this._resetLampiranInput();
-            return;
-        }
         if (!allowedTypes.includes(this._resolveLampiranMime(file))) {
             toast.error('Format file tidak didukung. Gunakan PDF, JPG, atau PNG');
             this._resetLampiranInput();
             return;
         }
+        // Maksimum 500 KB: gambar dikecilkan otomatis, PDF yang lebih besar ditolak.
+        file = await berkasUpload.fit(file, this.LAMPIRAN_MAX_BYTES);
+        if (!file) { this._resetLampiranInput(); return; }
 
         this.currentLampiran = file;
 
