@@ -33,13 +33,70 @@ const spk = {
         // Reset form tiap dibuka
         const today = new Date();
         const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-        document.getElementById('spk-tanggal').value = todayStr;
-        document.querySelectorAll('#spk-sesi-list .spk-sesi-checkbox').forEach(cb => cb.checked = false);
+        const tglEl = document.getElementById('spk-tanggal');
+        tglEl.value = todayStr;
+        // Sesi dideteksi otomatis dari data absensi tanggal yang dipilih (sama seperti
+        // "Sesi yang Bermasalah" di Sanggahan Absensi) - tanggal lampau tetap boleh dipilih.
+        tglEl.onchange = () => this._loadSesiForDate(tglEl.value);
+        this._loadSesiForDate(todayStr);
         document.getElementById('spk-keterangan').value = '';
         document.getElementById('spk-fileUrl').value = '';
 
         document.getElementById('modal-spk').style.display = 'flex';
         this._resetSimpanButton();
+    },
+
+    _sesiLoading: false,
+    _sesiReq: 0,   // penanda permintaan terakhir, supaya hasil tanggal lama tidak menimpa tanggal baru
+
+    _renderSesi(list, sesi, catatan) {
+        const note = catatan
+            ? `<span style="font-size:0.78rem;color:var(--text-muted);">${catatan}</span>` : '';
+        list.innerHTML = sesi.map(s => `
+            <label style="display:flex;align-items:center;gap:8px;font-size:0.9rem;cursor:pointer;">
+                <input type="checkbox" class="spk-sesi-checkbox" value="${s.field}"> ${s.label}
+            </label>
+        `).join('') + note;
+    },
+
+    async _loadSesiForDate(dateStr) {
+        const list = document.getElementById('spk-sesi-list');
+        if (!list) return;
+        const reqId = ++this._sesiReq;
+        const semua = Object.keys(this.SESI_LABELS).map(f => ({ field: f, label: this.SESI_LABELS[f] }));
+        if (!dateStr) {
+            list.innerHTML = '<span style="font-size:0.8rem;color:var(--text-muted);">Pilih tanggal terlebih dahulu.</span>';
+            return;
+        }
+        this._sesiLoading = true;
+        list.innerHTML = '<span style="font-size:0.8rem;color:var(--text-muted);"><i class="fas fa-spinner fa-spin"></i> Memuat sesi...</span>';
+
+        const user = auth.getCurrentUser();
+        const effectiveId = user?.employeeId || user?.id;
+        try {
+            const result = await api.getAttendanceSessionsForDate(effectiveId, dateStr);
+            if (reqId !== this._sesiReq) return;
+            const data = (result && result.success && result.data) || null;
+            const sesi = (data && data.sessions) || [];
+            if (!data || data.libur || !sesi.length) {
+                // Hari libur / tanpa jadwal / gagal memuat: SPK tetap boleh diajukan (mis. perbaikan di
+                // akhir pekan), jadi tampilkan 4 sesi standar untuk dipilih manual.
+                this._renderSesi(list, semua, 'Tidak ada jadwal absen di tanggal ini - pilih sesi yang digantikan secara manual.');
+                return;
+            }
+            const bisa = sesi.filter(s => s.disputable);
+            if (!bisa.length) {
+                list.innerHTML = '<span style="font-size:0.8rem;color:var(--text-muted);">Tidak ada sesi yang bisa digantikan SPK di tanggal ini - semua sesi sudah tercatat (absen normal, SPK, atau sedang menunggu approval).</span>';
+                return;
+            }
+            this._renderSesi(list, bisa, bisa.length < sesi.length ? 'Sesi yang sudah tercatat tidak ditampilkan.' : '');
+        } catch (e) {
+            if (reqId !== this._sesiReq) return;
+            console.error('Error memuat sesi SPK:', e);
+            this._renderSesi(list, semua, 'Gagal mendeteksi sesi otomatis - pilih sesi secara manual.');
+        } finally {
+            if (reqId === this._sesiReq) this._sesiLoading = false;
+        }
     },
 
     // Cegah submit dobel - pola sama persis seperti suratTugas di
@@ -74,6 +131,7 @@ const spk = {
 
     async submit() {
         if (this._isSubmitting) return;
+        if (this._sesiLoading) { toast.error('Sesi masih dimuat, tunggu sebentar.'); return; }
 
         const tanggal = document.getElementById('spk-tanggal').value;
         const sesi = Array.from(document.querySelectorAll('#spk-sesi-list .spk-sesi-checkbox:checked')).map(cb => cb.value);
