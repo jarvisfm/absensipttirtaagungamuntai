@@ -63,7 +63,7 @@ const suratTugas = {
         document.getElementById('st-tanggalMulai').value = '';
         document.getElementById('st-tanggalSelesai').value = '';
         document.getElementById('st-keterangan').value = '';
-        document.getElementById('st-fileUrl').value = '';
+        berkasUpload.mount('st-berkas');
         }
 
         document.getElementById('modal-surat-tugas').style.display = 'flex';
@@ -215,6 +215,9 @@ const suratTugas = {
         if (!tanggalMulai || !tanggalSelesai) { toast.error('Tanggal mulai dan selesai wajib diisi!'); return; }
         if (tanggalSelesai < tanggalMulai) { toast.error('Tanggal selesai tidak boleh sebelum tanggal mulai!'); return; }
 
+        if (berkasUpload.isBusy('st-berkas')) { toast.error('Berkas masih diproses, tunggu sebentar.'); return; }
+        const berkas = berkasUpload.get('st-berkas');
+
         const currentUser = auth.getCurrentUser();
         const data = {
             userId: currentUser?.employeeId || currentUser?.id,
@@ -224,7 +227,9 @@ const suratTugas = {
             tanggalMulai,
             tanggalSelesai,
             keterangan: document.getElementById('st-keterangan').value.trim(),
-            fileUrl: document.getElementById('st-fileUrl').value.trim()
+            berkasBase64: berkas ? berkas.base64 : '',
+            berkasMime: berkas ? berkas.mime : '',
+            berkasNama: berkas ? berkas.nama : ''
         };
 
         this._isSubmitting = true;
