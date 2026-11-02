@@ -925,6 +925,9 @@ const karyawanManager = {
         // Balikin URL foto baru dari backend (dibutuhkan pemanggil untuk
         // menyinkronkan sesi login kalau yang diedit adalah admin itu
         // sendiri - lihat saveKaryawan()). null kalau upload gagal.
+        // Foto dibatasi maksimal 500 KB (gambar lebih besar dikecilkan otomatis).
+        file = await berkasUpload.fit(file, 500 * 1024);
+        if (!file) return null;
         return new Promise((resolve) => {
             const reader = new FileReader();
             reader.onload = async (e) => {
