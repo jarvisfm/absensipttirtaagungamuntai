@@ -695,19 +695,17 @@ const izin = {
         }
     },
 
-    handleFile(file) {
-        const maxSize = 5 * 1024 * 1024; // 5MB
+    async handleFile(file) {
+        const maxSize = 500 * 1024; // 500 KB (gambar lebih besar dikecilkan otomatis)
         const allowedTypes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png'];
-
-        if (file.size > maxSize) {
-            toast.error('File terlalu besar. Maksimum 5MB');
-            return;
-        }
 
         if (!allowedTypes.includes(file.type)) {
             toast.error('Format file tidak didukung. Gunakan PDF, JPG, atau PNG');
             return;
         }
+
+        file = await berkasUpload.fit(file, maxSize);
+        if (!file) return;
 
         this.currentFile = file;
 
