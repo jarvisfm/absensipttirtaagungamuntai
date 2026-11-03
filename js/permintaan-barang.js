@@ -852,12 +852,14 @@ const permintaanBarang = {
                 if (s.tipe === 'direktur') jab = 'Menyetujui: Direktur';
                 if (s.tipe === 'pengadaan') {
                     jab = 'Pejabat Pelaksana<br>Pengadaan yang ditunjuk';
-                    // Semua Pejabat Pengadaan ditampilkan, yang menyetujui diberi centang.
+                    // Semua Pejabat Pengadaan ditampilkan; yang dicentang = yang DITUNJUK Direktur
+                    // (langsung tercentang begitu Direktur menyetujui, tidak menunggu ACC pejabatnya).
                     const selesai = s.status === 'Disetujui';
+                    const ditunjuk = String(p.pengadaanDitunjuk || (selesai ? s.userId : '') || '');
                     const daftar = (this.ctx.pengadaanList || []).map(x => ({ id: String(x.id), nama: x.nama }));
-                    if (selesai && !daftar.some(x => x.id === String(s.userId))) daftar.push({ id: String(s.userId), nama: s.nama });
+                    if (ditunjuk && !daftar.some(x => x.id === ditunjuk)) daftar.push({ id: ditunjuk, nama: (selesai ? s.nama : p.pengadaanNama) || s.nama });
                     nama = daftar.length ? daftar.map(x => {
-                        const ok = selesai && x.id === String(s.userId);
+                        const ok = ditunjuk && x.id === ditunjuk;
                         return `<div style="margin-bottom:6px">${ok ? '<span style="color:#16a34a;font-weight:700;margin-right:4px">&#10003;</span>' : '<span style="color:#6b7280;margin-right:4px">&#9675;</span>'}${e(x.nama)}</div>`;
                     }).join('') : '<span style="color:#666">(.....................)</span>';
                 }
