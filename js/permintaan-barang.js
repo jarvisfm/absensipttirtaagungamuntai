@@ -62,11 +62,20 @@ const permintaanBarang = {
         this.render();
     },
 
+    /** Punya hak persetujuan: Asmen, Manajer, Direktur, Pejabat Pengadaan, atau pernah/sedang ditunjuk di alur permintaan. */
+    _isApprover() {
+        if (!this.ctx || !this.ctx.me.hasEmployee) return false;
+        const me = this.ctx.me;
+        if (['asmen', 'manajer', 'direktur'].indexOf(String(me.role || '').toLowerCase()) !== -1) return true;
+        if (me.isPengadaan) return true;
+        return !!(this.list && ((this.list.menunggu || []).length || (this.list.riwayat || []).length));
+    },
+
     _tabAllowed(t) {
         if (!this.ctx) return t === 'ringkasan';
         const me = this.ctx.me;
         if (t === 'baru' || t === 'saya' || t === 'rekapbulan') return !!me.bolehMengajukan;
-        if (t === 'menunggu' || t === 'riwayat') return me.hasEmployee;
+        if (t === 'menunggu' || t === 'riwayat') return this._isApprover();
         if (t === 'semua') return !!me.rekap;
         return true;
     },
@@ -100,8 +109,8 @@ const permintaanBarang = {
             me.bolehMengajukan && ['baru', 'fa-plus-circle', 'Buat Permintaan'],
             me.bolehMengajukan && ['saya', 'fa-list', 'Permintaan Saya'],
             me.bolehMengajukan && ['rekapbulan', 'fa-calendar-days', 'Rekap Permintaan'],
-            me.hasEmployee && ['menunggu', 'fa-stamp', 'Perlu Persetujuan' + (nMenunggu ? ` <span class="pb-badge">${nMenunggu}</span>` : '')],
-            me.hasEmployee && ['riwayat', 'fa-clock-rotate-left', 'Riwayat Persetujuan'],
+            this._isApprover() && ['menunggu', 'fa-stamp', 'Perlu Persetujuan' + (nMenunggu ? ` <span class="pb-badge">${nMenunggu}</span>` : '')],
+            this._isApprover() && ['riwayat', 'fa-clock-rotate-left', 'Riwayat Persetujuan'],
             me.rekap && ['semua', 'fa-folder-open', 'Semua Permintaan']
         ].filter(Boolean);
         const tabHtml = tabs.map(t =>
