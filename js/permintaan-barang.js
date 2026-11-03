@@ -13,6 +13,7 @@ const permintaanBarang = {
     katalog: [],
     tab: 'ringkasan',
     filterSemua: 'Semua',
+    filterBulan: '',     // 'yyyy-mm' untuk tab Rekap Permintaan (kosong = bulan ini)
     loading: false,
     error: '',
     detail: null,       // permintaan yang sedang dibuka
@@ -64,7 +65,7 @@ const permintaanBarang = {
     _tabAllowed(t) {
         if (!this.ctx) return t === 'ringkasan';
         const me = this.ctx.me;
-        if (t === 'baru' || t === 'saya') return !!me.bolehMengajukan;
+        if (t === 'baru' || t === 'saya' || t === 'rekapbulan') return !!me.bolehMengajukan;
         if (t === 'menunggu' || t === 'riwayat') return me.hasEmployee;
         if (t === 'semua') return !!me.rekap;
         return true;
@@ -98,6 +99,7 @@ const permintaanBarang = {
             ['ringkasan', 'fa-gauge', 'Ringkasan'],
             me.bolehMengajukan && ['baru', 'fa-plus-circle', 'Buat Permintaan'],
             me.bolehMengajukan && ['saya', 'fa-list', 'Permintaan Saya'],
+            me.bolehMengajukan && ['rekapbulan', 'fa-calendar-days', 'Rekap Permintaan'],
             me.hasEmployee && ['menunggu', 'fa-stamp', 'Perlu Persetujuan' + (nMenunggu ? ` <span class="pb-badge">${nMenunggu}</span>` : '')],
             me.hasEmployee && ['riwayat', 'fa-clock-rotate-left', 'Riwayat Persetujuan'],
             me.rekap && ['semua', 'fa-folder-open', 'Semua Permintaan']
@@ -110,6 +112,7 @@ const permintaanBarang = {
         if (this.tab === 'ringkasan') body = this._renderRingkasan();
         else if (this.tab === 'baru') body = this._renderForm();
         else if (this.tab === 'saya') body = this._renderList(this.list.saya, 'Anda belum pernah membuat permintaan barang.', false, true);
+        else if (this.tab === 'rekapbulan') body = this._renderRekapBulan();
         else if (this.tab === 'menunggu') body = this._renderList(this.list.menunggu, 'Tidak ada permintaan yang menunggu persetujuan Anda.', true);
         else if (this.tab === 'riwayat') body = this._renderList(this.list.riwayat, 'Belum ada riwayat persetujuan.');
         else if (this.tab === 'semua') body = this._renderSemua();
@@ -190,6 +193,38 @@ const permintaanBarang = {
     _renderList(arr, kosong, aksi, own) {
         if (!arr.length) return `<div class="pb-card"><div class="pb-empty"><i class="fas fa-inbox"></i><p>${kosong}</p></div></div>`;
         return `<div class="pb-card">${aksi ? '<p class="pb-note">Ketuk permintaan untuk menyetujui atau menolak.</p>' : ''}${this._rows(arr, own)}</div>`;
+    },
+
+    /** Rekap barang yang diajukan user per bulan (hanya nama barang + total jumlah; yang ditolak tidak dihitung). */
+    _renderRekapBulan() {
+        const nama = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+        const ym = t => { const p = String(t || '').split('/'); return p.length === 3 ? p[2] + '-' + String(p[1]).padStart(2, '0') : ''; };
+        const now = new Date();
+        const skrg = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
+        const bulan = this.filterBulan || skrg;
+        const set = {}; set[skrg] = 1;
+        (this.list.saya || []).forEach(r => { const k = ym(r.tanggal); if (k) set[k] = 1; });
+        const opt = Object.keys(set).sort().reverse().map(k => {
+            const [y, m] = k.split('-');
+            return `<option value="${k}" ${k === bulan ? 'selected' : ''}>${nama[parseInt(m, 10) - 1]} ${y}</option>`;
+        }).join('');
+        const reqs = (this.list.saya || []).filter(r => ym(r.tanggal) === bulan && r.status !== 'Ditolak');
+        const agg = {};
+        reqs.forEach(r => (r.items || []).forEach(it => {
+            const key = String(it.nama || '').trim().toLowerCase() + '|' + String(it.satuan || '').trim().toLowerCase();
+            if (!agg[key]) agg[key] = { nama: String(it.nama || '').trim(), satuan: it.satuan || '', jumlah: 0 };
+            agg[key].jumlah += Number(it.jumlah) || 0;
+        }));
+        const rows = Object.keys(agg).map(k => agg[k]).sort((a, b) => a.nama.localeCompare(b.nama));
+        const tabel = rows.length ? `<div style="overflow-x:auto"><table class="pb-table"><thead><tr><th style="width:48px">No</th><th>Nama Barang</th><th style="width:110px">Jumlah</th></tr></thead><tbody>${
+            rows.map((x, i) => `<tr><td class="c">${i + 1}</td><td>${this._e(x.nama)}</td><td class="c">${this._e(x.jumlah)} ${this._e(x.satuan)}</td></tr>`).join('')
+        }</tbody></table></div>` : '<div class="pb-empty"><i class="fas fa-inbox"></i><p>Belum ada barang yang diajukan pada bulan ini.</p></div>';
+        return `<div class="pb-card"><h3 class="pb-h3">Rekap Barang yang Diajukan</h3>
+            <div class="pb-toolbar"><label>Bulan</label>
+            <select onchange="permintaanBarang.filterBulan=this.value;permintaanBarang.render()">${opt}</select>
+            <span class="pb-note">${reqs.length} permintaan &middot; ${rows.length} jenis barang</span></div>
+            ${tabel}
+            <p class="pb-note">Permintaan yang ditolak tidak dihitung.</p></div>`;
     },
 
     _renderSemua() {
