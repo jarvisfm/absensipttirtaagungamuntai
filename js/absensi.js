@@ -164,25 +164,58 @@ const absensi = {
     /** Loading "Absensi sedang disimpan..." selama proses simpan absen ke server berjalan. */
     _toggleSaveOverlay(show) {
         let el = document.getElementById('absensi-save-overlay');
-        if (!show) { if (el) el.remove(); return; }
+        if (!show) {
+            if (this._saveOverlayTimer) { clearInterval(this._saveOverlayTimer); this._saveOverlayTimer = null; }
+            if (el) el.remove();
+            return;
+        }
         if (el) return;
         if (!document.getElementById('absensi-save-overlay-css')) {
             const st = document.createElement('style');
             st.id = 'absensi-save-overlay-css';
             st.textContent = `
-#absensi-save-overlay{position:fixed;inset:0;z-index:999;display:flex;align-items:center;justify-content:center;background:rgba(248,250,252,.92);-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px);animation:aso-in .18s ease both}
-#absensi-save-overlay .aso-box{display:flex;flex-direction:column;align-items:center;gap:12px;padding:0 24px;text-align:center}
-#absensi-save-overlay .aso-ic{width:58px;height:58px;border-radius:18px;background:#E0E7FF;color:#6366F1;display:flex;align-items:center;justify-content:center;font-size:1.5rem;transform:rotate(14deg)}
-#absensi-save-overlay .aso-ic i{transform:rotate(-14deg)}
-#absensi-save-overlay b{font-size:.98rem;color:#334155;font-weight:700}
-#absensi-save-overlay small{font-size:.8rem;color:#94A3B8;max-width:260px}
-@keyframes aso-in{from{opacity:0}to{opacity:1}}`;
+#absensi-save-overlay{position:fixed;inset:0;z-index:999;display:flex;align-items:center;justify-content:center;padding:24px;
+  background:radial-gradient(circle at 50% 35%,rgba(99,102,241,.16),transparent 60%),rgba(241,245,249,.9);
+  -webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);animation:aso-in .25s ease both}
+#absensi-save-overlay .aso-card{width:100%;max-width:320px;padding:30px 24px 24px;text-align:center;background:rgba(255,255,255,.92);
+  border:1px solid rgba(255,255,255,.7);border-radius:28px;box-shadow:0 30px 70px rgba(30,41,59,.18),0 4px 14px rgba(99,102,241,.12);animation:aso-rise .4s cubic-bezier(.2,.8,.2,1) both}
+#absensi-save-overlay .aso-ring{width:84px;height:84px;border-radius:50%;
+  background:conic-gradient(from 0deg,#6366F1,#8B5CF6,#06B6D4,rgba(99,102,241,0) 78%);animation:aso-spin 1.1s linear infinite;
+  -webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 7px),#000 calc(100% - 6px));mask:radial-gradient(farthest-side,transparent calc(100% - 7px),#000 calc(100% - 6px))}
+#absensi-save-overlay .aso-ic{position:absolute;left:50%;top:50%;width:62px;height:62px;margin:-31px 0 0 -31px;border-radius:50%;
+  background:linear-gradient(135deg,#EEF2FF,#E0E7FF);color:#6366F1;display:flex;align-items:center;justify-content:center;font-size:1.55rem;animation:aso-pulse 1.8s ease-in-out infinite}
+#absensi-save-overlay .aso-wrap{position:relative;height:84px;margin:0 auto 20px;width:84px}
+#absensi-save-overlay .aso-wrap .aso-ring{position:absolute;inset:0}
+#absensi-save-overlay h3{margin:0 0 6px;font-size:1.08rem;font-weight:700;color:#1E293B;letter-spacing:-.01em}
+#absensi-save-overlay .aso-step{min-height:20px;margin:0 0 16px;font-size:.85rem;font-weight:500;color:#6366F1;transition:opacity .25s}
+#absensi-save-overlay .aso-bar{height:6px;border-radius:99px;background:#E2E8F0;overflow:hidden;margin-bottom:16px}
+#absensi-save-overlay .aso-bar i{display:block;height:100%;width:40%;border-radius:99px;background:linear-gradient(90deg,#6366F1,#8B5CF6,#06B6D4);animation:aso-bar 1.3s ease-in-out infinite}
+#absensi-save-overlay .aso-note{display:flex;align-items:flex-start;gap:8px;padding:10px 12px;text-align:left;font-size:.76rem;line-height:1.45;color:#92400E;background:#FFFBEB;border:1px solid #FDE68A;border-radius:12px}
+#absensi-save-overlay .aso-note i{margin-top:2px;color:#D97706}
+@keyframes aso-in{from{opacity:0}to{opacity:1}}
+@keyframes aso-rise{from{opacity:0;transform:translateY(16px) scale(.96)}to{opacity:1;transform:none}}
+@keyframes aso-spin{to{transform:rotate(360deg)}}
+@keyframes aso-pulse{0%,100%{transform:scale(1)}50%{transform:scale(.92)}}
+@keyframes aso-bar{0%{transform:translateX(-110%)}100%{transform:translateX(280%)}}
+@media (prefers-reduced-motion:reduce){#absensi-save-overlay *{animation-duration:3s!important}}`;
             document.head.appendChild(st);
         }
         el = document.createElement('div');
         el.id = 'absensi-save-overlay';
-        el.innerHTML = '<div class="aso-box"><div class="aso-ic"><i class="fas fa-spinner fa-spin"></i></div><b>Absensi sedang disimpan...</b><small>Jangan tutup aplikasi/tab ini sampai muncul notifikasi berhasil.</small></div>';
+        el.setAttribute('role', 'status');
+        el.innerHTML = '<div class="aso-card"><div class="aso-wrap"><div class="aso-ring"></div><div class="aso-ic"><i class="fas fa-fingerprint"></i></div></div>'
+            + '<h3>Absensi sedang disimpan</h3><p class="aso-step" id="aso-step">Menyimpan data absensi...</p>'
+            + '<div class="aso-bar"><i></i></div>'
+            + '<div class="aso-note"><i class="fas fa-circle-info"></i><span>Jangan tutup aplikasi/tab ini sampai muncul notifikasi berhasil.</span></div></div>';
         document.body.appendChild(el);
+        const langkah = ['Menyimpan data absensi...', 'Mengirim foto verifikasi...', 'Mencatat ke server...', 'Hampir selesai...'];
+        let i = 0;
+        this._saveOverlayTimer = setInterval(() => {
+            const t = document.getElementById('aso-step');
+            if (!t) { clearInterval(this._saveOverlayTimer); this._saveOverlayTimer = null; return; }
+            i = Math.min(i + 1, langkah.length - 1);
+            t.textContent = langkah[i];
+        }, 2500);
     },
 
     async init() {
