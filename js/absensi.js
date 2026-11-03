@@ -156,8 +156,33 @@ const absensi = {
     // nyangkut terus muncul walau absennya sudah beres tersimpan).
     _updatePendingSaveBanner() {
         const banner = document.getElementById('pending-save-info');
-        if (!banner) return;
-        banner.style.display = this._pendingAction ? 'flex' : 'none';
+        // Banner kuning lama diganti loading layar penuh (_toggleSaveOverlay) - tetap disembunyikan.
+        if (banner) banner.style.display = 'none';
+        this._toggleSaveOverlay(!!this._pendingAction);
+    },
+
+    /** Loading "Absensi sedang disimpan..." selama proses simpan absen ke server berjalan. */
+    _toggleSaveOverlay(show) {
+        let el = document.getElementById('absensi-save-overlay');
+        if (!show) { if (el) el.remove(); return; }
+        if (el) return;
+        if (!document.getElementById('absensi-save-overlay-css')) {
+            const st = document.createElement('style');
+            st.id = 'absensi-save-overlay-css';
+            st.textContent = `
+#absensi-save-overlay{position:fixed;inset:0;z-index:999;display:flex;align-items:center;justify-content:center;background:rgba(248,250,252,.92);-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px);animation:aso-in .18s ease both}
+#absensi-save-overlay .aso-box{display:flex;flex-direction:column;align-items:center;gap:12px;padding:0 24px;text-align:center}
+#absensi-save-overlay .aso-ic{width:58px;height:58px;border-radius:18px;background:#E0E7FF;color:#6366F1;display:flex;align-items:center;justify-content:center;font-size:1.5rem;transform:rotate(14deg)}
+#absensi-save-overlay .aso-ic i{transform:rotate(-14deg)}
+#absensi-save-overlay b{font-size:.98rem;color:#334155;font-weight:700}
+#absensi-save-overlay small{font-size:.8rem;color:#94A3B8;max-width:260px}
+@keyframes aso-in{from{opacity:0}to{opacity:1}}`;
+            document.head.appendChild(st);
+        }
+        el = document.createElement('div');
+        el.id = 'absensi-save-overlay';
+        el.innerHTML = '<div class="aso-box"><div class="aso-ic"><i class="fas fa-spinner fa-spin"></i></div><b>Absensi sedang disimpan...</b><small>Jangan tutup aplikasi/tab ini sampai muncul notifikasi berhasil.</small></div>';
+        document.body.appendChild(el);
     },
 
     async init() {
