@@ -98,13 +98,9 @@ const slipGaji = {
                 <div class="sg-month-ic"><i class="fas fa-file-invoice-dollar"></i></div>
                 <div class="sg-month-txt">
                     <b>${this._e(this.namaBulan(r.bulan))} ${this._e(r.tahun)}</b>
-                    <small>Gaji diterima: <strong>${this._e(this.rp(r.gajiBersih))}</strong></small>
                 </div>
                 <button type="button" class="sg-btn sg-btn-primary" onclick="slipGaji.openSlip('${this._e(r.id)}')">
                     <i class="fas fa-eye"></i> Lihat
-                </button>
-                <button type="button" class="sg-btn" onclick="slipGaji.printOne('${this._e(r.id)}')">
-                    <i class="fas fa-print"></i> Cetak
                 </button>
             </div>`).join('');
         this._root().innerHTML = `
