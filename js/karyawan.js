@@ -1912,6 +1912,7 @@ const karyawanManager = {
         const data = {
             id:             id || undefined,
             userId:         this.editingId,
+            sumber:         'admin',
             golongan,
             tmtGolongan:    document.getElementById('k-gol-tmtGolongan').value,
             jenisKenaikan:  document.getElementById('k-gol-jenisKenaikan').value,
@@ -1942,7 +1943,7 @@ const karyawanManager = {
     async deleteRiwayatGolonganAdmin(id) {
         if (!confirm('Hapus riwayat Golongan ini? (Link dokumen hanya dihapus dari aplikasi, file aslinya di Google Drive tidak terhapus)')) return;
         try {
-            const result = await api.deleteRiwayatGolongan(id);
+            const result = await api.deleteRiwayatGolongan(id, 'admin');
             if (result.success) {
                 toast.success('Riwayat Golongan dihapus');
                 await this.loadRiwayatGolonganAdmin(this.editingId);
