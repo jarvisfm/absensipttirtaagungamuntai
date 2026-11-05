@@ -86,13 +86,13 @@
 .tj-jjv-chk{display:inline-flex;align-items:center;gap:6px;font-size:.82rem;font-weight:600;color:#475569;cursor:pointer}
 .tj-jjv-sum{display:flex;gap:8px;align-items:center;font-size:.84rem;color:#0F766E;background:#F0FDFA;border-radius:12px;padding:9px 12px;margin-bottom:10px}
 .tj-jjv-wrap{overflow-x:auto;background:#fff;border:1px solid #E2E8F0;border-radius:16px}
-.tj-jjv{width:100%;min-width:480px;border-collapse:collapse;font-size:.84rem}
+.tj-jjv{width:100%;border-collapse:collapse;font-size:.84rem}
 .tj-jjv th{position:sticky;top:0;background:#F1F5F9;color:#475569;font-size:.74rem;font-weight:800;text-align:left;padding:10px 12px;border-bottom:1px solid #E2E8F0;white-space:nowrap}
-.tj-jjv th small{display:block;font-weight:600;color:#94A3B8;margin-top:2px}
 .tj-jjv td{padding:8px 12px;border-bottom:1px solid #F1F5F9;vertical-align:top}
 .tj-jjv tr:last-child td{border-bottom:none}
 .tj-jjv-tgl{font-weight:800;color:#0F172A;width:44px}
 .tj-jjv-hari{color:#64748B;white-space:nowrap;width:96px}
+.tj-jjv-hari .tj-s{display:none}
 .tj-jjv-hari small{display:block;color:#2563EB;font-weight:800;font-size:.68rem}
 .tj-jjv-row.sun td{background:#FEF2F2}
 .tj-jjv-row.sun .tj-jjv-hari{color:#B91C1C}
@@ -104,7 +104,19 @@
 .tj-jjv-chip.me{background:#14B8A6;color:#fff;font-weight:800}
 .tj-jjv-none{color:#CBD5E1}
 .tj-jjv-empty{text-align:center;color:#94A3B8;padding:26px 12px!important}
+.tj-jjv-sess+.tj-jjv-sess{margin-top:6px}
+.tj-jjv-sl{font-size:.7rem;font-weight:800;color:#64748B;margin-bottom:1px}
+.tj-jjv-sl small{font-weight:600;color:#94A3B8}
 @media (max-width:560px){
   .tj-jjv-nav b{min-width:110px}
-  .tj-jjv th,.tj-jjv td{padding:8px 8px}
+  .tj-jjv-bar{flex-direction:column;align-items:stretch}
+  .tj-jjv-nav{justify-content:space-between}
+  .tj-jjv-tools{justify-content:space-between}
+  .tj-jjv{font-size:.8rem}
+  .tj-jjv th,.tj-jjv td{padding:7px 8px}
+  .tj-jjv-tgl{width:26px;padding-right:2px!important}
+  .tj-jjv-hari{width:44px}
+  .tj-jjv-hari .tj-f{display:none}
+  .tj-jjv-hari .tj-s{display:inline}
+  .tj-jjv-chip{font-size:.74rem;padding:2px 8px;white-space:normal}
 }
