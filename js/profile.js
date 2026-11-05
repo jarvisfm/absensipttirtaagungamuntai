@@ -120,7 +120,7 @@ const profileManager = {
     _ensureRiwayat(tab) {
         const cfg = {
             pendidikan:      { load: 'loadRiwayatPendidikan', id: 'pf-pendidikan-list',       cols: 0 },
-            kgb:             { load: 'loadRiwayatKgb',        id: 'pf-kgb-list',              cols: 5 },
+            kgb:             { load: 'loadRiwayatKgb',        id: 'pf-kgb-list',              cols: 6 },
             golongan:        { load: 'loadRiwayatGolongan',   id: 'pf-golongan-list',         cols: 5 },
             mutasi:          { load: 'loadRiwayatMutasi',     id: 'pf-mutasi-list',           cols: 5 },
             riwayatkaryawan: { load: 'loadRiwayatKaryawan',   id: 'pf-riwayatkaryawan-list',  cols: 6 }
@@ -296,9 +296,10 @@ const profileManager = {
                 btn.style.borderBottom = t === tab ? '2px solid var(--color-primary)' : '2px solid transparent';
             }
         });
-        // Tab Riwayat KGB & Riwayat Mutasi hanya untuk dilihat (diubah Admin) -> tombol Simpan disembunyikan.
+        // Tab Riwayat Mutasi hanya untuk dilihat (diubah Admin) -> tombol Simpan disembunyikan.
+        // (Riwayat KGB sekarang bisa ditambah/diubah karyawan sendiri seperti Riwayat Pangkat.)
         const btnSimpan = document.getElementById('btn-save-profile');
-        if (btnSimpan && btnSimpan.parentElement) btnSimpan.parentElement.style.display = (tab === 'kgb' || tab === 'mutasi') ? 'none' : '';
+        if (btnSimpan && btnSimpan.parentElement) btnSimpan.parentElement.style.display = (tab === 'mutasi') ? 'none' : '';
         // [OPTIMASI 2 Nov 2026] riwayat dimuat saat tabnya dibuka
         this._ensureRiwayat(tab);
         // NEW: muat status & daftar Login Sidik Jari tiap kali tab Akun dibuka
@@ -1207,12 +1208,18 @@ const profileManager = {
         this.renderRiwayatKgb();
     },
 
+    // Baris yang ditambahkan Admin / sistem (menu KGB dan Pangkat) / data lama terkunci; hanya baris
+    // yang ditambahkan karyawan sendiri (sumber 'user') yang bisa diubah/dihapus (dicek lagi di server, Kgb.gs).
+    _kgbTerkunci(r) {
+        return String((r && r.sumber) || '').toLowerCase() !== 'user';
+    },
+
     renderRiwayatKgb() {
         const tbody = document.getElementById('pf-kgb-list');
         if (!tbody) return;
 
         if (this.riwayatKgb.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:2rem;color:var(--text-muted);">Belum ada riwayat Kenaikan Gaji Berkala yang dicatat oleh Admin.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:2rem;color:var(--text-muted);">Belum ada riwayat Kenaikan Gaji Berkala yang disimpan.</td></tr>';
             return;
         }
 
@@ -1226,6 +1233,12 @@ const profileManager = {
                     ${r.fileDokumenUrl
                         ? `<button type="button" onclick="window.open('${r.fileDokumenUrl}', '_blank')" style="background:none;border:1px solid var(--border-color);color:var(--text-muted);padding:6px 12px;border-radius:6px;cursor:pointer;font-size:0.8rem;white-space:nowrap;"><i class="fas fa-download"></i> Unduh</button>`
                         : `<span style="color:var(--text-muted);font-size:0.8rem;font-style:italic;">Belum ada</span>`}
+                </td>
+                <td style="padding:10px 12px;">
+                    ${this._kgbTerkunci(r)
+                        ? `<span title="${String(r.sumber || '').toLowerCase() === 'kgb' ? 'Dicatat dari menu KGB dan Pangkat' : 'Dicatat oleh Admin'} - tidak dapat diubah atau dihapus" style="display:inline-flex;align-items:center;gap:6px;background:#F1F5F9;color:#64748B;border:1px solid #E2E8F0;padding:5px 10px;border-radius:999px;font-size:0.72rem;font-weight:600;white-space:nowrap;"><i class="fas fa-lock"></i> ${String(r.sumber || '').toLowerCase() === 'kgb' ? 'KGB &amp; Pangkat' : 'Dicatat Admin'}</span>`
+                        : `<button type="button" onclick="profileManager.editRiwayatKgb('${r.id}')" style="background:none;border:1px solid var(--border-color);color:var(--text-muted);padding:6px 10px;border-radius:6px;cursor:pointer;font-size:0.8rem;margin-right:4px;"><i class="fas fa-pen"></i></button>
+                    <button type="button" onclick="profileManager.deleteRiwayatKgb('${r.id}')" style="background:#EF4444;color:#fff;border:none;padding:6px 10px;border-radius:6px;cursor:pointer;font-size:0.8rem;"><i class="fas fa-trash"></i></button>`}
                 </td>
             </tr>
         `).join('');
@@ -1254,6 +1267,7 @@ const profileManager = {
     editRiwayatKgb(id) {
         const r = this.riwayatKgb.find(x => String(x.id) === String(id));
         if (!r) return;
+        if (this._kgbTerkunci(r)) { toast.error('Riwayat ini dicatat oleh Admin/sistem dan tidak dapat diubah.'); return; }
 
         document.getElementById('pf-kgb-id').value             = r.id;
         document.getElementById('pf-kgb-nomorSurat').value      = r.nomorSurat || '';
@@ -1315,6 +1329,7 @@ const profileManager = {
         const data = {
             id:             id || undefined,
             userId:         this.myId,
+            sumber:         'user',
             nomorSurat,
             tmtKgb:         document.getElementById('pf-kgb-tmtKgb').value,
             tanggalSurat:   document.getElementById('pf-kgb-tanggalSurat').value,
@@ -1343,6 +1358,8 @@ const profileManager = {
     },
 
     async deleteRiwayatKgb(id) {
+        const rr = this.riwayatKgb.find(x => String(x.id) === String(id));
+        if (rr && this._kgbTerkunci(rr)) { toast.error('Riwayat ini dicatat oleh Admin/sistem dan tidak dapat dihapus.'); return; }
         if (!confirm('Hapus riwayat Kenaikan Gaji Berkala ini? (Link dokumen hanya dihapus dari aplikasi, file aslinya di Google Drive Anda tidak terhapus)')) return;
         try {
             const result = await api.deleteRiwayatKgb(id);
