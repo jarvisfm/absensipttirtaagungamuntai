@@ -16,6 +16,18 @@ const tukarJadwal = {
     _mySlots: [],
     _partnerSlots: [],
 
+    // Tab "Jadwal Jaga" (BACA SAJA, khusus petugas operator) - lihat bagian "Jadwal Jaga" di bawah.
+    jjv: null,          // data dari getJadwalJagaView
+    jjvYear: 0,
+    jjvMonth: 0,
+    _jjvOnlyMe: false,
+    _jjvAt: 0,
+    _jjvErr: '',
+    _jjvSeq: 0,
+    _jjvTimer: null,
+    _jjvVisBound: false,
+    _tabInit: false,
+
     BULAN: ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'],
     HARI: ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'],
 
@@ -53,6 +65,8 @@ const tukarJadwal = {
             if (!c || !c.success) throw new Error((c && c.error) || 'Gagal memuat data pengguna');
             if (!l || !l.success) throw new Error((l && l.error) || 'Gagal memuat daftar pengajuan');
             this.ctx = c.data; this.list = l.data;
+            // Petugas operator langsung melihat tab "Jadwal Jaga" saat halaman dibuka.
+            if (this.ctx.isOperator && !this._tabInit) { this.tab = 'jadwal'; this._tabInit = true; }
         } catch (e) {
             this.error = e.message || 'Gagal memuat data';
         }
@@ -78,7 +92,9 @@ const tukarJadwal = {
         }
         if (!this.ctx || !this.list) return;
         const c = this.ctx, l = this.list;
-        const tabs = [['saya', 'fa-right-left', 'Pengajuan Saya', 0]];
+        const tabs = [];
+        if (c.isOperator) tabs.push(['jadwal', 'fa-calendar-days', 'Jadwal Jaga', 0]);
+        tabs.push(['saya', 'fa-right-left', 'Pengajuan Saya', 0]);
         if (c.isApprover) tabs.push(['masuk', 'fa-clipboard-check', 'Perlu Persetujuan', l.menungguCount]);
         if (c.rekap) tabs.push(['semua', 'fa-table-list', 'Semua Pengajuan', 0]);
         if (!tabs.some(t => t[0] === this.tab)) this.tab = tabs[0][0];
@@ -86,20 +102,22 @@ const tukarJadwal = {
         root.innerHTML = `
         <div class="tj-hero">
             <div class="tj-hero-ic"><i class="fas fa-right-left"></i></div>
-            <div><h2>Tukar Jadwal Jaga</h2>
-            <p>Ajukan tukar jadwal jaga dengan petugas operator lain di unit yang sama. Setelah disetujui Manajer Operasi dan Jaringan, jadwal langsung berubah.</p></div>
+            <div><h2>Jadwal Jaga</h2>
+            <p>${this._heroDesc()}</p></div>
         </div>
         <div class="tj-tabs">${tabs.map(t => `
             <button type="button" class="tj-tab${this.tab === t[0] ? ' active' : ''}" onclick="tukarJadwal.setTab('${t[0]}')">
                 <i class="fas ${t[1]}"></i> ${t[2]}${t[3] ? `<span class="tj-badge">${t[3]}</span>` : ''}</button>`).join('')}
         </div>
         <div>${this._tabHtml()}</div>`;
+        if (this.tab === 'jadwal') this._jjvEnsure();
     },
 
     setTab(t) { this.tab = t; this.render(); },
 
     _tabHtml() {
         const l = this.list, c = this.ctx;
+        if (this.tab === 'jadwal') return '<div id="tj-jjv">' + this._jjvHtml() + '</div>';
         if (this.tab === 'masuk') {
             const pend = l.masuk.filter(x => x.bisaAct), done = l.masuk.filter(x => !x.bisaAct);
             return (pend.length ? `<h3 class="tj-sec">Menunggu Anda <span>${pend.length}</span></h3><div class="tj-list">${pend.map(x => this._card(x)).join('')}</div>` :
@@ -141,6 +159,159 @@ const tukarJadwal = {
                 ${x.bisaBatal ? `<button type="button" class="tj-btn tj-btn-danger" onclick="tukarJadwal.batal('${this._e(x.id)}', this)"><i class="fas fa-ban"></i> Batalkan</button>` : ''}
             </div>
         </div>`;
+    },
+
+
+    _heroDesc() {
+        if (this.tab === 'jadwal') {
+            return 'Lihat jadwal jaga unit Anda. Hanya untuk dilihat - jadwal otomatis ikut berubah kalau admin atau pemegang jadwal jaga mengubahnya.';
+        }
+        return 'Ajukan tukar jadwal jaga dengan petugas operator lain di unit yang sama. Setelah disetujui Manajer Operasi dan Jaringan, jadwal langsung berubah.';
+    },
+
+    // ── Jadwal Jaga (BACA SAJA) ────────────────────────────
+    // Petugas operator melihat jadwal jaga unitnya (diatur admin / pemegang Jadwal Jaga Operator).
+    // Tidak ada tombol ubah/simpan. Data dimuat ulang saat tab dibuka, ganti bulan, tombol
+    // "Muat ulang", tab kembali aktif, dan otomatis tiap 2 menit selama tab ini terbuka.
+    _jjvPeriod() {
+        if (!this.jjvYear) {
+            const m = /^(\d{4})-(\d{2})/.exec(String((this.ctx && this.ctx.today) || ''));
+            const now = new Date();
+            this.jjvYear = m ? parseInt(m[1], 10) : now.getFullYear();
+            this.jjvMonth = m ? parseInt(m[2], 10) : now.getMonth() + 1;
+        }
+        return { y: this.jjvYear, m: this.jjvMonth };
+    },
+
+    _jjvEnsure() {
+        if (!this.jjv || (Date.now() - this._jjvAt) > 20000) this._jjvLoad(!!this.jjv);
+        this._jjvStartAuto();
+    },
+
+    async _jjvLoad(silent) {
+        const p = this._jjvPeriod();
+        const seq = ++this._jjvSeq;
+        if (!silent) { this._jjvErr = ''; this._jjvPaint(); }
+        let ok = false;
+        try {
+            const r = await api.request('getJadwalJagaView', { year: p.y, month: p.m, ...api._pbAuth() });
+            if (!r || !r.success) throw new Error((r && r.error) || 'Gagal memuat jadwal jaga');
+            if (seq !== this._jjvSeq) return false; // sudah ada permintaan yang lebih baru (mis. ganti bulan)
+            this.jjv = r.data; this._jjvErr = ''; this._jjvAt = Date.now(); ok = true;
+        } catch (e) {
+            if (seq !== this._jjvSeq) return false;
+            if (!silent || !this.jjv) this._jjvErr = e.message || 'Gagal memuat jadwal jaga';
+        }
+        this._jjvPaint();
+        return ok;
+    },
+
+    _jjvPaint() {
+        const el = this._$('tj-jjv');
+        if (el && this.tab === 'jadwal') el.innerHTML = this._jjvHtml();
+    },
+
+    _jjvStartAuto() {
+        if (this._jjvTimer) return;
+        const visible = () => { const r = this._root(); return !!r && r.offsetParent !== null && this.tab === 'jadwal' && !document.hidden; };
+        this._jjvTimer = setInterval(() => { if (visible()) this._jjvLoad(true); }, 120000);
+        if (!this._jjvVisBound) {
+            this._jjvVisBound = true;
+            document.addEventListener('visibilitychange', () => {
+                if (visible() && (Date.now() - this._jjvAt) > 20000) this._jjvLoad(true);
+            });
+        }
+    },
+
+    _jjvShift(delta) {
+        const p = this._jjvPeriod();
+        let m = p.m + delta, y = p.y;
+        if (m < 1) { m = 12; y--; } else if (m > 12) { m = 1; y++; }
+        this.jjvYear = y; this.jjvMonth = m; this.jjv = null;
+        this._jjvLoad(false);
+    },
+
+    _jjvThisMonth() {
+        this.jjvYear = 0; this.jjv = null;
+        this._jjvLoad(false);
+    },
+
+    async _jjvManual() {
+        const ok = await this._jjvLoad(true);
+        if (ok && typeof toast !== 'undefined') toast.success('Jadwal diperbarui');
+        else if (!ok && this._jjvErr && typeof toast !== 'undefined') toast.error(this._jjvErr);
+    },
+
+    _jjvToggleMine(v) { this._jjvOnlyMe = !!v; this._jjvPaint(); },
+
+    _jjvHtml() {
+        const p = this._jjvPeriod();
+        const d = this.jjv;
+        const bar = `
+        <div class="tj-jjv-bar">
+            <div class="tj-jjv-nav">
+                <button type="button" class="tj-btn" onclick="tukarJadwal._jjvShift(-1)" aria-label="Bulan sebelumnya"><i class="fas fa-chevron-left"></i></button>
+                <b>${this.BULAN[p.m - 1]} ${p.y}</b>
+                <button type="button" class="tj-btn" onclick="tukarJadwal._jjvShift(1)" aria-label="Bulan berikutnya"><i class="fas fa-chevron-right"></i></button>
+                <button type="button" class="tj-btn" onclick="tukarJadwal._jjvThisMonth()">Bulan ini</button>
+            </div>
+            <div class="tj-jjv-tools">
+                <label class="tj-jjv-chk"><input type="checkbox" ${this._jjvOnlyMe ? 'checked' : ''} onchange="tukarJadwal._jjvToggleMine(this.checked)"> Hanya jadwal saya</label>
+                <button type="button" class="tj-btn" onclick="tukarJadwal._jjvManual()"><i class="fas fa-rotate"></i> Muat ulang</button>
+            </div>
+        </div>`;
+
+        if (!d) {
+            if (this._jjvErr) {
+                return bar + `<div class="tj-empty"><i class="fas fa-triangle-exclamation"></i><p>${this._e(this._jjvErr)}</p>
+                    <button type="button" class="tj-btn" onclick="tukarJadwal._jjvLoad(false)"><i class="fas fa-rotate"></i> Coba lagi</button></div>`;
+            }
+            return bar + '<div class="tj-empty"><i class="fas fa-spinner fa-spin"></i><p>Memuat jadwal jaga...</p></div>';
+        }
+
+        const upd = new Date(this._jjvAt);
+        const updTxt = ('0' + upd.getHours()).slice(-2) + '.' + ('0' + upd.getMinutes()).slice(-2);
+        const note = `<div class="tj-note"><i class="fas fa-circle-info"></i>
+            <span>Jadwal jaga <b>${this._e(d.unit)}</b>${this._jjvErr ? ' <b style="color:#B45309">(gagal memperbarui, menampilkan data terakhir)</b>' : ''}. Hanya untuk dilihat, tidak bisa diubah dari sini. Terakhir dimuat ${updTxt}.</span></div>`;
+
+        if (!d.hasRoster) {
+            return bar + note + `<div class="tj-empty"><i class="fas fa-calendar-xmark"></i>
+                <p>Jadwal jaga ${this.BULAN[d.month - 1]} ${d.year} untuk unit ${this._e(d.unit)} belum diatur admin.</p></div>`;
+        }
+
+        const me = String(d.meId);
+        const name = (id) => (d.people[id] && d.people[id].nama) ? d.people[id].nama : 'Petugas lain';
+        const chips = (ids) => ids.length
+            ? ids.map(id => `<span class="tj-jjv-chip${id === me ? ' me' : ''}">${this._e(name(id))}</span>`).join('')
+            : '<span class="tj-jjv-none">-</span>';
+        const cols = d.sessions || [];
+        const useSess = cols.length > 0;
+        const tp = String(d.today || '').split('-');
+        const isTodayMonth = parseInt(tp[0], 10) === d.year && parseInt(tp[1], 10) === d.month;
+        const todayNum = isTodayMonth ? parseInt(tp[2], 10) : 0;
+
+        let mineDays = 0;
+        let rows = '';
+        for (let n = 1; n <= d.daysInMonth; n++) {
+            const day = d.days[String(n)] || { sessions: {}, petugas: [] };
+            const cells = useSess ? cols.map(c => day.sessions[c.key] || []) : [day.petugas || []];
+            const mine = cells.some(ids => ids.indexOf(me) !== -1);
+            if (mine) mineDays++;
+            if (this._jjvOnlyMe && !mine) continue;
+            const dow = new Date(Date.UTC(d.year, d.month - 1, n)).getUTCDay();
+            const cls = 'tj-jjv-row' + (n === todayNum ? ' today' : '') + (dow === 0 ? ' sun' : '') + (mine ? ' mine' : '');
+            rows += `<tr class="${cls}"><td class="tj-jjv-tgl">${n}</td><td class="tj-jjv-hari">${this.HARI[dow]}${n === todayNum ? '<small>Hari ini</small>' : ''}</td>` +
+                cells.map(ids => `<td>${chips(ids)}</td>`).join('') + '</tr>';
+        }
+        if (!rows) rows = `<tr><td colspan="${2 + (useSess ? cols.length : 1)}" class="tj-jjv-empty">Anda tidak terjadwal jaga di bulan ini.</td></tr>`;
+
+        const head = '<th>Tgl</th><th>Hari</th>' + (useSess
+            ? cols.map(c => `<th>${this._e(c.label)}${c.time ? `<small>${this._e(c.time)}</small>` : ''}</th>`).join('')
+            : '<th>Petugas</th>');
+
+        return bar + note +
+            `<div class="tj-jjv-sum"><i class="fas fa-user-check"></i> Anda terjadwal jaga <b>${mineDays} hari</b> di ${this.BULAN[d.month - 1]} ${d.year}. Nama Anda ditandai hijau.</div>` +
+            `<div class="tj-jjv-wrap"><table class="tj-jjv"><thead><tr>${head}</tr></thead><tbody>${rows}</tbody></table></div>`;
     },
 
     // ── Overlay ────────────────────────────────────────────
