@@ -101,7 +101,7 @@ const tukarJadwal = {
 
         root.innerHTML = `
         <div class="tj-hero">
-            <div class="tj-hero-ic"><i class="fas fa-right-left"></i></div>
+            <div class="tj-hero-ic"><i class="fas fa-calendar-week"></i></div>
             <div><h2>Jadwal Jaga</h2>
             <p>${this._heroDesc()}</p></div>
         </div>
@@ -285,33 +285,41 @@ const tukarJadwal = {
             ? ids.map(id => `<span class="tj-jjv-chip${id === me ? ' me' : ''}">${this._e(name(id))}</span>`).join('')
             : '<span class="tj-jjv-none">-</span>';
         const cols = d.sessions || [];
-        const useSess = cols.length > 0;
         const tp = String(d.today || '').split('-');
         const isTodayMonth = parseInt(tp[0], 10) === d.year && parseInt(tp[1], 10) === d.month;
         const todayNum = isTodayMonth ? parseInt(tp[2], 10) : 0;
+        const HARI_PENDEK = ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'];
 
+        // Tiap hari: sesi yang ada petugasnya saja (ditumpuk dalam 1 sel supaya muat di HP).
         let mineDays = 0;
         let rows = '';
         for (let n = 1; n <= d.daysInMonth; n++) {
             const day = d.days[String(n)] || { sessions: {}, petugas: [] };
-            const cells = useSess ? cols.map(c => day.sessions[c.key] || []) : [day.petugas || []];
-            const mine = cells.some(ids => ids.indexOf(me) !== -1);
+            const entries = [];
+            cols.forEach(c => {
+                const ids = (day.sessions && day.sessions[c.key]) || [];
+                if (ids.length) entries.push({ label: c.label, time: c.time, ids: ids });
+            });
+            if ((day.petugas || []).length) entries.push({ label: 'Petugas', time: '', ids: day.petugas });
+            const mine = entries.some(en => en.ids.indexOf(me) !== -1);
             if (mine) mineDays++;
             if (this._jjvOnlyMe && !mine) continue;
             const dow = new Date(Date.UTC(d.year, d.month - 1, n)).getUTCDay();
             const cls = 'tj-jjv-row' + (n === todayNum ? ' today' : '') + (dow === 0 ? ' sun' : '') + (mine ? ' mine' : '');
-            rows += `<tr class="${cls}"><td class="tj-jjv-tgl">${n}</td><td class="tj-jjv-hari">${this.HARI[dow]}${n === todayNum ? '<small>Hari ini</small>' : ''}</td>` +
-                cells.map(ids => `<td>${chips(ids)}</td>`).join('') + '</tr>';
+            const showLabel = cols.length > 1 || entries.length > 1;
+            const body = entries.length
+                ? entries.map(en => `<div class="tj-jjv-sess">${showLabel
+                    ? `<div class="tj-jjv-sl">${this._e(en.label)}${en.time ? ` <small>${this._e(en.time)}</small>` : ''}</div>` : ''}<div>${chips(en.ids)}</div></div>`).join('')
+                : '<span class="tj-jjv-none">-</span>';
+            rows += `<tr class="${cls}"><td class="tj-jjv-tgl">${n}</td>` +
+                `<td class="tj-jjv-hari"><span class="tj-f">${this.HARI[dow]}</span><span class="tj-s">${HARI_PENDEK[dow]}</span>${n === todayNum ? '<small>Hari ini</small>' : ''}</td>` +
+                `<td>${body}</td></tr>`;
         }
-        if (!rows) rows = `<tr><td colspan="${2 + (useSess ? cols.length : 1)}" class="tj-jjv-empty">Anda tidak terjadwal jaga di bulan ini.</td></tr>`;
-
-        const head = '<th>Tgl</th><th>Hari</th>' + (useSess
-            ? cols.map(c => `<th>${this._e(c.label)}${c.time ? `<small>${this._e(c.time)}</small>` : ''}</th>`).join('')
-            : '<th>Petugas</th>');
+        if (!rows) rows = '<tr><td colspan="3" class="tj-jjv-empty">Anda tidak terjadwal jaga di bulan ini.</td></tr>';
 
         return bar + note +
             `<div class="tj-jjv-sum"><i class="fas fa-user-check"></i> Anda terjadwal jaga <b>${mineDays} hari</b> di ${this.BULAN[d.month - 1]} ${d.year}. Nama Anda ditandai hijau.</div>` +
-            `<div class="tj-jjv-wrap"><table class="tj-jjv"><thead><tr>${head}</tr></thead><tbody>${rows}</tbody></table></div>`;
+            `<div class="tj-jjv-wrap"><table class="tj-jjv"><thead><tr><th>Tgl</th><th>Hari</th><th>Petugas jaga</th></tr></thead><tbody>${rows}</tbody></table></div>`;
     },
 
     // ── Overlay ────────────────────────────────────────────
