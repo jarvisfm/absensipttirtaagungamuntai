@@ -1252,13 +1252,13 @@ const api = {
     },
     // Mutasi Jabatan (Menu Admin > Mutasi) - ubah jabatan/role/bagian + catat riwayat
     async applyMutasiKaryawan(data) {
-        return this.request('applyMutasiKaryawan', data);
+        return this.request('applyMutasiKaryawan', { ...data, ...this._pbAuth() });
     },
     async saveRiwayatMutasi(data) {
-        return this.request('saveRiwayatMutasi', data);
+        return this.request('saveRiwayatMutasi', { ...data, ...this._pbAuth() });
     },
     async deleteRiwayatMutasi(id) {
-        return this.request('deleteRiwayatMutasi', { id });
+        return this.request('deleteRiwayatMutasi', { id, ...this._pbAuth() });
     },
 
     // ========== PERMINTAAN BARANG (js/permintaan-barang.js, backend: Permintaan.gs) ==========
@@ -1448,10 +1448,11 @@ const api = {
         return this.request('getRiwayatGolongan', { userId });
     },
     async saveRiwayatGolongan(data) {
-        return this.request('saveRiwayatGolongan', data);
+        return this.request('saveRiwayatGolongan', { ...data, ...this._pbAuth() });
     },
-    async deleteRiwayatGolongan(id) {
-        return this.request('deleteRiwayatGolongan', { id });
+    // sumber: 'admin' (form Data Karyawan) atau 'user' (Edit Profil) - dicek ulang di server (Golongan.gs)
+    async deleteRiwayatGolongan(id, sumber) {
+        return this.request('deleteRiwayatGolongan', { id, sumber, ...this._pbAuth() });
     },
 
     // ========== RIWAYAT KARYAWAN (link Google Drive Dokumen SK CAPEG) ==========
