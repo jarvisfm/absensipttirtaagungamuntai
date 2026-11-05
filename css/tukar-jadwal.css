@@ -78,3 +78,33 @@
   .tj-arrow{justify-content:center;transform:rotate(90deg)}
   .tj-hero{padding:16px}
 }
+
+/* ===== Tab "Jadwal Jaga" (baca saja) ===== */
+.tj-jjv-bar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;margin-bottom:12px}
+.tj-jjv-nav,.tj-jjv-tools{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.tj-jjv-nav b{min-width:130px;text-align:center;font-size:.95rem;color:#0F172A}
+.tj-jjv-chk{display:inline-flex;align-items:center;gap:6px;font-size:.82rem;font-weight:600;color:#475569;cursor:pointer}
+.tj-jjv-sum{display:flex;gap:8px;align-items:center;font-size:.84rem;color:#0F766E;background:#F0FDFA;border-radius:12px;padding:9px 12px;margin-bottom:10px}
+.tj-jjv-wrap{overflow-x:auto;background:#fff;border:1px solid #E2E8F0;border-radius:16px}
+.tj-jjv{width:100%;min-width:480px;border-collapse:collapse;font-size:.84rem}
+.tj-jjv th{position:sticky;top:0;background:#F1F5F9;color:#475569;font-size:.74rem;font-weight:800;text-align:left;padding:10px 12px;border-bottom:1px solid #E2E8F0;white-space:nowrap}
+.tj-jjv th small{display:block;font-weight:600;color:#94A3B8;margin-top:2px}
+.tj-jjv td{padding:8px 12px;border-bottom:1px solid #F1F5F9;vertical-align:top}
+.tj-jjv tr:last-child td{border-bottom:none}
+.tj-jjv-tgl{font-weight:800;color:#0F172A;width:44px}
+.tj-jjv-hari{color:#64748B;white-space:nowrap;width:96px}
+.tj-jjv-hari small{display:block;color:#2563EB;font-weight:800;font-size:.68rem}
+.tj-jjv-row.sun td{background:#FEF2F2}
+.tj-jjv-row.sun .tj-jjv-hari{color:#B91C1C}
+.tj-jjv-row.mine td{background:#F0FDFA}
+.tj-jjv-row.today td:first-child{box-shadow:inset 4px 0 0 #3B82F6}
+.tj-jjv-row.today td{background:#EFF6FF}
+.tj-jjv-row.today.mine td{background:#E0F2FE}
+.tj-jjv-chip{display:inline-block;margin:2px 4px 2px 0;padding:3px 9px;border-radius:99px;background:#F1F5F9;color:#334155;font-size:.78rem;font-weight:600;white-space:nowrap}
+.tj-jjv-chip.me{background:#14B8A6;color:#fff;font-weight:800}
+.tj-jjv-none{color:#CBD5E1}
+.tj-jjv-empty{text-align:center;color:#94A3B8;padding:26px 12px!important}
+@media (max-width:560px){
+  .tj-jjv-nav b{min-width:110px}
+  .tj-jjv th,.tj-jjv td{padding:8px 8px}
+}
