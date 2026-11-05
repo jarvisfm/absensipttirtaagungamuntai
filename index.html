@@ -4361,9 +4361,13 @@
                                 <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:1.5rem;flex-wrap:wrap;">
                                     <p style="font-size:0.85rem;color:var(--text-muted);margin:0;max-width:640px;">
                                         <i class="fas fa-lock"></i> Riwayat Kenaikan Gaji Berkala (KGB) Anda beserta gaji pokoknya.
-                                        Data ini bersifat rahasia dan hanya bisa dilihat oleh Anda. Perubahan hanya dapat
-                                        dilakukan oleh Admin (menu Data Karyawan).
+                                        Data ini bersifat rahasia dan hanya bisa dilihat oleh Anda. Anda dapat menambah riwayat
+                                        sendiri dan mengubah/menghapus yang Anda tambahkan; riwayat yang dicatat Admin atau dari
+                                        menu KGB dan Pangkat terkunci.
                                     </p>
+                                    <button type="button" class="btn-primary" style="white-space:nowrap;flex-shrink:0;" onclick="profileManager.openKgbModal()">
+                                        <i class="fas fa-plus"></i> Tambah KGB
+                                    </button>
                                 </div>
 
                                 <div class="employees-table-card">
@@ -4376,6 +4380,7 @@
                                                     <th>Masa Kerja</th>
                                                     <th>Gaji Pokok</th>
                                                     <th>Dokumen</th>
+                                                    <th>Aksi</th>
                                                 </tr>
                                             </thead>
                                             <tbody id="pf-kgb-list"></tbody>
