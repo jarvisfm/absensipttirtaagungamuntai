@@ -17,6 +17,8 @@ const dashboard = {
         this.renderGolonganChart();
         this.renderPendidikanChart();
         this.renderPensiunTable();
+        // Pengingat jadwal jaga operator bulan ini belum diatur (khusus pemegang jadwal; tidak ditunggu)
+        if (window.jadwalJagaOperator) window.jadwalJagaOperator.renderReminderDashboard();
     },
 
     async loadData() {
