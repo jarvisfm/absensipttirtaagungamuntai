@@ -1278,7 +1278,65 @@ const slipGaji = {
         if (el) el.remove();
     },
 
+    // Tampilan karyawan: slip gaji hanya terbuka setelah memasukkan kata sandi akun (sama seperti saat login).
+    // Tampilan admin (daftar semua slip) tidak diminta lagi.
     openSlip(id) {
+        if (this.isAdminView) { this._bukaSlip(id); return; }
+        this._mintaPassword(() => this._bukaSlip(id));
+    },
+
+    _mintaPassword(onOk) {
+        const old = document.getElementById('sg-pw-modal');
+        if (old) old.remove();
+        const el = document.createElement('div');
+        el.className = 'sg-modal';
+        el.id = 'sg-pw-modal';
+        el.innerHTML = `
+            <div class="sg-modal-box" style="max-width:380px">
+                <div class="sg-modal-head"><b><i class="fas fa-lock"></i> Masukkan Kata Sandi</b>
+                    <div><button type="button" class="sg-btn sg-btn-sm" id="sg-pw-x"><i class="fas fa-times"></i></button></div></div>
+                <div class="sg-modal-body">
+                    <p style="margin:0 0 12px;font-size:.88rem;color:#64748B">Slip gaji bersifat rahasia. Masukkan kata sandi akun Anda (yang dipakai saat login) untuk membukanya.</p>
+                    <input type="password" id="sg-pw-input" autocomplete="current-password" placeholder="Kata sandi"
+                        style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #CBD5E1;border-radius:10px;font-size:.95rem">
+                    <div id="sg-pw-err" style="min-height:18px;margin:8px 0 0;font-size:.8rem;color:#DC2626"></div>
+                    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:10px">
+                        <button type="button" class="sg-btn" id="sg-pw-batal">Batal</button>
+                        <button type="button" class="sg-btn sg-btn-primary" id="sg-pw-ok"><i class="fas fa-unlock"></i> Buka Slip</button>
+                    </div>
+                </div>
+            </div>`;
+        document.body.appendChild(el);
+        const input = el.querySelector('#sg-pw-input'), err = el.querySelector('#sg-pw-err'), ok = el.querySelector('#sg-pw-ok');
+        const tutup = () => el.remove();
+        el.addEventListener('click', e => { if (e.target === el) tutup(); });
+        el.querySelector('#sg-pw-x').onclick = tutup;
+        el.querySelector('#sg-pw-batal').onclick = tutup;
+        let sibuk = false;
+        const kirim = async () => {
+            if (sibuk) return;
+            const pw = input.value;
+            if (!pw) { err.textContent = 'Kata sandi wajib diisi.'; return; }
+            const u = auth.getCurrentUser ? auth.getCurrentUser() : auth.currentUser;
+            if (!u) { err.textContent = 'Sesi tidak valid. Silakan login ulang.'; return; }
+            sibuk = true; ok.disabled = true; err.textContent = '';
+            ok.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Memeriksa...';
+            try {
+                const res = await api.verifyPassword(u.id, u.role, pw);
+                if (res && res.success) { tutup(); onOk(); return; }
+                err.textContent = (res && res.error) || 'Kata sandi salah.';
+                input.value = ''; input.focus();
+            } catch (e) {
+                err.textContent = 'Gagal memeriksa kata sandi. Periksa koneksi lalu coba lagi.';
+            }
+            sibuk = false; ok.disabled = false; ok.innerHTML = '<i class="fas fa-unlock"></i> Buka Slip';
+        };
+        ok.onclick = kirim;
+        input.addEventListener('keydown', e => { if (e.key === 'Enter') kirim(); });
+        setTimeout(() => input.focus(), 50);
+    },
+
+    _bukaSlip(id) {
         const r = this._findRow(id);
         if (!r) return;
         this.closeSlip();
