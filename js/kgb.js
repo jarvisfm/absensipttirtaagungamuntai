@@ -421,6 +421,7 @@ const kgb = {
 
     // force=true: tombol "Hitung dari tabel" (menimpa gaji & mengisi masa kerja kalau kosong).
     async riwayatHitung(p, targetId, force) {
+        if (window.auth && auth.isAdmin && !auth.isAdmin() && !(window.adminSwitch && adminSwitch.isEmployeeMode && adminSwitch.isEmployeeMode())) return; // hitung otomatis hanya untuk Admin; karyawan isi gaji manual
         const tmt = this._rk(p, 'tmtKgb').value;
         const g = this._rk(p, 'gajiPokokBaru'), h = this._rk(p, 'gaji-hint'), mk = this._rk(p, 'masaKerjaTahun');
         if (!tmt) { if (force) toast.error('Isi TMT Kenaikan Gaji Berkala terlebih dahulu.'); return; }
