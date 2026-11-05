@@ -122,7 +122,7 @@ const profileManager = {
             pendidikan:      { load: 'loadRiwayatPendidikan', id: 'pf-pendidikan-list',       cols: 0 },
             kgb:             { load: 'loadRiwayatKgb',        id: 'pf-kgb-list',              cols: 5 },
             golongan:        { load: 'loadRiwayatGolongan',   id: 'pf-golongan-list',         cols: 5 },
-            mutasi:          { load: 'loadRiwayatMutasi',     id: 'pf-mutasi-list',           cols: 6 },
+            mutasi:          { load: 'loadRiwayatMutasi',     id: 'pf-mutasi-list',           cols: 5 },
             riwayatkaryawan: { load: 'loadRiwayatKaryawan',   id: 'pf-riwayatkaryawan-list',  cols: 6 }
         }[tab];
         if (!cfg || !this.myId) return;
@@ -296,9 +296,9 @@ const profileManager = {
                 btn.style.borderBottom = t === tab ? '2px solid var(--color-primary)' : '2px solid transparent';
             }
         });
-        // Tab Riwayat KGB hanya untuk dilihat (diubah Admin lewat Data Karyawan) -> tombol Simpan disembunyikan.
+        // Tab Riwayat KGB & Riwayat Mutasi hanya untuk dilihat (diubah Admin) -> tombol Simpan disembunyikan.
         const btnSimpan = document.getElementById('btn-save-profile');
-        if (btnSimpan && btnSimpan.parentElement) btnSimpan.parentElement.style.display = tab === 'kgb' ? 'none' : '';
+        if (btnSimpan && btnSimpan.parentElement) btnSimpan.parentElement.style.display = (tab === 'kgb' || tab === 'mutasi') ? 'none' : '';
         // [OPTIMASI 2 Nov 2026] riwayat dimuat saat tabnya dibuka
         this._ensureRiwayat(tab);
         // NEW: muat status & daftar Login Sidik Jari tiap kali tab Akun dibuka
@@ -1372,6 +1372,13 @@ const profileManager = {
         this.renderRiwayatGolongan();
     },
 
+    // [TAMBAHAN 2026-11-05] Baris yang dicatat Admin ('admin') atau dari menu KGB dan Pangkat ('kgb')
+    // terkunci: karyawan tidak bisa mengubah/menghapusnya (dicek lagi di server, Golongan.gs).
+    _golTerkunci(r) {
+        const s = String((r && r.sumber) || '').toLowerCase();
+        return s === 'admin' || s === 'kgb';
+    },
+
     renderRiwayatGolongan() {
         const tbody = document.getElementById('pf-golongan-list');
         if (!tbody) return;
@@ -1392,8 +1399,10 @@ const profileManager = {
                         : `<span style="color:var(--text-muted);font-size:0.8rem;font-style:italic;">Belum ada</span>`}
                 </td>
                 <td style="padding:10px 12px;">
-                    <button type="button" onclick="profileManager.editRiwayatGolongan('${r.id}')" style="background:none;border:1px solid var(--border-color);color:var(--text-muted);padding:6px 10px;border-radius:6px;cursor:pointer;font-size:0.8rem;margin-right:4px;"><i class="fas fa-pen"></i></button>
-                    <button type="button" onclick="profileManager.deleteRiwayatGolongan('${r.id}')" style="background:#EF4444;color:#fff;border:none;padding:6px 10px;border-radius:6px;cursor:pointer;font-size:0.8rem;"><i class="fas fa-trash"></i></button>
+                    ${this._golTerkunci(r)
+                        ? `<span title="${r.sumber === 'kgb' ? 'Dicatat dari menu KGB dan Pangkat' : 'Dicatat oleh Admin'} - tidak dapat diubah atau dihapus" style="display:inline-flex;align-items:center;gap:6px;background:#F1F5F9;color:#64748B;border:1px solid #E2E8F0;padding:5px 10px;border-radius:999px;font-size:0.72rem;font-weight:600;white-space:nowrap;"><i class="fas fa-lock"></i> ${r.sumber === 'kgb' ? 'KGB &amp; Pangkat' : 'Dicatat Admin'}</span>`
+                        : `<button type="button" onclick="profileManager.editRiwayatGolongan('${r.id}')" style="background:none;border:1px solid var(--border-color);color:var(--text-muted);padding:6px 10px;border-radius:6px;cursor:pointer;font-size:0.8rem;margin-right:4px;"><i class="fas fa-pen"></i></button>
+                    <button type="button" onclick="profileManager.deleteRiwayatGolongan('${r.id}')" style="background:#EF4444;color:#fff;border:none;padding:6px 10px;border-radius:6px;cursor:pointer;font-size:0.8rem;"><i class="fas fa-trash"></i></button>`}
                 </td>
             </tr>
         `).join('');
@@ -1411,6 +1420,7 @@ const profileManager = {
     editRiwayatGolongan(id) {
         const r = this.riwayatGolongan.find(x => String(x.id) === String(id));
         if (!r) return;
+        if (this._golTerkunci(r)) { toast.error('Riwayat ini dicatat oleh Admin dan tidak dapat diubah.'); return; }
 
         document.getElementById('pf-gol-id').value             = r.id;
         document.getElementById('pf-gol-golongan').value       = r.golongan || '';
@@ -1470,6 +1480,7 @@ const profileManager = {
         const data = {
             id:             id || undefined,
             userId:         this.myId,
+            sumber:         'user',
             golongan,
             tmtGolongan:    document.getElementById('pf-gol-tmtGolongan').value,
             jenisKenaikan:  document.getElementById('pf-gol-jenisKenaikan').value,
@@ -1498,9 +1509,11 @@ const profileManager = {
     },
 
     async deleteRiwayatGolongan(id) {
+        const target = this.riwayatGolongan.find(x => String(x.id) === String(id));
+        if (target && this._golTerkunci(target)) { toast.error('Riwayat ini dicatat oleh Admin dan tidak dapat dihapus.'); return; }
         if (!confirm('Hapus riwayat Golongan ini? (Link dokumen hanya dihapus dari aplikasi, file aslinya di Google Drive Anda tidak terhapus)')) return;
         try {
-            const result = await api.deleteRiwayatGolongan(id);
+            const result = await api.deleteRiwayatGolongan(id, 'user');
             if (result.success) {
                 toast.success('Riwayat Golongan dihapus');
                 await this.loadRiwayatGolongan();
@@ -1532,7 +1545,7 @@ const profileManager = {
         if (!tbody) return;
 
         if (this.riwayatMutasi.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:2rem;color:var(--text-muted);">Belum ada riwayat mutasi yang disimpan.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:2rem;color:var(--text-muted);">Belum ada riwayat mutasi yang tercatat.</td></tr>';
             return;
         }
 
@@ -1546,10 +1559,6 @@ const profileManager = {
                     ${r.fileDokumenUrl
                         ? `<button type="button" onclick="window.open('${r.fileDokumenUrl}', '_blank')" style="background:none;border:1px solid var(--border-color);color:var(--text-muted);padding:6px 12px;border-radius:6px;cursor:pointer;font-size:0.8rem;white-space:nowrap;"><i class="fas fa-download"></i> Unduh</button>`
                         : `<span style="color:var(--text-muted);font-size:0.8rem;font-style:italic;">Belum ada</span>`}
-                </td>
-                <td style="padding:10px 12px;">
-                    <button type="button" onclick="profileManager.editRiwayatMutasi('${r.id}')" style="background:none;border:1px solid var(--border-color);color:var(--text-muted);padding:6px 10px;border-radius:6px;cursor:pointer;font-size:0.8rem;margin-right:4px;"><i class="fas fa-pen"></i></button>
-                    <button type="button" onclick="profileManager.deleteRiwayatMutasi('${r.id}')" style="background:#EF4444;color:#fff;border:none;padding:6px 10px;border-radius:6px;cursor:pointer;font-size:0.8rem;"><i class="fas fa-trash"></i></button>
                 </td>
             </tr>
         `).join('');
@@ -1565,6 +1574,7 @@ const profileManager = {
     },
 
     openMutasiModal() {
+        toast.error('Riwayat mutasi hanya dapat diubah oleh Admin.'); return; // [2026-11-05] hanya Admin
         this.resetMutasiForm();
         document.getElementById('modal-mutasi-form').style.display = 'flex';
     },
@@ -1574,6 +1584,7 @@ const profileManager = {
     },
 
     editRiwayatMutasi(id) {
+        toast.error('Riwayat mutasi hanya dapat diubah oleh Admin.'); return; // [2026-11-05] hanya Admin
         const r = this.riwayatMutasi.find(x => String(x.id) === String(id));
         if (!r) return;
 
@@ -1620,6 +1631,7 @@ const profileManager = {
     },
 
     async saveRiwayatMutasi() {
+        toast.error('Riwayat mutasi hanya dapat diubah oleh Admin.'); return; // [2026-11-05] hanya Admin
         const id          = document.getElementById('pf-mts-id').value;
         const nomorSurat  = document.getElementById('pf-mts-nomorSurat').value.trim();
 
@@ -1658,6 +1670,7 @@ const profileManager = {
     },
 
     async deleteRiwayatMutasi(id) {
+        toast.error('Riwayat mutasi hanya dapat diubah oleh Admin.'); return; // [2026-11-05] hanya Admin
         if (!confirm('Hapus riwayat mutasi ini? (Link dokumen hanya dihapus dari aplikasi, file aslinya di Google Drive Anda tidak terhapus)')) return;
         try {
             const result = await api.deleteRiwayatMutasi(id);
