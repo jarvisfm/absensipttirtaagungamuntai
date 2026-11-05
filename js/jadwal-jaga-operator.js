@@ -182,6 +182,7 @@ const jadwalJagaOperator = {
         this._populateUnitSelect();
         this._populateMonthYearSelect();
         this.bindEvents();
+        if (this._restrictedUnits.length === 0) this.renderReminderAdmin(); // tidak ditunggu
 
         const unitSelect = document.getElementById('jjo-unit');
 
@@ -1116,6 +1117,91 @@ const jadwalJagaOperator = {
         if (!dd) dd = this.data.days[d] = multi ? { sessions: {}, keterangan: '' } : { petugas: '', keterangan: '' };
         if (multi && !dd.sessions) dd.sessions = {};
         return dd;
+    },
+
+    // ===== Pengingat "belum mengatur jadwal bulan ini" (dashboard Asmen + banner Admin) =====
+    // Jumlah hari yang sudah terisi (minimal 1 nama petugas di sesi mana pun) pada data roster mentah.
+    _hariTerisi(raw) {
+        let data = null;
+        try { data = raw ? JSON.parse(raw) : null; } catch (e) { data = null; }
+        const days = (data && data.days) || {};
+        let n = 0;
+        Object.keys(days).forEach(d => {
+            const dd = days[d] || {};
+            const ada = this._toIds(dd.petugas).filter(Boolean).length
+                || Object.keys(dd.sessions || {}).some(k => this._toIds(dd.sessions[k]).filter(Boolean).length);
+            if (ada) n++;
+        });
+        return n;
+    },
+
+    /** Dari daftar unit, kembalikan unit yang jadwal BULAN INI-nya masih kosong total. Gagal baca = dianggap tidak diketahui (tidak dimunculkan). */
+    async unitBelumAtur(unitKeys) {
+        const now = new Date();
+        const mm = String(now.getMonth() + 1).padStart(2, '0');
+        const hasil = await Promise.all((unitKeys || []).map(async k => {
+            try {
+                const key = `jaga_operator_${k}_${now.getFullYear()}-${mm}`.replace(/\s+/g, '_');
+                const res = await api.getSettingByKey(key);
+                if (!res || !res.success) return null;
+                return this._hariTerisi(res.data) === 0 ? k : null;
+            } catch (e) { return null; }
+        }));
+        return hasil.filter(Boolean);
+    },
+
+    _labelUnit(k) { return (OPERATOR_UNITS[k] && OPERATOR_UNITS[k].label) || k; },
+
+    _bulanIniLabel() { const n = new Date(); return BULAN_NAMA[n.getMonth()] + ' ' + n.getFullYear(); },
+
+    /** Dashboard Asmen/pemegang jadwal: pengingat kalau jadwal unitnya bulan ini belum diatur. */
+    async renderReminderDashboard() {
+        const old = document.getElementById('jjo-reminder-dash');
+        if (old) old.remove();
+        try {
+            const u = auth.currentUser;
+            if (!u || auth.isAdmin() || !auth.isAsmen()) return;
+            const units = String(u.operatorScheduleUnit || '').split(',').map(x => x.trim()).filter(Boolean);
+            if (!units.length) return;
+            const belum = await this.unitBelumAtur(units);
+            const page = document.getElementById('page-dashboard');
+            if (!belum.length || !page || document.getElementById('jjo-reminder-dash')) return;
+            const el = document.createElement('div');
+            el.id = 'jjo-reminder-dash';
+            el.style.cssText = 'display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:#FFFBEB;border:1px solid #FDE68A;border-left:4px solid #F59E0B;border-radius:12px;padding:12px 16px;margin-bottom:1rem;color:#92400E;font-size:.88rem;';
+            el.innerHTML = `<i class="fas fa-triangle-exclamation" style="font-size:1.2rem;color:#D97706"></i>
+                <div style="flex:1;min-width:200px"><b>Jadwal Jaga Operator ${this._bulanIniLabel()} belum diatur</b><br>
+                <span>Unit: ${belum.map(k => this._escAttr(this._labelUnit(k))).join(', ')}</span></div>
+                <button type="button" class="btn btn-primary btn-sm" onclick="router.navigate('jadwal-jaga-operator')">Atur Jadwal</button>`;
+            page.insertBefore(el, page.firstChild);
+        } catch (e) { console.warn('Pengingat jadwal jaga gagal dimuat:', e); }
+    },
+
+    /** Halaman Jadwal Jaga Operator (Admin): daftar unit yang pemegangnya belum mengatur jadwal bulan ini. */
+    async renderReminderAdmin() {
+        const old = document.getElementById('jjo-reminder-admin');
+        if (old) old.remove();
+        try {
+            const pemegang = {};
+            (this._allEmployeesRaw || []).forEach(e => {
+                if (String(e.statusKaryawan || '').toUpperCase() !== 'AKTIF') return;
+                String(e.operatorScheduleUnit || '').split(',').map(x => x.trim()).filter(Boolean).forEach(k => {
+                    if (!OPERATOR_UNITS[k]) return;
+                    (pemegang[k] = pemegang[k] || []).push(e.nama);
+                });
+            });
+            const units = Object.keys(pemegang);
+            if (!units.length) return;
+            const belum = await this.unitBelumAtur(units);
+            const head = document.querySelector('#page-jadwal-jaga-operator .jjo-header');
+            if (!belum.length || !head || document.getElementById('jjo-reminder-admin')) return;
+            const el = document.createElement('div');
+            el.id = 'jjo-reminder-admin';
+            el.style.cssText = 'background:#FFFBEB;border:1px solid #FDE68A;border-left:4px solid #F59E0B;border-radius:12px;padding:12px 16px;margin:0 0 1rem;color:#92400E;font-size:.85rem;line-height:1.5;';
+            el.innerHTML = `<b><i class="fas fa-triangle-exclamation"></i> Belum mengatur jadwal ${this._bulanIniLabel()} (${belum.length} unit)</b>
+                <ul style="margin:6px 0 0 18px;padding:0">${belum.map(k => `<li>${this._escAttr(this._labelUnit(k))} &mdash; pemegang: ${pemegang[k].map(n => this._escAttr(n)).join(', ')}</li>`).join('')}</ul>`;
+            head.insertAdjacentElement('afterend', el);
+        } catch (e) { console.warn('Pengingat jadwal jaga (admin) gagal dimuat:', e); }
     },
 
     _toIds(v, asArray) {
