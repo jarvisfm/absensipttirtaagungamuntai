@@ -93,7 +93,7 @@ const router = {
             'permintaan-barang': 'Permintaan Barang',
             'telaah-staf': 'Telaahan Staf',
             'kgb': 'KGB dan Pangkat',
-            'tukar-jadwal': 'Tukar Jadwal Jaga',
+            'tukar-jadwal': 'Jadwal Jaga',
             profile: 'Edit Profil'
         };
         
