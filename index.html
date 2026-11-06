@@ -618,13 +618,12 @@
                             <div class="dm-hero-row">
                                 <!-- Foto, jabatan, & tanggal disalin otomatis oleh js/dashboard-modern.js -->
                                 <div class="dm-avatar">
-                                    <img id="dm-avatar-img" src="https://ui-avatars.com/api/?name=User&background=0284c7&color=fff" alt="Foto profil">
+                                    <img id="dm-avatar-img" src="data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 80 80'%3E%3Crect width='80' height='80' fill='%230284c7'/%3E%3Ccircle cx='40' cy='31' r='14' fill='%23fff' fill-opacity='.9'/%3E%3Cpath d='M12 80c2-18 14-28 28-28s26 10 28 28z' fill='%23fff' fill-opacity='.9'/%3E%3C/svg%3E" alt="Foto profil">
                                     <span class="dm-avatar-dot"></span>
                                 </div>
                                 <div class="welcome-content">
                                     <span class="dm-kicker" id="dm-date"></span>
                                     <h2>Selamat Pagi, <span id="welcome-name">Dewi</span>! 👋</h2>
-                                    <span class="dm-role"><i class="fas fa-id-badge"></i><span id="dm-role-text">Karyawan</span></span>
                                 </div>
                                 <div class="welcome-illustration">
                                     <i class="fas fa-sun"></i>
@@ -4597,7 +4596,41 @@
     <script src="js/router.js"></script>
     <script src="js/notifications.js"></script>
     <script src="js/dashboard.js"></script>
-    <script src="js/dashboard-modern.js"></script>
+    <script>
+    /* Dashboard hero: salin (read-only) foto profil & tanggal yang sudah dikelola kode lama.
+       #user-avatar -> #dm-avatar-img | #current-time .date -> #dm-date */
+    (function () {
+        var $ = function (id) { return document.getElementById(id); };
+        function syncProfile() {
+            var img = $('dm-avatar-img'), src = $('user-avatar');
+            if (!img || !src) return;
+            var s = src.getAttribute('src');
+            // abaikan placeholder bawaan HTML sidebar (name=User) sampai auth mengisi foto asli
+            if (s && s.indexOf('name=User&') === -1 && img.getAttribute('src') !== s) img.setAttribute('src', s);
+        }
+        function syncDate() {
+            var el = $('dm-date'); if (!el) return;
+            var d = document.querySelector('#current-time .date');
+            var t = d ? (d.textContent || '').trim() : '';
+            if (!t) {
+                try { t = new Date().toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Asia/Makassar' }); } catch (e) { t = ''; }
+            }
+            if (t && el.textContent !== t) el.textContent = t;
+        }
+        function sync() { syncProfile(); syncDate(); }
+        function init() {
+            sync();
+            if (window.MutationObserver) {
+                var a = $('user-avatar'), c = $('current-time');
+                if (a) new MutationObserver(syncProfile).observe(a, { attributes: true, attributeFilter: ['src'] });
+                if (c) new MutationObserver(syncDate).observe(c, { childList: true, characterData: true, subtree: true });
+            }
+            document.addEventListener('visibilitychange', sync);
+            setInterval(sync, 30000);
+        }
+        if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
+    })();
+    </script>
     <script src="js/absensi.js"></script>
     <script src="js/face-recognition.js"></script>
     <script src="js/rich-note.js"></script>
