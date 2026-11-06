@@ -12,6 +12,7 @@ const dashboard = {
         await this.updateWelcomeCard();
         this.updateBirthdayCard();
         this.updateStats();
+        this.bindStatsPeriod();
         this.updateSessionInfo();
         this.updateProgressBar();
         this.renderGolonganChart();
@@ -199,11 +200,27 @@ const dashboard = {
         }
     },
 
+    // Dropdown "Bulan Ini / Bulan Lalu" di kartu Statistik Kehadiran
+    bindStatsPeriod() {
+        const sel = document.querySelector('.stats-card .select-period');
+        if (!sel || sel._periodBound) return;
+        sel._periodBound = true;
+        sel.addEventListener('change', () => this.updateStats());
+    },
+
     updateStats() {
-        const attendance = this.attendanceData;
+        // Hanya satu BULAN (WITA): bulan berjalan, atau bulan lalu kalau dropdown
+        // "Bulan Lalu" dipilih. Sebelumnya semua data 6 bulan terakhir ikut dihitung.
+        const nowW = dateTime.getWitaParts();
+        const sel = document.querySelector('.stats-card .select-period');
+        const offset = sel && sel.selectedIndex === 1 ? 1 : 0;
+        let y = nowW.year, m = nowW.month - offset;
+        if (m < 1) { m = 12; y -= 1; }
+        const ym = `${y}-${String(m).padStart(2, '0')}`;
+        const attendance = (this.attendanceData || []).filter(a => String(a.date || '').startsWith(ym));
 
         // Calculate stats
-        const total = Math.max(26, attendance.length); // Assuming min 26 working days base
+        const total = Math.max(1, attendance.length); // pembagi = jumlah catatan bulan ini
         const present = attendance.filter(a => ['hadir', 'ontime'].includes(String(a.status || '').toLowerCase())).length;
         const late = attendance.filter(a => ['terlambat', 'late'].includes(String(a.status || '').toLowerCase())).length;
         const absent = attendance.filter(a => ['tidak hadir', 'absent', 'alpha'].includes(String(a.status || '').toLowerCase())).length;
