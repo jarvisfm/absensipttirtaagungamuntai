@@ -44,6 +44,7 @@
     <link rel="stylesheet" href="css/approval-modern.css">
     <link rel="stylesheet" href="css/face-rec-modern.css">
     <link rel="stylesheet" href="css/dashboard-modern.css">
+    <link rel="stylesheet" href="css/absensi-modern.css">
     <style id="admin-jenis-style">
         /* Dashboard Admin: komposisi jenis karyawan (Tetap / Kontrak / Outsourcing) */
         .aj-card { background: var(--bg-secondary); border-radius: var(--border-radius-lg); padding: 20px 22px; box-shadow: var(--shadow); margin-bottom: var(--spacing-lg); }
@@ -861,6 +862,52 @@
                                 </div>
                             </div>
 
+                            <!-- Layanan Absensi: Lihat Absensi + 3 tombol yang dulu ada di bawah Timeline
+                                 (SPPD, Sanggahan Absensi, SPK). ID & onclick tombol TIDAK berubah. -->
+                            <div class="layanan-card">
+                                <div class="card-header">
+                                    <h3>Layanan Absensi</h3>
+                                </div>
+                                <div class="layanan-grid">
+                                    <!-- Lihat Absensi: hanya menggulir ke kartu Riwayat Absensi di bawah (tidak ada logika baru) -->
+                                    <button type="button" class="layanan-tile" id="btn-lihat-riwayat" onclick="document.querySelector('#page-absensi .history-card').scrollIntoView({behavior:'smooth',block:'start'})">
+                                        <span class="surat-tugas-trigger-icon"><i class="fas fa-clock-rotate-left"></i></span>
+                                        <span class="surat-tugas-trigger-text">
+                                            <strong>Lihat Absensi</strong>
+                                            <small>Riwayat &amp; rekap absensi bulan ini</small>
+                                        </span>
+                                        <i class="fas fa-arrow-down surat-tugas-trigger-arrow"></i>
+                                    </button>
+                                    <button type="button" class="surat-tugas-trigger layanan-tile" id="btn-surat-tugas-trigger" onclick="suratTugas.openModal()">
+                                        <span class="surat-tugas-trigger-icon"><i class="fas fa-suitcase"></i></span>
+                                        <span class="surat-tugas-trigger-text">
+                                            <strong>Input Surat Tugas (SPPD)</strong>
+                                            <small id="surat-tugas-trigger-sub">Sedang dinas luar? Catat di sini</small>
+                                        </span>
+                                        <i class="fas fa-chevron-right surat-tugas-trigger-arrow"></i>
+                                    </button>
+                                    <button type="button" class="surat-tugas-trigger layanan-tile" id="btn-sanggahan-absensi-trigger" onclick="sanggahanAbsensi.openModal()">
+                                        <span class="surat-tugas-trigger-icon"><i class="fas fa-flag"></i></span>
+                                        <span class="surat-tugas-trigger-text">
+                                            <strong>Sanggahan Absensi</strong>
+                                            <small id="sanggahan-absensi-trigger-sub">Ada kendala jaringan/listrik saat absen? Laporkan di sini</small>
+                                        </span>
+                                        <i class="fas fa-chevron-right surat-tugas-trigger-arrow"></i>
+                                    </button>
+                                    <!-- PENAMBAHAN (2026-09-09): tombol Input SPK (Surat Perintah Kerja) -
+                                         khusus petugas lapangan Transmisi & Distribusi yang sedang
+                                         memperbaiki gangguan air di luar radius/tanpa sinyal HP memadai. -->
+                                    <button type="button" class="surat-tugas-trigger layanan-tile" id="btn-spk-trigger" onclick="spk.openModal()">
+                                        <span class="surat-tugas-trigger-icon"><i class="fas fa-screwdriver-wrench"></i></span>
+                                        <span class="surat-tugas-trigger-text">
+                                            <strong>Input SPK (Surat Perintah Kerja)</strong>
+                                            <small>Sedang perbaikan lapangan? Catat di sini</small>
+                                        </span>
+                                        <i class="fas fa-chevron-right surat-tugas-trigger-arrow"></i>
+                                    </button>
+                                </div>
+                            </div>
+
                             <div class="timeline-card">
                                 <div class="card-header">
                                     <h3>Timeline Hari Ini</h3>
@@ -887,33 +934,6 @@
                                                 class="timeline-time">--:--</span></div>
                                     </div>
                                 </div>
-                                <button type="button" class="surat-tugas-trigger" id="btn-surat-tugas-trigger" onclick="suratTugas.openModal()" style="margin:12px 16px 0;width:calc(100% - 32px);">
-                                    <span class="surat-tugas-trigger-icon"><i class="fas fa-suitcase"></i></span>
-                                    <span class="surat-tugas-trigger-text">
-                                        <strong>Input Surat Tugas (SPPD)</strong>
-                                        <small id="surat-tugas-trigger-sub">Sedang dinas luar? Catat di sini</small>
-                                    </span>
-                                    <i class="fas fa-chevron-right surat-tugas-trigger-arrow"></i>
-                                </button>
-                                <button type="button" class="surat-tugas-trigger" id="btn-sanggahan-absensi-trigger" onclick="sanggahanAbsensi.openModal()" style="margin:8px 16px 0;width:calc(100% - 32px);">
-                                    <span class="surat-tugas-trigger-icon" style="background:rgba(245,158,11,0.12);color:var(--color-warning);"><i class="fas fa-flag"></i></span>
-                                    <span class="surat-tugas-trigger-text">
-                                        <strong>Sanggahan Absensi</strong>
-                                        <small id="sanggahan-absensi-trigger-sub">Ada kendala jaringan/listrik saat absen? Laporkan di sini</small>
-                                    </span>
-                                    <i class="fas fa-chevron-right surat-tugas-trigger-arrow"></i>
-                                </button>
-                                <!-- PENAMBAHAN (2026-09-09): tombol Input SPK (Surat Perintah Kerja) -
-                                     khusus petugas lapangan Transmisi & Distribusi yang sedang
-                                     memperbaiki gangguan air di luar radius/tanpa sinyal HP memadai. -->
-                                <button type="button" class="surat-tugas-trigger" id="btn-spk-trigger" onclick="spk.openModal()" style="margin:8px 16px 16px;width:calc(100% - 32px);">
-                                    <span class="surat-tugas-trigger-icon"><i class="fas fa-screwdriver-wrench"></i></span>
-                                    <span class="surat-tugas-trigger-text">
-                                        <strong>Input SPK (Surat Perintah Kerja)</strong>
-                                        <small>Sedang perbaikan lapangan? Catat di sini</small>
-                                    </span>
-                                    <i class="fas fa-chevron-right surat-tugas-trigger-arrow"></i>
-                                </button>
                             </div>
                         </div>
 
