@@ -3,6 +3,18 @@
  * Dashboard functionality and charts
  */
 
+// Tema waktu (pagi/siang/sore-malam) untuk warna bottom bar - sama dengan kelas kartu sapaan di bawah:
+// < 11 morning, 11-15 afternoon, >= 15 evening (WITA). Dipasang di <html data-tod>; diperbarui tiap menit.
+(function () {
+    function setTod() {
+        const h = new Date(Date.now() + 8 * 3600 * 1000).getUTCHours();
+        const tod = (h >= 11 && h < 15) ? 'afternoon' : (h >= 15 ? 'evening' : 'morning');
+        if (document.documentElement.getAttribute('data-tod') !== tod) document.documentElement.setAttribute('data-tod', tod);
+    }
+    setTod();
+    setInterval(setTod, 60000);
+})();
+
 const dashboard = {
     attendanceData: [],
 
@@ -301,6 +313,11 @@ const dashboard = {
 
         let progress = ((currentTime - startHour) / totalHours) * 100;
         progress = Math.max(0, Math.min(100, progress));
+
+        // Sudah absen pulang hari ini -> progress penuh
+        const _today = dateTime.getLocalDate();
+        const _ta = (this.attendanceData || []).find(x => x.date === _today);
+        if (_ta && _ta.clockIn && _ta.clockOut) progress = 100;
 
         const progressFill = document.getElementById('work-progress');
         if (progressFill) {
