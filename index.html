@@ -43,6 +43,7 @@
     <link rel="stylesheet" href="css/form-modal.css">
     <link rel="stylesheet" href="css/approval-modern.css">
     <link rel="stylesheet" href="css/face-rec-modern.css">
+    <link rel="stylesheet" href="css/dashboard-modern.css">
     <style id="admin-jenis-style">
         /* Dashboard Admin: komposisi jenis karyawan (Tetap / Kontrak / Outsourcing) */
         .aj-card { background: var(--bg-secondary); border-radius: var(--border-radius-lg); padding: 20px 22px; box-shadow: var(--shadow); margin-bottom: var(--spacing-lg); }
@@ -599,18 +600,10 @@
                 <!-- Employee Dashboard Page -->
                 <div class="page active" id="page-dashboard">
                     <div class="dashboard-welcome">
-                        <div class="welcome-card">
-                            <div class="welcome-content">
-                                <h2>Selamat Pagi, <span id="welcome-name">Dewi</span>! 👋</h2>
-                                <p id="welcome-shift">Shift: Pagi (08:00 - 17:00)</p>
-                            </div>
-                            <div class="welcome-illustration">
-                                <i class="fas fa-sun"></i>
-                            </div>
-                        </div>
-
                         <!-- Kartu ulang tahun - cuma muncul kalau hari ini tanggal
-                             lahir karyawan (dari field Tanggal Lahir di profil) -->
+                             lahir karyawan (dari field Tanggal Lahir di profil).
+                             Dipindah ke ATAS hero supaya kartu "Sesi Hari Ini" di bawah
+                             bisa menimpa tepi bawah hero. ID & isi tidak berubah. -->
                         <div class="birthday-card" id="birthday-card" style="display:none;">
                             <div class="birthday-content">
                                 <h3 id="birthday-message">Selamat Ulang Tahun! 🎉</h3>
@@ -620,12 +613,31 @@
                                 <i class="fas fa-birthday-cake"></i>
                             </div>
                         </div>
+
+                        <div class="welcome-card">
+                            <div class="dm-hero-row">
+                                <!-- Foto, jabatan, & tanggal disalin otomatis oleh js/dashboard-modern.js -->
+                                <div class="dm-avatar">
+                                    <img id="dm-avatar-img" src="https://ui-avatars.com/api/?name=User&background=0284c7&color=fff" alt="Foto profil">
+                                    <span class="dm-avatar-dot"></span>
+                                </div>
+                                <div class="welcome-content">
+                                    <span class="dm-kicker" id="dm-date"></span>
+                                    <h2>Selamat Pagi, <span id="welcome-name">Dewi</span>! 👋</h2>
+                                    <span class="dm-role"><i class="fas fa-id-badge"></i><span id="dm-role-text">Karyawan</span></span>
+                                </div>
+                                <div class="welcome-illustration">
+                                    <i class="fas fa-sun"></i>
+                                </div>
+                            </div>
+                            <p id="welcome-shift">Shift: Pagi (08:00 - 17:00)</p>
+                        </div>
                     </div>
 
                     <div class="dashboard-grid">
                         <div class="dashboard-card quick-actions qa-card">
                             <div class="card-header">
-                                <h3>Menu</h3>
+                                <h3>Menu Utama</h3>
                             </div>
                             <!-- Gaya grid menu seperti BRImo: semua menu sidebar tampil sebagai ikon,
                                  2 baris pertama langsung terlihat, sisanya lewat tombol "Lainnya".
@@ -686,15 +698,15 @@
                             </div>
                             <div class="session-info">
                                 <div class="session-row">
-                                    <span class="session-label">Masuk</span>
+                                    <span class="session-label"><i class="fas fa-right-to-bracket"></i>Masuk</span>
                                     <span class="session-value" id="dashboard-clock-in">--:--</span>
                                 </div>
                                 <div class="session-row">
-                                    <span class="session-label">Pulang</span>
+                                    <span class="session-label"><i class="fas fa-right-from-bracket"></i>Pulang</span>
                                     <span class="session-value" id="dashboard-clock-out">--:--</span>
                                 </div>
                                 <div class="session-row">
-                                    <span class="session-label">Durasi Kerja</span>
+                                    <span class="session-label"><i class="fas fa-hourglass-half"></i>Durasi Kerja</span>
                                     <span class="session-value highlight" id="dashboard-duration">--:--</span>
                                 </div>
                                 <div class="progress-bar">
@@ -4585,6 +4597,7 @@
     <script src="js/router.js"></script>
     <script src="js/notifications.js"></script>
     <script src="js/dashboard.js"></script>
+    <script src="js/dashboard-modern.js"></script>
     <script src="js/absensi.js"></script>
     <script src="js/face-recognition.js"></script>
     <script src="js/rich-note.js"></script>
