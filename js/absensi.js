@@ -1431,7 +1431,12 @@ const absensi = {
     tbody.innerHTML = combinedData.map(record => {
         // Format tanggal
         const [y, m, d] = (record.date || '').split('-');
-        const dateStr = (y && m && d) ? `${d} ${months[parseInt(m)-1]} ${y}` : '-';
+        // [DIUBAH 2026-11-09] Ditambah nama hari (mis. "Senin, 09 Nov 2026"); hari dihitung dari tanggal
+        // (UTC) supaya tidak terpengaruh zona waktu perangkat. Gaya kecilnya di absensi-modern.css (.hist-day).
+        const hariNama = (y && m && d)
+            ? ['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'][new Date(Date.UTC(parseInt(y), parseInt(m)-1, parseInt(d))).getUTCDay()]
+            : '';
+        const dateStr = (y && m && d) ? `<span class="hist-day">${hariNama}</span> ${d} ${months[parseInt(m)-1]} ${y}` : '-';
         const isToday = todayYMD && record.date === todayYMD;
 
         // Baris SEMU libur/tanggal merah (lihat _buildSyntheticLiburRows di
