@@ -209,6 +209,16 @@ body:has(#page-dashboard .welcome-card.evening) #page-absensi {
 #page-absensi #attendance-history-stats span { font-size: .74rem; }
 #page-absensi .history-table th { font-size: .66rem; font-weight: 700; letter-spacing: .6px; text-transform: uppercase; color: var(--dm-muted); }
 #page-absensi .history-table tbody tr.row-today td:first-child { color: var(--dm-accent); }
+/* Nama hari di kolom Tanggal (mis. "Senin, 09 Nov 2026"): lebih kecil & redup supaya tetap muat. */
+#page-absensi .history-table .hist-day { font-size: .86em; font-weight: 600; opacity: .72; }
+#page-absensi .history-table .hist-day::after { content: ','; }
+@media (max-width: 768px) {
+    /* Kartu mobile: nama hari di baris sendiri di atas tanggal (kolom judul kartu sempit). */
+    #page-absensi .history-card .history-table .hist-day {
+        display: block; font-size: .66rem; letter-spacing: .5px; text-transform: uppercase; line-height: 1.2;
+    }
+    #page-absensi .history-card .history-table .hist-day::after { content: none; }
+}
 
 /* ---------- Animasi masuk ---------- */
 @keyframes abRise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
