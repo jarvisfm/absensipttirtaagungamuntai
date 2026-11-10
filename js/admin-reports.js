@@ -1424,10 +1424,10 @@ const adminReports = {
                         <tr style="border-bottom:1px solid var(--border-color,#e5e7eb);">
                             <td style="padding:10px 12px;font-size:0.85rem;">${dateStr}${dinasLuarBadge}</td>
                             <td style="padding:10px 12px;font-size:0.82rem;">${row.shift || '-'}</td>
-                            <td style="padding:10px 12px;font-weight:600;color:#10b981;">${row.clockIn || '–'}${sessionStatusHtml('clockIn', row.clockIn)}${sessionGps('clockInLocation')}${oorBadge('clockIn')}${oowBadge('clockIn')}</td>
-                            <td style="padding:10px 12px;color:var(--text-muted);">${row.breakStart || '–'}${sessionStatusHtml('breakStart', row.breakStart)}${sessionGps('breakStartLocation')}${oorBadge('breakStart')}${oowBadge('breakStart')}</td>
-                            <td style="padding:10px 12px;color:var(--text-muted);">${row.breakEnd || '–'}${sessionStatusHtml('breakEnd', row.breakEnd)}${sessionGps('breakEndLocation')}${oorBadge('breakEnd')}${oowBadge('breakEnd')}</td>
-                            <td style="padding:10px 12px;font-weight:600;color:#EF4444;">${row.clockOut || '–'}${sessionStatusHtml('clockOut', row.clockOut)}${sessionGps('clockOutLocation')}${oorBadge('clockOut')}${oowBadge('clockOut')}</td>
+                            <td style="padding:10px 12px;font-weight:600;color:#10b981;">${row.clockIn || '–'}${sessionStatusHtml('clockIn', row.clockIn)}${sessionGps('clockInLocation')}${oorBadge('clockIn')}${oowBadge('clockIn')}${this._reAbsenBadge(row, 'clockIn')}</td>
+                            <td style="padding:10px 12px;color:var(--text-muted);">${row.breakStart || '–'}${sessionStatusHtml('breakStart', row.breakStart)}${sessionGps('breakStartLocation')}${oorBadge('breakStart')}${oowBadge('breakStart')}${this._reAbsenBadge(row, 'breakStart')}</td>
+                            <td style="padding:10px 12px;color:var(--text-muted);">${row.breakEnd || '–'}${sessionStatusHtml('breakEnd', row.breakEnd)}${sessionGps('breakEndLocation')}${oorBadge('breakEnd')}${oowBadge('breakEnd')}${this._reAbsenBadge(row, 'breakEnd')}</td>
+                            <td style="padding:10px 12px;font-weight:600;color:#EF4444;">${row.clockOut || '–'}${sessionStatusHtml('clockOut', row.clockOut)}${sessionGps('clockOutLocation')}${oorBadge('clockOut')}${oowBadge('clockOut')}${this._reAbsenBadge(row, 'clockOut')}</td>
                             <td style="padding:10px 12px;font-size:0.75rem;max-width:160px;">${lokasiHtml}</td>
                             <td style="padding:10px 12px;">${fotoHtml}${faceReviewBadge}</td>
                         </tr>
@@ -1470,6 +1470,22 @@ const adminReports = {
             }
         };
         for (let i = 0; i < 3; i++) worker();
+    },
+
+    // [TAMBAHAN 2026-11-10] Catatan untuk sesi yang diabsen ulang setelah sanggahan absensinya DITOLAK
+    // (data: kolom reAbsenInfo per sesi, diisi reAbsenSanggahanAbsensi() di Sanggahanabsensi.gs).
+    _reAbsenBadge(row, field) {
+        let info = row && row.reAbsenInfo;
+        if (!info) return '';
+        if (typeof info === 'string') { try { info = JSON.parse(info); } catch (e) { return ''; } }
+        const re = info && info[field];
+        if (!re) return '';
+        let tgl = '';
+        if (re.date && String(re.date) !== String(row.date)) {
+            const p = String(re.date).split('-');
+            if (p.length === 3) tgl = ` (tgl ${p[2]}/${p[1]}/${p[0]})`;
+        }
+        return `<br><span style="display:inline-block;margin-top:2px;background:#FEE2E2;color:#B91C1C;font-size:0.65rem;font-weight:600;padding:1px 6px;border-radius:10px;" title="Sanggahan absensi sesi ini ditolak Admin, karyawan lalu absen ulang"><i class="fas fa-rotate-right"></i> Sanggahan ditolak &middot; Absen ulang${tgl}</span>`;
     },
 
     renderAttendanceMobileCards(employees, month, months, dateFrom, dateTo) {
@@ -1690,10 +1706,10 @@ const adminReports = {
                             </div>
                             <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:0.78rem;color:var(--text-muted);margin-bottom:6px;">
                                 <div>Shift: <span style="color:var(--text-primary,#111);">${row.shift || '-'}</span></div>
-                                <div>Masuk: <span style="color:#10b981;font-weight:600;">${row.clockIn || '–'}</span>${sessionStatusHtmlM('clockIn', row.clockIn)}${sessionGps('clockInLocation')}${oorBadgeM('clockIn')}${oowBadgeM('clockIn')}</div>
-                                <div>Istirahat: ${row.breakStart || '–'}${sessionStatusHtmlM('breakStart', row.breakStart)}${sessionGps('breakStartLocation')}${oorBadgeM('breakStart')}${oowBadgeM('breakStart')}</div>
-                                <div>Kembali: ${row.breakEnd || '–'}${sessionStatusHtmlM('breakEnd', row.breakEnd)}${sessionGps('breakEndLocation')}${oorBadgeM('breakEnd')}${oowBadgeM('breakEnd')}</div>
-                                <div>Pulang: <span style="color:#EF4444;font-weight:600;">${row.clockOut || '–'}</span>${sessionStatusHtmlM('clockOut', row.clockOut)}${sessionGps('clockOutLocation')}${oorBadgeM('clockOut')}${oowBadgeM('clockOut')}</div>
+                                <div>Masuk: <span style="color:#10b981;font-weight:600;">${row.clockIn || '–'}</span>${sessionStatusHtmlM('clockIn', row.clockIn)}${sessionGps('clockInLocation')}${oorBadgeM('clockIn')}${oowBadgeM('clockIn')}${this._reAbsenBadge(row, 'clockIn')}</div>
+                                <div>Istirahat: ${row.breakStart || '–'}${sessionStatusHtmlM('breakStart', row.breakStart)}${sessionGps('breakStartLocation')}${oorBadgeM('breakStart')}${oowBadgeM('breakStart')}${this._reAbsenBadge(row, 'breakStart')}</div>
+                                <div>Kembali: ${row.breakEnd || '–'}${sessionStatusHtmlM('breakEnd', row.breakEnd)}${sessionGps('breakEndLocation')}${oorBadgeM('breakEnd')}${oowBadgeM('breakEnd')}${this._reAbsenBadge(row, 'breakEnd')}</div>
+                                <div>Pulang: <span style="color:#EF4444;font-weight:600;">${row.clockOut || '–'}</span>${sessionStatusHtmlM('clockOut', row.clockOut)}${sessionGps('clockOutLocation')}${oorBadgeM('clockOut')}${oowBadgeM('clockOut')}${this._reAbsenBadge(row, 'clockOut')}</div>
                             </div>
                             <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
                                 <div style="flex:1;min-width:0;">${lokasiHtml}</div>
