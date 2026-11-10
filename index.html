@@ -991,25 +991,21 @@
                             <h2 id="face-rec-title">Verifikasi Wajah</h2>
                             <p id="face-rec-subtitle">Pastikan wajah Anda terlihat jelas di kamera</p>
                         </div>
-                        <!-- [TAMBAHAN] Panel kesiapan Kamera & Lokasi - diisi _readinessTick() di face-recognition.js -->
-                        <div class="fr-ready" id="fr-ready" data-state="wait">
-                            <div class="fr-ready-tiles">
-                                <div class="fr-tile" id="fr-tile-cam" data-s="wait">
-                                    <span class="fr-tile-ic"><i class="fas fa-video"></i></span>
-                                    <span class="fr-tile-tx"><b>Kamera</b><small id="fr-cam-txt">Menyiapkan...</small></span>
-                                    <span class="fr-tile-st"><i class="fas fa-spinner fa-spin"></i></span>
-                                </div>
-                                <div class="fr-tile" id="fr-tile-loc" data-s="wait">
-                                    <span class="fr-tile-ic"><i class="fas fa-location-dot"></i></span>
-                                    <span class="fr-tile-tx"><b>Lokasi</b><small id="fr-loc-txt">Mencari lokasi...</small></span>
-                                    <span class="fr-tile-st"><i class="fas fa-spinner fa-spin"></i></span>
-                                </div>
-                            </div>
-                            <div class="fr-ready-msg" id="fr-ready-msg"></div>
-                        </div>
                         <div class="face-rec-grid">
                             <div class="camera-section">
                                 <div class="camera-card">
+                                    <!-- [TAMBAHAN] Status Kamera & Lokasi - pil kecil di pojok kiri atas kamera (tidak menutupi wajah);
+                                         diisi _readinessTick() di face-recognition.js -->
+                                    <div class="fr-ready" id="fr-ready" data-state="wait">
+                                        <div class="fr-tile" id="fr-tile-cam" data-s="wait">
+                                            <span class="fr-tile-st"><i class="fas fa-spinner fa-spin"></i></span>
+                                            <span class="fr-tile-tx"><b>Kamera</b><small id="fr-cam-txt">Menyiapkan...</small></span>
+                                        </div>
+                                        <div class="fr-tile" id="fr-tile-loc" data-s="wait">
+                                            <span class="fr-tile-st"><i class="fas fa-spinner fa-spin"></i></span>
+                                            <span class="fr-tile-tx"><b>Lokasi</b><small id="fr-loc-txt">Mencari...</small></span>
+                                        </div>
+                                    </div>
                                     <div class="camera-preview" id="camera-preview">
                                         <video id="camera-video" autoplay playsinline muted></video>
                                         <canvas id="camera-canvas" style="display: none;"></canvas>
@@ -1039,6 +1035,7 @@
                                             <i class="fas fa-sync-alt"></i>
                                         </button>
                                     </div>
+                                    <div class="fr-ready-msg" id="fr-ready-msg" data-state="wait"></div>
                                     <div class="camera-controls">
                                         <div class="btn-camera" id="btn-capture" style="pointer-events:none;cursor:default;"><i
                                                 class="fas fa-spinner fa-spin"></i><span>Menunggu wajah...</span></div>
