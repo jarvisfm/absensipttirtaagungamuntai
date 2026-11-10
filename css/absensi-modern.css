@@ -25,7 +25,7 @@ body:has(#page-dashboard .welcome-card.evening) #page-absensi {
 #page-absensi .absensi-container { --abs-overlap: 72px; --abs-gap: 0px; }
 #page-absensi .absensi-container:has(
     #dinas-luar-info:not([style*="none"]), #excused-info:not([style*="none"]), #holiday-badge-info:not([style*="none"]),
-    #pending-save-info:not([style*="none"]), #offline-queue-banner:not([style*="none"])) { --abs-overlap: 0px; --abs-gap: 14px; }
+    #pending-save-info:not([style*="none"]), #offline-queue-banner:not([style*="none"]), #reabsen-sanggahan-card:not([style*="none"])) { --abs-overlap: 0px; --abs-gap: 14px; }
 
 /* ---------- Hero (shift + jam) ---------- */
 #page-absensi .absensi-header {
@@ -254,3 +254,30 @@ body:has(#page-dashboard .welcome-card.evening) #page-absensi {
     #page-absensi .absensi-header::before, #page-absensi .absensi-header::after,
     #page-absensi .absensi-grid > *, #page-absensi .history-card { animation: none !important; }
 }
+
+/* ---------- [TAMBAHAN 2026-11-10] Kartu "Sanggahan Ditolak - Absen Ulang" ---------- */
+#page-absensi .reabsen-card {
+    margin: 0 10px 16px; padding: 16px; border-radius: 22px;
+    background: linear-gradient(160deg, #fff1f2 0%, #fff 70%); border: 1px solid rgba(244, 63, 94, .25);
+    box-shadow: 0 14px 30px -20px rgba(244, 63, 94, .55);
+}
+#page-absensi .reabsen-head { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+#page-absensi .reabsen-ic { flex: none; width: 40px; height: 40px; border-radius: 14px; display: grid; place-items: center; background: rgba(244, 63, 94, .12); color: #e11d48; }
+#page-absensi .reabsen-head strong { display: block; font-size: .9rem; font-weight: 700; color: var(--dm-ink); }
+#page-absensi .reabsen-head small { display: block; font-size: .72rem; color: var(--dm-muted); }
+#page-absensi .reabsen-list { display: flex; flex-direction: column; gap: 8px; }
+#page-absensi .reabsen-item {
+    display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap;
+    padding: 10px 12px; border-radius: 16px; background: #fff; border: 1px solid var(--dm-line);
+}
+#page-absensi .reabsen-info { min-width: 0; flex: 1 1 180px; }
+#page-absensi .reabsen-info strong { display: block; font-size: .82rem; font-weight: 700; color: var(--dm-ink); }
+#page-absensi .reabsen-info small { display: block; margin-top: 2px; font-size: .7rem; line-height: 1.35; color: var(--dm-muted); }
+#page-absensi .reabsen-btn {
+    border: 0; border-radius: 999px; padding: 9px 16px; font: inherit; font-size: .78rem; font-weight: 700; color: #fff; cursor: pointer;
+    background: linear-gradient(135deg, #f43f5e, #e11d48); box-shadow: 0 8px 16px -8px rgba(225, 29, 72, .7);
+}
+#page-absensi .reabsen-btn:active { transform: scale(.97); }
+#page-absensi .reabsen-wait { font-size: .7rem; font-weight: 600; color: var(--dm-muted); }
+#page-absensi .hist-reabsen-note { color: var(--dm-muted); font-size: .64rem; font-weight: 500; }
+@media (min-width: 769px) { #page-absensi .reabsen-card { margin: 0 28px 20px; } }
