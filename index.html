@@ -825,6 +825,10 @@
                             <button type="button" id="offline-queue-sync-btn" class="btn-secondary" style="white-space:nowrap;">Sinkron Sekarang</button>
                         </div>
 
+                        <!-- [TAMBAHAN 2026-11-10] Kartu "Sanggahan Ditolak - Absen Ulang". Diisi/ditampilkan oleh
+                             absensi._renderReAbsenCard() hanya kalau ada sesi yang boleh diabsen ulang. -->
+                        <div id="reabsen-sanggahan-card" class="reabsen-card" style="display:none;"></div>
+
                         <div class="absensi-grid">
                             <div class="attendance-main-card">
                                 <div class="attendance-status" id="attendance-status">
@@ -1321,7 +1325,7 @@
                                     <label style="display:flex;align-items:center;gap:8px;font-size:0.85rem;cursor:pointer;"><input type="radio" name="sa-alasan" value="listrik"> <span>Listrik padam</span></label>
                                     <label style="display:flex;align-items:center;gap:8px;font-size:0.85rem;cursor:pointer;"><input type="radio" name="sa-alasan" value="server"> <span>Server / aplikasi error</span></label>
                                 </div>
-                                <p style="font-size:0.74rem;color:var(--text-muted);margin:4px 0 0;">Sanggahan hanya untuk 3 kendala di atas, dan hanya bisa diajukan maksimal 3 hari ke belakang.</p>
+                                <p style="font-size:0.74rem;color:var(--text-muted);margin:4px 0 0;">Sanggahan hanya untuk 3 kendala di atas, dan hanya bisa diajukan untuk hari ini dan 2 hari sebelumnya.</p>
                             </div>
                             <div class="form-group" style="margin-top:10px;">
                                 <label style="font-weight:600;font-size:0.85rem;">Keterangan</label>
