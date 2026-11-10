@@ -291,3 +291,26 @@
     #page-dashboard .welcome-card::before, #page-dashboard .welcome-card::after,
     #page-dashboard .dashboard-grid > *, #page-dashboard .session-card .status-badge.active::before { animation: none !important; }
 }
+
+/* ---------- Kartu ulang tahun: versi minimalis (putih, aksen pink-ungu) ---------- */
+#page-dashboard .dashboard-welcome .birthday-card {
+    background: #fff; color: #0f172a; border: 1px solid #f3e8ff; border-radius: 20px; padding: 14px 16px; gap: 12px;
+    box-shadow: 0 8px 24px -14px rgba(168, 85, 247, .45); align-items: center;
+}
+#page-dashboard .dashboard-welcome .birthday-card::before {
+    width: 140px; height: 140px; right: -50px; top: -70px; background: radial-gradient(circle, rgba(236, 72, 153, .14), rgba(236, 72, 153, 0) 70%);
+}
+#page-dashboard .dashboard-welcome .birthday-card::after { display: none; animation: none; }
+#page-dashboard .dashboard-welcome .birthday-content::before {
+    content: "Ulang tahun hari ini"; margin-bottom: 6px; padding: 3px 10px 3px 9px; letter-spacing: .2px; text-transform: none;
+    font-size: .68rem; font-weight: 700; color: #be185d; background: #fdf2f8; border: 1px solid #fbcfe8;
+    -webkit-backdrop-filter: none; backdrop-filter: none;
+}
+#page-dashboard .dashboard-welcome .birthday-content h3 { color: #0f172a; font-size: 1rem; font-weight: 700; margin-bottom: 2px; }
+#page-dashboard .dashboard-welcome .birthday-content p { color: #64748b; opacity: 1; font-size: .78rem; }
+#page-dashboard .dashboard-welcome .birthday-illustration {
+    width: 44px; height: 44px; font-size: 1.15rem; align-self: center; border: 0; color: #fff; border-radius: 14px;
+    background: linear-gradient(135deg, #ec4899, #8b5cf6); box-shadow: 0 6px 14px -4px rgba(168, 85, 247, .55);
+    -webkit-backdrop-filter: none; backdrop-filter: none;
+}
+#page-dashboard .dashboard-welcome .birthday-illustration i { animation: none; }
