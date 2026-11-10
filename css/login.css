@@ -609,7 +609,7 @@
    Desktop (dua kolom) TIDAK berubah. Memakai #login-container supaya
    menang atas aturan .login-left di mobile.css yang dimuat belakangan.
    ============================================================ */
-@media (max-width: 992px) {
+@media all {
     #login-container {
         flex-direction: column;
         height: 100vh;
@@ -685,7 +685,7 @@
 }
 
 /* Layar pendek (HP kecil / keyboard terbuka): rapatkan bagian atas supaya form tetap muat */
-@media (max-width: 992px) and (max-height: 700px) {
+@media (max-height: 700px) {
     #login-container .login-left { padding-top: calc(12px + env(safe-area-inset-top)); padding-bottom: 16px; }
     #login-container .central-logo, #login-container .logo-core { width: 56px; height: 56px; border-radius: 16px; margin-bottom: 8px; }
     #login-container .central-logo { margin-bottom: 8px; }
@@ -696,7 +696,7 @@
     #login-container .input-wrapper input { height: 46px; }
     #login-container .btn-login { height: 48px; }
 }
-@media (max-width: 992px) and (max-height: 560px) {
+@media (max-height: 560px) {
     #login-container .login-live-clock, #login-container .company-name, #login-container .login-header p { display: none; }
     #login-container .login-left { padding-bottom: 12px; }
 }
@@ -706,7 +706,7 @@
    Titik-titik kecil naik pelan dari bawah ke atas, berulang mulus (pola
    digandakan 100vh di bawahnya lalu digeser -100vh). Murni CSS, ringan
    (cuma transform), dan otomatis mati kalau user memilih "kurangi animasi". */
-@media (max-width: 992px) {
+@media all {
     #login-container::after {
         content: ""; position: absolute; left: 0; top: 0; width: 1px; height: 1px; border-radius: 50%;
         background: transparent; pointer-events: none; z-index: 0; left: 0;
@@ -792,4 +792,19 @@
 @keyframes loginBlobFloat { from { transform: translate(0, 0) scale(1); } to { transform: translate(-24px, 22px) scale(1.12); } }
 @media (prefers-reduced-motion: reduce) {
     #login-container::after, #login-container::before { animation: none; }
+}
+
+
+/* ---- DESKTOP: tampilan sama dengan mobile (header biru + kartu putih), kartu dipusatkan di layar ---- */
+@media (min-width: 993px) {
+    #login-container { align-items: center; justify-content: center; overflow-y: auto; }
+    #login-container .login-left,
+    #login-container .login-right { width: 440px; max-width: 92vw; }
+    #login-container .login-left { padding: 20px 16px 22px; }
+    #login-container .login-right {
+        flex: 0 0 auto; min-height: 0; align-items: stretch; overflow: visible;
+        border-radius: 28px; padding: 30px 34px 18px; box-shadow: 0 24px 60px rgba(0, 0, 0, .35);
+    }
+    #login-container .login-form-container { min-height: 0; max-width: none; width: 100%; }
+    #login-container .login-footer { margin-top: 18px; }
 }
