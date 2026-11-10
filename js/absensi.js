@@ -497,6 +497,9 @@ const absensi = {
     // supaya kunjungan berikutnya (hari yang sama) bisa langsung tampil
     // instan dari cache di bagian atas init() sebelum data server datang.
     this._saveAttendanceSnapshotToCache();
+
+    // [TAMBAHAN 2026-11-10] Kartu "Sanggahan Ditolak - Absen Ulang" (tidak di-await, tidak menahan halaman).
+    this._loadReAbsenSanggahan();
 },
 
     // [TAMBAHAN 2026-09-14] Pasangan _readAttendanceSnapshotFromCache() di
@@ -1541,8 +1544,17 @@ const absensi = {
             ? '<span style="color:#D97706;font-weight:600;"><i class="fas fa-hourglass-half"></i> Menunggu Approval</span>'
             : (v || '–');
 
+        // [TAMBAHAN 2026-11-10] Sesi yang diabsen ulang setelah sanggahan ditolak: SELALU "Terlambat"; kalau
+        // absen ulangnya di hari yang BEDA dari tanggal absen, tambah catatan "Absen ulang tgl ...".
+        const reInfo = this._parseReAbsenInfo(record.reAbsenInfo);
         const sessionLabel = (field, actualValue) => {
             if (!actualValue) return '';
+            const re = reInfo[field];
+            if (re && re.date && actualValue !== 'Menunggu Approval' && actualValue !== 'Tidak Hadir') {
+                const beda = String(re.date) !== String(record.date);
+                return `<br><small style="color:#DC2626;font-weight:600;font-size:0.7rem;">Terlambat</small>`
+                    + (beda ? `<br><small class="hist-reabsen-note" style="color:var(--text-muted);font-size:0.64rem;">Absen ulang tgl ${this._fmtTanggalPendek(re.date)}</small>` : '');
+            }
             const lbl = getSessionAttendanceLabel(shiftTypesConfigFull, record.shift, record.date, field, actualValue);
             if (!lbl) return '';
             // PERBAIKAN: status "Terlambat" (sudah lewat batas toleransi -
@@ -2046,7 +2058,136 @@ const absensi = {
         setTimeout(() => { if (window.faceRecognition) window.faceRecognition.init('clock-out'); }, 100);
     },
 
+    // =====================================================================
+    // [TAMBAHAN 2026-11-10] ABSEN ULANG SETELAH SANGGAHAN DITOLAK
+    // Admin menolak sanggahan -> sesi tetap "Tidak Hadir" -> kartu #reabsen-sanggahan-card muncul di
+    // halaman Absensi -> karyawan tekan "Absen Ulang" -> verifikasi wajah+lokasi (halaman face-recognition
+    // yang SAMA dengan absen biasa) -> processWithVerification() mengenali konteksnya lewat
+    // faceRecognition._reAbsenCtx dan memanggil backend reAbsenSanggahanAbsensi() (jam server, status
+    // Terlambat), BUKAN saveAttendance(). Alur absen biasa tidak berubah.
+    // =====================================================================
+    _escHtml(s) {
+        return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    },
+
+    _fmtTanggalPendek(ymd) {
+        const [y, m, d] = String(ymd || '').split('-');
+        const months = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Ags','Sep','Okt','Nov','Des'];
+        return (y && m && d) ? `${d} ${months[parseInt(m, 10) - 1]} ${y}` : '-';
+    },
+
+    _parseReAbsenInfo(v) {
+        if (!v) return {};
+        if (typeof v === 'object') return v;
+        try { return JSON.parse(String(v)) || {}; } catch (e) { return {}; }
+    },
+
+    async _loadReAbsenSanggahan() {
+        try {
+            const user = auth.getCurrentUser();
+            if (!user) return;
+            const effectiveId = user.employeeId || user.id;
+            const res = await api.getSanggahanReAbsen(effectiveId);
+            this._renderReAbsenCard((res && res.success && Array.isArray(res.data)) ? res.data : []);
+        } catch (e) {
+            // gagal memuat = kartu disembunyikan saja, tidak mengganggu halaman Absensi
+            this._renderReAbsenCard([]);
+        }
+    },
+
+    _renderReAbsenCard(items) {
+        const card = document.getElementById('reabsen-sanggahan-card');
+        if (!card) return;
+        if (!items || !items.length) {
+            card.style.display = 'none';
+            card.innerHTML = '';
+            return;
+        }
+        const rows = items.map(it => {
+            const note = it.rejectedNote ? ` &middot; Catatan Admin: &ldquo;${this._escHtml(it.rejectedNote)}&rdquo;` : '';
+            const action = it.canNow
+                ? `<button type="button" class="reabsen-btn" onclick="absensi.handleReAbsen('${this._escHtml(it.sanggahanId)}','${this._escHtml(it.field)}')"><i class="fas fa-rotate-right"></i> Absen Ulang</button>`
+                : `<span class="reabsen-wait"><i class="fas fa-lock"></i> Absen sesi sebelumnya dulu</span>`;
+            return `<div class="reabsen-item">
+                <div class="reabsen-info">
+                    <strong>${this._fmtTanggalPendek(it.date)} &middot; ${this._escHtml(it.label)}</strong>
+                    <small>Batas absen ulang ${this._escHtml(it.deadline)}${note}</small>
+                </div>
+                ${action}
+            </div>`;
+        }).join('');
+        card.innerHTML = `
+            <div class="reabsen-head">
+                <span class="reabsen-ic"><i class="fas fa-triangle-exclamation"></i></span>
+                <div>
+                    <strong>Sanggahan Absensi Ditolak</strong>
+                    <small>Silakan absen ulang. Absen ulang akan tercatat Terlambat.</small>
+                </div>
+            </div>
+            <div class="reabsen-list">${rows}</div>`;
+        card.style.display = 'block';
+    },
+
+    handleReAbsen(sanggahanId, field) {
+        if (this._blockIfPageStillLoading()) return;
+        if (this._pendingAction) {
+            toast.warning('Absen sebelumnya masih diproses, mohon tunggu sebentar...');
+            return;
+        }
+        const actionMap = { clockIn: 'clock-in', breakStart: 'break', breakEnd: 'after-break', clockOut: 'clock-out' };
+        const action = actionMap[field];
+        if (!action) return;
+        if (this._blockIfNoProfilePhoto()) return;
+
+        router.navigate('face-recognition');
+        setTimeout(() => {
+            if (window.faceRecognition) {
+                window.faceRecognition.init(action);
+                // Diset SETELAH init() (init() mereset konteks ini - lihat face-recognition.js)
+                window.faceRecognition._reAbsenCtx = { sanggahanId: String(sanggahanId), field };
+            }
+        }, 100);
+    },
+
+    async _processReAbsen(ctx, verificationData) {
+        if (window.faceRecognition) window.faceRecognition._reAbsenCtx = null;
+        try {
+            const user = auth.getCurrentUser();
+            const effectiveId = user ? (user.employeeId || user.id) : null;
+            const v = verificationData || {};
+            const res = await api.reAbsenSanggahanAbsensi({
+                userId: effectiveId,
+                sanggahanId: ctx.sanggahanId,
+                field: ctx.field,
+                verificationPhoto: v.photo || '',
+                verificationLocation: v.location || '',
+                verificationTimestamp: v.timestamp || '',
+                faceMatchScore: (v.faceMatchScore !== undefined && v.faceMatchScore !== null) ? v.faceMatchScore : '',
+                faceMatchFlag: v.faceMatchFlag || false
+            });
+            if (!res || !res.success) {
+                toast.error((res && res.error) || 'Absen ulang gagal disimpan. Silakan coba lagi.');
+                router.navigate('absensi');
+                return { success: false };
+            }
+            const d = res.data || {};
+            toast.success(d.sameDay
+                ? 'Absen ulang berhasil - tercatat Terlambat.'
+                : `Absen ulang tgl ${this._fmtTanggalPendek(d.date)} berhasil - tercatat Terlambat.`);
+            await Promise.all([this._loadReAbsenSanggahan(), this.loadAttendanceHistory()]);
+            return { success: true };
+        } catch (e) {
+            toast.error('Absen ulang gagal disimpan. Periksa koneksi lalu coba lagi.');
+            return { success: false };
+        }
+    },
+
     async processWithVerification(action, verificationData, baseAttendanceData) {
+        // [TAMBAHAN 2026-11-10] Absen ulang sanggahan yang ditolak - lihat _processReAbsen().
+        // Konteksnya diisi handleReAbsen() & direset tiap faceRecognition.init(), jadi absen biasa tidak terpengaruh.
+        const reAbsenCtx = window.faceRecognition && window.faceRecognition._reAbsenCtx;
+        if (reAbsenCtx) return this._processReAbsen(reAbsenCtx, verificationData);
+
         // PENTING: pakai dateTime.now() (jam server), BUKAN new Date() (jam
         // HP) - supaya jam yang tercatat sebagai clockIn/clockOut/dst tidak
         // bisa dikelabui dengan mengubah setting jam/tanggal di HP.
