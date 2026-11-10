@@ -130,7 +130,7 @@ const dashboard = {
         }
 
         const userName = auth.getCurrentUser()?.name || 'User';
-        greetingEl.innerHTML = `${greeting}, <span id="welcome-name">${userName}</span>! 👋`;
+        greetingEl.innerHTML = `${greeting}, <span id="welcome-name">${userName}</span>!`;
 
         if (iconEl) {
             iconEl.className = `fas ${icon}`;
@@ -206,7 +206,7 @@ const dashboard = {
             const namesText = birthdayNames.length === 1
                 ? birthdayNames[0]
                 : birthdayNames.slice(0, -1).join(', ') + ' & ' + birthdayNames[birthdayNames.length - 1];
-            if (msgEl) msgEl.textContent = `Selamat Ulang Tahun, ${namesText}! 🎉`;
+            if (msgEl) msgEl.textContent = `Selamat Ulang Tahun, ${namesText}!`;
         } else {
             card.style.display = 'none';
         }
