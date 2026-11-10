@@ -1,0 +1,21 @@
+/* Transisi perpindahan halaman + fade-in kartu (mobile & desktop). Murni CSS, tidak mengubah layout.
+   Pakai opacity + geser kecil dengan fill-mode "backwards" supaya setelah selesai tidak ada sisa transform
+   (aman untuk elemen fixed/modal di dalam halaman). */
+@keyframes taaPageIn   { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+@keyframes taaCardIn   { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+
+.page.active { animation: taaPageIn .32s cubic-bezier(.22,.61,.36,1) backwards; }
+
+.page.active :is(.card, .glass-card, [class*="-card"], .stat-card, .summary-card, .panel):not(.modal-container):not(:is([class*="card"], .card, .panel) :is([class*="card"], .card, .panel)) {
+    animation: taaCardIn .45s cubic-bezier(.22,.61,.36,1) backwards;
+}
+/* Berjenjang (stagger) per urutan di induknya */
+.page.active :is(.card, .glass-card, [class*="-card"], .stat-card, .summary-card, .panel):nth-child(2) { animation-delay: .05s; }
+.page.active :is(.card, .glass-card, [class*="-card"], .stat-card, .summary-card, .panel):nth-child(3) { animation-delay: .10s; }
+.page.active :is(.card, .glass-card, [class*="-card"], .stat-card, .summary-card, .panel):nth-child(4) { animation-delay: .15s; }
+.page.active :is(.card, .glass-card, [class*="-card"], .stat-card, .summary-card, .panel):nth-child(5) { animation-delay: .20s; }
+.page.active :is(.card, .glass-card, [class*="-card"], .stat-card, .summary-card, .panel):nth-child(n+6) { animation-delay: .25s; }
+
+@media (prefers-reduced-motion: reduce) {
+    .page.active, .page.active :is(.card, .glass-card, [class*="-card"], .stat-card, .summary-card, .panel) { animation: none !important; }
+}
