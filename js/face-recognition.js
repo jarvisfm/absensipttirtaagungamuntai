@@ -305,7 +305,7 @@ const faceRecognition = {
         const retry = document.getElementById('btn-retry-location');
         const stTxt = stEl ? stEl.textContent.replace(/\s+/g, ' ').trim() : '';
         const retryShown = !!(retry && retry.style.display && retry.style.display !== 'none');
-        let loc = 'wait', locTxt = 'Mencari lokasi... ' + secs + 'd';
+        let loc = 'wait', locTxt = 'Mencari... ' + secs + 'd';
         if (this.locationVerified) { loc = 'ok'; locTxt = 'Siap'; }
         else if (retryShown || (stEl && stEl.classList.contains('out-of-range'))) { loc = 'err'; locTxt = stTxt || 'Lokasi belum valid'; }
         else if (this.position) { locTxt = 'Memeriksa radius...'; }
@@ -320,6 +320,7 @@ const faceRecognition = {
         else { msg = 'Menyiapkan kamera dan mencari lokasi... mohon tunggu sebentar.'; }
         if (box.getAttribute('data-state') !== state) box.setAttribute('data-state', state);
         const m = document.getElementById('fr-ready-msg');
+        if (m && m.getAttribute('data-state') !== state) m.setAttribute('data-state', state);
         const html = '<i class="fas ' + icon + '"></i><span>' + msg.replace(/&/g, '&amp;').replace(/</g, '&lt;') + '</span>';
         if (m && m.dataset.k !== html) { m.dataset.k = html; m.innerHTML = html; }
     },
