@@ -98,25 +98,20 @@
 @media (prefers-reduced-motion:reduce){#page-face-recognition .face-frame.detected{animation:none}}
 
 
-/* ---------- Panel kesiapan Kamera & Lokasi ---------- */
-#page-face-recognition .fr-ready{margin:0 0 16px;padding:12px;border-radius:16px;background:#fff;border:1px solid rgba(15,23,42,.08);box-shadow:0 6px 18px rgba(15,23,42,.06)}
-#page-face-recognition .fr-ready-tiles{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-#page-face-recognition .fr-tile{display:flex;align-items:center;gap:9px;padding:10px;border-radius:12px;border:1.5px solid #e2e8f0;background:#f8fafc;transition:background .25s,border-color .25s;min-width:0}
-#page-face-recognition .fr-tile-ic{flex:0 0 32px;height:32px;border-radius:10px;display:flex;align-items:center;justify-content:center;background:#e2e8f0;color:#64748b;font-size:14px;transition:background .25s,color .25s}
-#page-face-recognition .fr-tile-tx{display:flex;flex-direction:column;min-width:0;flex:1;line-height:1.25}
-#page-face-recognition .fr-tile-tx b{font-size:12.5px;color:#0f172a}
-#page-face-recognition .fr-tile-tx small{font-size:10.5px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-#page-face-recognition .fr-tile-st{flex:0 0 auto;font-size:15px;color:#94a3b8}
-#page-face-recognition .fr-tile[data-s="wait"]{background:#fff7ed;border-color:#fdba74}
-#page-face-recognition .fr-tile[data-s="wait"] .fr-tile-ic{background:#fed7aa;color:#c2410c}
-#page-face-recognition .fr-tile[data-s="wait"] .fr-tile-st{color:#ea580c}
-#page-face-recognition .fr-tile[data-s="ok"]{background:#ecfdf5;border-color:#6ee7b7}
-#page-face-recognition .fr-tile[data-s="ok"] .fr-tile-ic{background:#a7f3d0;color:#047857}
-#page-face-recognition .fr-tile[data-s="ok"] .fr-tile-st{color:#059669}
-#page-face-recognition .fr-tile[data-s="err"]{background:#fef2f2;border-color:#fca5a5}
-#page-face-recognition .fr-tile[data-s="err"] .fr-tile-ic{background:#fecaca;color:#b91c1c}
-#page-face-recognition .fr-tile[data-s="err"] .fr-tile-st{color:#dc2626}
-#page-face-recognition .fr-ready-msg{margin-top:10px;padding:9px 11px;border-radius:10px;font-size:12px;line-height:1.45;font-weight:600;display:flex;gap:8px;align-items:flex-start;background:#fff7ed;color:#9a3412}
-#page-face-recognition .fr-ready[data-state="ok"] .fr-ready-msg{background:#ecfdf5;color:#065f46}
-#page-face-recognition .fr-ready[data-state="err"] .fr-ready-msg{background:#fef2f2;color:#991b1b}
+/* ---------- Status Kamera & Lokasi: pil kecil di pojok kiri atas kamera ---------- */
+#page-face-recognition .camera-card{position:relative}
+#page-face-recognition .fr-ready{position:absolute;top:19px;left:20px;right:62px;z-index:6;display:flex;gap:6px;pointer-events:none}
+#page-face-recognition .fr-tile{display:flex;align-items:center;gap:6px;padding:4px 9px 4px 7px;border-radius:999px;min-width:0;max-width:50%;background:rgba(15,23,42,.55);border:1px solid rgba(255,255,255,.22);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);color:#fff;transition:border-color .25s,background .25s}
+#page-face-recognition .fr-tile-st{flex:0 0 auto;font-size:12px;line-height:1;color:#fdba74}
+#page-face-recognition .fr-tile-tx{display:flex;flex-direction:row;align-items:baseline;gap:5px;min-width:0;line-height:1.2}
+#page-face-recognition .fr-tile-tx b{font-size:10.5px;font-weight:700;color:#fff}
+#page-face-recognition .fr-tile-tx small{font-size:10px;color:rgba(255,255,255,.75);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#page-face-recognition .fr-tile[data-s="ok"]{border-color:rgba(52,211,153,.7)}
+#page-face-recognition .fr-tile[data-s="ok"] .fr-tile-st{color:#34d399}
+#page-face-recognition .fr-tile[data-s="err"]{border-color:rgba(248,113,113,.8);background:rgba(127,29,29,.55)}
+#page-face-recognition .fr-tile[data-s="err"] .fr-tile-st{color:#fca5a5}
+#page-face-recognition .fr-tile[data-s="wait"]{border-color:rgba(251,146,60,.7)}
+#page-face-recognition .fr-ready-msg{margin:10px 0 0;padding:8px 11px;border-radius:10px;font-size:11.5px;line-height:1.45;font-weight:600;display:flex;gap:8px;align-items:flex-start;background:#fff7ed;color:#9a3412}
+#page-face-recognition .fr-ready-msg[data-state="ok"]{background:#ecfdf5;color:#065f46}
+#page-face-recognition .fr-ready-msg[data-state="err"]{background:#fef2f2;color:#991b1b}
 #page-face-recognition .fr-ready-msg i{margin-top:2px}
