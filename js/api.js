@@ -769,6 +769,13 @@ const api = {
     async rejectSanggahanAbsensi(id, approver, catatan) {
         return this.request('rejectSanggahanAbsensi', { id, approver, catatan });
     },
+    // [TAMBAHAN 2026-11-10] Absen ulang setelah sanggahan ditolak (lihat reAbsenSanggahanAbsensi() di Sanggahanabsensi.gs)
+    async getSanggahanReAbsen(userId) {
+        return this.request('getSanggahanReAbsen', { userId });
+    },
+    async reAbsenSanggahanAbsensi(data) {
+        return this.request('reAbsenSanggahanAbsensi', data);
+    },
 
     // ========== LEAVES (CUTI) ==========
 
