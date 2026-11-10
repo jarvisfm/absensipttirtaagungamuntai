@@ -178,6 +178,9 @@ const faceRecognition = {
 
     init(action) {
         this.currentAction = action;
+        // [TAMBAHAN 2026-11-10] Konteks "Absen Ulang Sanggahan" (diisi absensi.handleReAbsen() SESUDAH init() ini).
+        // Direset tiap init() supaya absen biasa yang dimulai belakangan tidak ikut terbawa konteks lama.
+        this._reAbsenCtx = null;
         this.photoCaptured = false;
         this.locationVerified = false;
         this.faceDetected = false;
