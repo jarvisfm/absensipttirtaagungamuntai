@@ -259,7 +259,69 @@ const faceRecognition = {
 
             // Bind buttons
             this.bindButtons();
+
+            // Panel kesiapan Kamera & Lokasi
+            this._readinessStart();
         });
+    },
+
+    // [TAMBAHAN] Panel "Kamera | Lokasi" di atas halaman verifikasi: supaya karyawan tahu apa yang
+    // sedang ditunggu (mis. kamera sudah siap tapi lokasi belum dapat) dan tidak mengira aplikasi error.
+    // Hanya MEMBACA state yang sudah ada (stream/video, locationVerified, #location-status) - tidak mengubah alur absen.
+    _readinessStart() {
+        this._readyT0 = Date.now();
+        if (this._readyTimer) clearInterval(this._readyTimer);
+        this._readinessTick();
+        this._readyTimer = setInterval(() => this._readinessTick(), 500);
+    },
+
+    _readinessTick() {
+        const page = document.getElementById('page-face-recognition');
+        const box = document.getElementById('fr-ready');
+        if (!box || !page || !page.classList.contains('active')) {
+            if (this._readyTimer && (!page || !page.classList.contains('active'))) { clearInterval(this._readyTimer); this._readyTimer = null; }
+            return;
+        }
+        const secs = Math.round((Date.now() - (this._readyT0 || Date.now())) / 1000);
+        const set = (id, st, txt) => {
+            const t = document.getElementById('fr-tile-' + id);
+            const x = document.getElementById('fr-' + id + '-txt');
+            if (!t) return;
+            if (t.getAttribute('data-s') !== st) {
+                t.setAttribute('data-s', st);
+                const ic = t.querySelector('.fr-tile-st i');
+                if (ic) ic.className = st === 'ok' ? 'fas fa-circle-check' : (st === 'err' ? 'fas fa-circle-exclamation' : 'fas fa-spinner fa-spin');
+            }
+            if (x && x.textContent !== txt) x.textContent = txt;
+        };
+
+        // Kamera
+        const v = this.video || document.getElementById('camera-video');
+        const camOk = !!(this.stream && v && v.srcObject && v.readyState >= 2);
+        set('cam', camOk ? 'ok' : 'wait', camOk ? 'Siap' : 'Menyiapkan...');
+
+        // Lokasi
+        const stEl = document.getElementById('location-status');
+        const retry = document.getElementById('btn-retry-location');
+        const stTxt = stEl ? stEl.textContent.replace(/\s+/g, ' ').trim() : '';
+        const retryShown = !!(retry && retry.style.display && retry.style.display !== 'none');
+        let loc = 'wait', locTxt = 'Mencari lokasi... ' + secs + 'd';
+        if (this.locationVerified) { loc = 'ok'; locTxt = 'Siap'; }
+        else if (retryShown || (stEl && stEl.classList.contains('out-of-range'))) { loc = 'err'; locTxt = stTxt || 'Lokasi belum valid'; }
+        else if (this.position) { locTxt = 'Memeriksa radius...'; }
+        set('loc', loc, locTxt);
+
+        // Pesan ringkas
+        let state = 'wait', icon = 'fa-circle-info', msg;
+        if (camOk && loc === 'ok') { state = 'ok'; icon = 'fa-circle-check'; msg = 'Kamera dan lokasi siap. Arahkan wajah ke kamera.'; }
+        else if (loc === 'err') { state = 'err'; icon = 'fa-triangle-exclamation'; msg = 'Lokasi bermasalah: ' + (stTxt || 'belum valid') + '. Pastikan GPS aktif lalu tekan "Coba Lagi" / segarkan lokasi di bawah.'; }
+        else if (camOk) { msg = 'Kamera sudah siap, tetapi lokasi Anda belum didapat. Ini bukan error - mohon tunggu' + (secs > 8 ? ' (pastikan GPS/izin lokasi aktif; bila terlalu lama, tekan segarkan lokasi di bawah)' : '') + '.'; }
+        else if (loc === 'ok') { msg = 'Lokasi sudah siap, menunggu kamera... Izinkan akses kamera bila diminta.'; }
+        else { msg = 'Menyiapkan kamera dan mencari lokasi... mohon tunggu sebentar.'; }
+        if (box.getAttribute('data-state') !== state) box.setAttribute('data-state', state);
+        const m = document.getElementById('fr-ready-msg');
+        const html = '<i class="fas ' + icon + '"></i><span>' + msg.replace(/&/g, '&amp;').replace(/</g, '&lt;') + '</span>';
+        if (m && m.dataset.k !== html) { m.dataset.k = html; m.innerHTML = html; }
     },
 
     /**
