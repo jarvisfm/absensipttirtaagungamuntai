@@ -96,3 +96,27 @@
   #page-face-recognition .face-guide p{font-size:12px;padding:7px 13px}
 }
 @media (prefers-reduced-motion:reduce){#page-face-recognition .face-frame.detected{animation:none}}
+
+
+/* ---------- Panel kesiapan Kamera & Lokasi ---------- */
+#page-face-recognition .fr-ready{margin:0 0 16px;padding:12px;border-radius:16px;background:#fff;border:1px solid rgba(15,23,42,.08);box-shadow:0 6px 18px rgba(15,23,42,.06)}
+#page-face-recognition .fr-ready-tiles{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+#page-face-recognition .fr-tile{display:flex;align-items:center;gap:9px;padding:10px;border-radius:12px;border:1.5px solid #e2e8f0;background:#f8fafc;transition:background .25s,border-color .25s;min-width:0}
+#page-face-recognition .fr-tile-ic{flex:0 0 32px;height:32px;border-radius:10px;display:flex;align-items:center;justify-content:center;background:#e2e8f0;color:#64748b;font-size:14px;transition:background .25s,color .25s}
+#page-face-recognition .fr-tile-tx{display:flex;flex-direction:column;min-width:0;flex:1;line-height:1.25}
+#page-face-recognition .fr-tile-tx b{font-size:12.5px;color:#0f172a}
+#page-face-recognition .fr-tile-tx small{font-size:10.5px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#page-face-recognition .fr-tile-st{flex:0 0 auto;font-size:15px;color:#94a3b8}
+#page-face-recognition .fr-tile[data-s="wait"]{background:#fff7ed;border-color:#fdba74}
+#page-face-recognition .fr-tile[data-s="wait"] .fr-tile-ic{background:#fed7aa;color:#c2410c}
+#page-face-recognition .fr-tile[data-s="wait"] .fr-tile-st{color:#ea580c}
+#page-face-recognition .fr-tile[data-s="ok"]{background:#ecfdf5;border-color:#6ee7b7}
+#page-face-recognition .fr-tile[data-s="ok"] .fr-tile-ic{background:#a7f3d0;color:#047857}
+#page-face-recognition .fr-tile[data-s="ok"] .fr-tile-st{color:#059669}
+#page-face-recognition .fr-tile[data-s="err"]{background:#fef2f2;border-color:#fca5a5}
+#page-face-recognition .fr-tile[data-s="err"] .fr-tile-ic{background:#fecaca;color:#b91c1c}
+#page-face-recognition .fr-tile[data-s="err"] .fr-tile-st{color:#dc2626}
+#page-face-recognition .fr-ready-msg{margin-top:10px;padding:9px 11px;border-radius:10px;font-size:12px;line-height:1.45;font-weight:600;display:flex;gap:8px;align-items:flex-start;background:#fff7ed;color:#9a3412}
+#page-face-recognition .fr-ready[data-state="ok"] .fr-ready-msg{background:#ecfdf5;color:#065f46}
+#page-face-recognition .fr-ready[data-state="err"] .fr-ready-msg{background:#fef2f2;color:#991b1b}
+#page-face-recognition .fr-ready-msg i{margin-top:2px}
