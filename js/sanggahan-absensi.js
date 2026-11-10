@@ -10,7 +10,7 @@
  * konsisten.
  */
 const sanggahanAbsensi = {
-    MAX_HARI: 3,                  // batas pengajuan ke belakang (hari) - samakan dengan SANGGAHAN_MAX_HARI di server
+    MAX_HARI: 2,                  // [DIUBAH 2026-11-10: 3 -> 2] hari ini + 2 hari sebelumnya - samakan dengan SANGGAHAN_MAX_HARI di server
     ALASAN: { jaringan: 'Tidak ada jaringan / sinyal', listrik: 'Listrik padam', server: 'Server / aplikasi error' },
     MAX_BUKTI_BYTES: 1024 * 1024, // batas ukuran bukti: 1 MB
     _bukti: null,                 // { nama, base64, mime, size, previewUrl } - bukti foto yang dipilih
