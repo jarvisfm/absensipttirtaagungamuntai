@@ -299,6 +299,52 @@ const dashboard = {
                 durationEl.textContent = this._workDurationLabel(todayAttendance) || '-';
             }
         }
+
+        // [TAMBAHAN] Hari ini sedang CUTI (sudah disetujui penuh) -> kartu
+        // "Sesi Hari Ini" ikut menampilkan cuti, bukan jam absen / "0j 0m" /
+        // "Aktif". Dibaca dari data cuti karyawan (this.myLeaves) yang sudah
+        // dimuat dashboard, jadi tetap benar walau di Attendance hari itu
+        // sudah terlanjur ada jam Masuk asli (cuti disetujui belakangan).
+        const badgeEl = document.querySelector('#page-dashboard .session-card .status-badge');
+        if (badgeEl) {
+            badgeEl.classList.add('active');
+            badgeEl.classList.remove('on-leave');
+            badgeEl.textContent = 'Aktif';
+        }
+        const cutiHariIni = this._getApprovedLeaveToday(today);
+        if (cutiHariIni) {
+            const labelCuti = this._leaveLabel(cutiHariIni);
+            if (clockInEl) clockInEl.textContent = labelCuti;
+            if (clockOutEl) clockOutEl.textContent = labelCuti;
+            if (durationEl) durationEl.textContent = labelCuti;
+            if (badgeEl) {
+                badgeEl.classList.remove('active');
+                badgeEl.classList.add('on-leave');
+                badgeEl.textContent = 'Cuti';
+            }
+        }
+    },
+
+    // Cuti milik karyawan ini yang sudah disetujui penuh & rentang
+    // tanggalnya mencakup `today` (format YYYY-MM-DD), atau null.
+    _getApprovedLeaveToday(today) {
+        const ymd = (v) => String(v || '').substring(0, 10);
+        return (this.myLeaves || []).find(l =>
+            l && String(l.status || '').toLowerCase() === 'approved' &&
+            ymd(l.startDate) && ymd(l.endDate) &&
+            ymd(l.startDate) <= today && today <= ymd(l.endDate)
+        ) || null;
+    },
+
+    _leaveLabel(leave) {
+        const labels = {
+            annual: 'Cuti Tahunan',
+            important: 'Cuti Alasan Penting',
+            sick: 'Cuti Sakit',
+            besar: 'Cuti Besar',
+            maternity: 'Cuti Bersalin'
+        };
+        return leave.typeLabel || labels[leave.type] || 'Cuti';
     },
 
     updateProgressBar() {
