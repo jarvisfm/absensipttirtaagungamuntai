@@ -1910,6 +1910,7 @@ const jadwalJagaOperator = {
                 </div>
                 <div class="jjo-print-toolbar no-print">
                     <button class="btn btn-primary" id="jjo-print-now">Cetak / Simpan PDF</button>
+                    <button class="btn btn-secondary" id="jjo-save-pdf"><i class="fas fa-file-pdf"></i> Simpan PDF</button>
                     <button class="btn btn-secondary" id="jjo-print-close">Tutup</button>
                 </div>
             </div>
@@ -1919,12 +1920,149 @@ const jadwalJagaOperator = {
 
         const btnPrint = document.getElementById('jjo-print-now');
         const btnClose = document.getElementById('jjo-print-close');
+        // [TAMBAHAN 2026-11-12] Simpan langsung sebagai file PDF (tanpa dialog cetak) - lihat _savePdf().
+        const btnSavePdf = document.getElementById('jjo-save-pdf');
+        if (btnSavePdf) btnSavePdf.onclick = () => this._savePdf(btnSavePdf);
         if (btnPrint) btnPrint.onclick = () => setTimeout(() => { try { window.print(); } catch (e) { alert('Gagal membuka dialog Cetak / Simpan PDF.'); } }, 150);
         if (btnClose) btnClose.onclick = () => {
             overlay.classList.remove('active');
             overlay.innerHTML = '';
             document.body.style.overflow = '';
         };
+    },
+
+    // [TAMBAHAN 2026-11-12] Tombol "Simpan PDF" di halaman cetak: membuat file PDF A4 langsung
+    // (html2canvas + jsPDF, sudah dimuat di index.html - pola sama dengan print-letters.js) tanpa lewat
+    // dialog cetak. Jadwal bisa lebih dari 1 halaman, jadi gambar halaman dipotong per HALAMAN A4:
+    //  - potongan HANYA di batas antar-hari (kelompok baris sesi 1 hari tidak terbelah);
+    //  - header kolom tabel (No/Hari, Tanggal/Jam/...) diulang di atas halaman lanjutan;
+    //  - blok TTD "Diketahui Oleh / Dibuat Oleh" tidak terbelah.
+    // Tampilan layar & tombol "Cetak / Simpan PDF" yang lama TIDAK diubah.
+
+    // Rencana pemotongan (fungsi murni supaya mudah diuji): m = { total, pageH, topMargin, bottomMargin,
+    // headH, cuts[] } dalam piksel CSS; hasil = [{ start, end, first }].
+    _planPdfPages(m) {
+        const pages = [];
+        let start = 0;
+        let guard = 0;
+        while (start < m.total - 0.5 && guard++ < 200) {
+            const first = pages.length === 0;
+            const avail = first
+                ? (m.pageH - m.bottomMargin)
+                : (m.pageH - m.topMargin - m.headH - m.bottomMargin);
+            if (m.total - start <= avail) { pages.push({ start, end: m.total, first }); break; }
+            const limit = start + avail;
+            let cut = 0;
+            m.cuts.forEach(c => { if (c > start + 20 && c <= limit && c > cut) cut = c; });
+            if (!cut) cut = limit; // satu blok lebih tinggi dari halaman: potong paksa
+            pages.push({ start, end: cut, first });
+            start = cut;
+        }
+        return pages;
+    },
+
+    async _savePdf(btn) {
+        const pageEl = document.querySelector('#print-letter-overlay .jjo-print-page');
+        if (!pageEl) return;
+        const jsPDFCtor = (window.jspdf && window.jspdf.jsPDF) || window.jsPDF;
+        if (typeof html2canvas === 'undefined' || !jsPDFCtor) {
+            toast.error('Fitur PDF belum siap (library belum termuat). Muat ulang halaman, atau pakai tombol Cetak / Simpan PDF.');
+            return;
+        }
+        if (this._savingPdf) return;
+        this._savingPdf = true;
+        const oldHtml = btn ? btn.innerHTML : '';
+        if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Menyiapkan PDF...'; }
+
+        let holder = null;
+        try {
+            // Gaya khusus capture: meniru aturan @media print halaman ini (lihat css/jadwal-jaga-operator.css).
+            if (!document.getElementById('jjo-capture-style')) {
+                const st = document.createElement('style');
+                st.id = 'jjo-capture-style';
+                st.textContent = '.jjo-capture .jjo-print-body{padding-left:24px!important;padding-right:24px!important}' +
+                    '.jjo-capture .jjo-print-table th,.jjo-capture .jjo-print-table td{padding:6px 7px}';
+                document.head.appendChild(st);
+            }
+
+            const clone = pageEl.cloneNode(true);
+            clone.querySelectorAll('.no-print, .jjo-print-toolbar').forEach(el => el.remove());
+            clone.style.cssText = 'max-width:none;width:794px;margin:0;box-shadow:none;min-height:0;height:auto;';
+            holder = document.createElement('div');
+            holder.className = 'jjo-capture';
+            holder.style.cssText = 'position:fixed;left:-9999px;top:0;width:794px;background:#fff;';
+            holder.appendChild(clone);
+            document.body.appendChild(holder);
+
+            // Tunggu gambar kop selesai dimuat sebelum "difoto".
+            await Promise.all(Array.from(clone.querySelectorAll('img')).map(img => (img.complete && img.naturalWidth)
+                ? Promise.resolve()
+                : new Promise(res => { img.onload = img.onerror = () => res(); })));
+
+            const SCALE = 2;
+            const PAGE_W = 794, PAGE_H = Math.round(794 * 297 / 210); // A4 @96dpi
+            const canvas = await html2canvas(clone, { scale: SCALE, useCORS: true, backgroundColor: '#ffffff', windowWidth: PAGE_W });
+
+            // Ukur posisi (px CSS, relatif ke atas halaman) untuk menentukan titik potong.
+            const base = clone.getBoundingClientRect().top;
+            const rel = el => { const r = el.getBoundingClientRect(); return { top: r.top - base, bottom: r.bottom - base }; };
+            const thead = clone.querySelector('.jjo-print-table thead');
+            const headPos = thead ? rel(thead) : { top: 0, bottom: 0 };
+            const rows = Array.from(clone.querySelectorAll('.jjo-print-table tbody tr'));
+            const hasSpan = rows.some(tr => tr.querySelector('td[rowspan]'));
+            const cuts = [];
+            rows.forEach((tr, i) => {
+                const next = rows[i + 1];
+                if (!hasSpan || !next || next.querySelector('td[rowspan]')) cuts.push(rel(tr).bottom + 1);
+            });
+            const sigEl = clone.querySelector('.jjo-print-signature');
+            if (sigEl) cuts.push(rel(sigEl).top);
+            const total = clone.getBoundingClientRect().height;
+
+            const pages = this._planPdfPages({
+                total, pageH: PAGE_H, topMargin: 36, bottomMargin: 28,
+                headH: Math.max(0, headPos.bottom - headPos.top), cuts
+            });
+
+            const pdf = new jsPDFCtor({ unit: 'mm', format: 'a4', orientation: 'portrait' });
+            const headH = Math.max(0, headPos.bottom - headPos.top);
+            pages.forEach((pg, idx) => {
+                const pc = document.createElement('canvas');
+                pc.width = PAGE_W * SCALE;
+                pc.height = PAGE_H * SCALE;
+                const ctx = pc.getContext('2d');
+                ctx.fillStyle = '#ffffff';
+                ctx.fillRect(0, 0, pc.width, pc.height);
+                let destY = 0;
+                if (!pg.first) {
+                    destY = 36;
+                    if (headH > 0) {
+                        ctx.drawImage(canvas, 0, headPos.top * SCALE, canvas.width, headH * SCALE, 0, destY * SCALE, pc.width, headH * SCALE);
+                        destY += headH;
+                    }
+                }
+                const sliceH = Math.min(pg.end - pg.start, canvas.height / SCALE - pg.start);
+                if (sliceH > 0) {
+                    ctx.drawImage(canvas, 0, pg.start * SCALE, canvas.width, sliceH * SCALE, 0, destY * SCALE, pc.width, sliceH * SCALE);
+                }
+                if (idx > 0) pdf.addPage('a4', 'portrait');
+                pdf.addImage(pc.toDataURL('image/jpeg', 0.95), 'JPEG', 0, 0, 210, 297);
+            });
+
+            const unitNama = String((this._getEffectiveUnit && this._getEffectiveUnit(this.unitKey) || {}).label || this.unitKey || 'Unit')
+                + (this.unitKey === 'TRD' && this.cabangTrd ? ' ' + this.cabangTrd : '');
+            const nama = ('Jadwal Jaga Operator ' + unitNama + ' ' + BULAN_NAMA[this.month] + ' ' + this.year)
+                .replace(/[\\/:*?"<>|]+/g, ' ').replace(/\s+/g, ' ').trim().replace(/ /g, '-') + '.pdf';
+            pdf.save(nama);
+            toast.success('PDF tersimpan: ' + nama);
+        } catch (e) {
+            console.error('Simpan PDF jadwal jaga gagal:', e);
+            toast.error('Gagal membuat PDF. Coba lagi, atau pakai tombol Cetak / Simpan PDF.');
+        } finally {
+            if (holder && holder.parentNode) holder.parentNode.removeChild(holder);
+            this._savingPdf = false;
+            if (btn) { btn.disabled = false; btn.innerHTML = oldHtml; }
+        }
     },
 
     _buildPrintTable(unit) {
