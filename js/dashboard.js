@@ -292,10 +292,11 @@ const dashboard = {
             if (todayAttendance.isDinasLuar || excusedStatuses.includes(String(todayAttendance.status || '').toLowerCase())) {
                 if (durationEl) durationEl.textContent = todayAttendance.clockIn || '-';
             } else if (todayAttendance.clockIn && todayAttendance.clockOut && durationEl) {
-                durationEl.textContent = dateTime.calculateDuration(
-                    todayAttendance.clockIn,
-                    todayAttendance.clockOut
-                );
+                // PERBAIKAN: kolom Pulang bisa berisi TEKS (mis. "Izin Keluar
+                // Kantor" - lihat _markSessionAsExcused di Attendance.gs),
+                // bukan jam, sehingga hitungan lama menghasilkan "NaNj NaNm".
+                // _workDurationLabel() menangani kasus itu (lihat di bawah).
+                durationEl.textContent = this._workDurationLabel(todayAttendance) || '-';
             }
         }
     },
@@ -359,9 +360,10 @@ const dashboard = {
             } else if (record && (recordStatusLower === 'izin' || recordStatusLower === 'cuti')) {
                 hours = 0; // Izin/Cuti bukan jam kerja - biarkan 0, bukan NaN
             } else if (record && record.clockIn && record.clockOut) {
-                hours = dateTime.calculateDurationHours
-                    ? dateTime.calculateDurationHours(record.clockIn, record.clockOut)
-                    : this._durationToHours(dateTime.calculateDuration(record.clockIn, record.clockOut));
+                // Sama seperti badge Durasi Kerja: aman untuk Pulang berisi teks
+                // (mis. "Izin Keluar Kantor") - hasilnya 0, bukan NaN.
+                const _durLabel = this._workDurationLabel(record);
+                hours = _durLabel ? this._durationToHours(_durLabel) : 0;
             } else if (record && record.clockIn) {
                 hours = 0.5; // Sudah clock in tapi belum clock out, tampilkan sedikit
             }
@@ -658,6 +660,41 @@ const dashboard = {
     _formatDateYMD(d) {
         const local = new Date(d.getTime() - (d.getTimezoneOffset() * 60000));
         return local.toISOString().split('T')[0];
+    },
+
+    // "08:15" / "8:15" / "08:15:30" -> true; teks seperti "Izin Keluar
+    // Kantor", "Tidak Hadir", "Menunggu Approval" -> false
+    _isClockTime(v) {
+        return /^\d{1,2}:\d{2}(:\d{2})?$/.test(String(v == null ? '' : v).trim());
+    },
+
+    // Label durasi kerja ("7j 30m") untuk satu catatan absensi, atau null
+    // kalau memang tidak bisa dihitung (jam Masuk/Pulang bukan jam valid).
+    //
+    // Khusus Izin Keluar Kantor mode "Sampai Pulang" (karyawan tidak balik
+    // ke kantor): kolom Pulang diisi teks "Izin Keluar Kantor" oleh backend,
+    // bukan jam. Waktu kerjanya dihitung dari jam Masuk sampai JAM KELUAR di
+    // surat izinnya (jamKeluar) - dicari lewat excusedRefId di data izin
+    // milik karyawan (this.myIzin).
+    _workDurationLabel(record) {
+        if (!record || !this._isClockTime(record.clockIn)) return null;
+
+        let end = record.clockOut;
+        if (!this._isClockTime(end)) {
+            if (record.excusedRefType !== 'keluar_kantor') return null;
+            const izin = (this.myIzin || []).find(i => String(i.id) === String(record.excusedRefId));
+            if (!izin || !this._isClockTime(izin.jamKeluar)) return null;
+            end = izin.jamKeluar;
+        }
+
+        // Samakan ke format HH:mm (form izin bisa menyimpan "8:15" tanpa nol di depan)
+        const pad = (t) => String(t).trim().split(':').slice(0, 2).map(x => x.padStart(2, '0')).join(':');
+        const start = pad(record.clockIn);
+        end = pad(end);
+
+        // Jam keluar lebih awal dari jam masuk = data tidak masuk akal -> jangan tampilkan angka negatif
+        if (end < start) return null;
+        return dateTime.calculateDuration(start, end);
     },
 
     _durationToHours(durationLabel) {
