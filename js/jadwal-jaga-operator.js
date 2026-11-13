@@ -2001,31 +2001,54 @@ const jadwalJagaOperator = {
 
             const SCALE = 2;
             const PAGE_W = 794, PAGE_H = Math.round(794 * 297 / 210); // A4 @96dpi
-            const canvas = await html2canvas(clone, { scale: SCALE, useCORS: true, backgroundColor: '#ffffff', windowWidth: PAGE_W });
 
-            // Ukur posisi (px CSS, relatif ke atas halaman) untuk menentukan titik potong.
-            const base = clone.getBoundingClientRect().top;
-            const rel = el => { const r = el.getBoundingClientRect(); return { top: r.top - base, bottom: r.bottom - base }; };
-            const thead = clone.querySelector('.jjo-print-table thead');
-            const headPos = thead ? rel(thead) : { top: 0, bottom: 0 };
-            const rows = Array.from(clone.querySelectorAll('.jjo-print-table tbody tr'));
-            const hasSpan = rows.some(tr => tr.querySelector('td[rowspan]'));
-            const cuts = [];
-            rows.forEach((tr, i) => {
-                const next = rows[i + 1];
-                if (!hasSpan || !next || next.querySelector('td[rowspan]')) cuts.push(rel(tr).bottom + 1);
+            // Ukur posisi (px CSS, relatif ke atas halaman) untuk titik potong. PENTING: pengukuran
+            // dilakukan di dalam onclone() - yaitu di salinan dokumen yang BENAR-BENAR dipakai html2canvas
+            // untuk menggambar - bukan di halaman asli. Dulu diukur di halaman asli, padahal html2canvas
+            // menata ulang di jendela lain (lebar berbeda -> aturan CSS responsif beda), sehingga posisi
+            // potong meleset: header terpotong, teks baris terpotong, halaman bawah kosong terlalu besar.
+            const measure = (root) => {
+                const base = root.getBoundingClientRect().top;
+                const rel = el => { const r = el.getBoundingClientRect(); return { top: r.top - base, bottom: r.bottom - base }; };
+                const thead = root.querySelector('.jjo-print-table thead');
+                const headPos = thead ? rel(thead) : { top: 0, bottom: 0 };
+                const rows = Array.from(root.querySelectorAll('.jjo-print-table tbody tr'));
+                const hasSpan = rows.some(tr => tr.querySelector('td[rowspan]'));
+                const cuts = [];
+                // Titik potong = batas antar-hari. Batas SETELAH hari terakhir sengaja TIDAK dimasukkan,
+                // supaya hari terakhir + blok TTD selalu satu halaman (tidak ada halaman berisi TTD saja).
+                rows.forEach((tr, i) => {
+                    const next = rows[i + 1];
+                    if (next && (!hasSpan || next.querySelector('td[rowspan]'))) cuts.push(rel(tr).bottom + 1);
+                });
+                return {
+                    total: root.getBoundingClientRect().height,
+                    headTop: headPos.top,
+                    headH: thead ? Math.ceil(headPos.bottom - headPos.top) + 1 : 0,
+                    tableBottom: rows.length ? rel(rows[rows.length - 1]).bottom : headPos.bottom,
+                    cuts
+                };
+            };
+
+            let m = null;
+            // windowWidth 1280 (bukan 794): jendela "foto" dibuat selebar desktop supaya aturan CSS layar
+            // kecil/HP tidak ikut terpakai - hasil PDF sama di komputer maupun HP. Lebar halamannya
+            // sendiri tetap 794px (A4).
+            const canvas = await html2canvas(clone, {
+                scale: SCALE, useCORS: true, backgroundColor: '#ffffff', windowWidth: 1280,
+                onclone: (doc) => {
+                    const root = doc.querySelector('.jjo-capture .jjo-print-page');
+                    if (root) { try { m = measure(root); } catch (err) { m = null; } }
+                }
             });
-            const sigEl = clone.querySelector('.jjo-print-signature');
-            if (sigEl) cuts.push(rel(sigEl).top);
-            const total = clone.getBoundingClientRect().height;
+            if (!m) m = measure(clone); // jaga-jaga kalau onclone tidak sempat terpanggil
 
             const pages = this._planPdfPages({
-                total, pageH: PAGE_H, topMargin: 36, bottomMargin: 28,
-                headH: Math.max(0, headPos.bottom - headPos.top), cuts
+                total: m.total, pageH: PAGE_H, topMargin: 36, bottomMargin: 28,
+                headH: m.headH, cuts: m.cuts
             });
 
             const pdf = new jsPDFCtor({ unit: 'mm', format: 'a4', orientation: 'portrait' });
-            const headH = Math.max(0, headPos.bottom - headPos.top);
             pages.forEach((pg, idx) => {
                 const pc = document.createElement('canvas');
                 pc.width = PAGE_W * SCALE;
@@ -2036,9 +2059,10 @@ const jadwalJagaOperator = {
                 let destY = 0;
                 if (!pg.first) {
                     destY = 36;
-                    if (headH > 0) {
-                        ctx.drawImage(canvas, 0, headPos.top * SCALE, canvas.width, headH * SCALE, 0, destY * SCALE, pc.width, headH * SCALE);
-                        destY += headH;
+                    // Header kolom diulang HANYA di halaman yang memang memuat baris tabel.
+                    if (m.headH > 0 && pg.start < m.tableBottom - 1) {
+                        ctx.drawImage(canvas, 0, m.headTop * SCALE, canvas.width, m.headH * SCALE, 0, destY * SCALE, pc.width, m.headH * SCALE);
+                        destY += m.headH;
                     }
                 }
                 const sliceH = Math.min(pg.end - pg.start, canvas.height / SCALE - pg.start);
