@@ -281,3 +281,21 @@ body:has(#page-dashboard .welcome-card.evening) #page-absensi {
 #page-absensi .reabsen-wait { font-size: .7rem; font-weight: 600; color: var(--dm-muted); }
 #page-absensi .hist-reabsen-note { color: var(--dm-muted); font-size: .64rem; font-weight: 500; }
 @media (min-width: 769px) { #page-absensi .reabsen-card { margin: 0 28px 20px; } }
+
+/* [PERBAIKAN 16 Nov 2026] Badge "Libur - tidak bisa mengajukan" pada tombol Sanggahan Absensi.
+   Badge dibuat lewat JS (absensi.js) dengan gaya inline white-space:nowrap + inline-block, sehingga di
+   HP (kartu 2 kolom, lebar sekitar 150px) teksnya melebar keluar kartu dan terpotong. Di sini badge
+   dijadikan blok sendiri DI BAWAH judul dan boleh turun baris. !important dipakai karena gaya aslinya inline. */
+#page-absensi #sanggahan-libur-badge {
+    display: block !important;
+    width: fit-content;
+    max-width: 100%;
+    margin: 5px 0 0 0 !important;
+    padding: 3px 9px !important;
+    white-space: normal !important;
+    overflow-wrap: break-word;
+    line-height: 1.3;
+    text-align: left;
+    font-size: .68rem !important;
+    border-radius: 10px !important;
+}
