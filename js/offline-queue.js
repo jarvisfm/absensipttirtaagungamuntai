@@ -85,24 +85,58 @@ const offlineQueue = {
     // tidak pernah dicoba lagi.
     RETRYABLE_ERROR: /sedang memproses|coba lagi|sibuk|timeout|time out|quota|kuota|try again|too many|service invoked too many|exceeded|tidak tersedia|server error|invalid response/i,
 
+    _retryTimer: null,
     _isSyncing: false, // mutex sederhana - cegah 2 pemicu (mis. event 'online' & interval berkala) jalan berbarengan dan saling tabrak
 
     // Dipanggil dari js/absensi.js saat absen gagal terkirim karena tidak
     // ada koneksi. `payload` = data absen APA ADANYA (sama seperti yang
     // biasa dikirim ke api.saveAttendance()).
-    async enqueueAttendance(payload) {
+    // [9 Nov 2026] opts.direct = TULIS-DULU (write-ahead): halaman Absensi
+    // menyimpan absen ke sini SEBELUM mengirimnya ke server, lalu menghapusnya
+    // (completeLocal) kalau sukses, atau melepasnya (releaseLocal) kalau jaringan
+    // gagal. Jadi kalau app di-refresh/ditutup/pindah menu di tengah pengiriman
+    // yang lambat, absennya TIDAK hilang - tetap ada di sini & disinkron nanti.
+    async enqueueAttendance(payload, opts = {}) {
         const record = {
             ...payload,
             apiBaseUrl: (typeof API_BASE_URL !== 'undefined' && API_BASE_URL) ? API_BASE_URL : payload.apiBaseUrl
         };
+        if (opts.direct) {
+            return offlineDB.enqueue(record, {
+                status: 'syncing', direct: true, leaseUntil: Date.now() + (opts.leaseMs || 60000)
+            });
+        }
         const localId = await offlineDB.enqueue(record);
         this._notifyChange();
         this._registerBackgroundSync();
         // Kalau ternyata sudah online lagi SAAT INI JUGA (mis. status
         // offline tadi cuma sekejap), langsung coba proses - tidak perlu
         // menunggu event 'online' yang belum tentu terpicu tepat waktu.
-        if (typeof navigator === 'undefined' || navigator.onLine !== false) this.flushQueue();
+        if (opts.autoFlush !== false && (typeof navigator === 'undefined' || navigator.onLine !== false)) this.flushQueue();
         return localId;
+    },
+
+    // Pengiriman langsung sukses (atau ditolak server dengan alasan sah yang
+    // sudah ditampilkan ke karyawan) -> record tidak perlu disinkron lagi.
+    async completeLocal(localId) {
+        try { await offlineDB.remove(localId); } catch (e) { /* abaikan */ }
+        this._notifyChange();
+    },
+
+    // Pengiriman langsung gagal karena jaringan/server sibuk -> record TETAP
+    // di antrean (jadi 'pending' biasa) untuk disinkron otomatis nanti.
+    async releaseLocal(localId, errText) {
+        try {
+            await offlineDB.updateStatus(localId, 'pending', { leaseUntil: 0, direct: false, lastError: errText || null });
+        } catch (e) { /* abaikan */ }
+        this._notifyChange();
+        this._registerBackgroundSync();
+        if (typeof navigator === 'undefined' || navigator.onLine !== false) this.flushQueue();
+    },
+
+    // Semua absen yang belum selesai disinkron (termasuk yang sedang dikirim).
+    async getPendingRecords() {
+        try { return await offlineDB.getAllPending(); } catch (e) { return []; }
     },
 
     // Proses SELURUH antrean yang masih 'pending', satu per satu, dengan
@@ -116,31 +150,70 @@ const offlineQueue = {
 
         this._isSyncing = true;
         try {
-            if (!opts.noJitter) await this._sleep(Math.random() * this.MAX_JITTER_MS);
-
-            let syncedCount = 0;
-            const pending = await offlineDB.getAllPending();
-            for (const record of pending) {
-                // Putus lagi di tengah jalan -> hentikan loop SEKARANG,
-                // jangan paksa lanjut ke record berikutnya (kemungkinan
-                // besar juga bakal gagal jaringan lagi, buang-buang waktu).
-                if (typeof navigator !== 'undefined' && navigator.onLine === false) break;
-
-                await offlineDB.updateStatus(record.localId, 'syncing');
-                const outcome = await this._sendOne(record);
-                if (outcome === 'ok') syncedCount++;
-                if (outcome === 'network-error' || outcome === 'retry-later') break; // hentikan seluruh loop kali ini, coba lagi nanti (bukan lanjut ke record berikutnya)
-                // outcome 'skip' = record ini sudah berkali-kali gagal jaringan: tetap disimpan,
-                // tapi jangan menahan record lain di belakangnya.
-
-                await this._sleep(this.DELAY_BETWEEN_MS); // THROTTLE - jeda wajib sebelum lanjut ke record berikutnya
+            // [9 Nov 2026] KUNCI LINTAS-KONTEKS (Web Locks): halaman, tab lain, dan
+            // Service Worker (Background Sync) masing-masing punya flag _isSyncing
+            // sendiri - dulu ketiganya bisa menyinkron antrean YANG SAMA bersamaan
+            // dan mengirim absen yang sama 2-3x (baris absen dobel). Dengan kunci
+            // ini cuma SATU konteks yang menyinkron pada satu waktu; yang lain
+            // langsung keluar (ifAvailable) dan akan dicoba lagi pada pemicu berikutnya.
+            const locks = (typeof navigator !== 'undefined') ? navigator.locks : null;
+            if (locks && typeof locks.request === 'function') {
+                await locks.request('taa-absensi-flush', { ifAvailable: true }, async (lock) => {
+                    if (!lock) return;
+                    await this._flushLocked(opts);
+                });
+            } else {
+                await this._flushLocked(opts);
             }
-            if (syncedCount > 0 && typeof window !== 'undefined' && window.dispatchEvent) {
-                window.dispatchEvent(new CustomEvent('offline-queue-synced', { detail: { count: syncedCount } }));
-            }
+        } catch (e) {
+            // error tak terduga jangan sampai membuat _isSyncing nyangkut
         } finally {
             this._isSyncing = false;
             this._notifyChange();
+        }
+    },
+
+    async _flushLocked(opts) {
+        if (!opts.noJitter) await this._sleep(Math.random() * this.MAX_JITTER_MS);
+
+        let syncedCount = 0;
+        let waitLease = 0;
+        const pending = await offlineDB.getAllPending();
+        for (const record of pending) {
+            // Putus lagi di tengah jalan -> hentikan loop SEKARANG,
+            // jangan paksa lanjut ke record berikutnya (kemungkinan
+            // besar juga bakal gagal jaringan lagi, buang-buang waktu).
+            if (typeof navigator !== 'undefined' && navigator.onLine === false) break;
+
+            // [9 Nov 2026] Klaim atomik - kalau record ini sedang dikirim langsung
+            // oleh halaman Absensi (tulis-dulu) atau konteks lain, JANGAN dikirim
+            // lagi. Urutan FIFO dijaga: record di belakangnya tidak boleh mendahului.
+            const claimed = await offlineDB.claim(record.localId, 45000);
+            if (!claimed) {
+                const fresh = await offlineDB.get(record.localId).catch(() => null);
+                if (!fresh) continue; // sudah selesai/dihapus pihak lain
+                if (fresh.status === 'syncing' && fresh.leaseUntil > Date.now()) {
+                    waitLease = Math.max(waitLease, fresh.leaseUntil - Date.now());
+                    break;
+                }
+                continue;
+            }
+
+            const outcome = await this._sendOne(claimed);
+            if (outcome === 'ok') syncedCount++;
+            if (outcome === 'network-error' || outcome === 'retry-later') break; // hentikan seluruh loop kali ini, coba lagi nanti (bukan lanjut ke record berikutnya)
+            // outcome 'skip' = record ini sudah berkali-kali gagal jaringan: tetap disimpan,
+            // tapi jangan menahan record lain di belakangnya.
+
+            await this._sleep(this.DELAY_BETWEEN_MS); // THROTTLE - jeda wajib sebelum lanjut ke record berikutnya
+        }
+        if (syncedCount > 0 && typeof window !== 'undefined' && window.dispatchEvent) {
+            window.dispatchEvent(new CustomEvent('offline-queue-synced', { detail: { count: syncedCount } }));
+        }
+        // Ada record yang masih "disewa" (dikirim langsung & mungkin tertinggal karena
+        // app di-refresh): jadwalkan sinkron ulang begitu sewanya habis.
+        if (waitLease > 0 && !this._retryTimer) {
+            this._retryTimer = setTimeout(() => { this._retryTimer = null; this.flushQueue({ noJitter: true }); }, waitLease + 1000);
         }
     },
 
@@ -158,7 +231,7 @@ const offlineQueue = {
             // permanen; kembalikan ke 'pending' & coba lagi di putaran berikutnya.
             const errText = String((result && result.error) || '');
             if (this.RETRYABLE_ERROR.test(errText)) {
-                await offlineDB.updateStatus(record.localId, 'pending', { lastError: errText });
+                await offlineDB.updateStatus(record.localId, 'pending', { lastError: errText, leaseUntil: 0, direct: false });
                 return 'retry-later';
             }
             // Ditolak backend dengan alasan SAH (bukan soal jaringan) -
@@ -168,7 +241,8 @@ const offlineQueue = {
             // datanya tidak hilang & bisa ditinjau manual kalau perlu
             // (lihat offlineDB.getAllFailed()).
             await offlineDB.updateStatus(record.localId, 'failed', {
-                lastError: (result && result.error) || 'Ditolak server tanpa keterangan'
+                lastError: (result && result.error) || 'Ditolak server tanpa keterangan',
+                leaseUntil: 0, direct: false
             });
             return 'failed';
         } catch (e) {
@@ -184,7 +258,7 @@ const offlineQueue = {
             // menahan record lain.
             const attempts = (record.attempts || 0) + 1;
             const lastError = String((e && e.message) || e);
-            await offlineDB.updateStatus(record.localId, 'pending', { attempts, lastError });
+            await offlineDB.updateStatus(record.localId, 'pending', { attempts, lastError, leaseUntil: 0, direct: false });
             return attempts >= this.MAX_ATTEMPTS ? 'skip' : 'network-error';
         }
     },
@@ -242,8 +316,11 @@ const offlineQueue = {
     // sana, jadi otomatis di-skip, lihat pengecekan di bawah).
     _notifyChange() {
         if (typeof window === 'undefined' || !window.dispatchEvent) return;
-        Promise.all([this.getPendingCount(), this.getFailed()]).then(([count, failed]) => {
-            window.dispatchEvent(new CustomEvent('offline-queue-changed', { detail: { count, failed } }));
+        Promise.all([offlineDB.getAllPending().catch(() => []), this.getFailed()]).then(([all, failed]) => {
+            // yang sedang dikirim langsung oleh halaman Absensi (direct) belum
+            // dianggap "menunggu sinkron" - supaya badge tidak berkedip di tiap absen normal.
+            const records = all.filter((r) => !r.direct);
+            window.dispatchEvent(new CustomEvent('offline-queue-changed', { detail: { count: records.length, failed, records } }));
         });
     },
 
@@ -274,7 +351,7 @@ const offlineQueue = {
         box.querySelector('#offline-queue-discard-btn').onclick = () => offlineQueue.discardFailed();
     },
 
-    _renderBadge(count, failed) {
+    _renderBadge(count, failed, records) {
         if (typeof document === 'undefined') return;
         if (failed !== undefined) this._renderFailed(failed);
         const banner = document.getElementById('offline-queue-banner');
@@ -282,10 +359,32 @@ const offlineQueue = {
         if (!banner) return;
         if (count > 0) {
             banner.style.display = 'flex';
+            banner.style.flexWrap = 'wrap';
             if (countEl) countEl.textContent = count;
+            this._renderDetail(banner, records);
         } else {
             banner.style.display = 'none';
         }
+    },
+
+    // [9 Nov 2026] Rincian absen yang menunggu sinkron (jenis + jam), supaya karyawan
+    // tahu absennya TIDAK hilang dan tidak perlu absen ulang.
+    _renderDetail(banner, records) {
+        let box = document.getElementById('offline-queue-detail');
+        if (!box) {
+            box = document.createElement('div');
+            box.id = 'offline-queue-detail';
+            box.style.cssText = 'width:100%;font-size:0.8rem;line-height:1.5;';
+            banner.appendChild(box);
+        }
+        const label = (r) => r.clockOut ? ['Pulang', r.clockOut]
+            : r.breakEnd ? ['Selesai istirahat', r.breakEnd]
+            : r.breakStart ? ['Istirahat', r.breakStart]
+            : ['Masuk', r.clockIn];
+        const esc = (t) => String(t == null ? '' : t).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+        const items = (records || []).map((r) => { const l = label(r); return esc(l[0]) + ' ' + esc(l[1] || ''); });
+        box.innerHTML = (items.length ? '<b>Tersimpan di HP Anda:</b> ' + items.join(' &bull; ') + '. ' : '') +
+            'Absen ini <b>tidak hilang</b> - jangan absen ulang, tunggu tersinkron otomatis atau tekan "Sinkron Sekarang".';
     }
 };
 
@@ -313,7 +412,7 @@ if (typeof window !== 'undefined') {
         if (document.visibilityState === 'visible') offlineQueue.flushQueue();
     });
 
-    window.addEventListener('offline-queue-changed', (e) => offlineQueue._renderBadge(e.detail.count, e.detail.failed));
+    window.addEventListener('offline-queue-changed', (e) => offlineQueue._renderBadge(e.detail.count, e.detail.failed, e.detail.records));
 
     // Setelah absen offline benar-benar terkirim: kabari karyawan & segarkan
     // tampilan Absensi supaya absennya langsung terbaca (sebelumnya baru
