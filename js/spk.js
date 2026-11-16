@@ -21,7 +21,83 @@ const spk = {
         clockOut: 'Pulang'
     },
 
+    // ---------- Kunci tombol Input SPK ----------
+    // true selama karyawan punya SPK berstatus PENDING (belum diputuskan
+    // Admin) yang TANGGALNYA = HARI INI. Selama true, tombol Input SPK
+    // dinonaktifkan. Begitu Admin menolak (atau menyetujui), SPK itu tidak
+    // pending lagi -> tombol aktif kembali. SPK pending untuk tanggal LAIN
+    // (mis. diajukan untuk besok) TIDAK mengunci apa pun hari ini - tombol
+    // baru terkunci saat tanggal SPK itu tiba dan masih pending.
+    hasPendingToday: false,
+
+    _todayStr() {
+        try {
+            if (window.dateTime && typeof dateTime.getLocalDate === 'function') return dateTime.getLocalDate();
+        } catch (e) { /* jatuh ke tanggal perangkat */ }
+        const d = new Date();
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    },
+
+    // "2026-11-16" / "2026-11-16T00:00:00.000Z" -> "2026-11-16"
+    _toYMD(v) {
+        const m = /^(\d{4}-\d{2}-\d{2})/.exec(String(v || '').trim());
+        return m ? m[1] : '';
+    },
+
+    setPendingToday(has) {
+        this.hasPendingToday = !!has;
+        this.applyLockUI();
+    },
+
+    applyLockUI() {
+        const btn = document.getElementById('btn-spk-trigger');
+        if (!btn) return;
+        const locked = this.hasPendingToday;
+        btn.disabled = locked;
+        btn.classList.toggle('disabled', locked);
+        const subEl = btn.querySelector('small');
+        if (subEl) {
+            if (!subEl.dataset.defaultText) subEl.dataset.defaultText = subEl.textContent;
+            subEl.textContent = locked
+                ? 'Menunggu approval admin - SPK hari ini sudah diajukan'
+                : subEl.dataset.defaultText;
+        }
+    },
+
+    // Dipanggil dari absensi.init() setiap halaman Absensi dibuka.
+    // pendingCount = jumlah SPK pending milik karyawan (sudah ikut terhitung
+    // di getAbsensiPageData(), jadi TIDAK ada request tambahan untuk
+    // karyawan yang tidak punya SPK pending). undefined = data halaman
+    // gagal dimuat -> cek sendiri lewat api.getSpk().
+    async refreshLock(pendingCount) {
+        if (pendingCount === 0) {
+            this.setPendingToday(false);
+            return;
+        }
+        try {
+            const user = auth.getCurrentUser();
+            const effectiveId = user?.employeeId || user?.id;
+            if (!effectiveId) return;
+            const res = await api.getSpk(effectiveId);
+            if (!res || !res.success) return; // gagal memuat: biarkan tombol apa adanya
+            const today = this._todayStr();
+            const adaHariIni = (res.data || []).some(r =>
+                (r.status || 'pending') === 'pending' && this._toYMD(r.tanggal) === today
+            );
+            this.setPendingToday(adaHariIni);
+        } catch (e) {
+            console.error('Gagal memuat status kunci tombol SPK:', e);
+        }
+    },
+
     openModal() {
+        // Sudah ada SPK untuk HARI INI yang menunggu approval Admin - tombolnya
+        // sudah dinonaktifkan lewat applyLockUI(), ini jaga-jaga kalau masih ke-klik.
+        if (this.hasPendingToday) {
+            toast.error('SPK hari ini masih menunggu approval Admin. Tombol aktif lagi setelah diputuskan.');
+            return;
+        }
+
         // Jangan izinkan input SPK selama user masih dalam rentang Izin/Cuti
         // yang sedang berjalan hari ini - sama jaga-jaga seperti Surat Tugas
         // (lihat suratTugas.openModal() di surat-tugas.js).
@@ -164,6 +240,9 @@ const spk = {
             if (result.success) {
                 toast.success('SPK berhasil diajukan! Menunggu persetujuan Admin sebelum sesi absensi terkait otomatis tercatat SPK.');
                 document.getElementById('modal-spk').style.display = 'none';
+                // SPK untuk HARI INI -> langsung nonaktifkan tombol (tanpa menunggu
+                // data halaman dimuat ulang). SPK untuk tanggal lain tidak mengunci.
+                if (tanggal === this._todayStr()) this.setPendingToday(true);
                 if (window.absensi && typeof absensi.init === 'function') {
                     absensi.init();
                 }
