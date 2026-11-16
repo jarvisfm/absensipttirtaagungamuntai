@@ -47,6 +47,42 @@ const spk = {
     setPendingToday(has) {
         this.hasPendingToday = !!has;
         this.applyLockUI();
+        // Selama terkunci, cek ke server berkala supaya tombol otomatis aktif
+        // begitu Admin memutuskan (tanpa perlu refresh halaman). Berhenti
+        // sendiri begitu tidak terkunci lagi.
+        if (this.hasPendingToday) this._startPolling(); else this._stopPolling();
+    },
+
+    // ---------- Pembaruan otomatis (polling ringan) ----------
+    // HANYA berjalan saat tombol sedang terkunci (karyawan punya SPK pending
+    // hari ini), halaman Absensi sedang dibuka, dan tab/aplikasi sedang
+    // terlihat - jadi karyawan lain tidak menambah beban server sama sekali.
+    POLL_MS: 30000,
+    _pollTimer: null,
+    _visibilityBound: false,
+
+    _startPolling() {
+        if (!this._visibilityBound) {
+            this._visibilityBound = true;
+            // HP dibuka lagi / pindah tab balik ke aplikasi -> cek langsung
+            document.addEventListener('visibilitychange', () => {
+                if (!document.hidden && this.hasPendingToday) this._pollTick();
+            });
+        }
+        if (this._pollTimer) return;
+        this._pollTimer = setInterval(() => this._pollTick(), this.POLL_MS);
+    },
+
+    _stopPolling() {
+        if (this._pollTimer) { clearInterval(this._pollTimer); this._pollTimer = null; }
+    },
+
+    _pollTick() {
+        if (document.hidden) return;
+        // Pindah ke menu lain: berhenti. Saat kembali ke Absensi, absensi.init()
+        // memanggil refreshLock() lagi dan polling menyala kembali kalau perlu.
+        if (typeof router !== 'undefined' && router.currentPage !== 'absensi') { this._stopPolling(); return; }
+        this.refreshLock();
     },
 
     applyLockUI() {
@@ -81,10 +117,26 @@ const spk = {
             const res = await api.getSpk(effectiveId);
             if (!res || !res.success) return; // gagal memuat: biarkan tombol apa adanya
             const today = this._todayStr();
-            const adaHariIni = (res.data || []).some(r =>
+            const rows = res.data || [];
+            const adaHariIni = rows.some(r =>
                 (r.status || 'pending') === 'pending' && this._toYMD(r.tanggal) === today
             );
+            const sebelumnyaTerkunci = this.hasPendingToday;
             this.setPendingToday(adaHariIni);
+
+            // Tadinya terkunci, sekarang tidak: Admin baru saja memutuskan -> kabari karyawan.
+            if (sebelumnyaTerkunci && !adaHariIni) {
+                const putusan = rows
+                    .filter(r => this._toYMD(r.tanggal) === today)
+                    .sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)))[0];
+                if (putusan && putusan.status === 'rejected') {
+                    toast.error('SPK hari ini ditolak Admin. Anda bisa mengajukan SPK lagi.');
+                } else if (putusan && putusan.status === 'approved') {
+                    toast.success('SPK hari ini disetujui Admin.');
+                    // Sesi yang dipilih sudah otomatis tercatat "SPK" - muat ulang tampilan absensi
+                    if (window.absensi && typeof absensi.init === 'function') absensi.init();
+                }
+            }
         } catch (e) {
             console.error('Gagal memuat status kunci tombol SPK:', e);
         }
