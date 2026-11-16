@@ -119,6 +119,23 @@ const absensi = {
         const leftover = storage.get('temp_attendance');
         if (!leftover || !leftover.action) return;
 
+        // [PERBAIKAN 13 Nov 2026] Kalau absennya ternyata SUDAH tersimpan di antrean HP
+        // (tulis-dulu), jangan suruh karyawan absen ulang - cukup tenangkan, akan tersinkron.
+        if (typeof offlineQueue !== 'undefined') {
+            offlineQueue.getPendingCount().then((n) => {
+                if (n > 0) {
+                    storage.remove('temp_attendance');
+                    toast.info('Absen Anda tersimpan di HP dan sedang disinkronkan ke server. Tidak perlu absen ulang.');
+                } else {
+                    this._warnLeftoverAttendance(leftover);
+                }
+            }).catch(() => this._warnLeftoverAttendance(leftover));
+            return;
+        }
+        this._warnLeftoverAttendance(leftover);
+    },
+
+    _warnLeftoverAttendance(leftover) {
         const snapshot = leftover.baseAttendanceData || {};
         const todayStr = (typeof dateTime !== 'undefined' && dateTime.getLocalDate)
             ? dateTime.getLocalDate()
@@ -485,6 +502,10 @@ const absensi = {
     // ASLI dari server sampai di titik ini (bukan lagi cache HP) - tombol
     // Masuk/Istirahat/Pulang sekarang aman ditekan. Lihat penjelasan
     // lengkap deklarasinya di awal init().
+    // [PERBAIKAN 13 Nov 2026] Gabungkan absen yang masih menunggu sinkron (belum ada di
+    // server) supaya tidak tampak "hilang" setelah pindah menu / refresh.
+    await this._overlayPendingOffline();
+
     this._pageDataLoaded = true;
 
     this._clearHeaderLoading();
@@ -500,6 +521,9 @@ const absensi = {
 
     // [TAMBAHAN 2026-11-10] Kartu "Sanggahan Ditolak - Absen Ulang" (tidak di-await, tidak menahan halaman).
     this._loadReAbsenSanggahan();
+
+    // [PERBAIKAN 13 Nov 2026] Tampilkan ulang badge "menunggu sinkron" tiap halaman Absensi dibuka.
+    if (typeof offlineQueue !== 'undefined' && offlineQueue._notifyChange) offlineQueue._notifyChange();
 },
 
     // [TAMBAHAN 2026-09-14] Pasangan _readAttendanceSnapshotFromCache() di
@@ -2364,18 +2388,44 @@ const absensi = {
             return this._queueOffline(data);
         }
 
+        const queue = (typeof offlineQueue !== 'undefined') ? offlineQueue : null;
+
+        // [PERBAIKAN 13 Nov 2026] JANGAN kirim aksi yang SAMA dua kali: kalau aksi ini
+        // (jenis + jam berdekatan) sudah tersimpan di HP & menunggu/sedang dikirim,
+        // anggap SUDAH berhasil - jangan antre/kirim lagi. Inilah pemicu baris absen
+        // dobel: koneksi lambat, hasil belum tampil, karyawan menekan Pulang lagi.
+        if (queue) {
+            try {
+                if (await this._findPendingSameAction(data)) {
+                    return { success: true, data: { ...data }, offline: true, alreadyQueued: true };
+                }
+            } catch (e) { /* lanjut seperti biasa */ }
+        }
+
         // [PERBAIKAN Absensi Offline] Kalau masih ada absen yang menunggu
         // sinkron, kirim DULU yang lama (urutan harus tetap: Masuk sebelum
         // Istirahat/Pulang). Kalau setelah dicoba masih ada yang tertinggal,
         // absen baru ini ikut antre di belakangnya - bukan dikirim
         // mendahului, yang bisa membuat Pulang tercatat tanpa Masuk.
-        if (typeof offlineQueue !== 'undefined') {
+        if (queue) {
             try {
-                if ((await offlineQueue.getPendingCount()) > 0) {
-                    await offlineQueue.flushQueue({ noJitter: true });
-                    if ((await offlineQueue.getPendingCount()) > 0) return this._queueOffline(data);
+                if ((await queue.getPendingCount()) > 0) {
+                    await queue.flushQueue({ noJitter: true });
+                    if ((await queue.getPendingCount()) > 0) return this._queueOffline(data);
                 }
             } catch (e) { /* lanjut kirim langsung seperti biasa */ }
+        }
+
+        // [PERBAIKAN 13 Nov 2026] TULIS-DULU (write-ahead): simpan absen ke memori HP
+        // (IndexedDB) SEBELUM dikirim. Kalau halaman di-refresh/ditutup/pindah menu di
+        // tengah pengiriman yang lambat, absennya TIDAK hilang - tetap di antrean dan
+        // disinkron otomatis (dan ditampilkan di halaman Absensi, lihat
+        // _overlayPendingOffline). Dulu absen baru masuk antrean SESUDAH pengiriman gagal,
+        // jadi kalau halaman keburu di-refresh, absennya hilang & karyawan absen ulang.
+        let localId = null;
+        if (queue) {
+            try { localId = await queue.enqueueAttendance(data, { direct: true, leaseMs: 60000 }); }
+            catch (e) { localId = null; }
         }
 
         try {
@@ -2386,14 +2436,107 @@ const absensi = {
             // oleh backend (yang selalu membawa pesan error spesifik dari
             // Apps Script sendiri, misal "di luar radius kantor"). Kalau
             // suatu saat _localFallback() diubah, sesuaikan juga pesan ini.
-            if (!result.success && result.error === 'No fallback for action: saveAttendance') {
+            const networkFail = !result.success && result.error === 'No fallback for action: saveAttendance';
+            // Server sibuk/kuota: bukan penolakan sah - biarkan antre & coba lagi nanti
+            const busyFail = !result.success && !!queue && queue.RETRYABLE_ERROR && queue.RETRYABLE_ERROR.test(String(result.error || ''));
+            if (networkFail || busyFail) {
+                if (localId !== null) {
+                    await queue.releaseLocal(localId, networkFail ? 'network' : String(result.error));
+                    return { success: true, data: { ...data }, offline: true };
+                }
                 return this._queueOffline(data);
             }
+            // Sukses ATAU ditolak backend dengan alasan sah (ditampilkan ke karyawan oleh
+            // pemanggil, boleh coba lagi) -> tidak perlu disinkron lagi.
+            if (localId !== null) await queue.completeLocal(localId);
             return result;
         } catch (e) {
             console.error('Error saving attendance:', e);
+            if (localId !== null) {
+                await queue.releaseLocal(localId, String((e && e.message) || e));
+                return { success: true, data: { ...data }, offline: true };
+            }
             return this._queueOffline(data);
         }
+    },
+
+    // [PERBAIKAN 13 Nov 2026] ---- helper antrean offline (jenis aksi, deteksi kiriman ganda, tampilan) ----
+    _hhmmNorm(v) {
+        const t = String(v == null ? '' : v).trim().replace('.', ':');
+        const m = /^(\d{1,2}):(\d{2})/.exec(t);
+        return m ? (('0' + m[1]).slice(-2) + ':' + m[2]) : t;
+    },
+    _minutesOf(v) {
+        const m = /^(\d{2}):(\d{2})$/.exec(this._hhmmNorm(v));
+        return m ? parseInt(m[1], 10) * 60 + parseInt(m[2], 10) : null;
+    },
+    // Jenis aksi sebuah payload: kolom TERBARU yang terisi menentukan (payload Pulang
+    // juga membawa jam Masuk/Istirahat sebelumnya).
+    _actionOf(rec) {
+        if (rec.clockOut) return 'clock-out';
+        if (rec.breakEnd) return 'after-break';
+        if (rec.breakStart) return 'break';
+        return 'clock-in';
+    },
+    _actionTime(rec) { return rec.clockOut || rec.breakEnd || rec.breakStart || rec.clockIn || ''; },
+
+    // Aksi yang sama (hari + jenis, jamnya berselisih <= 30 menit) yang masih di antrean/dikirim.
+    async _findPendingSameAction(data) {
+        if (typeof offlineQueue === 'undefined') return null;
+        const recs = await offlineQueue.getPendingRecords();
+        const key = this._actionOf(data);
+        const t = this._minutesOf(this._actionTime(data));
+        return recs.find((r) => {
+            if (String(r.userId) !== String(data.userId) || String(r.date) !== String(data.date)) return false;
+            if (this._actionOf(r) !== key) return false;
+            const rt = this._minutesOf(this._actionTime(r));
+            return (t === null || rt === null) ? true : Math.abs(t - rt) <= 30;
+        }) || null;
+    },
+
+    // Absen yang masih menunggu sinkron DITAMPILKAN di halaman Absensi (tombol/status/timeline
+    // ikut maju), supaya setelah pindah menu / refresh karyawan tidak mengira absennya hilang
+    // dan tidak absen ulang. Server belum punya datanya, jadi digabungkan dari antrean HP.
+    async _overlayPendingOffline() {
+        try {
+            if (typeof offlineQueue === 'undefined') return;
+            const user = auth.getCurrentUser();
+            if (!user) return;
+            const uid = String(user.employeeId || user.id);
+            const recs = (await offlineQueue.getPendingRecords())
+                .filter((r) => String(r.userId) === uid)
+                .sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+            if (!recs.length) return;
+            if (['excused', 'excused-pending', 'dinas'].indexOf(this.currentState) !== -1) return;
+
+            const first = recs[0];
+            const today = this.attendanceData || {
+                id: null, userId: uid, date: first.date, shift: first.shift || '',
+                clockIn: '', clockOut: '', breakStart: '', breakEnd: '', status: 'waiting'
+            };
+            let applied = false;
+            recs.forEach((r) => {
+                if (r.date && today.date && String(r.date) !== String(today.date)) return;
+                const isIn = this._actionOf(r) === 'clock-in';
+                const tin = this._hhmmNorm(today.clockIn);
+                const rin = this._hhmmNorm(r.clockIn);
+                if (isIn) {
+                    if (!tin && r.clockIn) { today.clockIn = r.clockIn; applied = true; }
+                } else {
+                    // aksi lanjutan hanya berlaku untuk baris yang jam Masuknya sama (beda sesi = beda baris)
+                    if (rin && tin && rin !== tin) return;
+                    if (!tin && rin) { today.clockIn = r.clockIn; applied = true; }
+                    ['breakStart', 'breakEnd', 'clockOut'].forEach((f) => {
+                        if (r[f] && !today[f]) { today[f] = r[f]; applied = true; }
+                    });
+                }
+            });
+            if (!applied) return;
+            this.attendanceData = today;
+            if (today.clockOut) this.currentState = 'completed';
+            else if (today.breakStart && !today.breakEnd) this.currentState = 'on-break';
+            else if (today.clockIn) this.currentState = 'clocked-in';
+        } catch (e) { /* abaikan - tampilan tetap dari server */ }
     },
 
     // [TAMBAHAN - Absensi Offline] Simpan payload absen ke antrean
