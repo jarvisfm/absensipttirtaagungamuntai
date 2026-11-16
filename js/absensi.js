@@ -316,6 +316,12 @@ const absensi = {
     Promise.resolve(pageDataPromise).then(pd => {
         if (pd && pd.pending && window.suratTugas) suratTugas.setPending(pd.pending.suratTugas > 0);
     }).catch(() => {});
+    // [TAMBAHAN] Tombol Input SPK dinonaktifkan selama ada SPK pending untuk
+    // HARI INI - lihat spk.refreshLock() di spk.js. Angka pending SPK dipakai
+    // ulang dari data halaman (tanpa request tambahan kalau 0).
+    Promise.resolve(pageDataPromise).then(pd => {
+        if (window.spk) spk.refreshLock(pd && pd.pending ? pd.pending.spk : undefined);
+    }).catch(() => {});
     const badgeJitterMs = Math.random() * 1500;
     setTimeout(async () => {
         const pageData = await pageDataPromise;
