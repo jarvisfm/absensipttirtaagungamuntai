@@ -68,7 +68,7 @@ const offlineDB = {
     // verificationLocation, dst) ditambah `apiBaseUrl` (lihat catatan di
     // offline-queue.js kenapa URL tujuan disertakan per-record, bukan
     // konstanta terpisah).
-    async enqueue(record) {
+    async enqueue(record, extra = {}) {
         const db = await this._open();
         return new Promise((resolve, reject) => {
             const tx = db.transaction(this.STORE_NAME, 'readwrite');
@@ -78,7 +78,10 @@ const offlineDB = {
                 status: 'pending',     // pending -> syncing -> (dihapus kalau sukses) | failed (lihat offline-queue.js)
                 createdAt: Date.now(), // dasar urutan FIFO & buat lihat sudah berapa lama menunggu
                 attempts: 0,           // jumlah percobaan gagal transient (jaringan) - dasar backoff di offline-queue.js
-                lastError: null
+                lastError: null,
+                leaseUntil: 0,         // [9 Nov 2026] "sewa" pengiriman: selama masih berlaku, pengirim LAIN (flush/Service Worker/tab lain) tidak boleh mengirim record ini
+                direct: false,         // [9 Nov 2026] true = sedang dikirim langsung oleh halaman Absensi (tidak dihitung di badge "menunggu sinkron")
+                ...extra
             };
             const req = store.add(toSave);
             req.onsuccess = () => resolve(req.result); // localId hasil auto-increment
@@ -125,6 +128,46 @@ const offlineDB = {
     async countPending() {
         const all = await this.getAllPending();
         return all.length;
+    },
+
+    // [9 Nov 2026] Ambil 1 record by localId (undefined kalau sudah tidak ada).
+    async get(localId) {
+        const db = await this._open();
+        return new Promise((resolve, reject) => {
+            const req = db.transaction(this.STORE_NAME, 'readonly').objectStore(this.STORE_NAME).get(localId);
+            req.onsuccess = () => resolve(req.result);
+            req.onerror = () => reject(req.error);
+        });
+    },
+
+    // [9 Nov 2026] "Klaim" 1 record untuk dikirim, ATOMIK dalam 1 transaksi:
+    // berhasil (mengembalikan record) HANYA kalau record masih ada, bukan
+    // 'failed', dan tidak sedang disewa pengirim lain. Mencegah kiriman
+    // GANDA dari halaman + Service Worker + tab lain yang jalan berbarengan
+    // (penyebab baris absen dobel). Sewa otomatis kedaluwarsa (leaseMs)
+    // kalau pengirimnya mati di tengah jalan (app ditutup/di-refresh).
+    async claim(localId, leaseMs) {
+        const db = await this._open();
+        return new Promise((resolve, reject) => {
+            const tx = db.transaction(this.STORE_NAME, 'readwrite');
+            const store = tx.objectStore(this.STORE_NAME);
+            let claimed = null;
+            const getReq = store.get(localId);
+            getReq.onsuccess = () => {
+                const rec = getReq.result;
+                const now = Date.now();
+                if (!rec || rec.status === 'failed') return;
+                if (rec.status === 'syncing' && rec.leaseUntil && rec.leaseUntil > now) return;
+                rec.status = 'syncing';
+                rec.leaseUntil = now + (leaseMs || 45000);
+                rec.direct = false;
+                store.put(rec);
+                claimed = rec;
+            };
+            tx.oncomplete = () => resolve(claimed);
+            tx.onerror = () => reject(tx.error);
+            tx.onabort = () => reject(tx.error);
+        });
     },
 
     async updateStatus(localId, status, extra = {}) {
