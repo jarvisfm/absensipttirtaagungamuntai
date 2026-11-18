@@ -25,6 +25,38 @@ const SESSION_WORKER_URL = 'https://absensi-sesi.absensi-taa.workers.dev';
 //              otomatis jatuh balik ke Apps Script.
 const ABSENSI_PAGE_DATA_MODE = 'shadow';
 
+// [TAMBAHAN 18 Nov 2026] BACKEND BARU (Node.js + PostgreSQL) untuk aksi BACA.
+//   BACKEND_BARU_MODE:
+//     'off' = semua aksi tetap ke Apps Script (perilaku lama).  <-- awal
+//     'on'  = aksi pada daftar BACKEND_BARU_AKSI dicoba ke backend baru dulu;
+//             kalau backend baru tidak terjangkau, lambat, atau tidak menjawab
+//             success:true, otomatis jatuh balik ke Apps Script (jawaban resmi,
+//             termasuk pesan galat seperti "Sesi tidak valid").
+//   BACKEND_BARU_URL: alamat HTTPS backend baru (mis. https://api.namadomain.id). Kosong = nonaktif.
+// Hanya aksi yang SUDAH terbukti COCOK 100% dengan Apps Script (skrip bandingkan.js) yang boleh masuk daftar.
+// Untuk mematikan 1 aksi: hapus namanya dari daftar. Untuk mematikan semuanya: ubah MODE ke 'off'.
+const BACKEND_BARU_URL = '';
+const BACKEND_BARU_MODE = 'off';
+const BACKEND_BARU_AKSI = new Set([
+    // Absensi
+    'getAttendance', 'getAllAttendance', 'getDashboardAttendance', 'getAttendanceReports', 'getTodayAttendanceForUser', 'getTodayAttendanceAll',
+    // Pengaturan & jadwal
+    'getSettings', 'getSettingByKey', 'getSchedule',
+    // Karyawan
+    'getEmployees', 'getKaryawanList', 'getKaryawanDetail', 'getApproverCandidates', 'getAsmenByBagian', 'getEmployeeProfile',
+    // Cuti, izin, SPK, surat tugas, laporan, sanggahan
+    'getLeaveBalance', 'getIzinHarianBalance', 'getAllKuotaKaryawan', 'getLeaves', 'getAllLeaves', 'getIzin', 'getAllIzin',
+    'getSpk', 'getAllSpk', 'getSuratTugas', 'getAllSuratTugas', 'getAllOutOfRadiusReports', 'getOutOfRadiusReportsForApprover',
+    'getAllOutOfWilayahReports', 'getOutOfWilayahReportsForUser', 'getSanggahanAbsensi', 'getAllSanggahanAbsensi',
+    // Riwayat kepegawaian
+    'getRiwayatGolongan', 'getRiwayatKaryawan', 'getRiwayatMutasi', 'getRiwayatPendidikan', 'getRiwayatKgb', 'getKgbPengajuanRiwayat', 'getKgbContext',
+    // Slip gaji, telaah, permintaan
+    'getSlipGajiPeriode', 'getSlipGajiList', 'getSlipGajiSaya', 'getTelaahContext', 'getKatalogBarangPermintaan'
+]);
+// Pemutus sirkuit: kalau backend baru gagal (mati/lambat), 60 detik berikutnya langsung ke Apps Script
+// supaya karyawan tidak menunggu timeout berulang.
+let _backendBaruMatiSampai = 0;
+
 // [TAMBAHAN - optimasi jam sibuk] Aksi yang AMAN di-retry otomatis kalau
 // gagal/timeout - HANYA aksi BACA (get*/check*/is*/validate*/verify*) plus
 // login/reverseGeocode/previewLeaveDuration (menimpa/melihat data, tidak
@@ -130,6 +162,30 @@ const api = {
         return this.request('getServerTime', {});
     },
 
+    // [TAMBAHAN 18 Nov 2026] Coba backend baru. Mengembalikan objek jawaban HANYA kalau success:true;
+    // selain itu null (pemanggil lanjut ke Apps Script).
+    async _viaBackendBaru(action, data) {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 8000);
+        try {
+            const res = await fetch(BACKEND_BARU_URL.replace(/\/+$/, '') + '/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'text/plain' },
+                body: JSON.stringify({ action, ...data }),
+                signal: controller.signal
+            });
+            if (!res.ok) { _backendBaruMatiSampai = Date.now() + 60000; return null; }
+            const json = await res.json();
+            if (json && json.success === true) return json;
+            return null; // galat logika (mis. sesi tidak valid): biar Apps Script yang menjawab resmi
+        } catch (e) {
+            _backendBaruMatiSampai = Date.now() + 60000;
+            return null;
+        } finally {
+            clearTimeout(timeoutId);
+        }
+    },
+
     // ========== CORE REQUEST ==========
 
     async request(action, data = {}) {
@@ -142,6 +198,12 @@ const api = {
         // _burstSpreadDelay() di atas - cuma berlaku untuk saveAttendance,
         // aksi lain langsung lanjut seperti biasa (delay-nya 0).
         await _burstSpreadDelay(action);
+
+        // [TAMBAHAN 18 Nov 2026] Aksi baca yang sudah terbukti cocok dicoba ke backend baru dulu.
+        if (BACKEND_BARU_MODE === 'on' && BACKEND_BARU_URL && BACKEND_BARU_AKSI.has(action) && Date.now() >= _backendBaruMatiSampai) {
+            const cepat = await this._viaBackendBaru(action, data);
+            if (cepat) return cepat;
+        }
 
         // [TAMBAHAN - optimasi jam sibuk] Aksi baca dicoba maks 3x (1
         // percobaan awal + 2 retry) sebelum benar-benar menyerah; aksi yang
