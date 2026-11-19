@@ -162,6 +162,14 @@ const api = {
         return this.request('getServerTime', {});
     },
 
+    // Identitas sesi pengguna yang sedang login (kosong kalau belum login).
+    _sesiBackendBaru() {
+        try {
+            const u = (typeof auth !== 'undefined' && auth.getCurrentUser) ? auth.getCurrentUser() : null;
+            return u && u.sessionToken ? { authUserId: u.id, authRole: u.role, sessionToken: u.sessionToken } : {};
+        } catch (e) { return {}; }
+    },
+
     // [TAMBAHAN 18 Nov 2026] Coba backend baru. Mengembalikan objek jawaban HANYA kalau success:true;
     // selain itu null (pemanggil lanjut ke Apps Script).
     async _viaBackendBaru(action, data) {
@@ -171,7 +179,8 @@ const api = {
             const res = await fetch(BACKEND_BARU_URL.replace(/\/+$/, '') + '/', {
                 method: 'POST',
                 headers: { 'Content-Type': 'text/plain' },
-                body: JSON.stringify({ action, ...data }),
+                // Sertakan identitas sesi untuk backend baru (Apps Script tidak butuh, jadi tidak diubah).
+                body: JSON.stringify({ action, ...this._sesiBackendBaru(), ...data }),
                 signal: controller.signal
             });
             if (!res.ok) { _backendBaruMatiSampai = Date.now() + 60000; return null; }
