@@ -35,8 +35,10 @@ const ABSENSI_PAGE_DATA_MODE = 'shadow';
 //   BACKEND_BARU_URL: alamat HTTPS backend baru (mis. https://api.namadomain.id). Kosong = nonaktif.
 // Hanya aksi yang SUDAH terbukti COCOK 100% dengan Apps Script (skrip bandingkan.js) yang boleh masuk daftar.
 // Untuk mematikan 1 aksi: hapus namanya dari daftar. Untuk mematikan semuanya: ubah MODE ke 'off'.
-const BACKEND_BARU_URL = '';
-const BACKEND_BARU_MODE = 'off';
+const BACKEND_BARU_URL = 'https://api-absensi.pdamhsu.com';
+const BACKEND_BARU_MODE = 'on';
+// Tahap uji: HANYA akun dengan id di daftar ini yang memakai backend baru. Kosongkan ([]) untuk SEMUA akun.
+const BACKEND_BARU_AKUN = ['1'];
 const BACKEND_BARU_AKSI = new Set([
     // Absensi
     'getAttendance', 'getAllAttendance', 'getDashboardAttendance', 'getAttendanceReports', 'getTodayAttendanceForUser', 'getTodayAttendanceAll',
@@ -163,6 +165,15 @@ const api = {
     },
 
     // Identitas sesi pengguna yang sedang login (kosong kalau belum login).
+    // Tahap uji: true bila daftar BACKEND_BARU_AKUN kosong (semua akun) atau id akun yang login ada di dalamnya.
+    _akunBackendBaru() {
+        if (!BACKEND_BARU_AKUN.length) return true;
+        try {
+            const u = (typeof auth !== 'undefined' && auth.getCurrentUser) ? auth.getCurrentUser() : null;
+            return !!(u && BACKEND_BARU_AKUN.includes(String(u.id)));
+        } catch (e) { return false; }
+    },
+
     _sesiBackendBaru() {
         try {
             const u = (typeof auth !== 'undefined' && auth.getCurrentUser) ? auth.getCurrentUser() : null;
@@ -209,7 +220,7 @@ const api = {
         await _burstSpreadDelay(action);
 
         // [TAMBAHAN 18 Nov 2026] Aksi baca yang sudah terbukti cocok dicoba ke backend baru dulu.
-        if (BACKEND_BARU_MODE === 'on' && BACKEND_BARU_URL && BACKEND_BARU_AKSI.has(action) && Date.now() >= _backendBaruMatiSampai) {
+        if (BACKEND_BARU_MODE === 'on' && BACKEND_BARU_URL && BACKEND_BARU_AKSI.has(action) && Date.now() >= _backendBaruMatiSampai && this._akunBackendBaru()) {
             const cepat = await this._viaBackendBaru(action, data);
             if (cepat) return cepat;
         }
