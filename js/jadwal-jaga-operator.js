@@ -1071,7 +1071,7 @@ const jadwalJagaOperator = {
         const unitEmployees = this._employeesForUnit(this.unitKey);
         const initials = n => String(n || '?').trim().split(/\s+/).slice(0, 2).map(w => w.charAt(0)).join('').toUpperCase();
         const poolChips = unitEmployees.length
-            ? unitEmployees.map(emp => `<div class="jjo-pool-chip" data-emp="${emp.id}" data-nama="${this._escAttr(String(emp.nama || '').toLowerCase())}" title="Seret ke jadwal">
+            ? unitEmployees.map(emp => `<div class="jjo-pool-chip" data-emp="${emp.id}" data-nama="${this._escAttr(String(emp.nama || '').toLowerCase())}" title="Ketuk untuk melihat jadwalnya, atau seret ke jadwal">
                     <span class="jjo-av">${this._escAttr(initials(emp.nama))}</span>
                     <span class="jjo-pool-name">${this._escAttr(emp.nama)}</span>
                     <span class="jjo-pool-count" title="Jumlah hari terjadwal bulan ini">0</span>
@@ -1081,7 +1081,7 @@ const jadwalJagaOperator = {
         wrap.innerHTML = `
           <div class="jjo-layout">
             <aside class="jjo-pool" id="jjo-pool">
-                <div class="jjo-pool-head"><b><i class="fas fa-users"></i> Petugas</b><small><span class="jjo-hint-mouse">Ketuk nama, lalu ketuk sesi tujuan (atau seret)</span><span class="jjo-hint-touch">Ketuk nama, lalu ketuk sesi tujuan (atau tahan &amp; seret)</span></small></div>
+                <div class="jjo-pool-head"><b><i class="fas fa-users"></i> Petugas</b><small><span class="jjo-hint-mouse">Ketuk nama untuk melihat semua jadwalnya (atau seret ke sesi)</span><span class="jjo-hint-touch">Ketuk nama untuk melihat semua jadwalnya (atau tahan &amp; seret)</span></small></div>
                 <div class="jjo-pool-search"><i class="fas fa-search"></i><input type="text" id="jjo-pool-q" placeholder="Cari nama..." autocomplete="off"></div>
                 <div class="jjo-pool-list" id="jjo-pool-list">${poolChips}</div>
             </aside>
@@ -1310,6 +1310,7 @@ const jadwalJagaOperator = {
         wrap._pickCapture = (e) => this._pickClick(e);
         wrap.addEventListener('click', wrap._pickCapture, true);
         this._pickClear(true);
+        this._focusId = null; // kartu hari baru saja dirender ulang -> mode "lihat jadwal petugas" ikut reset
     },
 
     _pickClear(silent) {
@@ -1343,12 +1344,15 @@ const jadwalJagaOperator = {
     },
 
     _pickClick(e) {
-        if (this._locked) return;
         const t = e.target;
         if (!t || !t.closest) return;
         if (this._suppressClick) return;
+        // [DIUBAH] Ketuk nama petugas = tampilkan SEMUA jadwal petugas itu (seperti
+        // filter "Hanya jadwal saya" di menu Jadwal Jaga) - lihat _focusToggle().
+        // Hanya melihat, jadi tetap jalan walau jadwal sedang dikunci.
         const chip = t.closest('.jjo-pool-chip');
-        if (chip) { e.stopPropagation(); this._pickSet(chip); return; }
+        if (chip) { e.stopPropagation(); this._focusToggle(chip); return; }
+        if (this._locked) return;
         if (!this._pickId) return;
         const sess = t.closest('.jjo-sess');
         if (!sess) return;
@@ -1564,6 +1568,88 @@ const jadwalJagaOperator = {
         if (num) num.textContent = n;
         if (fill) fill.style.width = p + '%';
         if (pct) pct.textContent = '(' + p + '%)';
+        this._applyFocus(); // jaga tampilan "lihat jadwal petugas" tetap sinkron saat jadwal diedit
+    },
+
+    // ── Lihat semua jadwal satu petugas ────────────────────────────
+    // Ketuk nama di daftar Petugas -> kartu hari disaring: HANYA hari di mana
+    // petugas itu terjadwal yang tampil, namanya ditandai oranye, dan muncul
+    // ringkasan "terjadwal jaga N hari" (sama konsepnya dengan filter "Hanya
+    // jadwal saya" di menu Jadwal Jaga). Ketuk nama yang sama lagi / tombol
+    // "Tampilkan semua" / Esc untuk kembali. Kartu tetap bisa diedit seperti biasa.
+    _focusId: null,
+    _focusKey: null,
+
+    _focusToggle(chip) {
+        const id = chip.dataset.emp;
+        if (this._focusId === id) { this._focusClear(); return; }
+        this._focusId = id;
+        // Filter "belum terisi saja" tidak ikut aktif bersamaan (hasilnya pasti kosong)
+        const only = document.getElementById('jjo-only-empty');
+        if (only && only.checked) { only.checked = false; if (only.onchange) only.onchange(); }
+        if (!this._focusKey) {
+            this._focusKey = (ev) => { if (ev.key === 'Escape') this._focusClear(); };
+            document.addEventListener('keydown', this._focusKey);
+        }
+        this._applyFocus();
+    },
+
+    _focusClear() {
+        this._focusId = null;
+        if (this._focusKey) { document.removeEventListener('keydown', this._focusKey); this._focusKey = null; }
+        this._applyFocus();
+    },
+
+    _applyFocus() {
+        const box = document.getElementById('jjo-days');
+        if (!box) return;
+        const id = this._focusId ? String(this._focusId) : null;
+        const unit = this._curUnit;
+        const bar = document.getElementById('jjo-focus-bar');
+
+        document.querySelectorAll('#jjo-pool .jjo-pool-chip').forEach(c => c.classList.toggle('is-focus', !!id && c.dataset.emp === id));
+
+        if (!id || !unit) {
+            box.classList.remove('focus-mode');
+            box.querySelectorAll('.has-focus').forEach(el => el.classList.remove('has-focus'));
+            box.querySelectorAll('.is-focus-emp').forEach(el => el.classList.remove('is-focus-emp'));
+            if (bar) bar.remove();
+            return;
+        }
+
+        box.classList.add('focus-mode');
+        const days = this._daysInMonth();
+        let hari = 0, jaga = 0;
+        for (let d = 1; d <= days; d++) {
+            const n = this._dayIds(d, unit).map(String).filter(x => x === id).length;
+            const el = document.getElementById('jjo-day-' + d);
+            if (el) el.classList.toggle('has-focus', n > 0);
+            if (n > 0) { hari++; jaga += n; }
+        }
+        // Tandai nama petugas itu di semua kartu (pil centang & dropdown)
+        box.querySelectorAll('.jjo-petugas-checkbox').forEach(inp => {
+            const lab = inp.closest('.jjo-checkbox-item');
+            if (lab) lab.classList.toggle('is-focus-emp', String(inp.value) === id);
+        });
+        box.querySelectorAll('select.jjo-select').forEach(sel => sel.classList.toggle('is-focus-emp', String(sel.value) === id));
+
+        const nama = this._employeeName(id) || 'Petugas';
+        const bulan = `${BULAN_NAMA[this.month]} ${this.year}`;
+        const ringkas = hari === 0
+            ? `<b>${this._escAttr(nama)}</b> belum terjadwal jaga di ${bulan}.`
+            : `<b>${this._escAttr(nama)}</b> terjadwal jaga <b>${hari} hari</b>${jaga !== hari ? ` (${jaga} jaga)` : ''} di ${bulan}. <span>Namanya ditandai oranye pada kartu.</span>`;
+
+        let el = bar;
+        if (!el) {
+            el = document.createElement('div');
+            el.id = 'jjo-focus-bar';
+            el.className = 'jjo-focus-bar';
+            box.insertAdjacentElement('beforebegin', el);
+        }
+        el.innerHTML = `<div class="jjo-focus-ic"><i class="fas fa-user-check"></i></div>
+            <div class="jjo-focus-txt">${ringkas}</div>
+            <button type="button" id="jjo-focus-clear"><i class="fas fa-xmark"></i> Tampilkan semua</button>`;
+        document.getElementById('jjo-focus-clear').onclick = () => this._focusClear();
     },
 
     _bindInputs() {
