@@ -779,8 +779,10 @@ const adminReports = {
             this.filters.attendance.name = e.target.value.trim();
             // PERBAIKAN PERFORMA: tunda render sampai berhenti mengetik,
             // supaya tidak membangun ulang seluruh tabel di tiap ketukan.
+            // [23 Nov 2026] jeda 300 -> 500 ms: di HP, render di sela-sela
+            // mengetik terasa menahan keyboard.
             clearTimeout(this._attNameTimer);
-            this._attNameTimer = setTimeout(() => this.renderAttendanceReports(), 300);
+            this._attNameTimer = setTimeout(() => this.renderAttendanceReports(), 500);
         });
 
         const monthFilter = document.getElementById('attendance-month-filter');
@@ -1156,8 +1158,22 @@ const adminReports = {
 
         if (employees.length === 0) {
             container.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:2rem;">Tidak ada data karyawan</td></tr>';
+            // [23 Nov 2026] pastikan tombol "Tampilkan lebih banyak" di kartu mobile ikut hilang.
+            const _mc = document.getElementById('attendance-mobile-cards');
+            if (_mc) _mc.innerHTML = '';
             return;
         }
+
+        // [PERBAIKAN PERFORMA 23 Nov 2026] Gambar karyawan BERTAHAP. Dulu SEMUA karyawan yang cocok dibangun sekaligus
+        // (ribuan baris HTML) di tiap render - berat, terutama saat mengetik di kolom Nama. Sekarang 12 karyawan
+        // pertama dulu; sisanya muncul saat digulir ke bawah (atau lewat tombol). Cetak & Export Excel TIDAK terpengaruh
+        // karena memakai data langsung, bukan isi tabel di layar. Jumlah yang tampil kembali ke 12 setiap filter berubah.
+        const ATT_BATCH = 12;
+        const attSig = [month, name, bagian, jadwal, unitWilayah, dateFrom, dateTo].join('|');
+        if (this._attLimitSig !== attSig || !this._attLimit) { this._attLimitSig = attSig; this._attLimit = ATT_BATCH; }
+        const totalCocok = employees.length;
+        if (totalCocok > this._attLimit) employees = employees.slice(0, this._attLimit);
+        const sisaKaryawan = totalCocok - employees.length;
 
         let html = '';
         employees.forEach(emp => {
@@ -1437,8 +1453,17 @@ const adminReports = {
             html += `<tr><td colspan="8" style="padding:8px;background:transparent;border:none;"></td></tr>`;
         });
 
+        const _tombolLagi = (id) => `<button type="button" id="${id}" onclick="adminReports.tampilkanLebihBanyakAbsensi()" style="padding:10px 18px;border:1px solid var(--border-color,#e5e7eb);border-radius:10px;background:#fff;color:var(--text-primary,#111);font-weight:600;cursor:pointer;"><i class="fas fa-chevron-down" style="margin-right:6px;"></i>Tampilkan ${Math.min(ATT_BATCH, sisaKaryawan)} karyawan lagi (sisa ${sisaKaryawan})</button>`;
+        if (sisaKaryawan > 0) {
+            html += `<tr id="att-more-row"><td colspan="8" style="padding:14px;text-align:center;background:transparent;border:none;">${_tombolLagi('att-more-btn')}</td></tr>`;
+        }
         container.innerHTML = html;
         this.renderAttendanceMobileCards(employees, month, months, dateFrom, dateTo);
+        if (sisaKaryawan > 0 && this._attMobileShown) {
+            const mc = document.getElementById('attendance-mobile-cards');
+            if (mc) mc.insertAdjacentHTML('beforeend', `<div style="text-align:center;padding:14px 0;">${_tombolLagi('att-more-btn-m')}</div>`);
+        }
+        this._pantauTombolLebihBanyak(sisaKaryawan > 0);
 
         // PERBAIKAN PERFORMA: alamat (reverse geocoding) diambil bertahap
         // (maks 3 sekaligus), hanya untuk baris yang masih ada di layar, dan
@@ -1470,6 +1495,30 @@ const adminReports = {
             }
         };
         for (let i = 0; i < 3; i++) worker();
+    },
+
+    // [23 Nov 2026] Muat 12 karyawan berikutnya di Rekap Absensi (dipanggil tombol atau saat digulir ke bawah).
+    tampilkanLebihBanyakAbsensi() {
+        if (this._attLoadingMore) return;
+        this._attLoadingMore = true;
+        this._attLimit = (this._attLimit || 12) + 12;
+        setTimeout(() => {
+            try { this.renderAttendanceReports(); } finally { this._attLoadingMore = false; }
+        }, 0);
+    },
+
+    // Muat otomatis saat tombol "Tampilkan lebih banyak" mendekati layar (tombolnya tetap ada sebagai cadangan).
+    _pantauTombolLebihBanyak(ada) {
+        if (this._attMoreObserver) { this._attMoreObserver.disconnect(); this._attMoreObserver = null; }
+        if (!ada || typeof IntersectionObserver === 'undefined') return;
+        const obs = new IntersectionObserver((entries) => {
+            if (entries.some(e => e.isIntersecting)) this.tampilkanLebihBanyakAbsensi();
+        }, { rootMargin: '300px' });
+        ['att-more-btn', 'att-more-btn-m'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) obs.observe(el);
+        });
+        this._attMoreObserver = obs;
     },
 
     // [TAMBAHAN 2026-11-10] Catatan untuk sesi yang diabsen ulang setelah sanggahan absensinya DITOLAK
