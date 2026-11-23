@@ -1702,8 +1702,8 @@ const jadwalJagaOperator = {
                 XLSX.utils.book_append_sheet(wb, ws, this._safeSheetName(unit.label, usedSheetNames));
             }
 
-            // Tab "Konsolidasi" (sheet terakhir): rekap per petugas per unit - jumlah hari
-            // dijadwalkan (Hari) & berapa di antaranya jatuh di hari libur (Libur = Sabtu,
+            // Tab "Konsolidasi" (sheet terakhir): rekap per petugas per unit - jumlah jaga
+            // (Jaga), jumlah hari dijadwalkan (Hari) & berapa di antaranya jatuh di hari libur (Libur = Sabtu,
             // Minggu, atau tanggal merah nasional). Lihat _buildKonsolidasiRows().
             let holidays = {};
             try {
@@ -1717,7 +1717,7 @@ const jadwalJagaOperator = {
             const kons = this._buildKonsolidasiRows(konsolidasi, holidays);
             if (kons.rows.length > 1) {
                 const wsKons = XLSX.utils.aoa_to_sheet(kons.rows);
-                wsKons['!cols'] = [{ wch: 5 }, { wch: 34 }, { wch: 8 }, { wch: 8 }];
+                wsKons['!cols'] = [{ wch: 5 }, { wch: 34 }, { wch: 8 }, { wch: 8 }, { wch: 8 }];
                 wsKons['!merges'] = kons.merges;
                 XLSX.utils.book_append_sheet(wb, wsKons, this._safeSheetName('Konsolidasi', usedSheetNames));
             }
@@ -1788,9 +1788,11 @@ const jadwalJagaOperator = {
     },
 
     // Isi tab "Konsolidasi" di Export Excel: per unit (judul = kode unit, mis. "BNA Amuntai")
-    // daftar petugas yang dijadwalkan bulan itu + 2 angka:
-    //   Hari  = jumlah HARI petugas dijadwalkan (sama dengan angka di samping nama pada
-    //           daftar Petugas di layar: 1 hari dihitung 1 walau ikut >1 sesi di hari itu)
+    // daftar petugas yang dijadwalkan bulan itu + 3 angka:
+    //   Jaga  = jumlah JAGA (sesi) petugas bulan itu (sama dengan angka di samping nama pada
+    //           daftar Petugas di layar: tiap sesi yang dicentang dihitung 1, jadi Pagi + Siang
+    //           di hari yang sama = 2 jaga)
+    //   Hari  = jumlah HARI petugas dijadwalkan (1 hari dihitung 1 walau ikut >1 sesi di hari itu)
     //   Libur = dari hari-hari itu, berapa yang jatuh di hari libur. Aturannya beda per unit:
     //           - BNA Amuntai & semua unit SPAM : HANYA tanggal merah nasional (Sabtu/Minggu
     //             di unit ini hari kerja biasa, jadi tidak dihitung libur)
@@ -1802,13 +1804,13 @@ const jadwalJagaOperator = {
         const KONSOLIDASI_TAMPILKAN_NOL = false;
         const days = this._daysInMonth();
         const mm = String(this.month + 1).padStart(2, '0');
-        const rows = [['No', 'Nama Petugas', 'Hari', 'Libur']];
+        const rows = [['No', 'Nama Petugas', 'Jaga', 'Hari', 'Libur']];
         const merges = [];
 
         items.forEach(({ key, unit, data }) => {
             // BNA Amuntai (kode persis, BUKAN "TRD - BNA Amuntai") & unit SPAM: libur = tanggal merah saja.
             const hanyaTanggalMerah = key === 'BNA Amuntai' || /^SPAM /.test(key);
-            const stat = {}; // id -> { hari, libur }
+            const stat = {}; // id -> { jaga, hari, libur }
             for (let d = 1; d <= days; d++) {
                 const dd = (data.days && data.days[d]) || {};
                 let ids = [];
@@ -1823,8 +1825,14 @@ const jadwalJagaOperator = {
                 const dow = new Date(this.year, this.month, d).getDay();
                 const dateStr = `${this.year}-${mm}-${String(d).padStart(2, '0')}`;
                 const isLibur = (!hanyaTanggalMerah && (dow === 0 || dow === 6)) || !!(holidays && holidays[dateStr]);
+                // Jaga: tiap sesi yang dicentang dihitung 1 (ids bisa memuat orang yang sama
+                // lebih dari sekali kalau ia ikut >1 sesi di hari itu).
+                ids.map(String).forEach(id => {
+                    if (!stat[id]) stat[id] = { jaga: 0, hari: 0, libur: 0 };
+                    stat[id].jaga++;
+                });
+                // Hari & Libur: per HARI (dihitung sekali walau ikut >1 sesi).
                 new Set(ids.map(String)).forEach(id => {
-                    if (!stat[id]) stat[id] = { hari: 0, libur: 0 };
                     stat[id].hari++;
                     if (isLibur) stat[id].libur++;
                 });
@@ -1833,13 +1841,13 @@ const jadwalJagaOperator = {
             const ids = new Set(Object.keys(stat));
             if (KONSOLIDASI_TAMPILKAN_NOL) this._employeesForUnit(key).forEach(e => ids.add(String(e.id)));
             const list = Array.from(ids)
-                .map(id => ({ nama: this._employeeName(id) || ('Petugas #' + id), hari: (stat[id] || {}).hari || 0, libur: (stat[id] || {}).libur || 0 }))
+                .map(id => ({ nama: this._employeeName(id) || ('Petugas #' + id), jaga: (stat[id] || {}).jaga || 0, hari: (stat[id] || {}).hari || 0, libur: (stat[id] || {}).libur || 0 }))
                 .sort((a, b) => a.nama.localeCompare(b.nama));
             if (!list.length) return;
 
-            merges.push({ s: { r: rows.length, c: 0 }, e: { r: rows.length, c: 3 } });
-            rows.push([key, '', '', '']);
-            list.forEach((p, i) => rows.push([i + 1, p.nama, p.hari, p.libur]));
+            merges.push({ s: { r: rows.length, c: 0 }, e: { r: rows.length, c: 4 } });
+            rows.push([key, '', '', '', '']);
+            list.forEach((p, i) => rows.push([i + 1, p.nama, p.jaga, p.hari, p.libur]));
         });
 
         return { rows, merges };
