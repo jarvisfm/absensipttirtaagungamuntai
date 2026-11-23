@@ -1534,14 +1534,28 @@ const jadwalJagaOperator = {
             const badge = el.querySelector('.jjo-day-badge');
             if (badge) badge.innerHTML = filled ? '<i class="fas fa-check"></i> Terisi' : 'Kosong';
         }
-        // Hitung jumlah hari terjadwal per petugas (badge di daftar petugas).
-        const cnt = {};
+        // Hitung jumlah JAGA (shift) per petugas (badge di daftar petugas).
+        // PERBAIKAN: sebelumnya yang dihitung HARI terjadwal (1 hari = 1, walau
+        // petugas ikut >1 sesi di hari itu, mis. Pagi + Siang), jadi tidak sama
+        // dengan hitungan manual "berapa kali jaga" di kartu jadwal. Sekarang
+        // tiap sesi yang dicentang dihitung 1 kali. Jumlah hari tetap dihitung
+        // (cntHari) dan ditampilkan di tooltip saat berbeda dengan jumlah jaga.
+        const cnt = {};      // id -> jumlah jaga (sesi)
+        const cntHari = {};  // id -> jumlah hari terjadwal
         for (let d = 1; d <= days; d++) {
-            new Set(this._dayIds(d, unit)).forEach(id => { cnt[id] = (cnt[id] || 0) + 1; });
+            const ids = this._dayIds(d, unit);
+            ids.forEach(id => { cnt[id] = (cnt[id] || 0) + 1; });
+            new Set(ids).forEach(id => { cntHari[id] = (cntHari[id] || 0) + 1; });
         }
         document.querySelectorAll('#jjo-pool .jjo-pool-chip').forEach(chip => {
             const c = chip.querySelector('.jjo-pool-count');
-            if (c) c.textContent = cnt[chip.dataset.emp] || 0;
+            if (!c) return;
+            const jaga = cnt[chip.dataset.emp] || 0;
+            const hari = cntHari[chip.dataset.emp] || 0;
+            c.textContent = jaga;
+            c.title = jaga === hari
+                ? 'Jumlah jaga bulan ini'
+                : `Jumlah jaga bulan ini: ${jaga} jaga di ${hari} hari (ada hari dengan lebih dari 1 sesi)`;
         });
         const num = document.getElementById('jjo-prog-num');
         const fill = document.getElementById('jjo-prog-fill');
