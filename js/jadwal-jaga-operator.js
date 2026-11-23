@@ -1387,7 +1387,9 @@ const jadwalJagaOperator = {
             chip, id: chip.dataset.emp, name: chip.querySelector('.jjo-pool-name').textContent,
             x0: e.clientX, y0: e.clientY, x: e.clientX, y: e.clientY,
             active: false, ghost: null, target: null, raf: 0, timer: null,
-            scroller: this._dndScrollParent(chip) || null
+            // [DIUBAH] auto-scroll harus menggulung area kartu hari (bukan daftar petugas),
+            // kalau tidak, menyeret ke bawah hanya menggulung daftar nama dan kartu hari tak bergerak.
+            scroller: this._dndScrollParent(document.querySelector('.jjo-day')) || null
         };
         this._dnd = st;
 
@@ -1407,10 +1409,16 @@ const jadwalJagaOperator = {
             if (!st.active) return;
             if (st.ghost) st.ghost.style.transform = `translate(${st.x + 12}px, ${st.y + 12}px)`;
             // auto-scroll dekat tepi layar
-            const edge = 70, vh = window.innerHeight;
+            const edge = 70;
+            let top = 0, bottom = window.innerHeight;
+            if (st.scroller) {
+                const r = st.scroller.getBoundingClientRect();
+                top = Math.max(0, r.top); bottom = Math.min(bottom, r.bottom);
+            }
             let dy = 0;
-            if (st.y < edge) dy = -Math.ceil((edge - st.y) / 6);
-            else if (st.y > vh - edge) dy = Math.ceil((st.y - (vh - edge)) / 6);
+            if (st.y < top + edge) dy = -Math.ceil((top + edge - st.y) / 6);
+            else if (st.y > bottom - edge) dy = Math.ceil((st.y - (bottom - edge)) / 6);
+            if (dy > 40) dy = 40; else if (dy < -40) dy = -40;
             if (dy) { if (st.scroller) st.scroller.scrollTop += dy; else window.scrollBy(0, dy); }
             this._dndHover(st);
             st.raf = requestAnimationFrame(loop);
@@ -1419,7 +1427,14 @@ const jadwalJagaOperator = {
             st.x = ev.clientX; st.y = ev.clientY;
             if (!st.active) {
                 const moved = Math.hypot(st.x - st.x0, st.y - st.y0);
-                if (isTouch) { if (moved > 10) cleanup(); }      // geser = scroll biasa
+                if (isTouch) {
+                    if (moved > 10) {
+                        // [DIUBAH] daftar petugas di HP berjajar mendatar: geser mendatar = scroll daftar,
+                        // geser ke bawah/atas = langsung menyeret petugas ke kartu hari.
+                        if (Math.abs(st.y - st.y0) > Math.abs(st.x - st.x0)) { clearTimeout(st.timer); begin(); ev.preventDefault(); }
+                        else cleanup();
+                    }
+                }
                 else if (moved > 5) begin();
                 return;
             }
