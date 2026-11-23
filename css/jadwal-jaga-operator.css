@@ -498,7 +498,7 @@ body.jjo-dragging .jjo-sess{background:rgba(20,184,166,.05);box-shadow:inset 0 0
   .jjo-pool-head small{margin:2px 0 6px}
   .jjo-pool-search{display:none}
   .jjo-pool-list{flex-direction:row;overflow-x:auto;overflow-y:hidden;padding-bottom:4px;-webkit-overflow-scrolling:touch}
-  .jjo-pool-chip{flex:0 0 auto;max-width:210px}
+  .jjo-pool-chip{flex:0 0 auto;max-width:210px;touch-action:pan-x}
   .jjo-toolbar{position:static}
 }
 
