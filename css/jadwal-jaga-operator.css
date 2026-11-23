@@ -539,3 +539,21 @@ body.jjo-armed .jjo-sess *{cursor:copy}
 .jjo-locked .jjo-days .jjo-checkbox-item,.jjo-locked .jjo-days .jjo-select,.jjo-locked .jjo-days .jjo-input{cursor:not-allowed;opacity:.75}
 .jjo-locked .jjo-tool{opacity:.45;cursor:not-allowed}
 .jjo-locked .jjo-tool:hover{background:#fff;color:#475569;border-color:#E2E8F0}
+
+/* ── Lihat semua jadwal satu petugas (ketuk nama di daftar Petugas) ──────────
+   Kartu hari disaring: hanya hari tempat petugas itu terjadwal yang tampil. */
+.jjo-days.focus-mode .jjo-day:not(.has-focus){display:none}
+.jjo-pool-chip.is-focus{border-color:#D97706;background:linear-gradient(135deg,#FEF3C7,#FFFBEB);box-shadow:0 0 0 3px rgba(245,158,11,.3)}
+.jjo-pool-chip.is-focus .jjo-av{box-shadow:0 0 0 3px #fff,0 0 0 5px #F59E0B}
+/* Jadwal dikunci hanya menonaktifkan edit/seret - melihat jadwal petugas tetap boleh */
+.jjo-locked .jjo-pool-chip{cursor:pointer;opacity:1}
+#page-jadwal-jaga-operator .jjo-checkbox-item.is-focus-emp:has(input:checked){background:linear-gradient(135deg,#F59E0B,#D97706);border-color:#B45309;color:#fff;box-shadow:0 4px 10px rgba(217,119,6,.35)}
+#page-jadwal-jaga-operator .jjo-checkbox-item.is-focus-emp:has(input:checked)::before{border-color:#fff;background:#fff radial-gradient(circle,#B45309 40%,transparent 45%)}
+.jjo-select.is-focus-emp{border-color:#D97706;box-shadow:0 0 0 3px rgba(245,158,11,.3)}
+.jjo-focus-bar{display:flex;align-items:center;gap:12px;margin:0 0 12px;padding:12px 14px;background:#FFFBEB;border:1px solid #FDE68A;border-radius:14px;color:#78350F;font-size:13px}
+.jjo-focus-ic{flex:0 0 auto;width:34px;height:34px;border-radius:10px;background:#FEF3C7;color:#B45309;display:flex;align-items:center;justify-content:center}
+.jjo-focus-txt{flex:1;min-width:0;line-height:1.4}
+.jjo-focus-txt span{color:#92400E;opacity:.85}
+.jjo-focus-bar button{flex:0 0 auto;display:inline-flex;align-items:center;gap:6px;padding:8px 12px;border:1px solid #FCD34D;border-radius:10px;background:#fff;color:#92400E;font:inherit;font-weight:600;cursor:pointer}
+.jjo-focus-bar button:hover{background:#FEF3C7}
+@media (max-width:560px){.jjo-focus-bar{flex-wrap:wrap}.jjo-focus-bar button{width:100%;justify-content:center}}
