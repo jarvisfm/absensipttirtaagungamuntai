@@ -130,6 +130,18 @@ const izin = {
         }
     },
 
+    // [PERUBAHAN 23 Nov 2026] true kalau karyawan yang sedang login berjadwal "Jaga Malam".
+    // Dikenali dari nama Jenis Jadwal yang memuat "jaga malam" (tidak peka huruf besar/kecil) -
+    // PERSIS aturan _isJagaMalamEmployee() di Leave.gs (dipakai backend untuk Cuti & Izin).
+    _isJagaMalam() {
+        try {
+            const u = auth.getCurrentUser();
+            return !!u && String(u.shift || '').toLowerCase().indexOf('jaga malam') !== -1;
+        } catch (e) {
+            return false;
+        }
+    },
+
     /**
      * Tanggal-tanggal yang BOLEH diajukan untuk Tanggal Mulai/Selesai
      * Permohonan Izin Harian: hari ini + 3 hari KERJA berikutnya (Sabtu &
@@ -151,9 +163,14 @@ const izin = {
         const cursor = new Date();
         cursor.setHours(0, 0, 0, 0);
         const todayTime = cursor.getTime();
+        // [PERUBAHAN 23 Nov 2026] Jenis Jadwal "Jaga Malam" berjadwal kerja Senin-SABTU
+        // (sama seperti aturan Cuti: Sabtu dihitung hari kerja HANYA untuk shift ini),
+        // jadi untuk mereka Sabtu TIDAK dilewati & bisa dipilih. Minggu tetap dilewati.
+        // Jenis Jadwal lain tidak berubah (Sabtu & Minggu tetap dilewati).
+        const sabtuHariKerja = this._isJagaMalam();
         while (allowed.length < 4) {
             const day = cursor.getDay(); // 0 = Minggu, 6 = Sabtu
-            const isWeekend = (day === 0 || day === 6);
+            const isWeekend = (day === 0 || (day === 6 && !sabtuHariKerja));
             const isSkippedToday = excludeToday && cursor.getTime() === todayTime;
             if (!isWeekend && !isSkippedToday) allowed.push(new Date(cursor));
             cursor.setDate(cursor.getDate() + 1);
