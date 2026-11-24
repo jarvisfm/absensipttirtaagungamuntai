@@ -410,6 +410,27 @@ const sanggahanAbsensi = {
         }
     },
 
+    // [TAMBAHAN] Setelah submit timeout: cek beberapa kali apakah sanggahan itu ternyata sudah tersimpan
+    // (tanggal sama, sesi yang dipilih ada di dalamnya, dibuat sekitar waktu submit).
+    async _verifyTerkirim(data, startedAt) {
+        for (const jeda of [2500, 4000, 6000]) {
+            await new Promise(r => setTimeout(r, jeda));
+            try {
+                const res = await api.getSanggahanAbsensi(data.userId);
+                const rows = res && res.success ? (res.data || []) : [];
+                const ketemu = rows.some(r => {
+                    const t = new Date(r.createdAt).getTime();
+                    const fields = String(r.sessionFields || '').split(',');
+                    return String(r.date) === String(data.date)
+                        && !isNaN(t) && t >= startedAt - 120000
+                        && data.sessionFields.every(f => fields.includes(f));
+                });
+                if (ketemu) return true;
+            } catch (e) { /* coba lagi di putaran berikutnya */ }
+        }
+        return false;
+    },
+
     // Cegah submit dobel - pola sama seperti suratTugas._isSubmitting.
     _isSubmitting: false,
 
@@ -476,7 +497,18 @@ const sanggahanAbsensi = {
         this._setSimpanLoading(true);
 
         try {
-            const result = await api.submitSanggahanAbsensi(data);
+            const startedAt = Date.now();
+            let result = await api.submitSanggahanAbsensi(data);
+            // [TAMBAHAN] Timeout/offline di sisi aplikasi BUKAN berarti gagal tersimpan - Apps Script
+            // sering tetap menyelesaikan prosesnya. Cek riwayat dulu sebelum menampilkan error,
+            // supaya karyawan tidak mengirim ulang padahal sanggahannya sudah masuk.
+            if (!result.success && String(result.error || '').indexOf('No fallback for action') === 0) {
+                if (await this._verifyTerkirim(data, startedAt)) {
+                    result = { success: true };
+                } else {
+                    result = { success: false, error: (result.userMessage || 'Koneksi bermasalah.') + ' Sanggahan belum terlihat di riwayat. Buka kembali form ini dan cek riwayat dulu sebelum mengirim ulang.' };
+                }
+            }
             if (result.success) {
                 toast.success('Sanggahan Absensi berhasil dikirim - menunggu persetujuan Admin.');
                 document.getElementById('modal-sanggahan-absensi').style.display = 'none';
