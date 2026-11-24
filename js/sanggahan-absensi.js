@@ -12,6 +12,9 @@
 const sanggahanAbsensi = {
     MAX_HARI: 2,                  // [DIUBAH 2026-11-10: 3 -> 2] hari ini + 2 hari sebelumnya - samakan dengan SANGGAHAN_MAX_HARI di server
     ALASAN: { jaringan: 'Tidak ada jaringan / sinyal', listrik: 'Listrik padam', server: 'Server / aplikasi error' },
+    TOKEN_PER_BULAN: 5,           // [TAMBAHAN 2026-11-24] jatah sanggahan per bulan (1 token = 1 TANGGAL absensi) - samakan dengan SANGGAHAN_TOKEN_PER_BULAN di server
+    _tokenSisa: null,             // sisa token bulan ini (null = belum diketahui)
+    _tokenTanggal: [],            // tanggal absensi yang sudah memakai token bulan ini
     MAX_BUKTI_BYTES: 1024 * 1024, // batas ukuran bukti: 1 MB
     _bukti: null,                 // { nama, base64, mime, size, previewUrl } - bukti foto yang dipilih
     _sessionsForDate: [], // hasil terakhir dari getAttendanceSessionsForDate(), dipakai submit() buat tau label sesi yang dicentang
@@ -38,6 +41,47 @@ const sanggahanAbsensi = {
         this._resetSimpanButton();
         this._loadSessionsForDate(todayStr);
         this._renderHistory();
+    },
+
+    // ---------- Token sanggahan (jatah per bulan) ----------
+    // Dihitung dari this._historyRows: pengajuan yang createdAt-nya jatuh di bulan berjalan (WITA).
+    // Server tetap yang memutuskan (lihat _sanggahanTokenInfo di SanggahanAbsensi.gs).
+    _bulanWita(d) { return new Date(d.getTime() + 8 * 3600 * 1000).toISOString().substring(0, 7); },
+
+    _paintToken() {
+        const modal = document.getElementById('modal-sanggahan-absensi');
+        if (!modal) return;
+        let el = document.getElementById('sa-token-info');
+        if (!el) {
+            const first = modal.querySelector('.form-group');
+            if (!first) return;
+            el = document.createElement('div');
+            el.id = 'sa-token-info';
+            first.parentNode.insertBefore(el, first);
+        }
+
+        const bulanIni = this._bulanWita(new Date());
+        // 1 token = 1 tanggal absensi: pengajuan lain di tanggal yang sama tidak menambah pemakaian.
+        const tanggalSet = new Set((this._historyRows || []).filter(r => {
+            const d = new Date(r.createdAt);
+            return r.date && !isNaN(d.getTime()) && this._bulanWita(d) === bulanIni;
+        }).map(r => String(r.date)));
+        const terpakai = tanggalSet.size;
+        const sisa = Math.max(0, this.TOKEN_PER_BULAN - terpakai);
+        this._tokenSisa = sisa;
+        this._tokenTanggal = Array.from(tanggalSet);
+
+        const warna = sisa === 0 ? 'var(--color-danger)' : (sisa === 1 ? 'var(--color-warning)' : 'var(--color-primary)');
+        el.style.cssText = `display:flex;align-items:flex-start;gap:8px;margin-bottom:12px;padding:10px 12px;border:1px solid ${warna};border-radius:8px;font-size:0.82rem;`;
+        el.innerHTML = `
+            <i class="fas fa-ticket-alt" style="color:${warna};margin-top:2px;"></i>
+            <div>
+                <div>Token Sanggahan bulan ini: <strong style="color:${warna};">${sisa} / ${this.TOKEN_PER_BULAN}</strong></div>
+                <div style="font-size:0.75rem;color:var(--text-muted);margin-top:2px;">${sisa === 0
+                    ? 'Token habis. Hanya bisa menambah sesi di tanggal yang sudah pernah disanggah bulan ini. Token kembali ' + this.TOKEN_PER_BULAN + ' di awal bulan depan.'
+                    : '1 token = 1 tanggal absensi (beberapa sesi di tanggal yang sama tetap 1 token). Token kembali ' + this.TOKEN_PER_BULAN + ' di awal bulan depan.'}</div>
+            </div>`;
+
     },
 
     // ---------- Bukti foto (wajib) ----------
@@ -237,6 +281,7 @@ const sanggahanAbsensi = {
         try {
             const result = await api.getSanggahanAbsensi(effectiveId);
             this._historyRows = result.success ? (result.data || []) : [];
+            if (result.success) this._paintToken();
             this._populateHistoryMonthFilter();
             this._renderHistoryList();
         } catch (e) {
@@ -394,6 +439,11 @@ const sanggahanAbsensi = {
         if (this._isSubmitting) return;
 
         const tanggal = document.getElementById('sa-tanggal').value;
+        // Token habis = hanya tanggal yang sudah terhitung bulan ini yang masih boleh diajukan.
+        if (this._tokenSisa === 0 && !this._tokenTanggal.includes(String(tanggal))) {
+            toast.error('Token Sanggahan bulan ini sudah habis. Kembali ' + this.TOKEN_PER_BULAN + ' di awal bulan depan.');
+            return;
+        }
         const keterangan = document.getElementById('sa-keterangan').value.trim();
         const checkedBoxes = Array.from(document.querySelectorAll('.sa-session-checkbox:checked'));
         const sessionFields = checkedBoxes.map(cb => cb.value);
