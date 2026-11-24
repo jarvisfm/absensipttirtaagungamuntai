@@ -506,6 +506,7 @@ const karyawanManager = {
 
             // Tab Akun
             document.getElementById('p-username').value = p.username || '';
+            this._renderStatusBlokir(id, p);
 
         } catch (e) {
             console.error('Error load detail:', e);
@@ -518,7 +519,61 @@ const karyawanManager = {
         }
     },
 
+    // [TAMBAHAN 2026-11-24] Status blokir login (5x salah password) di tab Akun + tombol Buka Blokir.
+    // Kotak ini dibuat lewat JS (tidak mengubah index.html) dan disembunyikan kalau akun normal.
+    _renderStatusBlokir(id, p) {
+        let box = document.getElementById('k-akun-blokir');
+        if (!box) {
+            const anchor = document.getElementById('p-password');
+            const grup = anchor && anchor.closest('.form-group');
+            if (!grup) return;
+            box = document.createElement('div');
+            box.id = 'k-akun-blokir';
+            grup.parentNode.insertBefore(box, grup.nextSibling);
+        }
+        const terblokir = String(p && p.loginTerkunci) === '1';
+        const gagal = parseInt(p && p.loginGagal, 10) || 0;
+        if (!id || (!terblokir && gagal <= 0)) { box.style.display = 'none'; box.innerHTML = ''; return; }
+
+        box.style.display = 'block';
+        if (terblokir) {
+            let sejak = '';
+            const d = new Date(p.loginTerkunciAt);
+            if (p.loginTerkunciAt && !isNaN(d.getTime())) sejak = ' sejak ' + d.toLocaleString('id-ID', { timeZone: 'Asia/Makassar', dateStyle: 'medium', timeStyle: 'short' });
+            box.style.cssText = 'display:block;margin-top:4px;padding:12px;border:1px solid var(--color-danger);border-radius:8px;';
+            box.innerHTML = `
+                <div style="font-size:0.85rem;font-weight:600;color:var(--color-danger);"><i class="fas fa-lock"></i> Akun terblokir${sejak}</div>
+                <div style="font-size:0.8rem;color:var(--text-muted);margin:4px 0 10px;">Karyawan ini salah memasukkan password 5 kali sehingga tidak bisa login.</div>
+                <button type="button" class="btn btn-primary" id="k-btn-buka-blokir" onclick="karyawanManager.bukaBlokirAkun(${Number(id)})"><i class="fas fa-unlock"></i> Buka Blokir</button>`;
+        } else {
+            box.style.cssText = 'display:block;margin-top:4px;font-size:0.8rem;color:var(--text-muted);';
+            box.innerHTML = `<i class="fas fa-exclamation-triangle" style="color:var(--color-warning);"></i> Salah password ${gagal} dari 5 kali (akun belum terblokir).`;
+        }
+    },
+
+    async bukaBlokirAkun(id) {
+        const btn = document.getElementById('k-btn-buka-blokir');
+        if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Membuka...'; }
+        try {
+            const admin = auth.getCurrentUser();
+            const res = await api.request('unlockAkunKaryawan', { id, adminId: admin?.id, sessionToken: admin?.sessionToken });
+            if (res && res.success) {
+                toast.success('Blokir akun dibuka. Karyawan bisa login lagi.');
+                this._renderStatusBlokir(id, {});
+            } else {
+                toast.error((res && (res.userMessage || res.error)) || 'Gagal membuka blokir');
+                if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-unlock"></i> Buka Blokir'; }
+            }
+        } catch (e) {
+            console.error('Gagal membuka blokir akun:', e);
+            toast.error('Terjadi kesalahan, coba lagi.');
+            if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-unlock"></i> Buka Blokir'; }
+        }
+    },
+
     resetForm() {
+        const lockBox = document.getElementById('k-akun-blokir');
+        if (lockBox) { lockBox.style.display = 'none'; lockBox.innerHTML = ''; }
         const fields = ['karyawan-id','p-nik','p-nama','p-jenisKelamin','p-statusPernikahan',
             'p-tempatLahir','p-tanggalLahir','p-golonganDarah','p-noTelp','p-npwp','p-ktp',
             'p-email','p-agama','p-alamatRumah','p-statusPekerjaan','p-statusKaryawan','p-pendidikan','p-jabatan',
