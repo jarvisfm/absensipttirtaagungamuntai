@@ -284,7 +284,7 @@ const api = {
 
     // ========== AUTH ==========
 
-    async login(username, password) {
+    async login(username, password, credentialId) {
     if (!API_BASE_URL) {
         return this._localLogin(username, password);
     }
@@ -314,7 +314,8 @@ const api = {
             clearTimeout(timeoutId);
         }
     }
-    return this.request('login', { username, password });
+    // credentialId (opsional) = login sidik jari, dipakai server supaya blokir 3x-salah tidak berlaku untuk sidik jari.
+    return this.request('login', credentialId ? { username, password, credentialId } : { username, password });
 },
 
     // Cek berkala apakah sesi login perangkat ini masih yang paling baru
