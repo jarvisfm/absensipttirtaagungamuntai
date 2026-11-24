@@ -1359,7 +1359,7 @@ table.sub td{padding:0 1mm 0 0}
         // sidik jari (mis. password sudah diganti), jadi tidak dihitung ke
         // BIOMETRIC_MAX_FAILS.
         try {
-            const result = await api.login(saved.username, saved.password);
+            const result = await api.login(saved.username, saved.password, saved.credentialId);
             if (!result.success || !result.data) {
                 // PERBAIKAN (28 September 2026): SEBELUMNYA kredensial sidik
                 // jari di HP ini DIHAPUS untuk kegagalan APA PUN dari
