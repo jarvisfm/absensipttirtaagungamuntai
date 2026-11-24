@@ -549,7 +549,7 @@ const adminDashboard = {
             counts[p] = (counts[p] || 0) + 1;
         });
 
-        const ORDER = ['SD', 'SLTP', 'SLTA', 'SMK', 'STM', 'D3', 'Strata 1', 'Strata 2'];
+        const ORDER = ['SD', 'SLTP', 'SLTA', 'SMK', 'STM', 'D3', 'D4', 'Strata 1', 'Strata 2', 'Strata 3'];
         const entries = Object.entries(counts).sort((a, b) => {
             const ia = ORDER.indexOf(a[0]), ib = ORDER.indexOf(b[0]);
             if (ia === -1 && ib === -1) return a[0].localeCompare(b[0]);
