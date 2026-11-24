@@ -521,6 +521,7 @@ const karyawanManager = {
 
     // [TAMBAHAN 2026-11-24] Status blokir login (5x salah password) di tab Akun + tombol Buka Blokir.
     // Kotak ini dibuat lewat JS (tidak mengubah index.html) dan disembunyikan kalau akun normal.
+    LOGIN_MAX_GAGAL: 3, // batas salah password sebelum akun terblokir - samakan dengan LOGIN_MAX_GAGAL di Auth.gs
     _renderStatusBlokir(id, p) {
         let box = document.getElementById('k-akun-blokir');
         if (!box) {
@@ -543,11 +544,11 @@ const karyawanManager = {
             box.style.cssText = 'display:block;margin-top:4px;padding:12px;border:1px solid var(--color-danger);border-radius:8px;';
             box.innerHTML = `
                 <div style="font-size:0.85rem;font-weight:600;color:var(--color-danger);"><i class="fas fa-lock"></i> Akun terblokir${sejak}</div>
-                <div style="font-size:0.8rem;color:var(--text-muted);margin:4px 0 10px;">Karyawan ini salah memasukkan password 5 kali sehingga tidak bisa login.</div>
+                <div style="font-size:0.8rem;color:var(--text-muted);margin:4px 0 10px;">Karyawan ini salah memasukkan password ${this.LOGIN_MAX_GAGAL} kali sehingga tidak bisa login.</div>
                 <button type="button" class="btn btn-primary" id="k-btn-buka-blokir" onclick="karyawanManager.bukaBlokirAkun(${Number(id)})"><i class="fas fa-unlock"></i> Buka Blokir</button>`;
         } else {
             box.style.cssText = 'display:block;margin-top:4px;font-size:0.8rem;color:var(--text-muted);';
-            box.innerHTML = `<i class="fas fa-exclamation-triangle" style="color:var(--color-warning);"></i> Salah password ${gagal} dari 5 kali (akun belum terblokir).`;
+            box.innerHTML = `<i class="fas fa-exclamation-triangle" style="color:var(--color-warning);"></i> Salah password ${gagal} dari ${this.LOGIN_MAX_GAGAL} kali (akun belum terblokir).`;
         }
     },
 
