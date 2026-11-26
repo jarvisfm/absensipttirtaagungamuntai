@@ -1882,12 +1882,73 @@ const jadwalJagaOperator = {
     // unit satu per satu. Asmen yang dibatasi (_restrictedUnits) cuma
     // dapat sheet untuk unit-unit yang jadi tanggung jawabnya saja, sama
     // seperti pembatasan yang sudah ada di dropdown Unit.
+    // ── Layar loading Export Excel ──
+    // Overlay layar penuh: spinner + keterangan tahap selama file disiapkan, lalu berubah jadi
+    // centang hijau "Excel berhasil diunduh" + nama file supaya user tahu file sudah terdownload.
+    _exportOverlayEl() {
+        let el = document.getElementById('jjo-export-overlay');
+        if (!el) {
+            el = document.createElement('div');
+            el.id = 'jjo-export-overlay';
+            el.style.cssText = 'position:fixed;inset:0;z-index:10050;display:none;align-items:center;justify-content:center;background:rgba(15,23,42,.55);padding:16px;';
+            el.innerHTML = `
+                <div style="background:var(--bg-primary,#fff);color:var(--text-primary,#1F2937);border-radius:16px;padding:28px 32px;max-width:340px;width:100%;text-align:center;box-shadow:0 20px 50px rgba(0,0,0,.25);">
+                    <div id="jjo-export-ico" style="font-size:42px;margin-bottom:12px;"></div>
+                    <div id="jjo-export-title" style="font-size:1rem;font-weight:700;margin-bottom:6px;"></div>
+                    <div id="jjo-export-sub" style="font-size:0.85rem;color:var(--text-muted,#6B7280);word-break:break-word;"></div>
+                    <button type="button" id="jjo-export-close" class="btn btn-primary" style="display:none;margin-top:16px;">Tutup</button>
+                </div>`;
+            document.body.appendChild(el);
+            el.querySelector('#jjo-export-close').onclick = () => this._hideExportOverlay();
+        }
+        return el;
+    },
+
+    _showExportOverlay(title, sub) {
+        clearTimeout(this._exportOverlayTimer);
+        const el = this._exportOverlayEl();
+        el.querySelector('#jjo-export-ico').innerHTML = '<i class="fas fa-spinner fa-spin" style="color:var(--color-primary,#F59E0B);"></i>';
+        el.querySelector('#jjo-export-close').style.display = 'none';
+        el.style.display = 'flex';
+        this._updateExportOverlay(title, sub);
+    },
+
+    _updateExportOverlay(title, sub) {
+        const el = document.getElementById('jjo-export-overlay');
+        if (!el) return;
+        el.querySelector('#jjo-export-title').textContent = title || '';
+        el.querySelector('#jjo-export-sub').textContent = sub || '';
+    },
+
+    _doneExportOverlay(filename, ada_gagal) {
+        const el = this._exportOverlayEl();
+        el.querySelector('#jjo-export-ico').innerHTML = ada_gagal
+            ? '<i class="fas fa-exclamation-circle" style="color:var(--color-warning,#F59E0B);"></i>'
+            : '<i class="fas fa-check-circle" style="color:var(--color-success,#10B981);"></i>';
+        this._updateExportOverlay('Excel berhasil diunduh', filename + ' - cek folder Unduhan (Downloads) di perangkat Anda.');
+        el.querySelector('#jjo-export-close').style.display = 'inline-block';
+        el.style.display = 'flex';
+        clearTimeout(this._exportOverlayTimer);
+        this._exportOverlayTimer = setTimeout(() => this._hideExportOverlay(), 4000);
+    },
+
+    _hideExportOverlay() {
+        clearTimeout(this._exportOverlayTimer);
+        const el = document.getElementById('jjo-export-overlay');
+        if (el) el.style.display = 'none';
+    },
+
     async exportAllToExcel() {
+        if (this._exporting) return; // cegah klik ganda selama proses
+        this._exporting = true;
         const btn = document.getElementById('jjo-btn-export-excel');
+        this._showExportOverlay('Menyiapkan file Excel...', 'Memuat komponen pembuat Excel');
         try {
             await this._ensureXlsxLib();
         } catch (e) {
             console.error(e);
+            this._hideExportOverlay();
+            this._exporting = false;
             toast.error('Gagal memuat pustaka pembuat Excel. Periksa koneksi internet Anda, lalu coba lagi.');
             return;
         }
@@ -1897,6 +1958,8 @@ const jadwalJagaOperator = {
             : Object.keys(OPERATOR_UNITS);
 
         if (keys.length === 0) {
+            this._hideExportOverlay();
+            this._exporting = false;
             toast.warning('Tidak ada unit yang bisa diekspor.');
             return;
         }
@@ -1905,6 +1968,7 @@ const jadwalJagaOperator = {
         toast.info(`Menyiapkan Excel ${keys.length} unit, mohon tunggu...`);
 
         try {
+            this._updateExportOverlay('Menyiapkan file Excel...', 'Memuat data cuti & izin petugas');
             if (this._leaveFailed) this._leaveLoadedAt = 0; // sebelumnya gagal -> paksa muat ulang
             await this._ensureLeaveIndex(); // data cuti/izin utk kolom Nama Petugas & Keterangan
             if (this._leaveFailed) toast.warning('Data cuti/izin gagal dimuat - di Excel, Nama Petugas tidak dikurangi & Keterangan cuti/izin belum terisi.');
@@ -1913,9 +1977,12 @@ const jadwalJagaOperator = {
             let failedUnits = 0;
             const konsolidasi = []; // bahan tab "Konsolidasi" (diisi di dalam loop di bawah)
 
+            let urutanUnit = 0;
             for (const key of keys) {
                 const unit = this._getEffectiveUnit(key);
                 if (!unit) continue;
+                urutanUnit++;
+                this._updateExportOverlay('Menyiapkan file Excel...', `Memuat jadwal unit ${urutanUnit} dari ${keys.length}: ${unit.label}`);
 
                 let data;
                 try {
@@ -1939,6 +2006,7 @@ const jadwalJagaOperator = {
             // (Jaga), jumlah hari dijadwalkan (Hari) & berapa di antaranya jatuh di hari libur (Libur = Sabtu,
             // Minggu, atau tanggal merah nasional). Lihat _buildKonsolidasiRows().
             let holidays = {};
+            this._updateExportOverlay('Menyiapkan file Excel...', 'Menyusun tab Konsolidasi');
             try {
                 const rh = await api.getHolidayDates(this.year);
                 if (rh && rh.success && rh.data && typeof rh.data === 'object') holidays = rh.data;
@@ -1957,7 +2025,10 @@ const jadwalJagaOperator = {
 
             const mm = String(this.month + 1).padStart(2, '0');
             const filename = `Jadwal_Jaga_Operator_${this.year}-${mm}.xls`;
+            this._updateExportOverlay('Membuat file Excel...', filename);
+            await new Promise(r => setTimeout(r, 60)); // beri waktu layar loading tampil sebelum proses berat
             XLSX.writeFile(wb, filename, { bookType: 'xls' });
+            this._doneExportOverlay(filename, failedUnits > 0);
 
             toast[failedUnits ? 'warning' : 'success'](
                 failedUnits
@@ -1966,8 +2037,10 @@ const jadwalJagaOperator = {
             );
         } catch (e) {
             console.error('Gagal membuat file Excel:', e);
+            this._hideExportOverlay();
             toast.error('Gagal membuat file Excel.');
         } finally {
+            this._exporting = false;
             if (btn) { btn.disabled = false; btn.classList.remove('btn-loading'); }
         }
     },
