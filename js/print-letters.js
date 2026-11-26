@@ -882,7 +882,15 @@ const printLetters = {
         const mgrUmumParafDate = isBagianUmumKepeg ? leave.managerParafDate : leave.hrManagerParafDate;
 
         // Keputusan Direktur: centang otomatis sesuai status surat.
-        const isDisetujui = leave.status === 'approved';
+        // [PERBAIKAN] DISETUJUI dicentang HANYA kalau Direktur (atau Admin yang
+        // mewakilkan) sudah benar-benar meninjau. Status 'approved' saja tidak
+        // cukup: untuk pemohon Staff/Asmen, persetujuan Manajer (mewakili
+        // Direktur) sudah membuat status 'approved' SEBELUM Direktur meninjau -
+        // peninjauan Direktur dicatat terpisah di directorReviewedAt (lihat
+        // approveLeaveData() di Leave.gs). Untuk pemohon Manajer (langsung ke
+        // Direktur) dan surat lama, penandanya directorApprovedAt.
+        const direkturSudahMeninjau = !!(leave.directorReviewedAt || leave.directorApprovedAt);
+        const isDisetujui = leave.status === 'approved' && direkturSudahMeninjau;
         const isDitunda   = leave.status === 'ditunda';
 
         // Blok tanda tangan "MENGETAHUI :" (Asmen) di bawah ini HANYA berlaku
