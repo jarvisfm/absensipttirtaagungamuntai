@@ -889,7 +889,10 @@ const printLetters = {
         // peninjauan Direktur dicatat terpisah di directorReviewedAt (lihat
         // approveLeaveData() di Leave.gs). Untuk pemohon Manajer (langsung ke
         // Direktur) dan surat lama, penandanya directorApprovedAt.
-        const direkturSudahMeninjau = !!(leave.directorReviewedAt || leave.directorApprovedAt);
+        // directorName juga dihitung: itu penanda yang dipakai riwayat (timeline) di
+        // layar untuk menandai tahap Direktur sudah selesai, dan terisi juga pada
+        // peninjauan lama (mis. yang diwakilkan Admin) yang belum punya kolom tanggal.
+        const direkturSudahMeninjau = !!(leave.directorName || leave.directorReviewedAt || leave.directorApprovedAt);
         const isDisetujui = leave.status === 'approved' && direkturSudahMeninjau;
         const isDitunda   = leave.status === 'ditunda';
 
