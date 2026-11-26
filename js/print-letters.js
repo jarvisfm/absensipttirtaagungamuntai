@@ -997,16 +997,17 @@ const printLetters = {
 
             <div class="cuti-box">
                 <table class="cuti-field-table">
+                    <!-- [PERUBAHAN 25 Nov 2026] Titik dua cuma 1 per bagian (di baris label). Baris lanjutan (rowspan) dikosongkan, bukan dihapus, supaya tinggi & kolom tetap sama. -->
                     <tr><td class="lbl">CATATAN / PERTIMBANGAN</td><td class="sep">:</td>
                         <!-- <div>, BUKAN <input> - supaya catatan yang panjang bisa
                              wrap turun ke baris di bawahnya (rowspan), bukan
                              terpotong seperti sebelumnya. -->
                         <td rowspan="2"><div class="letter-input rn-view" style="white-space:normal; word-wrap:break-word; line-height:1.4; min-height:2.8em;">${window.richNote ? richNote.view(leave.managerNote) : (leave.managerNote || '')}</div>${this._parafHtml(leave.managerParaf, leave.managerParafDate, 38, 'left')}</td></tr>
-                    <tr><td class="lbl"></td><td class="sep">:</td></tr>
+                    <tr><td class="lbl"></td><td class="sep">&nbsp;</td></tr>
                     <tr><td class="lbl" style="padding-top:10px;">MANAGER UMUM &amp; KEPEG</td><td class="sep" style="padding-top:10px;">:</td>
                         <td rowspan="3" style="padding-top:10px;"><div class="letter-input rn-view" style="white-space:normal; word-wrap:break-word; line-height:1.4; min-height:4.2em;">${window.richNote ? richNote.view(mgrUmumNote) : mgrUmumNote}</div>${this._parafHtml(mgrUmumParaf, mgrUmumParafDate, 38, 'left')}</td></tr>
-                    <tr><td class="lbl"></td><td class="sep">:</td></tr>
-                    <tr><td class="lbl"></td><td class="sep">:</td></tr>
+                    <tr><td class="lbl"></td><td class="sep">&nbsp;</td></tr>
+                    <tr><td class="lbl"></td><td class="sep">&nbsp;</td></tr>
                 </table>
             </div>
 
