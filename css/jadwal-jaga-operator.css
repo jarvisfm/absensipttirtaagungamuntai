@@ -557,3 +557,17 @@ body.jjo-armed .jjo-sess *{cursor:copy}
 .jjo-focus-bar button{flex:0 0 auto;display:inline-flex;align-items:center;gap:6px;padding:8px 12px;border:1px solid #FCD34D;border-radius:10px;background:#fff;color:#92400E;font:inherit;font-weight:600;cursor:pointer}
 .jjo-focus-bar button:hover{background:#FEF3C7}
 @media (max-width:560px){.jjo-focus-bar{flex-wrap:wrap}.jjo-focus-bar button{width:100%;justify-content:center}}
+
+/* ── Petugas yang sedang Cuti/Izin (disetujui) ────────────────────────────────
+   Nama di kartu jadwal: ada tag "Cuti 3 hari"; kalau sedang tercentang di jadwal
+   jadi abu-abu + gembok (tidak bisa jaga). Ditaruh paling akhir supaya menimpa
+   warna hijau & penanda oranye mode "lihat jadwal petugas". */
+#page-jadwal-jaga-operator .jjo-checkbox-item.is-on-leave{border-style:dashed;border-color:#FCD34D}
+#page-jadwal-jaga-operator .jjo-checkbox-item .jjo-leave-tag{font-style:normal;font-size:10px;font-weight:700;line-height:1.5;padding:0 7px;border-radius:999px;background:#FEF3C7;color:#92400E;white-space:nowrap}
+#page-jadwal-jaga-operator .jjo-checkbox-item.is-on-leave:has(input:checked),
+#page-jadwal-jaga-operator .jjo-checkbox-item.is-on-leave.is-focus-emp:has(input:checked){background:linear-gradient(135deg,#9CA3AF,#6B7280);border:1.5px solid #4B5563;color:#fff;box-shadow:none}
+#page-jadwal-jaga-operator .jjo-checkbox-item.is-on-leave:has(input:checked)::before{border-color:#fff;background:#fff radial-gradient(circle,#6B7280 40%,transparent 45%)}
+#page-jadwal-jaga-operator .jjo-checkbox-item.is-on-leave:has(input:checked)::after{content:"\f023";font-family:"Font Awesome 6 Free";font-weight:900;font-size:10px}
+#page-jadwal-jaga-operator .jjo-checkbox-item.is-on-leave:has(input:checked) .jjo-leave-tag{background:rgba(255,255,255,.25);color:#fff}
+.jjo-select.is-on-leave{background:#F3F4F6;border-color:#9CA3AF;color:#6B7280}
+.jjo-leave-note{margin-top:4px;font-size:11px;font-weight:700;color:#6B7280}
