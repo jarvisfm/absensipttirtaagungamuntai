@@ -1219,8 +1219,18 @@ const jadwalJagaOperator = {
     _leaveIndex: null,      // { idKaryawan: [ { start, end, jenis, hari } ] }
     _leaveLoadedAt: 0,
     _leavePromise: null,
+    _leaveFailed: false,    // true = data cuti/izin gagal dimuat (Keterangan cuti/izin tidak bisa diisi)
 
-    _ymd(v) { return String(v || '').substring(0, 10); },
+    // Tanggal 'YYYY-MM-DD'. Nilai ISO bertanda zona waktu (mis. '2026-11-22T16:00:00.000Z' dari
+    // database) dikonversi ke tanggal WITA dulu supaya tidak mundur sehari.
+    _ymd(v) {
+        const s = String(v || '').trim();
+        if (/T\d{2}:\d{2}.*(Z|[+-]\d{2}:?\d{2})$/.test(s)) {
+            const t = new Date(s);
+            if (!isNaN(t.getTime())) return new Date(t.getTime() + 8 * 3600 * 1000).toISOString().substring(0, 10);
+        }
+        return s.substring(0, 10);
+    },
 
     _inclusiveDays(a, b) {
         const x = new Date(a + 'T00:00:00'), y = new Date(b + 'T00:00:00');
@@ -1236,6 +1246,7 @@ const jadwalJagaOperator = {
             try {
                 const [rc, ri] = await Promise.all([api.getAllLeaves(), api.getAllIzin()]);
                 const idx = {};
+                this._leaveFailed = !(rc && rc.success && ri && ri.success);
                 const add = (uid, start, end, jenis, hari) => {
                     if (!uid || !start) return;
                     (idx[String(uid)] = idx[String(uid)] || []).push({ start, end: end || start, jenis, hari });
@@ -1252,8 +1263,10 @@ const jadwalJagaOperator = {
                     add(i.userId, st, en, 'Izin', this._inclusiveDays(st, en));
                 });
                 this._leaveIndex = idx;
-                this._leaveLoadedAt = Date.now();
+                this._leaveLoadedAt = this._leaveFailed ? Date.now() - 60000 : Date.now();
+                console.info('[Jadwal Jaga] data cuti/izin: ' + Object.keys(idx).length + ' petugas' + (this._leaveFailed ? ' (SEBAGIAN GAGAL DIMUAT)' : ''));
             } catch (e) {
+                this._leaveFailed = true;
                 console.warn('Data cuti/izin petugas gagal dimuat (jadwal tetap tampil tanpa penanda):', e);
                 if (!this._leaveIndex) this._leaveIndex = {};
                 this._leaveLoadedAt = Date.now() - 60000; // coba lagi sekitar 1 menit kemudian
@@ -1892,7 +1905,9 @@ const jadwalJagaOperator = {
         toast.info(`Menyiapkan Excel ${keys.length} unit, mohon tunggu...`);
 
         try {
+            if (this._leaveFailed) this._leaveLoadedAt = 0; // sebelumnya gagal -> paksa muat ulang
             await this._ensureLeaveIndex(); // data cuti/izin utk kolom Nama Petugas & Keterangan
+            if (this._leaveFailed) toast.warning('Data cuti/izin gagal dimuat - di Excel, Nama Petugas tidak dikurangi & Keterangan cuti/izin belum terisi.');
             const wb = XLSX.utils.book_new();
             const usedSheetNames = {};
             let failedUnits = 0;
@@ -2121,7 +2136,14 @@ const jadwalJagaOperator = {
     printSchedule() {
         // Data cuti/izin harus sudah ada untuk kolom Keterangan - kalau belum
         // (mis. baru buka halaman), tunggu sebentar lalu ulangi.
-        if (!this._leaveIndex) { this._ensureLeaveIndex().then(() => this.printSchedule()); return; }
+        if (!this._printLeaveChecked) {
+            this._printLeaveChecked = true;
+            if (this._leaveFailed) this._leaveLoadedAt = 0; // sebelumnya gagal -> paksa muat ulang
+            this._ensureLeaveIndex().then(() => this.printSchedule());
+            return;
+        }
+        this._printLeaveChecked = false;
+        if (this._leaveFailed) toast.warning('Data cuti/izin gagal dimuat, jadi Keterangan cuti/izin belum bisa diisi. Coba cetak lagi sebentar lagi.');
         if (!this.unitKey) { toast.warning('Pilih unit dulu sebelum mencetak.'); return; }
         if (this.unitKey === 'TRD' && !this.cabangTrd) { toast.warning('Isi nama cabang TRD dulu sebelum mencetak.'); return; }
 
