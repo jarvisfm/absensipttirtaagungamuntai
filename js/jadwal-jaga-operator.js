@@ -852,6 +852,9 @@ const jadwalJagaOperator = {
     },
 
     async loadAndRender() {
+        // Muat data cuti/izin di latar belakang (tidak menahan tampilan jadwal);
+        // begitu selesai, penanda cuti/izin langsung dipasang di kartu.
+        this._ensureLeaveIndex().then(() => this._refreshLeaveMarks());
         if (this.unitKey === 'TRD' && !this.cabangTrd) {
             this._renderNeedCabang();
             return;
@@ -1202,6 +1205,118 @@ const jadwalJagaOperator = {
                 <ul style="margin:6px 0 0 18px;padding:0">${belum.map(k => `<li>${this._escAttr(this._labelUnit(k))} &mdash; pemegang: ${pemegang[k].map(n => this._escAttr(n)).join(', ')}</li>`).join('')}</ul>`;
             head.insertAdjacentElement('afterend', el);
         } catch (e) { console.warn('Pengingat jadwal jaga (admin) gagal dimuat:', e); }
+    },
+
+    // ── Cuti / Izin petugas ────────────────────────────────────────
+    // Petugas yang punya Cuti atau Izin (harian/sakit/penting/darurat) berstatus
+    // DISETUJUI pada suatu hari tidak bisa jaga di hari itu. Data diambil sekali
+    // dari api.getAllLeaves() + api.getAllIzin() lalu disimpan (_leaveIndex) -
+    // dipakai untuk: (1) tombol nama di kartu jadwal jadi abu-abu + gembok,
+    // (2) kolom Keterangan di Cetak, (3) Export Excel (nama petugas yang cuti/izin
+    // tidak ditulis di kolom Nama Petugas, tapi tercatat di Keterangan).
+    // Izin Keluar Kantor (hitungan jam) sengaja TIDAK dihitung. Kalau data gagal
+    // dimuat, semuanya jalan seperti sebelumnya (tanpa penanda).
+    _leaveIndex: null,      // { idKaryawan: [ { start, end, jenis, hari } ] }
+    _leaveLoadedAt: 0,
+    _leavePromise: null,
+
+    _ymd(v) { return String(v || '').substring(0, 10); },
+
+    _inclusiveDays(a, b) {
+        const x = new Date(a + 'T00:00:00'), y = new Date(b + 'T00:00:00');
+        if (isNaN(x.getTime()) || isNaN(y.getTime())) return 1;
+        return Math.max(1, Math.round((y - x) / 86400000) + 1);
+    },
+
+    async _ensureLeaveIndex() {
+        // Segar (<2 menit) -> pakai yang ada. Lebih lama -> muat ulang.
+        if (this._leaveIndex && (Date.now() - this._leaveLoadedAt) < 120000) return;
+        if (this._leavePromise) return this._leavePromise;
+        this._leavePromise = (async () => {
+            try {
+                const [rc, ri] = await Promise.all([api.getAllLeaves(), api.getAllIzin()]);
+                const idx = {};
+                const add = (uid, start, end, jenis, hari) => {
+                    if (!uid || !start) return;
+                    (idx[String(uid)] = idx[String(uid)] || []).push({ start, end: end || start, jenis, hari });
+                };
+                ((rc && rc.success && rc.data) || []).forEach(l => {
+                    if (String(l.status) !== 'approved') return;
+                    const st = this._ymd(l.startDate), en = this._ymd(l.endDate) || st;
+                    add(l.userId, st, en, 'Cuti', parseInt(l.duration, 10) || this._inclusiveDays(st, en));
+                });
+                ((ri && ri.success && ri.data) || []).forEach(i => {
+                    if (String(i.status) !== 'approved') return;
+                    if (['izin_harian', 'sick', 'permission', 'emergency'].indexOf(i.type) === -1) return;
+                    const st = this._ymd(i.date), en = this._ymd(i.dateEnd) || st;
+                    add(i.userId, st, en, 'Izin', this._inclusiveDays(st, en));
+                });
+                this._leaveIndex = idx;
+                this._leaveLoadedAt = Date.now();
+            } catch (e) {
+                console.warn('Data cuti/izin petugas gagal dimuat (jadwal tetap tampil tanpa penanda):', e);
+                if (!this._leaveIndex) this._leaveIndex = {};
+                this._leaveLoadedAt = Date.now() - 60000; // coba lagi sekitar 1 menit kemudian
+            } finally {
+                this._leavePromise = null;
+            }
+        })();
+        return this._leavePromise;
+    },
+
+    _dateStr(d) {
+        return `${this.year}-${String(this.month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+    },
+
+    // Cuti/Izin petugas `empId` yang mencakup tanggal ke-d bulan ini, atau null.
+    _leaveOn(empId, d) {
+        const list = this._leaveIndex && this._leaveIndex[String(empId)];
+        if (!list) return null;
+        const ds = this._dateStr(d);
+        return list.find(p => p.start <= ds && ds <= p.end) || null;
+    },
+
+    // "Wahyu Hidayat Cuti (3 hari)"
+    _leaveNote(empId, p) {
+        return `${this._employeeName(empId) || 'Petugas'} ${p.jenis} (${p.hari} hari)`;
+    },
+
+    // Beri penanda cuti/izin pada nama petugas di kartu jadwal (idempotent -
+    // dipanggil lagi tiap _updateSummary() dan setelah data cuti/izin selesai dimuat).
+    _refreshLeaveMarks() {
+        const box = document.getElementById('jjo-days');
+        if (!box || !this._leaveIndex) return;
+
+        box.querySelectorAll('.jjo-petugas-checkbox').forEach(inp => {
+            const lab = inp.closest('.jjo-checkbox-item');
+            if (!lab) return;
+            const p = this._leaveOn(inp.value, parseInt(inp.dataset.day, 10));
+            let tag = lab.querySelector('.jjo-leave-tag');
+            if (!p) {
+                if (lab.classList.contains('is-on-leave')) { lab.classList.remove('is-on-leave'); lab.removeAttribute('title'); }
+                if (tag) tag.remove();
+                return;
+            }
+            const txt = `${p.jenis} ${p.hari} hari`;
+            lab.classList.add('is-on-leave');
+            lab.title = `${this._employeeName(inp.value) || 'Petugas'}: ${txt} (${p.start} s/d ${p.end}) - tidak bisa jaga selama cuti/izin`;
+            if (!tag) { tag = document.createElement('em'); tag.className = 'jjo-leave-tag'; lab.appendChild(tag); }
+            tag.textContent = txt;
+        });
+
+        // Unit 1 petugas per hari (dropdown)
+        box.querySelectorAll('select.jjo-select').forEach(sel => {
+            const p = sel.value ? this._leaveOn(sel.value, parseInt(sel.dataset.day, 10)) : null;
+            sel.classList.toggle('is-on-leave', !!p);
+            let note = sel.parentElement ? sel.parentElement.querySelector('.jjo-leave-note') : null;
+            if (!p) { if (note) note.remove(); return; }
+            if (!note) {
+                note = document.createElement('div');
+                note.className = 'jjo-leave-note';
+                sel.insertAdjacentElement('afterend', note);
+            }
+            note.innerHTML = `<i class="fas fa-lock"></i> ${this._escAttr(p.jenis)} ${p.hari} hari`;
+        });
     },
 
     _toIds(v, asArray) {
@@ -1584,6 +1699,7 @@ const jadwalJagaOperator = {
         if (fill) fill.style.width = p + '%';
         if (pct) pct.textContent = '(' + p + '%)';
         this._applyFocus(); // jaga tampilan "lihat jadwal petugas" tetap sinkron saat jadwal diedit
+        this._refreshLeaveMarks(); // penanda cuti/izin (abu-abu + gembok) tetap sinkron saat jadwal diedit
     },
 
     // ── Lihat semua jadwal satu petugas ────────────────────────────
@@ -1776,6 +1892,7 @@ const jadwalJagaOperator = {
         toast.info(`Menyiapkan Excel ${keys.length} unit, mohon tunggu...`);
 
         try {
+            await this._ensureLeaveIndex(); // data cuti/izin utk kolom Nama Petugas & Keterangan
             const wb = XLSX.utils.book_new();
             const usedSheetNames = {};
             let failedUnits = 0;
@@ -1866,8 +1983,13 @@ const jadwalJagaOperator = {
                 (unit.sessions || []).forEach(sess => {
                     const rawVal = dayData.sessions && dayData.sessions[sess.key];
                     const ids = Array.isArray(rawVal) ? rawVal : (rawVal ? [rawVal] : []);
-                    const nama = ids.map(id => this._employeeName(id)).filter(Boolean).join('; ') || '-';
-                    rows.push([d, info.hariName, info.tanggalStr, sess.time, nama, dayData.keterangan || '']);
+                    // Petugas yang Cuti/Izin pada hari ini TIDAK ditulis di Nama Petugas,
+                    // tapi tercatat di Keterangan, mis. "Wahyu Hidayat Cuti (3 hari)".
+                    const cuti = ids.filter(id => this._leaveOn(id, d));
+                    const aktif = ids.filter(id => !this._leaveOn(id, d));
+                    const nama = aktif.map(id => this._employeeName(id)).filter(Boolean).join('; ') || '-';
+                    const ket = [dayData.keterangan, ...cuti.map(id => this._leaveNote(id, this._leaveOn(id, d)))].filter(Boolean).join('; ');
+                    rows.push([d, info.hariName, info.tanggalStr, sess.time, nama, ket]);
                 });
             }
             return rows;
@@ -1879,8 +2001,12 @@ const jadwalJagaOperator = {
                 const info = this._dayInfo(d);
                 const dayData = (data.days && data.days[d]) || { petugas: '', keterangan: '' };
                 const petugasIds = Array.isArray(dayData.petugas) ? dayData.petugas : (dayData.petugas ? [dayData.petugas] : []);
-                const nama = petugasIds.map(id => this._employeeName(id)).filter(Boolean).join('; ') || '-';
-                rows.push([d, info.hariName, info.tanggalStr, unit.jamLabel, nama, dayData.keterangan || '']);
+                // Petugas yang Cuti/Izin: tidak ditulis di Nama Petugas, tercatat di Keterangan.
+                const cuti = petugasIds.filter(id => this._leaveOn(id, d));
+                const aktif = petugasIds.filter(id => !this._leaveOn(id, d));
+                const nama = aktif.map(id => this._employeeName(id)).filter(Boolean).join('; ') || '-';
+                const ket = [dayData.keterangan, ...cuti.map(id => this._leaveNote(id, this._leaveOn(id, d)))].filter(Boolean).join('; ');
+                rows.push([d, info.hariName, info.tanggalStr, unit.jamLabel, nama, ket]);
             }
             return rows;
         }
@@ -1993,6 +2119,9 @@ const jadwalJagaOperator = {
     },
 
     printSchedule() {
+        // Data cuti/izin harus sudah ada untuk kolom Keterangan - kalau belum
+        // (mis. baru buka halaman), tunggu sebentar lalu ulangi.
+        if (!this._leaveIndex) { this._ensureLeaveIndex().then(() => this.printSchedule()); return; }
         if (!this.unitKey) { toast.warning('Pilih unit dulu sebelum mencetak.'); return; }
         if (this.unitKey === 'TRD' && !this.cabangTrd) { toast.warning('Isi nama cabang TRD dulu sebelum mencetak.'); return; }
 
@@ -2218,6 +2347,22 @@ const jadwalJagaOperator = {
         }
     },
 
+    // Isi kolom Keterangan di Cetak: catatan hari itu + petugas terjadwal yang
+    // sedang Cuti/Izin, mis. "Wahyu Hidayat Cuti (3 hari)". Nama petugas di
+    // kolom Nama Petugas tetap tercetak (beda dengan Export Excel).
+    _printKeterangan(d, ids, keterangan) {
+        const baris = [];
+        if (keterangan) baris.push(this._escAttr(keterangan));
+        const sudah = new Set();
+        (ids || []).forEach(id => {
+            const p = this._leaveOn(id, d);
+            if (!p || sudah.has(String(id))) return;
+            sudah.add(String(id));
+            baris.push(this._escAttr(this._leaveNote(id, p)));
+        });
+        return baris.join('<br>');
+    },
+
     _buildPrintTable(unit) {
         const days = this._daysInMonth();
         let rows = '';
@@ -2236,7 +2381,7 @@ const jadwalJagaOperator = {
                         rows += `<td rowspan="${unit.sessions.length}">${info.hariName}<br>${info.tanggalStr}</td>`;
                     }
                     rows += `<td>${sess.time}</td><td>${namaHtml}</td>`;
-                    if (idx === 0) rows += `<td rowspan="${unit.sessions.length}">${this._escAttr(dayData.keterangan || '')}</td>`;
+                    if (idx === 0) rows += `<td rowspan="${unit.sessions.length}">${this._printKeterangan(d, this._dayIds(d, unit), dayData.keterangan)}</td>`;
                     rows += `</tr>`;
                 });
             }
@@ -2260,7 +2405,7 @@ const jadwalJagaOperator = {
                     <td>${d}</td><td>${info.hariName}<br>${info.tanggalStr}</td>
                     <td>${unit.jamLabel}</td>
                     <td>${this._escAttr(namaPetugas)}</td>
-                    <td>${this._escAttr(dayData.keterangan || '')}</td>
+                    <td>${this._printKeterangan(d, petugasIds, dayData.keterangan)}</td>
                 </tr>`;
             }
             return `<table class="jjo-print-table">
