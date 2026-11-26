@@ -2067,6 +2067,11 @@ const jadwalJagaOperator = {
                 } else {
                     ids = this._toIds(dd.petugas).filter(Boolean);
                 }
+                // Petugas yang sedang Cuti/Izin pada hari ini TIDAK dihitung (Jaga, Hari, Libur,
+                // Libur Nasional). Namanya tetap masuk daftar unit (dengan angka 0 kalau seluruh
+                // hari jadwalnya jatuh di masa cuti/izin).
+                ids.map(String).forEach(id => { if (!stat[id]) stat[id] = { jaga: 0, hari: 0, libur: 0, nasional: 0 }; });
+                ids = ids.filter(id => !this._leaveOn(id, d));
                 if (!ids.length) continue;
                 const dow = new Date(this.year, this.month, d).getDay();
                 const dateStr = `${this.year}-${mm}-${String(d).padStart(2, '0')}`;
