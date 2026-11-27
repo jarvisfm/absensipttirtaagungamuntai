@@ -660,6 +660,10 @@ const auth = {
                 ${field('Golongan Darah', p.golonganDarah)}
                 ${field('No. KTP', p.ktp)}
                 ${field('NPWP', p.npwp)}
+                ${field('No. BPJS Kesehatan', p.bpjsKesehatan)}
+                ${field('No. BPJS Ketenagakerjaan', p.bpjsKetenagakerjaan)}
+                ${field('No. Dapenma', p.dapenma)}
+                ${field('SIM Kendaraan', p.simKendaraan)}
                 ${field('No. Telp', p.noTelp)}
                 ${field('Email', p.email)}
                 ${field('Alamat Rumah', p.alamatRumah)}
