@@ -75,6 +75,16 @@
         @media (max-width: 576px) { .aj-card { padding: 16px; } .aj-badges { grid-template-columns: 1fr; } .aj-num { font-size: 1.5rem; } }
         @media (prefers-reduced-motion: reduce) { .aj-seg, .aj-skel { animation: none; } .aj-badge { transition: none; } }
     </style>
+    <style id="sim-kendaraan-style">
+        /* [TAMBAHAN 2026-11-26] Checklist SIM Kendaraan (Edit Profil & Edit Karyawan) - tampilan mengikuti
+           .op-schedule-unit-checklist di admin.css, tapi 3 kolom (2 kolom di HP) karena opsinya pendek. */
+        .sim-checklist { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 2px 12px;
+            border: 1px solid var(--border-color); border-radius: var(--border-radius); padding: 8px 12px; background: var(--bg-primary); }
+        .sim-item { display: flex; align-items: center; gap: 8px; padding: 5px 0; font-size: var(--font-size-sm);
+            color: var(--text-primary); cursor: pointer; white-space: nowrap; }
+        .sim-item input[type="checkbox"] { width: 16px; height: 16px; margin: 0; flex-shrink: 0; cursor: pointer; }
+        @media (max-width: 520px) { .sim-checklist { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+    </style>
     <style id="admin-stat-style">
         /* Dashboard Admin: kartu statistik gaya "Komposisi Jenis Karyawan" (tint lembut, ikon gradien, pil persen, batang tipis) */
         .admin-stat-card.asc { position: relative; padding: 16px 18px; border-radius: 16px; gap: 14px; overflow: hidden;
@@ -2191,6 +2201,38 @@
                         <input type="text" id="p-ktp" placeholder="Nomor KTP">
                     </div>
                 </div>
+                <!-- [TAMBAHAN 2026-11-26] BPJS, Dapenma, SIM Kendaraan (SIM boleh lebih dari 1) -->
+                <div class="form-row two-col">
+                    <div class="form-group">
+                        <label>No. BPJS Kesehatan</label>
+                        <input type="text" id="p-bpjsKesehatan" inputmode="numeric" placeholder="Nomor BPJS Kesehatan">
+                    </div>
+                    <div class="form-group">
+                        <label>No. BPJS Ketenagakerjaan</label>
+                        <input type="text" id="p-bpjsKetenagakerjaan" inputmode="numeric" placeholder="Nomor BPJS Ketenagakerjaan">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>No. Dapenma</label>
+                    <input type="text" id="p-dapenma" placeholder="Nomor Dapenma">
+                </div>
+                <div class="form-group">
+                    <label>SIM Kendaraan <small>(centang boleh lebih dari 1)</small></label>
+                    <div id="p-simKendaraan" class="sim-checklist">
+                        <label class="sim-item"><input type="checkbox" class="sim-cb" value="SIM A"> SIM A</label>
+                        <label class="sim-item"><input type="checkbox" class="sim-cb" value="SIM A Umum"> SIM A Umum</label>
+                        <label class="sim-item"><input type="checkbox" class="sim-cb" value="SIM B1"> SIM B1</label>
+                        <label class="sim-item"><input type="checkbox" class="sim-cb" value="SIM B1 Umum"> SIM B1 Umum</label>
+                        <label class="sim-item"><input type="checkbox" class="sim-cb" value="SIM B2"> SIM B2</label>
+                        <label class="sim-item"><input type="checkbox" class="sim-cb" value="SIM B2 Umum"> SIM B2 Umum</label>
+                        <label class="sim-item"><input type="checkbox" class="sim-cb" value="SIM C"> SIM C</label>
+                        <label class="sim-item"><input type="checkbox" class="sim-cb" value="SIM C1"> SIM C1</label>
+                        <label class="sim-item"><input type="checkbox" class="sim-cb" value="SIM C2"> SIM C2</label>
+                        <label class="sim-item"><input type="checkbox" class="sim-cb" value="SIM D"> SIM D</label>
+                        <label class="sim-item"><input type="checkbox" class="sim-cb" value="SIM D1"> SIM D1</label>
+                        <label class="sim-item"><input type="checkbox" class="sim-cb" value="SIM Internasional"> SIM Internasional</label>
+                    </div>
+                </div>
                 <div class="form-group">
                     <label>Email</label>
                     <input type="email" id="p-email" placeholder="email@example.com">
@@ -4111,6 +4153,38 @@
                                     <div class="form-group">
                                         <label>No. KTP</label>
                                         <input type="text" id="pf-ktp" placeholder="Nomor KTP">
+                                    </div>
+                                </div>
+                                <!-- [TAMBAHAN 2026-11-26] BPJS, Dapenma, SIM Kendaraan (SIM boleh lebih dari 1) -->
+                                <div class="form-row two-col">
+                                    <div class="form-group">
+                                        <label>No. BPJS Kesehatan</label>
+                                        <input type="text" id="pf-bpjsKesehatan" inputmode="numeric" placeholder="Nomor BPJS Kesehatan">
+                                    </div>
+                                    <div class="form-group">
+                                        <label>No. BPJS Ketenagakerjaan</label>
+                                        <input type="text" id="pf-bpjsKetenagakerjaan" inputmode="numeric" placeholder="Nomor BPJS Ketenagakerjaan">
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label>No. Dapenma</label>
+                                    <input type="text" id="pf-dapenma" placeholder="Nomor Dapenma">
+                                </div>
+                                <div class="form-group">
+                                    <label>SIM Kendaraan <small>(centang boleh lebih dari 1)</small></label>
+                                    <div id="pf-simKendaraan" class="sim-checklist">
+                                        <label class="sim-item"><input type="checkbox" class="sim-cb" value="SIM A"> SIM A</label>
+                                        <label class="sim-item"><input type="checkbox" class="sim-cb" value="SIM A Umum"> SIM A Umum</label>
+                                        <label class="sim-item"><input type="checkbox" class="sim-cb" value="SIM B1"> SIM B1</label>
+                                        <label class="sim-item"><input type="checkbox" class="sim-cb" value="SIM B1 Umum"> SIM B1 Umum</label>
+                                        <label class="sim-item"><input type="checkbox" class="sim-cb" value="SIM B2"> SIM B2</label>
+                                        <label class="sim-item"><input type="checkbox" class="sim-cb" value="SIM B2 Umum"> SIM B2 Umum</label>
+                                        <label class="sim-item"><input type="checkbox" class="sim-cb" value="SIM C"> SIM C</label>
+                                        <label class="sim-item"><input type="checkbox" class="sim-cb" value="SIM C1"> SIM C1</label>
+                                        <label class="sim-item"><input type="checkbox" class="sim-cb" value="SIM C2"> SIM C2</label>
+                                        <label class="sim-item"><input type="checkbox" class="sim-cb" value="SIM D"> SIM D</label>
+                                        <label class="sim-item"><input type="checkbox" class="sim-cb" value="SIM D1"> SIM D1</label>
+                                        <label class="sim-item"><input type="checkbox" class="sim-cb" value="SIM Internasional"> SIM Internasional</label>
                                     </div>
                                 </div>
                                 <div class="form-group">
