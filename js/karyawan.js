@@ -398,6 +398,12 @@ const karyawanManager = {
             document.getElementById('p-noTelp').value          = p.noTelp || '';
             document.getElementById('p-npwp').value            = p.npwp || '';
             document.getElementById('p-ktp').value             = p.ktp || '';
+            // [TAMBAHAN 2026-11-26] BPJS, Dapenma, SIM Kendaraan (SIM disimpan sebagai teks dipisah koma)
+            document.getElementById('p-bpjsKesehatan').value       = p.bpjsKesehatan || '';
+            document.getElementById('p-bpjsKetenagakerjaan').value = p.bpjsKetenagakerjaan || '';
+            document.getElementById('p-dapenma').value             = p.dapenma || '';
+            const simTerpilihP = String(p.simKendaraan || '').split(',').map(s => s.trim()).filter(Boolean);
+            document.querySelectorAll('#p-simKendaraan .sim-cb').forEach(cb => { cb.checked = simTerpilihP.includes(cb.value); });
             document.getElementById('p-email').value           = p.email || '';
             document.getElementById('p-agama').value           = p.agama || '';
             document.getElementById('p-alamatRumah').value     = p.alamatRumah || '';
@@ -577,6 +583,7 @@ const karyawanManager = {
         if (lockBox) { lockBox.style.display = 'none'; lockBox.innerHTML = ''; }
         const fields = ['karyawan-id','p-nik','p-nama','p-jenisKelamin','p-statusPernikahan',
             'p-tempatLahir','p-tanggalLahir','p-golonganDarah','p-noTelp','p-npwp','p-ktp',
+            'p-bpjsKesehatan','p-bpjsKetenagakerjaan','p-dapenma',
             'p-email','p-agama','p-alamatRumah','p-statusPekerjaan','p-statusKaryawan','p-pendidikan','p-jabatan',
             'p-unitWilayah','p-unitJaga','p-bagian','p-subBidang','p-pangkat','p-golongan',
             'p-terhitungMulai','p-masaKerja','p-tahunPensiun','p-shift','p-fileKTP',
@@ -587,6 +594,7 @@ const karyawanManager = {
             if (el) el.value = '';
         });
         if (window.SubBidang) SubBidang.fillList(document.getElementById('p-subBidang-list'), '');
+        document.querySelectorAll('#p-simKendaraan .sim-cb').forEach(cb => { cb.checked = false; }); // [TAMBAHAN 2026-11-26]
 
         // Select tidak punya opsi kosong, jadi default-kan manual ke 'staff'
         const roleEl = document.getElementById('p-role');
@@ -848,6 +856,10 @@ const karyawanManager = {
             noTelp:           document.getElementById('p-noTelp').value.trim(),
             npwp:             document.getElementById('p-npwp').value.trim(),
             ktp:              document.getElementById('p-ktp').value.trim(),
+            bpjsKesehatan:       document.getElementById('p-bpjsKesehatan').value.trim(),
+            bpjsKetenagakerjaan: document.getElementById('p-bpjsKetenagakerjaan').value.trim(),
+            dapenma:             document.getElementById('p-dapenma').value.trim(),
+            simKendaraan:        Array.from(document.querySelectorAll('#p-simKendaraan .sim-cb:checked')).map(cb => cb.value).join(', '),
             fileKTP:          document.getElementById('p-fileKTP')?.value.trim() || '',
             email:            document.getElementById('p-email').value.trim(),
             agama:            document.getElementById('p-agama').value,
@@ -1241,6 +1253,10 @@ const karyawanManager = {
                     ${field('Golongan Darah', p.golonganDarah)}
                     ${field('No. KTP', p.ktp)}
                     ${field('NPWP', p.npwp)}
+                    ${field('No. BPJS Kesehatan', p.bpjsKesehatan)}
+                    ${field('No. BPJS Ketenagakerjaan', p.bpjsKetenagakerjaan)}
+                    ${field('No. Dapenma', p.dapenma)}
+                    ${field('SIM Kendaraan', p.simKendaraan)}
                     ${field('No. Telp', p.noTelp)}
                     ${field('Email', p.email)}
                     ${field('Alamat Rumah', p.alamatRumah)}
