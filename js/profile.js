@@ -353,6 +353,12 @@ const profileManager = {
             document.getElementById('pf-noTelp').value            = p.noTelp || '';
             document.getElementById('pf-npwp').value              = p.npwp || '';
             document.getElementById('pf-ktp').value               = p.ktp || '';
+            // [TAMBAHAN 2026-11-26] BPJS, Dapenma, SIM Kendaraan (SIM disimpan sebagai teks dipisah koma)
+            document.getElementById('pf-bpjsKesehatan').value       = p.bpjsKesehatan || '';
+            document.getElementById('pf-bpjsKetenagakerjaan').value = p.bpjsKetenagakerjaan || '';
+            document.getElementById('pf-dapenma').value             = p.dapenma || '';
+            const simTerpilihPf = String(p.simKendaraan || '').split(',').map(s => s.trim()).filter(Boolean);
+            document.querySelectorAll('#pf-simKendaraan .sim-cb').forEach(cb => { cb.checked = simTerpilihPf.includes(cb.value); });
             document.getElementById('pf-email').value             = p.email || '';
             document.getElementById('pf-agama').value             = p.agama || '';
             document.getElementById('pf-alamatRumah').value       = p.alamatRumah || '';
@@ -803,6 +809,10 @@ const profileManager = {
             noTelp:           document.getElementById('pf-noTelp').value.trim(),
             npwp:             document.getElementById('pf-npwp').value.trim(),
             ktp:              document.getElementById('pf-ktp').value.trim(),
+            bpjsKesehatan:       document.getElementById('pf-bpjsKesehatan').value.trim(),
+            bpjsKetenagakerjaan: document.getElementById('pf-bpjsKetenagakerjaan').value.trim(),
+            dapenma:             document.getElementById('pf-dapenma').value.trim(),
+            simKendaraan:        Array.from(document.querySelectorAll('#pf-simKendaraan .sim-cb:checked')).map(cb => cb.value).join(', '),
             fileKTP:          document.getElementById('pf-fileKTP')?.value.trim() || '',
             email:            document.getElementById('pf-email').value.trim(),
             agama:            document.getElementById('pf-agama').value,
